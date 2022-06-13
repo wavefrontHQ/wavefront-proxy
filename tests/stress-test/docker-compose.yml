@@ -1,0 +1,59 @@
+services:
+
+  http-proxy:
+    image: node:18.3
+    volumes:
+      - ./resources:/opt/wf/
+    working_dir: /opt/wf/
+    command: [ "node", "filter.js", "50" ]
+
+  wf-proxy:
+    hostname: stress-test-wfproxy
+    build: ../../docker
+    environment:
+      # WAVEFRONT_URL: https://${WF_URL}/api/
+      # WAVEFRONT_TOKEN: ${WF_TOKEN}
+      WAVEFRONT_URL: https://nimba.wavefront.com/api/
+      WAVEFRONT_TOKEN: e5d76c15-f7f9-4dbe-b53d-0e67227877b1
+      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000
+      JAVA_HEAP_USAGE: 2G
+      JVM_USE_CONTAINER_OPTS: false
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    ports:
+      - "2878:2878"
+    volumes:
+      - ./resources:/tmp/ca/
+      - ./resources:/opt/wf/
+    depends_on:
+      - "http-proxy"
+    command:
+      [
+        "/opt/wf/wait-for-it.sh",
+        "http-proxy:8000",
+        "--",
+        "/bin/bash",
+        "/opt/wavefront/wavefront-proxy/run.sh"
+      ]
+
+  jmeter:
+    build: jmeter
+    volumes:
+      - ./resources:/opt/wf/
+    depends_on:
+      - "wf-proxy"
+    command:
+      [
+        "/opt/wf/wait-for-it.sh",
+        "wf-proxy:2878",
+        "--timeout=30",
+        "--",
+        "jmeter",
+        "-n",
+        "-t",
+        "/opt/wf/stress.jmx",
+        "-p",
+        "/opt/wf/stress.properties"
+      ]

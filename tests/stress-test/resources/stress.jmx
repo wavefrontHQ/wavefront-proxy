@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.4.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan" enabled="true">
+      <stringProp name="TestPlan.comments"></stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="proxy_addr" elementType="Argument">
+            <stringProp name="Argument.name">proxy_addr</stringProp>
+            <stringProp name="Argument.value">pp</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">${__P(proxy_addr,localhost)}</stringProp>
+        <stringProp name="HTTPSampler.port"></stringProp>
+        <stringProp name="HTTPSampler.protocol"></stringProp>
+        <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+        <stringProp name="HTTPSampler.path"></stringProp>
+        <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+        <stringProp name="HTTPSampler.response_timeout"></stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="zipkin span" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">stoptest</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">15</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <intProp name="calcMode">2</intProp>
+          <stringProp name="throughput">${__jexl3(${__P(spans_ps,600)})}</stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <UserParameters guiclass="UserParametersGui" testclass="UserParameters" testname="User Parameters" enabled="true">
+          <collectionProp name="UserParameters.names">
+            <stringProp name="1270300245">trace_id</stringProp>
+            <stringProp name="2070327504">parent_id</stringProp>
+          </collectionProp>
+          <collectionProp name="UserParameters.thread_values">
+            <collectionProp name="2098890721">
+              <stringProp name="-438012100">${__RandomString(16,01234567890abcdef,)}</stringProp>
+              <stringProp name="-438012100">${__RandomString(16,01234567890abcdef,)}</stringProp>
+            </collectionProp>
+          </collectionProp>
+          <boolProp name="UserParameters.per_iteration">true</boolProp>
+        </UserParameters>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Spam" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">[&#xd;
+        {&#xd;
+           &quot;traceId&quot;: &quot;${trace_id}&quot;,&#xd;
+           &quot;id&quot;:      &quot;${parent_id}&quot;,&#xd;
+           &quot;kind&quot;: &quot;CLIENT&quot;,&#xd;
+           &quot;name&quot;: &quot;service 1 span&quot;,&#xd;
+           &quot;duration&quot;: ${__Random(1,100)}000,&#xd;
+           &quot;timestamp&quot;: ${__timeShift(,,-PT2M,,)}000,&#xd;
+           &quot;localEndpoint&quot;: {&#xd;
+               &quot;serviceName&quot;: &quot;service-${__Random(0,1000)}&quot;,&#xd;
+               &quot;ipv4&quot;: &quot;127.0.0.1&quot;,&#xd;
+               &quot;port&quot;: 8080&#xd;
+           },&#xd;
+           &quot;tags&quot;: {&#xd;
+	           &quot;tag1&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag2&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag3&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag4&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag5&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;&#xd;
+           }&#xd;
+       },&#xd;
+       {&#xd;
+           &quot;traceId&quot;:  &quot;${trace_id}&quot;,&#xd;
+           &quot;parentId&quot;: &quot;${parent_id}&quot;,&#xd;
+           &quot;id&quot;: &quot;${__RandomString(16,01234567890abcdef,)}&quot;,&#xd;
+           &quot;kind&quot;: &quot;CLIENT&quot;,&#xd;
+           &quot;name&quot;: &quot;service 2 span&quot;,&#xd;
+           &quot;duration&quot;: ${__Random(1,100)}000,&#xd;
+           &quot;timestamp&quot;: ${__timeShift(,,-PT2M,,)}200,&#xd;
+           &quot;localEndpoint&quot;: {&#xd;
+               &quot;serviceName&quot;: &quot;service-${__Random(0,1000)}&quot;,&#xd;
+               &quot;ipv4&quot;: &quot;127.0.0.1&quot;,&#xd;
+               &quot;port&quot;: 8080&#xd;
+           },&#xd;
+           &quot;tags&quot;: {&#xd;
+           	&quot;error.message&quot;: &quot;Invalid credentials&quot;&#xd;
+ 		 },&#xd;
+           &quot;tags&quot;: {&#xd;
+	           &quot;tag1&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag2&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag3&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag4&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;,&#xd;
+	           &quot;tag5&quot;: &quot;${__RandomString(${__Random(1,100)},abcdef,)}&quot;&#xd;
+           },&#xd;
+ 		 &quot;annotations&quot;: [{&#xd;
+	           &quot;timestamp&quot;: ${__timeShift(,,-PT2M,,)}000,&#xd;
+	           &quot;value&quot;: &quot;log message - s__timeShiftpanlog&quot;,&#xd;
+        		 &quot;endpoint&quot;: {&#xd;
+                    &quot;serviceName&quot;: &quot;app&quot;,&#xd;
+                    &quot;ipv4&quot;: &quot;0.0.0.0&quot;&#xd;
+                }&#xd;
+ 		 }]&#xd;
+       }&#xd;
+   ]</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port">2880</stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">/api/v2/spans/</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion" enabled="true">
+          <collectionProp name="Asserion.test_strings">
+            <stringProp name="49588">202</stringProp>
+          </collectionProp>
+          <stringProp name="Assertion.custom_message"></stringProp>
+          <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+          <boolProp name="Assertion.assume_success">false</boolProp>
+          <intProp name="Assertion.test_type">8</intProp>
+        </ResponseAssertion>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="test.metric" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">stoptest</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">15</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <UserParameters guiclass="UserParametersGui" testclass="UserParameters" testname="User Parameters" enabled="true">
+          <collectionProp name="UserParameters.names">
+            <stringProp name="114225">str</stringProp>
+            <stringProp name="107029">len</stringProp>
+          </collectionProp>
+          <collectionProp name="UserParameters.thread_values">
+            <collectionProp name="-361163431">
+              <stringProp name="958031277">abcdefghijklmnopqrstuvwxyz</stringProp>
+              <stringProp name="52">4</stringProp>
+            </collectionProp>
+          </collectionProp>
+          <boolProp name="UserParameters.per_iteration">false</boolProp>
+        </UserParameters>
+        <hashTree/>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <intProp name="calcMode">2</intProp>
+          <stringProp name="throughput">${__jexl3(${__P(metrics_ps,600)})}</stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="test.metric" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source&#xd;
+test.metric.${__RandomString(${len},${str},)} ${__Random(1,100)} source=anwang-cert.source tag1=${__RandomString(${__Random(1,100)},abcdef,)} tag2=${__RandomString(${__Random(1,100)},abcdef,)} tag3=${__RandomString(${__Random(1,100)},abcdef,)} tag4=${__RandomString(${__Random(1,100)},abcdef,)} tag5=${__RandomString(${__Random(1,100)},abcdef,)} tag6=${__RandomString(${__Random(1,100)},abcdef,)}&#xd;
+</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port">2878</stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path"></stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Logs" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <intProp name="calcMode">2</intProp>
+          <stringProp name="throughput">${__jexl3(${logs_ps})} </stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="logs" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">[&#xd;
+   {&#xd;
+      &quot;message&quot;:&quot;INFO local log line service-${__Random(0,9999999)}&quot;,&#xd;
+      &quot;from_proxy&quot;:&quot;true&quot;,&#xd;
+      &quot;source&quot;:&quot;jmeter&quot;,&#xd;
+      &quot;timestamp&quot;:&quot;${__timeShift(,,-PT30S,,)}000&quot;&#xd;
+   },&#xd;
+   {&#xd;
+      &quot;message&quot;:&quot;DEBUG local log line service-${__Random(0,9999999)}&quot;,&#xd;
+      &quot;from_proxy&quot;:&quot;true&quot;,&#xd;
+      &quot;source&quot;:&quot;jmeter&quot;,&#xd;
+      &quot;timestamp&quot;:&quot;${__timeShift(,,-PT30S,,)}000&quot;,&#xd;
+      &quot;debug&quot;:&quot;true&quot;,&#xd;
+      &quot;tag&quot;:&quot;tag 1&quot;&#xd;
+   }&#xd;
+]</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port">2878</stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">/logs/json_array?f=logs_json_arr</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <Summariser guiclass="SummariserGui" testclass="Summariser" testname="Generate Summary Results" enabled="true"/>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
