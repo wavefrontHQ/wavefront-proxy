@@ -369,7 +369,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2022-04.1</version>
+      <version>2022-06.4</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>

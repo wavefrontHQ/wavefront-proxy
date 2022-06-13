@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 public interface EntityProperties {
   // what we consider "unlimited"
   int NO_RATE_LIMIT = 10_000_000;
+  int NO_RATE_LIMIT_BYTES = 1_000_000_000;
 
   // default values for dynamic properties
   boolean DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED = false;
@@ -25,16 +26,20 @@ public interface EntityProperties {
   int DEFAULT_BATCH_SIZE_SPAN_LOGS = 1000;
   int DEFAULT_BATCH_SIZE_EVENTS = 50;
   int DEFAULT_MIN_SPLIT_BATCH_SIZE = 100;
-  int DEFAULT_BATCH_SIZE_LOGS = 50;
   int DEFAULT_FLUSH_THREADS_SOURCE_TAGS = 2;
   int DEFAULT_FLUSH_THREADS_EVENTS = 2;
+
+  // the maximum batch size for logs is set between 1 and 5 mb, with a default of 4mb
+  int DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD = 1024 * 1024;
+  int DEFAULT_BATCH_SIZE_LOGS_PAYLOAD = 4 * 1024 * 1024;
+  int MAX_BATCH_SIZE_LOGS_PAYLOAD = 5 * 1024 * 1024;
 
   /**
    * Get initially configured batch size.
    *
    * @return batch size
    */
-  int getItemsPerBatchOriginal();
+  int getDataPerBatchOriginal();
 
   /**
    * Whether we should split batches into smaller ones after getting HTTP 406 response from server.
@@ -83,14 +88,14 @@ public interface EntityProperties {
    *
    * @return batch size
    */
-  int getItemsPerBatch();
+  int getDataPerBatch();
 
   /**
    * Sets the maximum allowed number of items per single flush.
    *
-   * @param itemsPerBatch batch size. if null is provided, reverts to originally configured value.
+   * @param dataPerBatch batch size. if null is provided, reverts to originally configured value.
    */
-  void setItemsPerBatch(@Nullable Integer itemsPerBatch);
+  void setDataPerBatch(@Nullable Integer dataPerBatch);
 
   /**
    * Do not split the batch if its size is less than this value. Only applicable when
@@ -102,7 +107,7 @@ public interface EntityProperties {
 
   /**
    * Max number of items that can stay in memory buffers before spooling to disk.
-   * Defaults to 16 * {@link #getItemsPerBatch()}, minimum size: {@link #getItemsPerBatch()}.
+   * Defaults to 16 * {@link #getDataPerBatch()}, minimum size: {@link #getDataPerBatch()}.
    * Setting this value lower than default reduces memory usage, but will force the proxy to
    * spool to disk more frequently if you have points arriving at the proxy in short bursts,
    * and/or your network latency is on the higher side.

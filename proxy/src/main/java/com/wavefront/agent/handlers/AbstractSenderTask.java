@@ -42,6 +42,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   protected final Logger throttledLogger;
 
   List<T> datum = new ArrayList<>();
+  int datumSize;
   final Object mutex = new Object();
   final ScheduledExecutorService scheduler;
   private final ExecutorService flushExecutor;
@@ -99,7 +100,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     Metrics.newGauge(new MetricName(handlerKey.toString() + "." + threadId, "", "size"), new Gauge<Integer>() {
       @Override
       public Integer value() {
-        return datum.size();
+        return datumSize;
       }
     });
 
@@ -114,7 +115,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     isSending = true;
     try {
       List<T> current = createBatch();
-      int currentBatchSize = current.size();
+      int currentBatchSize = getDataSize(current);
       if (currentBatchSize == 0) return;
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
@@ -138,7 +139,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         final long willRetryIn = nextRunMillis;
         throttledLogger.log(Level.INFO, () -> "[" + handlerKey.getHandle() + " thread " + threadId +
               "]: WF-4 Proxy rate limiter active (pending " + handlerKey.getEntityType() + ": " +
-              datum.size() + "), will retry in " + willRetryIn + "ms");
+              datumSize + "), will retry in " + willRetryIn + "ms");
         undoBatch(current);
       }
     } catch (Throwable t) {
@@ -169,9 +170,10 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     metricSize.update(metricString.toString().length());
     synchronized (mutex) {
       this.datum.add(metricString);
+      datumSize += getObjectSize(metricString);
     }
     //noinspection UnstableApiUsage
-    if (datum.size() >= properties.getMemoryBufferLimit() && !isBuffering.get() &&
+    if (datumSize >= properties.getMemoryBufferLimit() && !isBuffering.get() &&
         drainBuffersRateLimiter.tryAcquire()) {
       try {
         flushExecutor.submit(drainBuffersToQueueTask);
@@ -185,13 +187,14 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     List<T> current;
     int blockSize;
     synchronized (mutex) {
-      blockSize = Math.min(datum.size(), Math.min(properties.getItemsPerBatch(),
-          (int)rateLimiter.getRate()));
+      blockSize = getBlockSize(datum,
+          (int)rateLimiter.getRate(), properties.getDataPerBatch());
       current = datum.subList(0, blockSize);
+      datumSize -= getDataSize(current);
       datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
     }
     logger.fine("[" + handlerKey.getHandle() + "] (DETAILED): sending " + current.size() +
-        " valid " + handlerKey.getEntityType() + "; in memory: " + this.datum.size() +
+        " valid " + handlerKey.getEntityType() + "; in memory: " + datumSize +
         "; total attempted: " + this.attemptedCounter.count() +
         "; total blocked: " + this.blockedCounter.count());
     return current;
@@ -200,23 +203,24 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   protected void undoBatch(List<T> batch) {
     synchronized (mutex) {
       datum.addAll(0, batch);
+      datumSize += getDataSize(batch);
     }
   }
 
   private final Runnable drainBuffersToQueueTask = new Runnable() {
     @Override
     public void run() {
-      if (datum.size() > properties.getMemoryBufferLimit()) {
+      if (datumSize > properties.getMemoryBufferLimit()) {
         // there are going to be too many points to be able to flush w/o the agent blowing up
         // drain the leftovers straight to the retry queue (i.e. to disk)
         // don't let anyone add any more to points while we're draining it.
         logger.warning("[" + handlerKey.getHandle() + " thread " + threadId +
-            "]: WF-3 Too many pending " + handlerKey.getEntityType() + " (" + datum.size() +
-            "), block size: " + properties.getItemsPerBatch() + ". flushing to retry queue");
+            "]: WF-3 Too many pending " + handlerKey.getEntityType() + " (" + datumSize +
+            "), block size: " + properties.getDataPerBatch() + ". flushing to retry queue");
         drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
         logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
             "]: flushing to retry queue complete. Pending " + handlerKey.getEntityType() +
-            ": " + datum.size());
+            ": " + datumSize);
       }
     }
   };
@@ -258,7 +262,35 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public long getTaskRelativeScore() {
-    return datum.size() + (isBuffering.get() ? properties.getMemoryBufferLimit() :
-        (isSending ? properties.getItemsPerBatch() / 2 : 0));
+    return datumSize + (isBuffering.get() ? properties.getMemoryBufferLimit() :
+        (isSending ? properties.getDataPerBatch() / 2 : 0));
+  }
+
+  /**
+   * @param datum     list from which to calculate the sub-list
+   * @param ratelimit the rate limit
+   * @param batchSize the size of the batch
+   * @return size of sublist such that datum[0:i) falls within the rate limit
+   */
+  protected int getBlockSize(List<T> datum, int ratelimit, int batchSize) {
+    return Math.min(Math.min(getDataSize(datum), ratelimit), batchSize);
+  }
+
+  /**
+   * @param data the data to get the size of
+   * @return the size of the data in regard to the rate limiter
+   */
+  protected int getDataSize(List<T> data) {
+    return data.size();
+  }
+
+  /***
+   * returns the size of the object in relation to the scale we care about
+   * default each object = 1
+   * @param object object to size
+   * @return size of object
+   */
+  protected int getObjectSize(T object) {
+    return 1;
   }
 }

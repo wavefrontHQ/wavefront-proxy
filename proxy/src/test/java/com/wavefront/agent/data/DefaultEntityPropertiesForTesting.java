@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 public class DefaultEntityPropertiesForTesting implements EntityProperties {
 
   @Override
-  public int getItemsPerBatchOriginal() {
+  public int getDataPerBatchOriginal() {
     return DEFAULT_BATCH_SIZE;
   }
 
@@ -46,12 +46,12 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public int getItemsPerBatch() {
+  public int getDataPerBatch() {
     return DEFAULT_BATCH_SIZE;
   }
 
   @Override
-  public void setItemsPerBatch(@Nullable Integer itemsPerBatch) {
+  public void setDataPerBatch(@Nullable Integer dataPerBatch) {
   }
 
   @Override

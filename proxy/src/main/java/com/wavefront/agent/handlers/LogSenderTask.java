@@ -55,4 +55,31 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
         backlog, handlerKey.getHandle(), batch, null);
     task.enqueue(reason);
   }
+
+  @Override
+  protected int getDataSize(List<Log> batch) {
+    int size = 0;
+    for (Log l : batch) {
+      size += l.getDataSize();
+    }
+    return size;
+  }
+
+  @Override
+  protected int getBlockSize(List<Log> datum, int rateLimit, int batchSize) {
+    int maxDataSize = Math.min(rateLimit, batchSize);
+    int size = 0;
+    for (int i = 0; i < datum.size(); i++) {
+      size += datum.get(i).getDataSize();
+      if (size > maxDataSize) {
+        return i;
+      }
+    }
+    return datum.size();
+  }
+
+  @Override
+  protected int getObjectSize(Log object) {
+    return object.getDataSize();
+  }
 }

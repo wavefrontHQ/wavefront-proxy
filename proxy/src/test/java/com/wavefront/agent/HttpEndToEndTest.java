@@ -31,7 +31,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,7 +44,6 @@ import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -605,7 +603,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.bufferFile = buffer;
-    proxy.proxyConfig.pushRateLimitLogs = 100;
+    proxy.proxyConfig.pushRateLimitLogs = 1024;
     proxy.proxyConfig.pushFlushIntervalLogs = 50;
 
     proxy.start(new String[]{});
@@ -614,9 +612,10 @@ public class HttpEndToEndTest {
     if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     long timestamp = time * 1000 + 12345;
-    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"}]";
+    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\", " +
+        "\"application\":\"myApp\",\"service\":\"myService\"}]";
     String expectedLog = "[{\"source\":\"myHost\",\"timestamp\":" + timestamp +
-        ",\"text\":\"\",\"application\":\"*\",\"service\":\"*\"}]";
+        ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\"}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(req -> {
       String content = req.content().toString(CharsetUtil.UTF_8);

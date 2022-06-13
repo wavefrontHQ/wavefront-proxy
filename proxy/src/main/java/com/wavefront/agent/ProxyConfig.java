@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_EVENTS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_LOGS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
@@ -41,9 +41,12 @@ import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_INTERVAL;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_EVENTS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
+import static com.wavefront.agent.data.EntityProperties.MAX_BATCH_SIZE_LOGS_PAYLOAD;
 import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
+import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT_BYTES;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static io.opentracing.tag.Tags.SPAN_KIND;
@@ -194,9 +197,9 @@ public class ProxyConfig extends Configuration {
       "in a single flush. Default: 50")
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
-  @Parameter(names = {"--pushFlushMaxLogs"}, description = "Maximum allowed logs " +
-      "in a single flush. Default: 50")
-  int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS;
+  @Parameter(names = {"--pushFlushMaxLogs"}, description = "Maximum size of a log payload " +
+      "in a single flush in bytes between 1mb (1048576) and 5mb (5242880). Default: 4mb (4194304)")
+  int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -223,8 +226,8 @@ public class ProxyConfig extends Configuration {
   double pushRateLimitEvents = 5.0d;
 
   @Parameter(names = {"--pushRateLimitLogs"}, description = "Limit the outgoing logs " +
-      "rate at the proxy. Default: do not throttle.")
-  double pushRateLimitLogs = NO_RATE_LIMIT;
+      "data rate at the proxy. Default: do not throttle.")
+  double pushRateLimitLogs = NO_RATE_LIMIT_BYTES;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -1740,6 +1743,7 @@ public class ProxyConfig extends Configuration {
           pushRateLimitSourceTags);
       pushRateLimitSpans = config.getInteger("pushRateLimitSpans", pushRateLimitSpans);
       pushRateLimitSpanLogs = config.getInteger("pushRateLimitSpanLogs", pushRateLimitSpanLogs);
+      pushRateLimitLogs = config.getInteger("pushRateLimitLogs", pushRateLimitLogs);
       pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
       pushRateLimitMaxBurstSeconds = config.getInteger("pushRateLimitMaxBurstSeconds",
           pushRateLimitMaxBurstSeconds);
@@ -2092,8 +2096,11 @@ public class ProxyConfig extends Configuration {
           pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), (int) (pushRateLimitEvents + 1));
 
       pushFlushMaxLogs = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxLogs",
-          pushFlushMaxLogs), DEFAULT_BATCH_SIZE_LOGS),
-          (int) pushRateLimitLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE);
+          pushFlushMaxLogs), MAX_BATCH_SIZE_LOGS_PAYLOAD),
+          (int) pushRateLimitLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
+      pushMemoryBufferLimitLogs = Math.max(config.getInteger("pushMemoryBufferLimitLogs",
+          pushMemoryBufferLimitLogs), pushFlushMaxLogs);
+
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of

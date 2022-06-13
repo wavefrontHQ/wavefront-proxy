@@ -59,7 +59,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Common base for all wrappers (to avoid code duplication)
    */
   private static abstract class AbstractEntityProperties implements EntityProperties {
-    private Integer itemsPerBatch = null;
+    private Integer dataPerBatch = null;
     protected final ProxyConfig wrapped;
     private final RecyclableRateLimiter rateLimiter;
     private final LoadingCache<String, AtomicInteger> backlogSizeCache = Caffeine.newBuilder().
@@ -78,13 +78,13 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatch() {
-      return firstNonNull(itemsPerBatch, getItemsPerBatchOriginal());
+    public int getDataPerBatch() {
+      return firstNonNull(dataPerBatch, getDataPerBatchOriginal());
     }
 
     @Override
-    public void setItemsPerBatch(@Nullable Integer itemsPerBatch) {
-      this.itemsPerBatch = itemsPerBatch;
+    public void setDataPerBatch(@Nullable Integer dataPerBatch) {
+      this.dataPerBatch = dataPerBatch;
     }
 
     @Override
@@ -197,7 +197,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class PointsProperties extends CoreEntityProperties {
     public PointsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxPoints");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxPoints");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
@@ -207,7 +207,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxPoints();
     }
 
@@ -223,7 +223,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class HistogramsProperties extends SubscriptionBasedEntityProperties {
     public HistogramsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxHistograms");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxHistograms");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
@@ -233,7 +233,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxHistograms();
     }
 
@@ -249,7 +249,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class SourceTagsProperties extends CoreEntityProperties {
     public SourceTagsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSourceTags");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSourceTags");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitSourceTags");
     }
 
@@ -259,7 +259,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxSourceTags();
     }
 
@@ -285,7 +285,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class SpansProperties extends SubscriptionBasedEntityProperties {
     public SpansProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSpans");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpans");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
@@ -295,7 +295,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxSpans();
     }
 
@@ -311,7 +311,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class SpanLogsProperties extends SubscriptionBasedEntityProperties {
     public SpanLogsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSpanLogs");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpanLogs");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
@@ -321,7 +321,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxSpanLogs();
     }
 
@@ -337,7 +337,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class EventsProperties extends CoreEntityProperties {
     public EventsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxEvents");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxEvents");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitEvents");
     }
 
@@ -347,7 +347,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxEvents();
     }
 
@@ -374,7 +374,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static final class LogsProperties extends SubscriptionBasedEntityProperties {
     public LogsProperties(ProxyConfig wrapped) {
       super(wrapped);
-      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxLogs");
+      reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxLogs");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitLogs");
     }
 
@@ -384,13 +384,13 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getItemsPerBatchOriginal() {
+    public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxLogs();
     }
 
     @Override
     public int getMemoryBufferLimit() {
-      return 16 * wrapped.getPushMemoryBufferLimitLogs();
+      return wrapped.getPushMemoryBufferLimitLogs();
     }
 
     @Override
