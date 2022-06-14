@@ -113,6 +113,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     }
     final String strPoint = serializer.apply(point);
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strPoint));
 
     if (validItemsLogger != null) validItemsLogger.info(strPoint);

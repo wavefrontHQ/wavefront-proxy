@@ -2,8 +2,10 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EventDataSubmissionTask;
+import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -57,4 +59,9 @@ class EventSenderTask extends AbstractSenderTask {
   //        backlog, handlerKey.getHandle(), batch, null);
   //    task.enqueue(reason);
   //  }
+
+  @Override
+  TaskResult processSingleBatch(List<String> batch) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
 }

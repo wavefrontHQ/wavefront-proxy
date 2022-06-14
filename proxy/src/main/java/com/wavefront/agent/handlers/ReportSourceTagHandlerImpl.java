@@ -47,6 +47,7 @@ class ReportSourceTagHandlerImpl
           "WF-401: SourceTag annotation key has illegal characters.");
     }
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(sourceTag.toString()));
 
     getReceivedCounter().inc();

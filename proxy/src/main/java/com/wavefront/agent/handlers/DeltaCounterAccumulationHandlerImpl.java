@@ -157,6 +157,7 @@ public class DeltaCounterAccumulationHandlerImpl
             hostMetricTagsPair.getTags(),
             "wavefront-proxy");
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strPoint));
   }
 

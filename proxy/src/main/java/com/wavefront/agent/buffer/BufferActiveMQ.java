@@ -5,10 +5,7 @@ import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
@@ -32,7 +29,7 @@ class BufferActiveMQ implements Buffer {
   private final Map<String, Pair<ClientSession, ClientProducer>> producers = new HashMap<>();
   private final Map<String, Pair<ClientSession, ClientConsumer>> consumers = new HashMap<>();
 
-  private final Map<String, Gauge> mcMetrics = new HashMap<>();
+  private final Map<String, Gauge<Long>> mcMetrics = new HashMap<>();
   private final String name;
   private final int level;
 
@@ -43,9 +40,8 @@ class BufferActiveMQ implements Buffer {
     config.setName(name);
     config.setSecurityEnabled(false);
     config.setPersistenceEnabled(persistenceEnabled);
-    if (persistenceEnabled) {
-      config.setJournalDirectory(buffer);
-    }
+    config.setJournalDirectory(buffer);
+    config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
 
     embeddedMen = new EmbeddedActiveMQ();
 
@@ -64,7 +60,7 @@ class BufferActiveMQ implements Buffer {
         new QueueConfiguration(name + "." + port + ".points")
             .setAddress(port)
             .setRoutingType(RoutingType.ANYCAST);
-    QueueConfiguration queue_td =
+    QueueConfiguration queue_dl =
         new QueueConfiguration(name + "." + port + ".points.dl")
             .setAddress(port)
             .setRoutingType(RoutingType.ANYCAST);
@@ -76,7 +72,7 @@ class BufferActiveMQ implements Buffer {
       ClientSession.QueueQuery q = session.queueQuery(queue.getName());
       if (!q.isExists()) {
         session.createQueue(queue);
-        session.createQueue(queue_td);
+        session.createQueue(queue_dl);
       }
     } catch (Exception e) {
       logger.log(Level.SEVERE, "error", e);
@@ -109,12 +105,12 @@ class BufferActiveMQ implements Buffer {
                 + "."
                 + port
                 + ".points\"");
-    Gauge mc =
+    Gauge<Long> mc =
         Metrics.newGauge(
             new MetricName("buffer." + name + "." + port, "", "MessageCount"),
-            new Gauge<Integer>() {
+            new Gauge<Long>() {
               @Override
-              public Integer value() {
+              public Long value() {
                 Long mc = null;
                 try {
                   mc =
@@ -125,9 +121,9 @@ class BufferActiveMQ implements Buffer {
                               .getAttribute(nameMen, "MessageCount");
                 } catch (Exception e) {
                   e.printStackTrace();
-                  return 0;
+                  return 0L;
                 }
-                return mc.intValue(); // datum.size();
+                return mc; // datum.size();
               }
             });
     mcMetrics.put(port, mc);
@@ -135,7 +131,7 @@ class BufferActiveMQ implements Buffer {
 
   public void createBridge(String port, int level) {
     AddressSettings addrSetting = new AddressSettings();
-    addrSetting.setMaxExpiryDelay(5000l);
+    addrSetting.setMaxExpiryDelay(5000l); // TODO: config ?
     addrSetting.setMaxDeliveryAttempts(3); // TODO: config ?
     addrSetting.setDeadLetterAddress(
         SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
@@ -205,7 +201,9 @@ class BufferActiveMQ implements Buffer {
     return mcMetrics.get(port);
   }
 
-  public void onMsg(String port, OnMsgFunction func) {
+  public void onMsg(String port, OnMsgFunction func) {}
+
+  public void onMsgBatch(String port, int batchSize, OnMsgFunction func) {
     String key = port + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientConsumer> mqCtx =
         consumers.computeIfAbsent(
@@ -232,17 +230,24 @@ class BufferActiveMQ implements Buffer {
     ClientConsumer consumer = mqCtx._2;
     try {
       session.start();
-      ClientMessage msg = consumer.receive(1000);
-      if (msg != null) {
-        try {
+      List<String> batch = new ArrayList<>(batchSize);
+      while (batch.size() < batchSize) {
+        ClientMessage msg = consumer.receive(1000);
+        if (msg != null) {
           msg.acknowledge();
-          func.run(msg.getReadOnlyBodyBuffer().readString());
-          session.commit();
-        } catch (Exception e) {
-          System.out.println("--> " + msg.getDeliveryCount());
-          session.rollback();
+          batch.add(msg.getReadOnlyBodyBuffer().readString());
+        } else {
+          break;
         }
       }
+
+      try {
+        func.run(batch);
+        session.commit();
+      } catch (Exception e) {
+        session.rollback();
+      }
+
     } catch (ActiveMQException e) {
       logger.log(Level.SEVERE, "error", e);
       System.exit(-1);

@@ -33,7 +33,7 @@ public class HandlerKey {
 
   @Nonnull
   public String getHandle() {
-    return handle + (this.tenantName == null ? "" : "." + this.tenantName);
+    return handle; // + (this.tenantName == null ? "" : "." + this.tenantName);
   }
 
   public String getTenantName() {

@@ -12,16 +12,19 @@ public class BuffersManager {
   private static Buffer level_2;
   private static Buffer level_3;
 
-  public static void init(String buffer) {
-    level_1 = new BufferMemory(0, "memory");
-    level_2 = new BufferDisk(1, "disk", buffer);
+  public static void init(BuffersManagerConfig cfg) {
+    level_1 = new BufferMemory(0, "memory", cfg.buffer + "/memory");
+    if (cfg.l2) {
+      level_2 = new BufferDisk(1, "disk", cfg.buffer + "/disk");
+    }
   }
 
   public static void registerNewPort(String port) {
     level_1.registerNewPort(port);
-    level_2.registerNewPort(port);
-
-    level_1.createBridge(port, 1);
+    if (level_2 != null) {
+      level_2.registerNewPort(port);
+      level_1.createBridge(port, 1);
+    }
   }
 
   public static void sendMsg(String port, List<String> strPoints) {
@@ -38,7 +41,16 @@ public class BuffersManager {
     return level_2.getMcGauge(port);
   }
 
+  public static void onMsgBatch(String port, int batchSize, OnMsgFunction func) {
+    level_1.onMsgBatch(port, batchSize, func);
+  }
+
   public static void onMsg(String port, OnMsgFunction func) {
     level_1.onMsg(port, func);
+  }
+
+  @VisibleForTesting
+  static Buffer getLeve2() {
+    return level_2;
   }
 }

@@ -61,6 +61,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(event.toString()));
 
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {

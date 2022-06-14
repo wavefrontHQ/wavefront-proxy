@@ -10,9 +10,7 @@ interface Buffer {
 
   void onMsg(String port, OnMsgFunction func);
 
-  Gauge<Long> getMcGauge(String port);
-}
+  void onMsgBatch(String port, int batchSize, OnMsgFunction func);
 
-interface OnMsgFunction {
-  void run(String msg) throws Exception;
+  Gauge<Long> getMcGauge(String port);
 }

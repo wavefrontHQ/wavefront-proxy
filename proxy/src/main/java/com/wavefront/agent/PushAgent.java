@@ -21,6 +21,7 @@ import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.BuffersManagerConfig;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
@@ -167,7 +168,10 @@ public class PushAgent extends AbstractAgent {
 
     /***** PROXY NEW *****/
 
-    BuffersManager.init(proxyConfig.getBufferFile());
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.buffer = proxyConfig.getBufferFile();
+    cfg.l2 = true;
+    BuffersManager.init(cfg);
 
     csvToList(proxyConfig.getPushListenerPorts())
         .forEach(

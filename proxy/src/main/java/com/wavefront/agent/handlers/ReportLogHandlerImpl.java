@@ -84,6 +84,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     Log logObj = new Log(log);
     receivedByteCount.inc(logObj.toString().getBytes().length);
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(logObj.toString()));
 
     getReceivedCounter().inc();

@@ -2,8 +2,10 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
+import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
@@ -119,4 +121,9 @@ class SourceTagSenderTask extends AbstractSenderTask {
   //      task.enqueue(reason);
   //    }
   //  }
+
+  @Override
+  TaskResult processSingleBatch(List<String> batch) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
 }

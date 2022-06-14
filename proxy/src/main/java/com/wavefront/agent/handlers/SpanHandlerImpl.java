@@ -109,6 +109,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     }
     final String strSpan = serializer.apply(span);
 
+    getReceivedCounter().inc();
     BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strSpan));
 
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
