@@ -32,7 +32,7 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   public void run() {
     BuffersManager.onMsgBatch(
         handlerKey.getHandle(),
-        100,
+        1000,
         batch -> {
           TaskResult result = processSingleBatch(batch);
           switch (result) {

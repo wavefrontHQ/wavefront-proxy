@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>11.2-SNAPSHOT</version>
+  <version>12.0-SNAPSHOT</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -29,7 +29,7 @@
     <connection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</connection>
     <developerConnection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</developerConnection>
     <url>git@github.com:wavefrontHQ/wavefront-proxy.git</url>
-    <tag>release-11.x</tag>
+    <tag>release-12.x</tag>
   </scm>
 
   <distributionManagement>
@@ -380,12 +380,11 @@
   </dependencyManagement>
 
   <dependencies>
-      <!-- https://mvnrepository.com/artifact/org.apache.activemq/apache-artemis -->
+      <!-- https://mvnrepository.com/artifact/org.apache.activemq/artemis-server -->
       <dependency>
           <groupId>org.apache.activemq</groupId>
-          <artifactId>apache-artemis</artifactId>
-          <version>2.22.0</version>
-          <type>pom</type>
+          <artifactId>artemis-server</artifactId>
+          <version>2.23.0</version>
       </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>

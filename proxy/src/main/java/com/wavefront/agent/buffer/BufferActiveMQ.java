@@ -22,7 +22,7 @@ import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 
 class BufferActiveMQ implements Buffer {
-  private static final Logger logger = Logger.getLogger(BuffersManager.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
   private final EmbeddedActiveMQ embeddedMen;
 
@@ -36,11 +36,18 @@ class BufferActiveMQ implements Buffer {
   public BufferActiveMQ(int level, String name, boolean persistenceEnabled, String buffer) {
     this.level = level;
     this.name = name;
+
+    log.info("-> buffer:'" + buffer + "'");
+
     Configuration config = new ConfigurationImpl();
     config.setName(name);
     config.setSecurityEnabled(false);
     config.setPersistenceEnabled(persistenceEnabled);
-    config.setJournalDirectory(buffer);
+    config.setJournalDirectory(buffer + "/journal");
+    config.setBindingsDirectory(buffer + "/bindings");
+    config.setLargeMessagesDirectory(buffer + "/largemessages");
+    config.setCreateBindingsDir(true);
+    config.setCreateJournalDir(true);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
 
     embeddedMen = new EmbeddedActiveMQ();
@@ -50,7 +57,7 @@ class BufferActiveMQ implements Buffer {
       embeddedMen.setConfiguration(config);
       embeddedMen.start();
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "error creating buffer", e);
+      log.log(Level.SEVERE, "error creating buffer", e);
       System.exit(-1);
     }
   }
@@ -75,14 +82,14 @@ class BufferActiveMQ implements Buffer {
         session.createQueue(queue_dl);
       }
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "error", e);
+      log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
 
     try {
       registerQueueMetrics(port);
     } catch (MalformedObjectNameException e) {
-      logger.log(Level.SEVERE, "error", e);
+      log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
   }
@@ -152,7 +159,7 @@ class BufferActiveMQ implements Buffer {
           .addConnectorConfiguration("to.level_" + (level), "vm://" + (level));
       embeddedMen.getActiveMQServer().deployBridge(bridge);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "error", e);
+      log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
   }
@@ -191,7 +198,7 @@ class BufferActiveMQ implements Buffer {
       }
       session.commit();
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "error", e);
+      log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
   }
@@ -232,7 +239,7 @@ class BufferActiveMQ implements Buffer {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
       while (batch.size() < batchSize) {
-        ClientMessage msg = consumer.receive(1000);
+        ClientMessage msg = consumer.receive(10);
         if (msg != null) {
           msg.acknowledge();
           batch.add(msg.getReadOnlyBodyBuffer().readString());
@@ -249,13 +256,13 @@ class BufferActiveMQ implements Buffer {
       }
 
     } catch (ActiveMQException e) {
-      logger.log(Level.SEVERE, "error", e);
+      log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     } finally {
       try {
         session.stop();
       } catch (ActiveMQException e) {
-        logger.log(Level.SEVERE, "error", e);
+        log.log(Level.SEVERE, "error", e);
         System.exit(-1);
       }
     }

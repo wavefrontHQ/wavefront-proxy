@@ -5,16 +5,14 @@ services:
     volumes:
       - ./resources:/opt/wf/
     working_dir: /opt/wf/
-    command: [ "node", "filter.js", "50" ]
+    command: [ "node", "filter.js", "0" ]
 
   wf-proxy:
     hostname: stress-test-wfproxy
     build: ../../docker
     environment:
-      # WAVEFRONT_URL: https://${WF_URL}/api/
-      # WAVEFRONT_TOKEN: ${WF_TOKEN}
-      WAVEFRONT_URL: https://nimba.wavefront.com/api/
-      WAVEFRONT_TOKEN: e5d76c15-f7f9-4dbe-b53d-0e67227877b1
+      WAVEFRONT_URL: https://${WF_URL}/api/
+      WAVEFRONT_TOKEN: ${WF_TOKEN}
       WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000
       JAVA_HEAP_USAGE: 2G
       JVM_USE_CONTAINER_OPTS: false
