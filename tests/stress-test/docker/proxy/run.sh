@@ -53,6 +53,8 @@ if [ -d "/tmp/ca/" ]; then
   done
 fi
 
+/bin/telegraf &
+
 #############
 # run proxy #
 #############

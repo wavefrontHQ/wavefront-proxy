@@ -10,8 +10,8 @@
 
     const server = mockttp.getLocal({
         https: {
-            keyPath: 'rootCA.key',
-            certPath: 'rootCA.pem'
+            keyPath: '../certs/rootCA.key',
+            certPath: '../certs/rootCA.pem'
         }
     });
 
