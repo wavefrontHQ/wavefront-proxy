@@ -1,11 +1,13 @@
 package com.wavefront.agent.buffer;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
@@ -26,8 +28,10 @@ class BufferActiveMQ implements Buffer {
 
   private final EmbeddedActiveMQ embeddedMen;
 
-  private final Map<String, Pair<ClientSession, ClientProducer>> producers = new HashMap<>();
-  private final Map<String, Pair<ClientSession, ClientConsumer>> consumers = new HashMap<>();
+  private final Map<String, Pair<ClientSession, ClientProducer>> producers =
+      new ConcurrentHashMap<>();
+  private final Map<String, Pair<ClientSession, ClientConsumer>> consumers =
+      new ConcurrentHashMap<>();
 
   private final Map<String, Gauge<Long>> mcMetrics = new HashMap<>();
   private final String name;
@@ -62,6 +66,7 @@ class BufferActiveMQ implements Buffer {
     }
   }
 
+  @Override
   public void registerNewPort(String port) {
     QueueConfiguration queue =
         new QueueConfiguration(name + "." + port + ".points")
@@ -164,6 +169,7 @@ class BufferActiveMQ implements Buffer {
     }
   }
 
+  @Override
   public void sendMsg(String port, List<String> strPoints) {
     String key = port + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientProducer> mqCtx =
@@ -173,10 +179,8 @@ class BufferActiveMQ implements Buffer {
               try {
                 ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
-                ClientSession session =
-                    factory.createSession(
-                        false,
-                        false); // 1st false mean we commit msg.send on only on session.commit
+                // 1st false mean we commit msg.send on only on session.commit
+                ClientSession session = factory.createSession(false, false);
                 ClientProducer producer =
                     session.createProducer(port + "::" + name + "." + port + ".points");
                 return new Pair<>(session, producer);
@@ -187,6 +191,7 @@ class BufferActiveMQ implements Buffer {
               return null;
             });
 
+    // TODO: check if session still valid
     ClientSession session = mqCtx._1;
     ClientProducer producer = mqCtx._2;
     try {
@@ -203,13 +208,18 @@ class BufferActiveMQ implements Buffer {
     }
   }
 
+  @Override
   @VisibleForTesting
   public Gauge<Long> getMcGauge(String port) {
     return mcMetrics.get(port);
   }
 
+  @Override
   public void onMsg(String port, OnMsgFunction func) {}
 
+  private static RateLimiter rate = RateLimiter.create(100);
+
+  @Override
   public void onMsgBatch(String port, int batchSize, OnMsgFunction func) {
     String key = port + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientConsumer> mqCtx =
@@ -238,7 +248,7 @@ class BufferActiveMQ implements Buffer {
     try {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
-      while (batch.size() < batchSize) {
+      while ((batch.size() < batchSize) && (rate.tryAcquire())) {
         ClientMessage msg = consumer.receive(10);
         if (msg != null) {
           msg.acknowledge();

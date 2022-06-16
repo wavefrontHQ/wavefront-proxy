@@ -68,6 +68,7 @@
     </resources>
     <plugins>
       <plugin>
+          <!-- https://google.github.io/styleguide/javaguide.html -->
         <groupId>com.cosium.code</groupId>
         <artifactId>git-code-format-maven-plugin</artifactId>
         <version>3.3</version>
