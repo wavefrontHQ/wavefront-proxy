@@ -1,0 +1,43 @@
+2022-06-16 20:56:28,870 INFO o.a.j.u.JMeterUtils: Setting Locale to en_EN
+2022-06-16 20:56:28,908 INFO o.a.j.JMeter: Loading user properties from: /usr/local/Cellar/jmeter/5.4.3/libexec/bin/user.properties
+2022-06-16 20:56:28,909 INFO o.a.j.JMeter: Loading system properties from: /usr/local/Cellar/jmeter/5.4.3/libexec/bin/system.properties
+2022-06-16 20:56:28,917 INFO o.a.j.JMeter: Copyright (c) 1998-2021 The Apache Software Foundation
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: Version 5.4.3
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: java.version=17.0.2
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: java.vm.name=OpenJDK 64-Bit Server VM
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: os.name=Mac OS X
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: os.arch=x86_64
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: os.version=12.4
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: file.encoding=UTF-8
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: java.awt.headless=null
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: Max memory     =1073741824
+2022-06-16 20:56:28,918 INFO o.a.j.JMeter: Available Processors =8
+2022-06-16 20:56:28,930 INFO o.a.j.JMeter: Default Locale=English (EN)
+2022-06-16 20:56:28,931 INFO o.a.j.JMeter: JMeter  Locale=English (EN)
+2022-06-16 20:56:28,931 INFO o.a.j.JMeter: JMeterHome=/usr/local/Cellar/jmeter/5.4.3/libexec
+2022-06-16 20:56:28,931 INFO o.a.j.JMeter: user.dir  =/Users/glaullon/wavefront/wavefront-proxy/tests/stress-test/resources/jmeter
+2022-06-16 20:56:28,931 INFO o.a.j.JMeter: PWD       =/Users/glaullon/wavefront/wavefront-proxy/tests/stress-test/resources/jmeter
+2022-06-16 20:56:29,365 INFO o.a.j.JMeter: IP: 127.94.0.1 Name: MacBook-Pro-Curro.local FullName: client.openvpn.net
+2022-06-16 20:56:34,947 INFO o.a.j.JMeter: Setting LAF to: laf:com.apple.laf.AquaLookAndFeel
+2022-06-16 20:56:37,170 INFO o.a.j.JMeter: Loaded icon properties from org/apache/jmeter/images/icon.properties
+2022-06-16 20:56:39,315 INFO o.j.r.JARSourceHTTP: Requesting https://jmeter-plugins.org/repo/?installID=mac_os_x-781a202266eca9b342bd34e955910556-gui
+2022-06-16 20:56:39,651 INFO o.a.j.JMeter: Loading file: stress.jmx
+2022-06-16 20:56:39,655 INFO o.a.j.s.FileServer: Default base='/Users/glaullon/wavefront/wavefront-proxy/tests/stress-test/resources/jmeter'
+2022-06-16 20:56:39,657 INFO o.a.j.s.FileServer: Set new base='/Users/glaullon/wavefront/wavefront-proxy/tests/stress-test/resources/jmeter'
+2022-06-16 20:56:39,883 INFO o.a.j.s.SaveService: Testplan (JMX) version: 2.2. Testlog (JTL) version: 2.2
+2022-06-16 20:56:39,898 INFO o.a.j.s.SaveService: Using SaveService properties version 5.0
+2022-06-16 20:56:39,900 INFO o.a.j.s.SaveService: Using SaveService properties file encoding UTF-8
+2022-06-16 20:56:39,902 INFO o.a.j.s.SaveService: Loading file: stress.jmx
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/html is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xhtml+xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/vnd.wap.wml is org.apache.jmeter.protocol.http.parser.RegexpHTMLParser
+2022-06-16 20:56:40,077 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/css is org.apache.jmeter.protocol.http.parser.CssParser
+2022-06-16 20:56:40,146 INFO o.a.j.s.FileServer: Set new base='/Users/glaullon/wavefront/wavefront-proxy/tests/stress-test/resources/jmeter'
+2022-06-16 20:56:40,544 INFO o.a.j.s.SampleResult: Note: Sample TimeStamps are START times
+2022-06-16 20:56:40,545 INFO o.a.j.s.SampleResult: sampleresult.default.encoding is set to ISO-8859-1
+2022-06-16 20:56:40,545 INFO o.a.j.s.SampleResult: sampleresult.useNanoTime=true
+2022-06-16 20:56:40,545 INFO o.a.j.s.SampleResult: sampleresult.nanoThreadSleep=5000
+2022-06-16 20:56:40,806 INFO o.a.j.v.ViewResultsFullVisualizer: Add JavaFX to your Java installation if you want to use renderer: org.apache.jmeter.visualizers.RenderInBrowser
+2022-06-16 20:56:41,646 INFO o.j.r.PluginManager: Plugins Status: [jpgc-plugins-manager=1.7, jmeter-core=5.4.3, jmeter-ftp=5.4.3, jmeter-http=5.4.3, jmeter-jdbc=5.4.3, jmeter-jms=5.4.3, jmeter-junit=5.4.3, jmeter-java=5.4.3, jmeter-ldap=5.4.3, jmeter-mail=5.4.3, jmeter-mongodb=5.4.3, jmeter-native=5.4.3, jmeter-tcp=5.4.3, jmeter-components=5.4.3]

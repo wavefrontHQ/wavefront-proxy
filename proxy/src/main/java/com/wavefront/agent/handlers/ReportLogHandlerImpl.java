@@ -68,10 +68,10 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedLogLag =
         registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "lag"), false);
+            new MetricName(handlerKey.getQueue() + ".received", "", "lag"), false);
     this.receivedTagCount =
         registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "tagCount"), false);
+            new MetricName(handlerKey.getQueue() + ".received", "", "tagCount"), false);
     this.receivedByteCount =
         registry.newCounter(new MetricName(handlerKey.toString() + ".received", "", "bytes"));
   }
@@ -85,7 +85,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     receivedByteCount.inc(logObj.toString().getBytes().length);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(logObj.toString()));
+    BuffersManager.sendMsg(handlerKey, Collections.singletonList(logObj.toString()));
 
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {

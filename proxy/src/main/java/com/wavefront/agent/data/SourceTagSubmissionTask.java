@@ -3,9 +3,9 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
-import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import java.util.List;
 import java.util.function.Supplier;
@@ -39,10 +39,10 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
       SourceTagAPI api,
       EntityProperties properties,
       TaskQueue<SourceTagSubmissionTask> backlog,
-      String handle,
+      HandlerKey handle,
       @Nonnull SourceTag sourceTag,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, ReportableEntityType.SOURCE_TAG, timeProvider);
+    super(properties, backlog, handle, timeProvider);
     this.api = api;
     this.sourceTag = sourceTag;
     this.limitRetries = true;

@@ -31,8 +31,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
-import java.io.File;
 import java.net.URI;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -86,7 +86,7 @@ public class HttpEndToEndTest {
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -138,7 +138,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, String.valueOf(proxyPort));
+    HandlerKey key = new HandlerKey(ReportableEntityType.POINT, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     assertEquals(1, successfulSteps.getAndSet(0));
     AtomicBoolean part1 = new AtomicBoolean(false);
@@ -190,7 +190,9 @@ public class HttpEndToEndTest {
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
+
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -271,7 +273,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.EVENT, String.valueOf(proxyPort));
+    HandlerKey key = new HandlerKey(ReportableEntityType.EVENT, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
@@ -285,7 +287,7 @@ public class HttpEndToEndTest {
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -385,7 +387,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
+    HandlerKey key = new HandlerKey(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
     for (int i = 0; i < 2; i++) ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     for (int i = 0; i < 4; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(10, successfulSteps.getAndSet(0));
@@ -402,7 +404,7 @@ public class HttpEndToEndTest {
     int histHourPort = findAvailablePort(40002);
     int histDayPort = findAvailablePort(40003);
     int histDistPort = findAvailablePort(40000);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -555,7 +557,7 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + histDistPort + "/", payloadHistograms); // should reject
     digestTime.set(System.currentTimeMillis());
     proxy.histogramFlushRunnables.forEach(Runnable::run);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports");
+    HandlerKey key = new HandlerKey(ReportableEntityType.HISTOGRAM, "histogram_ports");
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
 
     digestTime.set(System.currentTimeMillis() - 1001);
@@ -571,7 +573,7 @@ public class HttpEndToEndTest {
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -633,9 +635,9 @@ public class HttpEndToEndTest {
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory)
-        .flushNow(HandlerKey.of(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
+        .flushNow(new HandlerKey(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory)
-        .flushNow(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
+        .flushNow(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
     assertTrueWithTimeout(50, gotSpan::get);
     assertTrueWithTimeout(50, gotSpanLog::get);
   }
@@ -645,7 +647,7 @@ public class HttpEndToEndTest {
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -713,9 +715,9 @@ public class HttpEndToEndTest {
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory)
-        .flushNow(HandlerKey.of(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
+        .flushNow(new HandlerKey(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory)
-        .flushNow(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
+        .flushNow(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
     assertTrueWithTimeout(50, gotSpan::get);
     assertTrueWithTimeout(50, gotSpanLog::get);
   }
@@ -724,7 +726,7 @@ public class HttpEndToEndTest {
   public void testEndToEndLogs() throws Exception {
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -757,7 +759,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
+    HandlerKey key = new HandlerKey(ReportableEntityType.LOGS, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertTrueWithTimeout(50, gotLog::get);

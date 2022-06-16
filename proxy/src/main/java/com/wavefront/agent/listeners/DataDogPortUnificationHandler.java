@@ -127,7 +127,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     this(
         handle,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
         fanout,
         synchronousMode,
         processSystemMetrics,

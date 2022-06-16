@@ -57,7 +57,7 @@ public class ReportSourceTagHandlerTest {
             Collections.singletonMap(
                 APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
 
-    handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
+    handlerKey = new HandlerKey(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler =
         new ReportSourceTagHandlerImpl(
             handlerKey, 10, senderTaskFactory.createSenderTasks(handlerKey), null, blockedLogger);
@@ -182,7 +182,7 @@ public class ReportSourceTagHandlerTest {
         ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tasks);
     ReportSourceTagHandlerImpl sourceTagHandler =
         new ReportSourceTagHandlerImpl(
-            HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"),
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "4878"),
             10,
             taskMap,
             null,

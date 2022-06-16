@@ -78,7 +78,7 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
       return new InstrumentedTaskQueueDelegate<T>(
           new InMemorySubmissionQueue<>(),
           "buffer.in-memory",
-          ImmutableMap.of("port", handlerKey.getHandle()),
+          ImmutableMap.of("port", handlerKey.getPort()),
           handlerKey.getEntityType());
     }
     if (StringUtils.isNotBlank(queueUrl)) {
@@ -87,9 +87,9 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
               queueUrl,
               AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
               new RetryTaskConverter<T>(
-                  handlerKey.getHandle(), RetryTaskConverter.CompressionType.LZ4)),
+                  handlerKey.getPort(), RetryTaskConverter.CompressionType.LZ4)),
           "buffer.sqs",
-          ImmutableMap.of("port", handlerKey.getHandle(), "sqsQueue", queueUrl),
+          ImmutableMap.of("port", handlerKey.getPort(), "sqsQueue", queueUrl),
           handlerKey.getEntityType());
     }
     return new TaskQueueStub<>();
@@ -101,7 +101,7 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
         queueNameTemplate
             .replace("{{id}}", this.queueId)
             .replace("{{entity}}", handlerKey.getEntityType().toString())
-            .replace("{{port}}", handlerKey.getHandle());
+            .replace("{{port}}", handlerKey.getPort());
     queueName = queueName.replaceAll("[^A-Za-z0-9\\-_]", "_");
     return queueName;
   }

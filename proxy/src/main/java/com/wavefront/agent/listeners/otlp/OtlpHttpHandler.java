@@ -89,13 +89,14 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       boolean includeResourceAttrsForMetrics) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
-    this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
+    this.spanHandler =
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle));
     this.spanLogsHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle));
     this.metricsHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle));
     this.histogramHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle));
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;

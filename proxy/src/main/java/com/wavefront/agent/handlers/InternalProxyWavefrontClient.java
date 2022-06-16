@@ -29,10 +29,11 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
       ReportableEntityHandlerFactory handlerFactory, String handle) {
     this.pointHandlerSupplier =
         lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)));
     this.histogramHandlerSupplier =
         lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
+            () ->
+                handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle)));
     this.clientId = handle;
   }
 

@@ -1868,7 +1868,7 @@ public class PushAgentTest {
             payloadStr1 + payloadStr2 + payloadStr2 + payloadStr3 + payloadStr4));
     ReportableEntityHandler<?, ?> handler =
         proxy.deltaCounterHandlerFactory.getHandler(
-            HandlerKey.of(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+            new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort)));
     if (handler instanceof DeltaCounterAccumulationHandlerImpl) {
       ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
     }
@@ -1900,7 +1900,7 @@ public class PushAgentTest {
     assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
     ReportableEntityHandler<?, ?> handler =
         proxy.deltaCounterHandlerFactory.getHandler(
-            HandlerKey.of(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+            new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort)));
     if (!(handler instanceof DeltaCounterAccumulationHandlerImpl)) fail();
     ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
 

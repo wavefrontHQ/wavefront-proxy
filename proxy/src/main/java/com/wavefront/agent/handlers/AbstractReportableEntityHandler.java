@@ -12,6 +12,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -65,7 +66,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    * @param blockedItemsLogger a {@link Logger} instance for blocked items
    */
   AbstractReportableEntityHandler(
-      HandlerKey handlerKey,
+      @NotNull HandlerKey handlerKey,
       final int blockedItemsPerBatch,
       final Function<T, String> serializer,
       @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
@@ -84,7 +85,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.blockedItemsLogger = blockedItemsLogger;
 
     MetricsRegistry registry = reportReceivedStats ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    String metricPrefix = handlerKey.toString();
+    String metricPrefix = handlerKey.getQueue();
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     MetricName deliveredMetricName = new MetricName(metricPrefix, "", "delivered");
     this.receivedCounter = registry.newCounter(receivedMetricName);
@@ -146,7 +147,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     }
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + message + "]");
+      logger.info("[" + handlerKey.getPort() + "] blocked input: [" + message + "]");
     }
   }
 
@@ -157,7 +158,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + message + "]");
+      logger.info("[" + handlerKey.getPort() + "] blocked input: [" + message + "]");
     }
   }
 
@@ -212,7 +213,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (reportReceivedStats) {
       logger.info(
           "["
-              + handlerKey.getHandle()
+              + handlerKey.getPort()
               + "] "
               + handlerKey.getEntityType().toCapitalizedString()
               + " received rate: "
@@ -232,7 +233,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (deliveredStats.getFiveMinuteCount() == 0) return;
     logger.info(
         "["
-            + handlerKey.getHandle()
+            + handlerKey.getPort()
             + "] "
             + handlerKey.getEntityType().toCapitalizedString()
             + " delivered rate: "
@@ -250,7 +251,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   protected void printTotal() {
     logger.info(
         "["
-            + handlerKey.getHandle()
+            + handlerKey.getPort()
             + "] "
             + handlerKey.getEntityType().toCapitalizedString()
             + " processed since start: "

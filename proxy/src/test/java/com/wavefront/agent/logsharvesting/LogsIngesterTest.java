@@ -73,13 +73,13 @@ public class LogsIngesterTest {
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
     expect(
             (ReportableEntityHandler)
-                mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester")))
+                mockFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, "logs-ingester")))
         .andReturn(mockPointHandler)
         .anyTimes();
     expect(
             (ReportableEntityHandler)
                 mockFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester")))
+                    new HandlerKey(ReportableEntityType.HISTOGRAM, "logs-ingester")))
         .andReturn(mockHistogramHandler)
         .anyTimes();
     replay(mockFactory);

@@ -31,20 +31,7 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   @Override
   public void run() {
     BuffersManager.onMsgBatch(
-        handlerKey.getHandle(),
-        1000,
-        batch -> {
-          TaskResult result = processSingleBatch(batch);
-          switch (result) {
-            case DELIVERED:
-              break;
-            case PERSISTED:
-            case PERSISTED_RETRY:
-            case RETRY_LATER:
-            default:
-              throw new Exception("error");
-          }
-        });
+        handlerKey, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
     if (isRunning) {
       scheduler.schedule(this, 1000, TimeUnit.MILLISECONDS);
     }
@@ -62,5 +49,18 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   public void stop() {
     isRunning = false;
     scheduler.shutdown();
+  }
+
+  private void processBatch(List<String> batch) throws Exception {
+    TaskResult result = processSingleBatch(batch);
+    switch (result) {
+      case DELIVERED:
+        break;
+      case PERSISTED:
+      case PERSISTED_RETRY:
+      case RETRY_LATER:
+      default:
+        throw new Exception("error"); // TODO: review Exception
+    }
   }
 }

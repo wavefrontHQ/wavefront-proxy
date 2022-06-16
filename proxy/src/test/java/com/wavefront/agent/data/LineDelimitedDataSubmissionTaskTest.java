@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
 import org.junit.Test;
@@ -20,8 +21,7 @@ public class LineDelimitedDataSubmissionTaskTest {
             null,
             null,
             "graphite_v2",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
             null);
 

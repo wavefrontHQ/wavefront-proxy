@@ -95,7 +95,7 @@ public class DeltaCounterAccumulationHandlerImpl
 
     this.receivedPointLag =
         Metrics.newHistogram(
-            new MetricName("points." + handlerKey.getHandle() + ".received", "", "lag"), false);
+            new MetricName("points." + handlerKey.getQueue() + ".received", "", "lag"), false);
 
     reporter.scheduleWithFixedDelay(
         this::flushDeltaCounters,
@@ -120,7 +120,7 @@ public class DeltaCounterAccumulationHandlerImpl
     if (receivedRateSink == null) {
       this.receivedRateTimer = null;
     } else {
-      this.receivedRateTimer = new Timer("delta-counter-timer-" + handlerKey.getHandle());
+      this.receivedRateTimer = new Timer("delta-counter-timer-" + handlerKey.getPort());
       this.receivedRateTimer.scheduleAtFixedRate(
           new TimerTask() {
             @Override
@@ -158,7 +158,7 @@ public class DeltaCounterAccumulationHandlerImpl
             "wavefront-proxy");
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strPoint));
+    BuffersManager.sendMsg(handlerKey, Collections.singletonList(strPoint));
   }
 
   @Override

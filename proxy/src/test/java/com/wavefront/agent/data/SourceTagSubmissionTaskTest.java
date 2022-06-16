@@ -9,8 +9,10 @@ import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
@@ -46,7 +48,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
@@ -54,7 +56,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
@@ -62,7 +64,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(200).build()).once();
@@ -96,7 +98,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
@@ -104,7 +106,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
@@ -112,7 +114,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(404).build()).once();
@@ -149,7 +151,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
@@ -157,7 +159,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
@@ -165,7 +167,7 @@ public class SourceTagSubmissionTaskTest {
             sourceTagAPI,
             props,
             queue,
-            "2878",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(500).build()).once();

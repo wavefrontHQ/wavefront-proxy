@@ -34,6 +34,6 @@ public class SQSQueueFactoryImplTest {
             new ProxyConfig().getSqsQueueNameTemplate(), "us-west-2", "myid", false);
     assertEquals(
         "wf-proxy-myid-points-2878",
-        queueFactory.getQueueName(HandlerKey.of(ReportableEntityType.POINT, "2878")));
+        queueFactory.getQueueName(new HandlerKey(ReportableEntityType.POINT, "2878")));
   }
 }

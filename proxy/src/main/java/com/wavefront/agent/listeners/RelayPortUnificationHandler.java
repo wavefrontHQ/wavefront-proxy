@@ -133,18 +133,19 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.proxyConfig = proxyConfig;
     this.wavefrontHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle));
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
+            () ->
+                handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+                    new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
     this.receivedSpansTotal =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("spans." + handle, "", "received.total")));

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
@@ -48,8 +49,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   @JsonProperty protected long enqueuedTimeMillis = Long.MAX_VALUE;
   @JsonProperty protected int attempts = 0;
   @JsonProperty protected int serverErrors = 0;
-  @JsonProperty protected String handle;
-  @JsonProperty protected ReportableEntityType entityType;
+  @JsonProperty protected HandlerKey handle;
   @JsonProperty protected Boolean limitRetries = null;
 
   protected transient Histogram timeSpentInQueue;
@@ -63,19 +63,16 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
    * @param properties entity-specific wrapper for runtime properties.
    * @param backlog backing queue.
    * @param handle port/handle
-   * @param entityType entity type
    * @param timeProvider time provider (in millis)
    */
   AbstractDataSubmissionTask(
       EntityProperties properties,
       TaskQueue<T> backlog,
-      String handle,
-      ReportableEntityType entityType,
+      HandlerKey handle,
       @Nullable Supplier<Long> timeProvider) {
     this.properties = properties;
     this.backlog = backlog;
     this.handle = handle;
-    this.entityType = entityType;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
   }
 
@@ -86,7 +83,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
 
   @Override
   public ReportableEntityType getEntityType() {
-    return entityType;
+    return handle.getEntityType();
   }
 
   abstract Response doExecute() throws DataSubmissionException;
@@ -97,24 +94,29 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
         timeSpentInQueue =
             Metrics.newHistogram(
                 new TaggedMetricName(
-                    "buffer", "queue-time", "port", handle, "content", entityType.toString()));
+                    "buffer",
+                    "queue-time",
+                    "port",
+                    handle.getPort(),
+                    "content",
+                    handle.getEntityType().toString()));
       }
       timeSpentInQueue.update(timeProvider.get() - enqueuedTimeMillis);
     }
     attempts += 1;
     TimerContext timer =
         Metrics.newTimer(
-                new MetricName("push." + handle, "", "duration"),
+                new MetricName("push." + handle.getQueue(), "", "duration"),
                 TimeUnit.MILLISECONDS,
                 TimeUnit.MINUTES)
             .time();
     try (Response response = doExecute()) {
       Metrics.newCounter(
-              new TaggedMetricName("push", handle + ".http." + response.getStatus() + ".count"))
+              new TaggedMetricName(
+                  "push", handle.getQueue() + ".http." + response.getStatus() + ".count"))
           .inc();
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
-        Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered"))
-            .inc(this.weight());
+        Metrics.newCounter(new MetricName(handle.getQueue(), "", "delivered")).inc(this.weight());
         return TaskResult.DELIVERED;
       }
       switch (response.getStatus()) {
@@ -139,12 +141,12 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
         case 403:
           log.warning(
               "["
-                  + handle
+                  + handle.getQueue()
                   + "] HTTP "
                   + response.getStatus()
                   + ": "
                   + "Please verify that \""
-                  + entityType
+                  + handle.getEntityType()
                   + "\" is enabled for your account!");
           return checkStatusAndQueue(QueueingReason.AUTH, false);
         case 407:
@@ -152,7 +154,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           if (isWavefrontResponse(response)) {
             log.warning(
                 "["
-                    + handle
+                    + handle.getQueue()
                     + "] HTTP "
                     + response.getStatus()
                     + " (Unregistered proxy) "
@@ -161,7 +163,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           } else {
             log.warning(
                 "["
-                    + handle
+                    + handle.getQueue()
                     + "] HTTP "
                     + response.getStatus()
                     + " "
@@ -181,7 +183,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           if (serverErrors > MAX_RETRIES && TRUE.equals(limitRetries)) {
             log.info(
                 "["
-                    + handle
+                    + handle.getQueue()
                     + "] HTTP "
                     + response.getStatus()
                     + " received while sending "
@@ -190,7 +192,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           } else {
             log.info(
                 "["
-                    + handle
+                    + handle.getQueue()
                     + "] HTTP "
                     + response.getStatus()
                     + " received while sending "
@@ -200,9 +202,9 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       }
     } catch (DataSubmissionException ex) {
       if (ex instanceof IgnoreStatusCodeException) {
-        Metrics.newCounter(new TaggedMetricName("push", handle + ".http.404.count")).inc();
-        Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered"))
-            .inc(this.weight());
+        Metrics.newCounter(new TaggedMetricName("push", handle.getQueue() + ".http.404.count"))
+            .inc();
+        Metrics.newCounter(new MetricName(handle.getQueue(), "", "delivered")).inc(this.weight());
         return TaskResult.DELIVERED;
       }
       throw new RuntimeException("Unhandled DataSubmissionException", ex);
@@ -211,7 +213,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       if (rootCause instanceof UnknownHostException) {
         log.warning(
             "["
-                + handle
+                + handle.getQueue()
                 + "] Error sending data to Wavefront: Unknown host "
                 + rootCause.getMessage()
                 + ", please check your network!");
@@ -219,19 +221,19 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           || rootCause instanceof SocketTimeoutException) {
         log.warning(
             "["
-                + handle
+                + handle.getQueue()
                 + "] Error sending data to Wavefront: "
                 + rootCause.getMessage()
                 + ", please verify your network/HTTP proxy settings!");
       } else if (ex.getCause() instanceof SSLHandshakeException) {
         log.warning(
             "["
-                + handle
+                + handle.getQueue()
                 + "] Error sending data to Wavefront: "
                 + ex.getCause()
                 + ", please verify that your environment has up-to-date root certificates!");
       } else {
-        log.warning("[" + handle + "] Error sending data to Wavefront: " + rootCause);
+        log.warning("[" + handle.getQueue() + "] Error sending data to Wavefront: " + rootCause);
       }
       if (log.isLoggable(Level.FINE)) {
         log.log(Level.FINE, "Full stacktrace: ", ex);
@@ -239,7 +241,10 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       return checkStatusAndQueue(QueueingReason.RETRY, false);
     } catch (Exception ex) {
       log.warning(
-          "[" + handle + "] Error sending data to Wavefront: " + Throwables.getRootCause(ex));
+          "["
+              + handle.getQueue()
+              + "] Error sending data to Wavefront: "
+              + Throwables.getRootCause(ex));
       if (log.isLoggable(Level.FINE)) {
         log.log(Level.FINE, "Full stacktrace: ", ex);
       }
@@ -257,15 +262,15 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       backlog.add((T) this);
       if (reason != null) {
         Metrics.newCounter(
-                new TaggedMetricName(
-                    entityType + "." + handle, "queued", "reason", reason.toString()))
+                new TaggedMetricName(handle.getQueue(), "queued", "reason", reason.toString()))
             .inc(this.weight());
       }
     } catch (IOException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
+      Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle.getPort()))
+          .inc();
       log.severe(
           "["
-              + handle
+              + handle.getQueue()
               + "] CRITICAL (Losing data): WF-1: Error adding task to the queue: "
               + e.getMessage());
     }

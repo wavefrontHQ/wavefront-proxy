@@ -77,7 +77,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
     this.receivedTagCount =
         Metrics.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "tagCount"), false);
+            new MetricName(handlerKey.getQueue() + ".received", "", "tagCount"), false);
     this.spanLogsHandler = spanLogsHandler;
     this.policySampledSpanCounter =
         Metrics.newCounter(new MetricName(handlerKey.toString(), "", "sampler.policy.saved"));
@@ -110,7 +110,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     final String strSpan = serializer.apply(span);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strSpan));
+    BuffersManager.sendMsg(handlerKey, Collections.singletonList(strSpan));
 
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }

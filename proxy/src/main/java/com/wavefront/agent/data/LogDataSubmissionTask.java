@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
-import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Log;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,10 +48,10 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       UUID proxyId,
       EntityProperties properties,
       TaskQueue<LogDataSubmissionTask> backlog,
-      String handle,
+      HandlerKey handle,
       @Nonnull List<Log> logs,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, ReportableEntityType.LOGS, timeProvider);
+    super(properties, backlog, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs);

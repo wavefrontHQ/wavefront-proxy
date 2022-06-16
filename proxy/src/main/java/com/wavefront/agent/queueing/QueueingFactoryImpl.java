@@ -103,7 +103,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
                         "queueProcessor-"
                             + handlerKey.getEntityType()
                             + "-"
-                            + handlerKey.getHandle())));
+                            + handlerKey.getPort())));
     List<QueueProcessor<T>> queueProcessors =
         IntStream.range(0, numThreads)
             .mapToObj(i -> (QueueProcessor<T>) getQueueProcessor(handlerKey, executor, i))
@@ -119,7 +119,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
                         entityPropsFactoryMap
                             .get(handlerKey.getTenantName())
                             .get(handlerKey.getEntityType())
-                            .reportBacklogSize(handlerKey.getHandle(), backlogSize)));
+                            .reportBacklogSize(handlerKey.getPort(), backlogSize)));
   }
 
   @SuppressWarnings("unchecked")
@@ -177,11 +177,12 @@ public class QueueingFactoryImpl implements QueueingFactory {
   @VisibleForTesting
   public void flushNow(@Nonnull HandlerKey handlerKey) {
     ReportableEntityType entityType = handlerKey.getEntityType();
-    String handle = handlerKey.getHandle();
+    String handle = handlerKey.getPort();
     HandlerKey tenantHandlerKey;
     for (String tenantName : apiContainer.getTenantNameList()) {
-      tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
-      queueProcessors.get(tenantHandlerKey).values().forEach(QueueProcessor::run);
+      tenantHandlerKey = new HandlerKey(entityType, handle, tenantName);
+      // TODO: review
+      //      queueProcessors.get(tenantHandlerKey).values().forEach(QueueProcessor::run);
     }
   }
 }

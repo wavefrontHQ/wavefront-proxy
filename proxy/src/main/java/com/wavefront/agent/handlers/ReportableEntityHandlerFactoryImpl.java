@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import static com.wavefront.data.ReportableEntityType.TRACE_SPAN_LOGS;
 
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
@@ -114,6 +115,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   }
 
   @SuppressWarnings("unchecked")
+  // TODO: review all implementation of this method
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
     BiConsumer<String, Long> receivedRateSink =
@@ -121,10 +123,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
             entityPropsFactoryMap
                 .get(tenantName)
                 .get(handlerKey.getEntityType())
-                .reportReceivedRate(handlerKey.getHandle(), rate);
+                .reportReceivedRate(handlerKey.getPort(), rate);
+    BuffersManager.registerNewHandlerKey(handlerKey);
     return (ReportableEntityHandler<T, U>)
         handlers
-            .computeIfAbsent(handlerKey.getHandle(), h -> new ConcurrentHashMap<>())
+            .computeIfAbsent(handlerKey.getPort(), h -> new ConcurrentHashMap<>())
             .computeIfAbsent(
                 handlerKey.getEntityType(),
                 k -> {
@@ -175,7 +178,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           Utils.lazySupplier(
                               () ->
                                   getHandler(
-                                      HandlerKey.of(TRACE_SPAN_LOGS, handlerKey.getHandle()))));
+                                      new HandlerKey(TRACE_SPAN_LOGS, handlerKey.getPort()))));
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
                           handlerKey,
@@ -207,7 +210,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           "Unexpected entity type "
                               + handlerKey.getEntityType().name()
                               + " for "
-                              + handlerKey.getHandle());
+                              + handlerKey.getPort());
                   }
                 });
   }

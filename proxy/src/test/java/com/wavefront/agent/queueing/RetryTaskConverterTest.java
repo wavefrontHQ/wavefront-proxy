@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNull;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 import java.util.UUID;
 import org.junit.Test;
@@ -21,8 +22,7 @@ public class RetryTaskConverterTest {
             new DefaultEntityPropertiesForTesting(),
             null,
             "wavefront",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("item1", "item2", "item3"),
             () -> 12345L);
     RetryTaskConverter<LineDelimitedDataSubmissionTask> converter =

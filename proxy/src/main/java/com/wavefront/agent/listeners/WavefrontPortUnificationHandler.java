@@ -99,7 +99,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   /**
    * Create new instance with lazy initialization for handlers.
    *
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param tokenAuthenticator tokenAuthenticator for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param decoders decoders.
@@ -114,7 +114,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(
-      final String handle,
+      final String port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
@@ -126,13 +126,13 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       final Supplier<Boolean> spanLogsDisabled,
       final SpanSampler sampler,
       final Supplier<Boolean> logsDisabled) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.wavefrontDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
     this.wavefrontHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, port));
     this.histogramDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder =
@@ -149,25 +149,24 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         (ReportableEntityDecoder<String, ReportLog>) decoders.get(ReportableEntityType.LOGS);
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, port)));
     this.sourceTagHandlerSupplier =
         Utils.lazySupplier(
-            () ->
-                handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.SOURCE_TAG, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.SOURCE_TAG, port)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, port)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+                    new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, port)));
     this.eventHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.EVENT, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.EVENT, port)));
     this.logHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.LOGS, handle)));
+            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.LOGS, port)));
     this.histogramDisabled = histogramDisabled;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
@@ -178,25 +177,24 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             () -> Metrics.newCounter(new MetricName("histogram", "", "discarded_points")));
     this.discardedSpans =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.discardedSpanLogs =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
     this.discardedSpansBySampler =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
     this.discardedSpanLogsBySampler =
         Utils.lazySupplier(
-            () ->
-                Metrics.newCounter(new MetricName("spanLogs." + handle, "", "sampler.discarded")));
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "sampler.discarded")));
     this.receivedSpansTotal =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "received.total")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
     this.discardedLogs =
         Utils.lazySupplier(() -> Metrics.newCounter(new MetricName("logs", "", "discarded")));
     this.receivedLogsTotal =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "received.total")));
+            () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
   }
 
   @Override

@@ -72,7 +72,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
         handle,
         authenticator,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
         defaultHost,
         preprocessor);
   }

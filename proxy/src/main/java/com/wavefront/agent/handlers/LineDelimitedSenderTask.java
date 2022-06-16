@@ -67,15 +67,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   TaskResult processSingleBatch(List<String> batch) {
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
-            proxyAPI,
-            proxyId,
-            properties,
-            backlog,
-            pushFormat,
-            handlerKey.getEntityType(),
-            handlerKey.getHandle(),
-            batch,
-            null);
+            proxyAPI, proxyId, properties, backlog, pushFormat, handlerKey, batch, null);
     if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
     return task.execute();
   }

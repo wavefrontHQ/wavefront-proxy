@@ -11,6 +11,7 @@ import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
@@ -83,8 +84,7 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
               new DefaultEntityPropertiesForTesting(),
               queue,
               "wavefront",
-              ReportableEntityType.POINT,
-              "2878",
+              new HandlerKey(ReportableEntityType.POINT, "2878"),
               ImmutableList.of("item1", "item2", "item3"),
               time::get);
     } else if (this.expectedTask instanceof EventDataSubmissionTask) {
@@ -94,7 +94,7 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
               proxyId,
               new DefaultEntityPropertiesForTesting(),
               queue,
-              "2878",
+              new HandlerKey(ReportableEntityType.EVENT, "2878"),
               ImmutableList.of(
                   new Event(
                       ReportEvent.newBuilder()
@@ -113,7 +113,7 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
               null,
               new DefaultEntityPropertiesForTesting(),
               queue,
-              "2878",
+              new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
               new SourceTag(
                   ReportSourceTag.newBuilder()
                       .setOperation(SourceOperationType.SOURCE_TAG)

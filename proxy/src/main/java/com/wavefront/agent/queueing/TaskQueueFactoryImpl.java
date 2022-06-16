@@ -111,7 +111,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             + "."
             + handlerKey.getEntityType().toString()
             + "."
-            + handlerKey.getHandle()
+            + handlerKey.getPort()
             + "."
             + threadNum;
     String lockFileName = fileName + ".lck";
@@ -183,9 +183,9 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       return new InstrumentedTaskQueueDelegate<>(
           new FileBasedTaskQueue<>(
               queueFile,
-              new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
+              new RetryTaskConverter<T>(handlerKey.getPort(), TaskConverter.CompressionType.LZ4)),
           "buffer",
-          ImmutableMap.of("port", handlerKey.getHandle()),
+          ImmutableMap.of("port", handlerKey.getPort()),
           handlerKey.getEntityType());
     } catch (Exception e) {
       logger.severe(

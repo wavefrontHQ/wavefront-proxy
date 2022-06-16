@@ -86,10 +86,10 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedPointLag =
         registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "lag"), false);
+            new MetricName(handlerKey.getQueue() + ".received", "", "lag"), false);
     this.receivedTagCount =
         registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "tagCount"), false);
+            new MetricName(handlerKey.getQueue() + ".received", "", "tagCount"), false);
     this.discardedCounterSupplier =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
@@ -114,7 +114,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     final String strPoint = serializer.apply(point);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strPoint));
+    BuffersManager.sendMsg(handlerKey, Collections.singletonList(strPoint));
 
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
   }

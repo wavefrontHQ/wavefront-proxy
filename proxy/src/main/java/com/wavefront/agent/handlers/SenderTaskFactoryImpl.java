@@ -98,7 +98,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   @SuppressWarnings("unchecked")
   public Map<String, Collection<SenderTask>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
     ReportableEntityType entityType = handlerKey.getEntityType();
-    String handle = handlerKey.getHandle();
+    String handle = handlerKey.getPort();
 
     ScheduledExecutorService scheduler;
     Map<String, Collection<SenderTask>> toReturn = Maps.newHashMap();
@@ -106,7 +106,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     // Every SenderTask is tenant specific from this point
     for (String tenantName : apiContainer.getTenantNameList()) {
       int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
-      HandlerKey tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
+      HandlerKey tenantHandlerKey = new HandlerKey(entityType, handle, tenantName);
 
       scheduler =
           executors.computeIfAbsent(
@@ -118,7 +118,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                           "submitter-"
                               + tenantHandlerKey.getEntityType()
                               + "-"
-                              + tenantHandlerKey.getHandle())));
+                              + tenantHandlerKey.getPort())));
 
       toReturn.put(tenantName, generateSenderTaskList(tenantHandlerKey, numThreads, scheduler));
     }
@@ -132,7 +132,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       throw new IllegalArgumentException(
           "Tenant name in handlerKey should not be null when " + "generating sender task list.");
     }
-    TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
+    TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getPort());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
     ReportableEntityType entityType = handlerKey.getEntityType();
     List<SenderTask> senderTaskList = new ArrayList<>(numThreads);
@@ -235,7 +235,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               "Unexpected entity type "
                   + handlerKey.getEntityType().name()
                   + " for "
-                  + handlerKey.getHandle());
+                  + handlerKey.getPort());
       }
       senderTaskList.add(senderTask);
       senderTask.start();
@@ -247,7 +247,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     }
     managedTasks.put(handlerKey, senderTaskList);
     entityTypes
-        .computeIfAbsent(handlerKey.getHandle(), x -> new ArrayList<>())
+        .computeIfAbsent(handlerKey.getPort(), x -> new ArrayList<>())
         .add(handlerKey.getEntityType());
     return senderTaskList;
   }
@@ -279,27 +279,30 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
    */
   @Override
   public void shutdown(@Nonnull String handle) {
-    for (String tenantName : apiContainer.getTenantNameList()) {
-      String tenantHandlerKey = HandlerKey.generateTenantSpecificHandle(handle, tenantName);
-      List<ReportableEntityType> types = entityTypes.get(tenantHandlerKey);
-      if (types == null) return;
-      try {
-        types.forEach(
-            x -> taskSizeEstimators.remove(HandlerKey.of(x, handle, tenantName)).shutdown());
-        types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle, tenantName)).stop());
-        types.forEach(
-            x ->
-                managedTasks
-                    .remove(HandlerKey.of(x, handle, tenantName))
-                    .forEach(
-                        t -> {
-                          t.stop();
-                        }));
-        types.forEach(x -> executors.remove(HandlerKey.of(x, handle, tenantName)).shutdown());
-      } finally {
-        entityTypes.remove(tenantHandlerKey);
-      }
-    }
+    // TODO: review
+    //    for (String tenantName : apiContainer.getTenantNameList()) {
+    //      String tenantHandlerKey = HandlerKey.generateTenantSpecificHandle(handle, tenantName);
+    //      List<ReportableEntityType> types = entityTypes.get(tenantHandlerKey);
+    //      if (types == null) return;
+    //      try {
+    //        types.forEach(
+    //            x -> taskSizeEstimators.remove(new HandlerKey(x, handle, tenantName)).shutdown());
+    //        types.forEach(x -> managedServices.remove(new HandlerKey(x, handle,
+    // tenantName)).stop());
+    //        types.forEach(
+    //            x ->
+    //                managedTasks
+    //                    .remove(new HandlerKey(x, handle, tenantName))
+    //                    .forEach(
+    //                        t -> {
+    //                          t.stop();
+    //                        }));
+    //        types.forEach(x -> executors.remove(new HandlerKey(x, handle,
+    // tenantName)).shutdown());
+    //      } finally {
+    //        entityTypes.remove(tenantHandlerKey);
+    //      }
+    //    }
   }
 
   @Override
@@ -321,17 +324,18 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   public void flushNow(@Nonnull HandlerKey handlerKey) {
     HandlerKey tenantHandlerKey;
     ReportableEntityType entityType = handlerKey.getEntityType();
-    String handle = handlerKey.getHandle();
+    String handle = handlerKey.getPort();
     for (String tenantName : apiContainer.getTenantNameList()) {
-      tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
-      managedTasks
-          .get(tenantHandlerKey)
-          .forEach(
-              task -> {
-                if (task instanceof AbstractSenderTask) {
-                  ((AbstractSenderTask) task).run();
-                }
-              });
+      tenantHandlerKey = new HandlerKey(entityType, handle, tenantName);
+      // TODO: review
+      //      managedTasks
+      //          .get(tenantHandlerKey)
+      //          .forEach(
+      //              task -> {
+      //                if (task instanceof AbstractSenderTask) {
+      //                  ((AbstractSenderTask) task).run();
+      //                }
+      //              });
     }
   }
 }

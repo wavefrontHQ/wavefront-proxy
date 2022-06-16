@@ -100,7 +100,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
                 failures++;
                 logger.warning(
                     "["
-                        + handlerKey.getHandle()
+                        + handlerKey.getPort()
                         + "] "
                         + handlerKey.getEntityType()
                         + " will be dropped from backlog!");
@@ -138,7 +138,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
       if (rateLimiting) {
         logger.fine(
             "["
-                + handlerKey.getHandle()
+                + handlerKey.getPort()
                 + "] Rate limiter active, will re-attempt later "
                 + "to prioritize eal-time traffic.");
         // if proxy rate limit exceeded, try again in 1/4 to 1/2 flush interval
@@ -161,7 +161,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
                     * runtimeProperties.getPushFlushInterval()
                     * Math.pow(globalProps.getRetryBackoffBaseSeconds(), backoffExponent)
                     * schedulerTimingFactor);
-        logger.fine("[" + handlerKey.getHandle() + "] Next run scheduled in " + nextFlush + "ms");
+        logger.fine("[" + handlerKey.getPort() + "] Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {
         scheduler.schedule(this, nextFlush, TimeUnit.MILLISECONDS);

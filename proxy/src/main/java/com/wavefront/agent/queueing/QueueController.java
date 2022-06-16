@@ -86,7 +86,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
             "buffer",
             "task-count",
             "port",
-            handlerKey.getHandle(),
+            handlerKey.getPort(),
             "content",
             handlerKey.getEntityType().toString()),
         new Gauge<Integer>() {
@@ -97,7 +97,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
         });
     Metrics.newGauge(
         new TaggedMetricName(
-            "buffer", handlerKey.getEntityType() + "-count", "port", handlerKey.getHandle()),
+            "buffer", handlerKey.getEntityType() + "-count", "port", handlerKey.getPort()),
         new Gauge<Long>() {
           @Override
           public Long value() {
@@ -135,7 +135,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       if (currentWeight == 0) {
         logger.info(
             "["
-                + handlerKey.getHandle()
+                + handlerKey.getPort()
                 + "] "
                 + handlerKey.getEntityType()
                 + " backlog has been cleared!");
@@ -189,7 +189,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
         && (reportRateLimiter.tryAcquire())) {
       logger.info(
           "["
-              + handlerKey.getHandle()
+              + handlerKey.getPort()
               + "] "
               + handlerKey.getEntityType()
               + " backlog status: "

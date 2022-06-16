@@ -173,11 +173,11 @@ public class PushAgent extends AbstractAgent {
     cfg.l2 = true;
     BuffersManager.init(cfg);
 
-    csvToList(proxyConfig.getPushListenerPorts())
-        .forEach(
-            strPort -> {
-              BuffersManager.registerNewPort(strPort);
-            });
+    //    csvToList(proxyConfig.getPushListenerPorts())
+    //        .forEach(
+    //            strPort -> {
+    //              BuffersManager.registerNewPort(strPort);
+    //            });
 
     /***** END PROXY NEW *****/
 
@@ -550,7 +550,7 @@ public class PushAgent extends AbstractAgent {
       // Central dispatch
       ReportableEntityHandler<ReportPoint, String> pointHandler =
           handlerFactory.getHandler(
-              HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports"));
+              new HandlerKey(ReportableEntityType.HISTOGRAM, "histogram_ports"));
 
       startHistogramListeners(
           histMinPorts,
@@ -801,7 +801,7 @@ public class PushAgent extends AbstractAgent {
         new ChannelByteArrayHandler(
             new PickleProtocolDecoder(
                 "unknown", proxyConfig.getCustomSourceTags(), formatter.getMetricMangler(), port),
-            handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, strPort)),
+            handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, strPort)),
             preprocessors.get(strPort),
             blockedPointsLogger);
 
@@ -1314,10 +1314,9 @@ public class PushAgent extends AbstractAgent {
 
             @Override
             public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-              //noinspection unchecked
               return (ReportableEntityHandler<T, U>)
                   handlers.computeIfAbsent(
-                      handlerKey.getHandle(),
+                      handlerKey.getPort(),
                       k ->
                           new DeltaCounterAccumulationHandlerImpl(
                               handlerKey,
@@ -1329,7 +1328,7 @@ public class PushAgent extends AbstractAgent {
                                   entityPropertiesFactoryMap
                                       .get(tenantName)
                                       .get(ReportableEntityType.POINT)
-                                      .reportReceivedRate(handlerKey.getHandle(), rate),
+                                      .reportReceivedRate(handlerKey.getPort(), rate),
                               blockedPointsLogger,
                               VALID_POINTS_LOGGER));
             }
@@ -1433,7 +1432,7 @@ public class PushAgent extends AbstractAgent {
                               entityPropertiesFactoryMap
                                   .get(tenantName)
                                   .get(ReportableEntityType.HISTOGRAM)
-                                  .reportReceivedRate(handlerKey.getHandle(), rate),
+                                  .reportReceivedRate(handlerKey.getPort(), rate),
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER);
                 }

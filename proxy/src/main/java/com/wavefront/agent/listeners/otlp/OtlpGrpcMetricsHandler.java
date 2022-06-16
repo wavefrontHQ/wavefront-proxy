@@ -51,8 +51,8 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
       String defaultSource,
       boolean includeResourceAttrsForMetrics) {
     this(
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle)),
         preprocessorSupplier,
         defaultSource,
         includeResourceAttrsForMetrics);

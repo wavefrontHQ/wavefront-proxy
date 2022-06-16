@@ -5,10 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
-import com.wavefront.data.ReportableEntityType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -42,7 +42,6 @@ public class LineDelimitedDataSubmissionTask
    * @param properties entity-specific wrapper over mutable proxy settings' container.
    * @param backlog task queue.
    * @param format Data format (passed as an argument to the API)
-   * @param entityType Entity type handled
    * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param payload Data payload
    * @param timeProvider Time provider (in millis)
@@ -53,11 +52,10 @@ public class LineDelimitedDataSubmissionTask
       EntityProperties properties,
       TaskQueue<LineDelimitedDataSubmissionTask> backlog,
       String format,
-      ReportableEntityType entityType,
-      String handle,
+      HandlerKey handle,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, entityType, timeProvider);
+    super(properties, backlog, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
@@ -89,7 +87,6 @@ public class LineDelimitedDataSubmissionTask
                 properties,
                 backlog,
                 format,
-                getEntityType(),
                 handle,
                 payload.subList(startingIndex, endingIndex + 1),
                 timeProvider));

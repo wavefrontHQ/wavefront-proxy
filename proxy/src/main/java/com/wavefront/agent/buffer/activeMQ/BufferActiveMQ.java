@@ -1,7 +1,11 @@
-package com.wavefront.agent.buffer;
+package com.wavefront.agent.buffer.activeMQ;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.buffer.Buffer;
+import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.OnMsgFunction;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -10,6 +14,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.apache.activemq.artemis.api.core.ActiveMQException;
@@ -23,10 +28,10 @@ import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 
-class BufferActiveMQ implements Buffer {
+abstract class BufferActiveMQ implements Buffer {
   private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
-  private final EmbeddedActiveMQ embeddedMen;
+  private final EmbeddedActiveMQ amq;
 
   private final Map<String, Pair<ClientSession, ClientProducer>> producers =
       new ConcurrentHashMap<>();
@@ -36,6 +41,7 @@ class BufferActiveMQ implements Buffer {
   private final Map<String, Gauge<Long>> mcMetrics = new HashMap<>();
   private final String name;
   private final int level;
+  private final MBeanServer mbServer;
 
   public BufferActiveMQ(int level, String name, boolean persistenceEnabled, String buffer) {
     this.level = level;
@@ -54,27 +60,28 @@ class BufferActiveMQ implements Buffer {
     config.setCreateJournalDir(true);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
 
-    embeddedMen = new EmbeddedActiveMQ();
+    amq = new EmbeddedActiveMQ();
 
     try {
       config.addAcceptorConfiguration("in-vm", "vm://" + level);
-      embeddedMen.setConfiguration(config);
-      embeddedMen.start();
+      amq.setConfiguration(config);
+      amq.start();
     } catch (Exception e) {
       log.log(Level.SEVERE, "error creating buffer", e);
       System.exit(-1);
     }
+
+    mbServer = amq.getActiveMQServer().getMBeanServer();
   }
 
-  @Override
-  public void registerNewPort(String port) {
+  public void registerNewHandlerKey(HandlerKey key) {
     QueueConfiguration queue =
-        new QueueConfiguration(name + "." + port + ".points")
-            .setAddress(port)
+        new QueueConfiguration(key.getQueue())
+            .setAddress(key.getPort())
             .setRoutingType(RoutingType.ANYCAST);
     QueueConfiguration queue_dl =
-        new QueueConfiguration(name + "." + port + ".points.dl")
-            .setAddress(port)
+        new QueueConfiguration(key.getQueue() + ".dl")
+            .setAddress(key.getPort())
             .setRoutingType(RoutingType.ANYCAST);
 
     try {
@@ -92,14 +99,14 @@ class BufferActiveMQ implements Buffer {
     }
 
     try {
-      registerQueueMetrics(port);
+      registerQueueMetrics(key);
     } catch (MalformedObjectNameException e) {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
   }
 
-  void registerQueueMetrics(String port) throws MalformedObjectNameException {
+  void registerQueueMetrics(HandlerKey key) throws MalformedObjectNameException {
     ObjectName nameMen =
         new ObjectName(
             "org.apache.activemq.artemis:"
@@ -108,29 +115,22 @@ class BufferActiveMQ implements Buffer {
                 + "\","
                 + "component=addresses,"
                 + "address=\""
-                + port
+                + key.getPort()
                 + "\","
                 + "subcomponent=queues,"
                 + "routing-type=\"anycast\","
                 + "queue=\""
-                + name
-                + "."
-                + port
-                + ".points\"");
+                + key.getQueue()
+                + "\"");
     Gauge<Long> mc =
         Metrics.newGauge(
-            new MetricName("buffer." + name + "." + port, "", "MessageCount"),
+            new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
             new Gauge<Long>() {
               @Override
               public Long value() {
                 Long mc = null;
                 try {
-                  mc =
-                      (Long)
-                          embeddedMen
-                              .getActiveMQServer()
-                              .getMBeanServer()
-                              .getAttribute(nameMen, "MessageCount");
+                  mc = (Long) mbServer.getAttribute(nameMen, "MessageCount");
                 } catch (Exception e) {
                   e.printStackTrace();
                   return 0L;
@@ -138,31 +138,28 @@ class BufferActiveMQ implements Buffer {
                 return mc; // datum.size();
               }
             });
-    mcMetrics.put(port, mc);
+    mcMetrics.put(key.getQueue(), mc);
   }
 
-  public void createBridge(String port, int level) {
+  public void createBridge(String addr, String queue, int level) {
     AddressSettings addrSetting = new AddressSettings();
     addrSetting.setMaxExpiryDelay(5000l); // TODO: config ?
     addrSetting.setMaxDeliveryAttempts(3); // TODO: config ?
-    addrSetting.setDeadLetterAddress(
-        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
-    addrSetting.setExpiryAddress(
-        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
+    addrSetting.setDeadLetterAddress(SimpleString.toSimpleString(addr + "::" + queue + ".dl"));
+    addrSetting.setExpiryAddress(SimpleString.toSimpleString(addr + "::" + queue + ".dl"));
 
-    embeddedMen.getActiveMQServer().getAddressSettingsRepository().addMatch(port, addrSetting);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(addr, addrSetting);
 
     BridgeConfiguration bridge = new BridgeConfiguration();
-    bridge.setName(port + ".to.l" + level);
-    bridge.setQueueName(port + "::" + name + "." + port + ".points.dl");
-    bridge.setForwardingAddress(port + "::disk." + port + ".points");
+    bridge.setName(addr + ".to.l" + level);
+    bridge.setQueueName(addr + "::" + queue + ".points.dl");
+    bridge.setForwardingAddress(addr + "::" + queue + ".points");
     bridge.setStaticConnectors(Collections.singletonList("to.level_" + level));
     try {
-      embeddedMen
-          .getActiveMQServer()
+      amq.getActiveMQServer()
           .getConfiguration()
           .addConnectorConfiguration("to.level_" + (level), "vm://" + (level));
-      embeddedMen.getActiveMQServer().deployBridge(bridge);
+      amq.getActiveMQServer().deployBridge(bridge);
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);
@@ -170,11 +167,11 @@ class BufferActiveMQ implements Buffer {
   }
 
   @Override
-  public void sendMsg(String port, List<String> strPoints) {
-    String key = port + "." + Thread.currentThread().getName();
+  public void sendMsg(HandlerKey key, List<String> strPoints) {
+    String sessionKey = key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientProducer> mqCtx =
         producers.computeIfAbsent(
-            key,
+            sessionKey,
             s -> {
               try {
                 ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
@@ -182,7 +179,7 @@ class BufferActiveMQ implements Buffer {
                 // 1st false mean we commit msg.send on only on session.commit
                 ClientSession session = factory.createSession(false, false);
                 ClientProducer producer =
-                    session.createProducer(port + "::" + name + "." + port + ".points");
+                    session.createProducer(key.getPort() + "::" + key.getQueue());
                 return new Pair<>(session, producer);
               } catch (Exception e) {
                 e.printStackTrace();
@@ -210,31 +207,38 @@ class BufferActiveMQ implements Buffer {
 
   @Override
   @VisibleForTesting
-  public Gauge<Long> getMcGauge(String port) {
-    return mcMetrics.get(port);
+  public Gauge<Long> getMcGauge(HandlerKey handlerKey) {
+    return mcMetrics.get(handlerKey.getQueue());
   }
 
   @Override
-  public void onMsg(String port, OnMsgFunction func) {}
-
-  private static RateLimiter rate = RateLimiter.create(100);
+  public void shutdown() {
+    try {
+      amq.stop();
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(-1);
+    }
+  }
 
   @Override
-  public void onMsgBatch(String port, int batchSize, OnMsgFunction func) {
-    String key = port + "." + Thread.currentThread().getName();
+  public void onMsg(HandlerKey key, OnMsgFunction func) {}
+
+  @Override
+  public void onMsgBatch(
+      HandlerKey key, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func) {
+    String sessionKey = key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientConsumer> mqCtx =
         consumers.computeIfAbsent(
-            key,
+            sessionKey,
             s -> {
               try {
                 ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
-                ClientSession session =
-                    factory.createSession(
-                        false,
-                        false); // 2sd false means that we send msg.ack only on session.commit
+                // 2sd false means that we send msg.ack only on session.commit
+                ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer =
-                    session.createConsumer(port + "::" + name + "." + port + ".points");
+                    session.createConsumer(key.getPort() + "::" + key.getQueue());
                 return new Pair<>(session, consumer);
               } catch (Exception e) {
                 e.printStackTrace();
@@ -248,7 +252,7 @@ class BufferActiveMQ implements Buffer {
     try {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
-      while ((batch.size() < batchSize) && (rate.tryAcquire())) {
+      while ((batch.size() < batchSize) && (rateLimiter.tryAcquire())) {
         ClientMessage msg = consumer.receive(10);
         if (msg != null) {
           msg.acknowledge();
@@ -259,12 +263,13 @@ class BufferActiveMQ implements Buffer {
       }
 
       try {
-        func.run(batch);
+        if (batch.size() > 0) {
+          func.run(batch);
+        }
         session.commit();
       } catch (Exception e) {
         session.rollback();
       }
-
     } catch (ActiveMQException e) {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);

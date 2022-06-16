@@ -50,7 +50,7 @@ public class QueueExporterTest {
             bufferFile, "2878", bufferFile + "-output", false, taskQueueFactory, entityPropFactory);
     BufferedWriter mockedWriter = EasyMock.createMock(BufferedWriter.class);
     reset(mockedWriter);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, "2878");
+    HandlerKey key = new HandlerKey(ReportableEntityType.POINT, "2878");
     TaskQueue<LineDelimitedDataSubmissionTask> queue = taskQueueFactory.getTaskQueue(key, 0);
     queue.clear();
     UUID proxyId = UUID.randomUUID();
@@ -61,8 +61,7 @@ public class QueueExporterTest {
             new DefaultEntityPropertiesForTesting(),
             queue,
             "wavefront",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("item1", "item2", "item3"),
             () -> 12345L);
     task.enqueue(QueueingReason.RETRY);
@@ -73,8 +72,7 @@ public class QueueExporterTest {
             new DefaultEntityPropertiesForTesting(),
             queue,
             "wavefront",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("item4", "item5"),
             () -> 12345L);
     task2.enqueue(QueueingReason.RETRY);
@@ -90,7 +88,7 @@ public class QueueExporterTest {
     mockedWriter.newLine();
 
     TaskQueue<EventDataSubmissionTask> queue2 =
-        taskQueueFactory.getTaskQueue(HandlerKey.of(ReportableEntityType.EVENT, "2888"), 0);
+        taskQueueFactory.getTaskQueue(new HandlerKey(ReportableEntityType.EVENT, "2888"), 0);
     queue2.clear();
     EventDataSubmissionTask eventTask =
         new EventDataSubmissionTask(
@@ -98,7 +96,7 @@ public class QueueExporterTest {
             proxyId,
             new DefaultEntityPropertiesForTesting(),
             queue2,
-            "2888",
+            new HandlerKey(ReportableEntityType.EVENT, "2878"),
             ImmutableList.of(
                 new Event(
                     ReportEvent.newBuilder()
@@ -131,14 +129,14 @@ public class QueueExporterTest {
     mockedWriter.newLine();
 
     TaskQueue<SourceTagSubmissionTask> queue3 =
-        taskQueueFactory.getTaskQueue(HandlerKey.of(ReportableEntityType.SOURCE_TAG, "2898"), 0);
+        taskQueueFactory.getTaskQueue(new HandlerKey(ReportableEntityType.SOURCE_TAG, "2898"), 0);
     queue3.clear();
     SourceTagSubmissionTask sourceTagTask =
         new SourceTagSubmissionTask(
             null,
             new DefaultEntityPropertiesForTesting(),
             queue3,
-            "2898",
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
             new SourceTag(
                 ReportSourceTag.newBuilder()
                     .setOperation(SourceOperationType.SOURCE_TAG)
@@ -177,9 +175,9 @@ public class QueueExporterTest {
     assertTrue(files.contains("events.2888.0.spool_0000"));
     assertTrue(files.contains("sourceTags.2898.0.spool_0000"));
 
-    HandlerKey k1 = HandlerKey.of(ReportableEntityType.POINT, "2878");
-    HandlerKey k2 = HandlerKey.of(ReportableEntityType.EVENT, "2888");
-    HandlerKey k3 = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "2898");
+    HandlerKey k1 = new HandlerKey(ReportableEntityType.POINT, "2878");
+    HandlerKey k2 = new HandlerKey(ReportableEntityType.EVENT, "2888");
+    HandlerKey k3 = new HandlerKey(ReportableEntityType.SOURCE_TAG, "2898");
     files = ConcurrentShardedQueueFile.listFiles(bufferFile, ".spool");
     Set<HandlerKey> hk = QueueExporter.getValidHandlerKeys(files, "all");
     assertEquals(3, hk.size());
@@ -209,7 +207,7 @@ public class QueueExporterTest {
             bufferFile, "2878", bufferFile + "-output", true, taskQueueFactory, entityPropFactory);
     BufferedWriter mockedWriter = EasyMock.createMock(BufferedWriter.class);
     reset(mockedWriter);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, "2878");
+    HandlerKey key = new HandlerKey(ReportableEntityType.POINT, "2878");
     TaskQueue<LineDelimitedDataSubmissionTask> queue = taskQueueFactory.getTaskQueue(key, 0);
     queue.clear();
     UUID proxyId = UUID.randomUUID();
@@ -220,8 +218,7 @@ public class QueueExporterTest {
             new DefaultEntityPropertiesForTesting(),
             queue,
             "wavefront",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("item1", "item2", "item3"),
             () -> 12345L);
     task.enqueue(QueueingReason.RETRY);
@@ -232,8 +229,7 @@ public class QueueExporterTest {
             new DefaultEntityPropertiesForTesting(),
             queue,
             "wavefront",
-            ReportableEntityType.POINT,
-            "2878",
+            new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("item4", "item5"),
             () -> 12345L);
     task2.enqueue(QueueingReason.RETRY);

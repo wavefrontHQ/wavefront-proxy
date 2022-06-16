@@ -39,12 +39,12 @@ public class MetricsReporter extends AbstractPollingReporter {
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.POINT, "logs-ingester")));
+                    new HandlerKey(ReportableEntityType.POINT, "logs-ingester")));
     this.histogramHandlerSupplier =
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester")));
+                    new HandlerKey(ReportableEntityType.HISTOGRAM, "logs-ingester")));
     this.prefix = prefix;
   }
 

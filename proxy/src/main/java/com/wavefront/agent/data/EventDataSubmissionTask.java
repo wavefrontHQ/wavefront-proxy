@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
-import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,10 +46,10 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       UUID proxyId,
       EntityProperties properties,
       TaskQueue<EventDataSubmissionTask> backlog,
-      String handle,
+      HandlerKey handle,
       @Nonnull List<Event> events,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, ReportableEntityType.EVENT, timeProvider);
+    super(properties, backlog, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.events = new ArrayList<>(events);

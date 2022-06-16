@@ -128,8 +128,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     this(
         handle,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,

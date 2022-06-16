@@ -27,7 +27,7 @@ public interface ReportableEntityHandlerFactory {
    */
   default <T, U> ReportableEntityHandler<T, U> getHandler(
       ReportableEntityType entityType, String handle) {
-    return getHandler(HandlerKey.of(entityType, handle));
+    return getHandler(new HandlerKey(entityType, handle));
   }
 
   /** Shutdown pipeline for a specific handle. */

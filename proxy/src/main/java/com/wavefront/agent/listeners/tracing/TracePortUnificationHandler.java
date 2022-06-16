@@ -79,8 +79,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         sampler,
         traceDisabled,
         spanLogsDisabled);

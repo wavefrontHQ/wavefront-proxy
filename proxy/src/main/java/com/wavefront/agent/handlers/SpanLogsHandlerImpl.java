@@ -55,7 +55,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     if (strSpanLogs != null) {
 
       getReceivedCounter().inc();
-      BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strSpanLogs));
+      BuffersManager.sendMsg(handlerKey, Collections.singletonList(strSpanLogs));
 
       getReceivedCounter().inc();
       if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);

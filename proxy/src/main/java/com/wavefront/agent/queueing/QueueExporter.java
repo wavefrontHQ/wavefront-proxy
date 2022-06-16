@@ -76,7 +76,7 @@ public class QueueExporter {
 
   @VisibleForTesting
   <T extends DataSubmissionTask<T>> void processHandlerKey(HandlerKey key) {
-    logger.info("Processing " + key.getEntityType() + " queue for port " + key.getHandle());
+    logger.info("Processing " + key.getEntityType() + " queue for port " + key.getPort());
     int threads = entityPropertiesFactory.get(key.getEntityType()).getFlushThreads();
     for (int i = 0; i < threads; i++) {
       TaskQueue<T> taskQueue = taskQueueFactory.getTaskQueue(key, i);
@@ -86,7 +86,7 @@ public class QueueExporter {
                 + "."
                 + key.getEntityType()
                 + "."
-                + key.getHandle()
+                + key.getPort()
                 + "."
                 + i
                 + ".txt";
@@ -158,7 +158,7 @@ public class QueueExporter {
                 && NumberUtils.isDigits(matcher.group(4))
                 && !handle.startsWith("_")
                 && (portList.equalsIgnoreCase("all") || ports.contains(handle))) {
-              out.add(HandlerKey.of(type, handle));
+              out.add(new HandlerKey(type, handle));
             }
           }
         });
