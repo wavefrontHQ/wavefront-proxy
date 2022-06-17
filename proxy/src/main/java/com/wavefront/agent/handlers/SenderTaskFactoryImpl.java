@@ -2,7 +2,6 @@ package com.wavefront.agent.handlers;
 
 import static com.wavefront.api.agent.Constants.*;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityProperties;
@@ -260,23 +259,4 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   // TODO: review
   @Override
   public void truncateBuffers() {}
-
-  @VisibleForTesting
-  public void flushNow(@Nonnull HandlerKey handlerKey) {
-    HandlerKey tenantHandlerKey;
-    ReportableEntityType entityType = handlerKey.getEntityType();
-    String handle = handlerKey.getPort();
-    for (String tenantName : apiContainer.getTenantNameList()) {
-      tenantHandlerKey = new HandlerKey(entityType, handle, tenantName);
-      // TODO: review
-      //      managedTasks
-      //          .get(tenantHandlerKey)
-      //          .forEach(
-      //              task -> {
-      //                if (task instanceof AbstractSenderTask) {
-      //                  ((AbstractSenderTask) task).run();
-      //                }
-      //              });
-    }
-  }
 }

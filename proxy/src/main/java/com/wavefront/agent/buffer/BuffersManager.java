@@ -2,7 +2,6 @@ package com.wavefront.agent.buffer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.buffer.activeMQ.BufferDisk;
 import com.wavefront.agent.buffer.activeMQ.BufferMemory;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.yammer.metrics.core.Gauge;
@@ -25,21 +24,26 @@ public class BuffersManager {
     }
 
     level_1 = new BufferMemory(0, "memory", cfg.buffer + "/memory");
-    if (cfg.l2) {
-      level_2 = new BufferDisk(1, "disk", cfg.buffer + "/disk");
-    }
+    //    if (cfg.l2) {
+    //      level_2 = new BufferDisk(1, "disk", cfg.buffer + "/disk");
+    //    }
   }
 
   public static void registerNewHandlerKey(HandlerKey handler) {
     level_1.registerNewHandlerKey(handler);
-    if (level_2 != null) {
-      level_2.registerNewHandlerKey(handler);
-      level_2.createBridge(handler, 1);
-    }
+    //    if (level_2 != null) {
+    //      level_2.registerNewHandlerKey(handler);
+    //      level_2.createBridge(handler, 1);
+    //    }
   }
 
   public static void sendMsg(HandlerKey handler, List<String> strPoints) {
     level_1.sendMsg(handler, strPoints);
+  }
+
+  @VisibleForTesting
+  public static void setLevel1Buffer(Buffer buffer) {
+    level_1 = buffer;
   }
 
   @VisibleForTesting

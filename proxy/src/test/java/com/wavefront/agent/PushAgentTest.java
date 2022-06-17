@@ -8,6 +8,8 @@ import static org.junit.Assert.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.BuffersManagerConfig;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.handlers.*;
 import com.wavefront.agent.listeners.otlp.OtlpTestHelpers;
@@ -1842,6 +1844,10 @@ public class PushAgentTest {
   @Test
   public void testDeltaCounterHandlerMixedData() throws Exception {
     deltaPort = findAvailablePort(5888);
+    HandlerKey handlerKey = new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort));
+    BuffersManager.init(new BuffersManagerConfig());
+    BuffersManager.registerNewHandlerKey(handlerKey);
+
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
     proxy.proxyConfig.pushFlushInterval = 100;
@@ -1851,11 +1857,6 @@ public class PushAgentTest {
         mockSenderTaskFactory,
         new SpanSampler(new RateSampler(1.0D), () -> null));
     waitUntilListenerIsOnline(deltaPort);
-    reset(mockSenderTask);
-    Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
-    //    mockSenderTask.add(Collections.singletonList(EasyMock.capture(capturedArgument)));
-    expectLastCall().atLeastOnce();
-    replay(mockSenderTask);
 
     String payloadStr1 = "∆test.mixed1 1.0 source=test1\n";
     String payloadStr2 = "∆test.mixed2 2.0 source=test1\n";
@@ -1866,17 +1867,21 @@ public class PushAgentTest {
         httpPost(
             "http://localhost:" + deltaPort,
             payloadStr1 + payloadStr2 + payloadStr2 + payloadStr3 + payloadStr4));
-    ReportableEntityHandler<?, ?> handler =
-        proxy.deltaCounterHandlerFactory.getHandler(
-            new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+    ReportableEntityHandler<?, ?> handler = proxy.deltaCounterHandlerFactory.getHandler(handlerKey);
     if (handler instanceof DeltaCounterAccumulationHandlerImpl) {
       ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
     }
-    verify(mockSenderTask);
-    assertEquals(3, capturedArgument.getValues().size());
-    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed1\" 1.0"));
-    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed2\" 4.0"));
-    assertTrue(capturedArgument.getValues().get(2).startsWith("\"∆test.mixed3\" 3.0"));
+    BuffersManager.onMsgBatch(
+        handlerKey,
+        5,
+        new TestUtils.RateLimiter(),
+        batch -> {
+          assertEquals(3, batch.size());
+          batch.forEach(
+              s -> {
+                assertTrue(s.trim().matches("(.*)test.mixed[123]\" [143].0(.*)"));
+              });
+        });
   }
 
   @Test

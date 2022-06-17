@@ -1,5 +1,6 @@
 package com.wavefront.agent.auth;
 
+import static com.wavefront.agent.HttpEndToEndTest.HTTP_timeout_tests;
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.agent.TestUtils.httpEq;
 import static org.junit.Assert.assertFalse;
@@ -47,12 +48,13 @@ public class HttpGetTokenIntrospectionAuthenticatorTest {
     fakeClock.getAndAdd(300_000);
     assertFalse(authenticator.authorize(uuid)); // cache expired - should trigger a refresh
     // should call http and get an updated token
-    assertTrueWithTimeout(100, () -> authenticator.authorize(uuid));
+    assertTrueWithTimeout(HTTP_timeout_tests, () -> authenticator.authorize(uuid));
     fakeClock.getAndAdd(180_000);
     assertTrue(authenticator.authorize(uuid)); // should be cached
     fakeClock.getAndAdd(180_000);
     assertTrue(authenticator.authorize(uuid)); // cache expired - should trigger a refresh
-    assertTrueWithTimeout(100, () -> !authenticator.authorize(uuid)); // should call http
+    assertTrueWithTimeout(
+        HTTP_timeout_tests, () -> !authenticator.authorize(uuid)); // should call http
     EasyMock.verify(client);
   }
 
@@ -77,10 +79,11 @@ public class HttpGetTokenIntrospectionAuthenticatorTest {
         authenticator.authorize(
             uuid)); // should call http, fail, but still return last valid result
     // Thread.sleep(100);
-    assertTrueWithTimeout(100, () -> !authenticator.authorize(uuid)); // TTL expired - should fail
+    assertTrueWithTimeout(
+        HTTP_timeout_tests, () -> !authenticator.authorize(uuid)); // TTL expired - should fail
     // Thread.sleep(100);
     // Should call http again - TTL expired
-    assertTrueWithTimeout(100, () -> !authenticator.authorize(uuid));
+    assertTrueWithTimeout(HTTP_timeout_tests, () -> !authenticator.authorize(uuid));
     EasyMock.verify(client);
   }
 }

@@ -63,7 +63,6 @@ public class ReportSourceTagHandlerTest {
         .once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -77,7 +76,6 @@ public class ReportSourceTagHandlerTest {
         .once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -94,7 +92,6 @@ public class ReportSourceTagHandlerTest {
         .once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -111,7 +108,6 @@ public class ReportSourceTagHandlerTest {
         .once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -128,7 +124,6 @@ public class ReportSourceTagHandlerTest {
         .once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 

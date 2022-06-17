@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.ingester.SpanDecoder;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -244,5 +245,33 @@ public class TestUtils {
     List<Span> out = Lists.newArrayListWithExpectedSize(1);
     new SpanDecoder("unknown").decode(line, out, "dummy");
     return out.get(0);
+  }
+
+  public static class RateLimiter implements RecyclableRateLimiter {
+    @Override
+    public double getRate() {
+      return 0;
+    }
+
+    @Override
+    public void setRate(double rate) {}
+
+    @Override
+    public double acquire(int permits) {
+      return permits;
+    }
+
+    @Override
+    public boolean tryAcquire(int permits) {
+      return true;
+    }
+
+    @Override
+    public void recyclePermits(int permits) {}
+
+    @Override
+    public boolean immediatelyAvailable(int permits) {
+      return true;
+    }
   }
 }
