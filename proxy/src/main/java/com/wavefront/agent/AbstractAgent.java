@@ -24,10 +24,6 @@ import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
 import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.queueing.QueueExporter;
-import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
-import com.wavefront.agent.queueing.TaskQueueFactory;
-import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
@@ -205,18 +201,6 @@ public abstract class AbstractAgent {
       throw new IllegalArgumentException(
           "hostname cannot be blank! Please correct your configuration settings.");
     }
-
-    if (proxyConfig.isSqsQueueBuffer()) {
-      if (StringUtils.isBlank(proxyConfig.getSqsQueueIdentifier())) {
-        throw new IllegalArgumentException(
-            "sqsQueueIdentifier cannot be blank! Please correct " + "your configuration settings.");
-      }
-      if (!SQSQueueFactoryImpl.isValidSQSTemplate(proxyConfig.getSqsQueueNameTemplate())) {
-        throw new IllegalArgumentException(
-            "sqsQueueNameTemplate is invalid! Must contain "
-                + "{{id}} {{entity}} and {{port}} replacements.");
-      }
-    }
   }
 
   @VisibleForTesting
@@ -302,23 +286,9 @@ public abstract class AbstractAgent {
       }
 
       // If we are exporting data from the queue, run export and exit
+      // TODO: queue exporter
       if (proxyConfig.getExportQueueOutputFile() != null
           && proxyConfig.getExportQueuePorts() != null) {
-        TaskQueueFactory tqFactory =
-            new TaskQueueFactoryImpl(
-                proxyConfig.getBufferFile(), false, false, proxyConfig.getBufferShardSize());
-        EntityPropertiesFactory epFactory = new EntityPropertiesFactoryImpl(proxyConfig);
-        QueueExporter queueExporter =
-            new QueueExporter(
-                proxyConfig.getBufferFile(),
-                proxyConfig.getExportQueuePorts(),
-                proxyConfig.getExportQueueOutputFile(),
-                proxyConfig.isExportQueueRetainData(),
-                tqFactory,
-                epFactory);
-        logger.info("Starting queue export for ports: " + proxyConfig.getExportQueuePorts());
-        queueExporter.export();
-        logger.info("Done");
         System.exit(0);
       }
 

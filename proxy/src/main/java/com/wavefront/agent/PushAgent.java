@@ -47,7 +47,6 @@ import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
-import com.wavefront.agent.queueing.*;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -115,11 +114,9 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting protected List<Runnable> histogramFlushRunnables = new ArrayList<>();
   protected final Counter bindErrors =
       Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
-  protected TaskQueueFactory taskQueueFactory;
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactoryImpl senderTaskFactory;
-  protected QueueingFactory queueingFactory;
   protected Function<Histogram, Histogram> histogramRecompressor = null;
   protected ReportableEntityHandlerFactoryImpl handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
@@ -193,30 +190,10 @@ public class PushAgent extends AbstractAgent {
         new CachingHostnameLookupResolver(
             proxyConfig.isDisableRdnsLookup(), ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName);
 
-    if (proxyConfig.isSqsQueueBuffer()) {
-      taskQueueFactory =
-          new SQSQueueFactoryImpl(
-              proxyConfig.getSqsQueueNameTemplate(),
-              proxyConfig.getSqsQueueRegion(),
-              proxyConfig.getSqsQueueIdentifier(),
-              proxyConfig.isPurgeBuffer());
-    } else {
-      taskQueueFactory =
-          new TaskQueueFactoryImpl(
-              proxyConfig.getBufferFile(),
-              proxyConfig.isPurgeBuffer(),
-              proxyConfig.isDisableBufferSharding(),
-              proxyConfig.getBufferShardSize());
-    }
-
     remoteHostAnnotator =
         new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(), hostnameResolver);
-    queueingFactory =
-        new QueueingFactoryImpl(
-            apiContainer, agentId, taskQueueFactory, entityPropertiesFactoryMap);
     senderTaskFactory =
-        new SenderTaskFactoryImpl(
-            apiContainer, agentId, taskQueueFactory, queueingFactory, entityPropertiesFactoryMap);
+        new SenderTaskFactoryImpl(apiContainer, agentId, entityPropertiesFactoryMap);
     // MONIT-25479: when multicasting histogram, use the central cluster histogram accuracy
     if (proxyConfig.isHistogramPassthroughRecompression()) {
       histogramRecompressor =

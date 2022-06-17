@@ -20,7 +20,6 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
-import com.wavefront.agent.queueing.QueueingFactoryImpl;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.TcpIngester;
@@ -99,7 +98,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payload =
         "metric.name 1 "
@@ -175,10 +173,8 @@ public class HttpEndToEndTest {
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    for (int i = 0; i < 3; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(6, successfulSteps.getAndSet(0));
     assertTrue(part1.get());
     assertTrue(part2.get());
@@ -204,7 +200,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadEvents =
         "@Event "
@@ -275,10 +270,8 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
     HandlerKey key = new HandlerKey(ReportableEntityType.EVENT, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    for (int i = 0; i < 2; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(6, successfulSteps.getAndSet(0));
   }
 
@@ -300,7 +293,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadSourceTags =
         "@SourceTag action=add source=testSource addTag1 addTag2 addTag3\n"
@@ -389,7 +381,6 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
     HandlerKey key = new HandlerKey(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
     for (int i = 0; i < 2; i++) ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    for (int i = 0; i < 4; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(10, successfulSteps.getAndSet(0));
   }
 
@@ -438,7 +429,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(histDistPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadHistograms =
         "metric.name 1 "
@@ -584,7 +574,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;
@@ -657,7 +646,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;
@@ -738,7 +726,6 @@ public class HttpEndToEndTest {
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     long timestamp = time * 1000 + 12345;
     String payload =
@@ -761,7 +748,6 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
     HandlerKey key = new HandlerKey(ReportableEntityType.LOGS, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertTrueWithTimeout(50, gotLog::get);
   }
 

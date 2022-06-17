@@ -3,13 +3,10 @@ package com.wavefront.agent.handlers;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.TaskResult;
-import com.wavefront.agent.queueing.TaskQueue;
-import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.api.ProxyV2API;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.Nullable;
 
 /**
  * SenderTask for newline-delimited data.
@@ -25,8 +22,6 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   private EntityProperties properties;
   private final ScheduledExecutorService scheduler;
   private final int threadId;
-  private final TaskSizeEstimator taskSizeEstimator;
-  private final TaskQueue<LineDelimitedDataSubmissionTask> backlog;
 
   /**
    * @param handlerKey pipeline handler key
@@ -36,9 +31,6 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for running this task
    * @param threadId thread number.
-   * @param taskSizeEstimator optional task size estimator used to calculate approximate buffer fill
-   *     rate.
-   * @param backlog backing queue.
    */
   LineDelimitedSenderTask(
       HandlerKey handlerKey,
@@ -47,9 +39,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
       UUID proxyId,
       final EntityProperties properties,
       ScheduledExecutorService scheduler,
-      int threadId,
-      @Nullable final TaskSizeEstimator taskSizeEstimator,
-      TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
+      int threadId) {
     super(handlerKey, threadId, properties, scheduler);
     this.handlerKey = handlerKey;
     this.pushFormat = pushFormat;
@@ -58,8 +48,6 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
     this.properties = properties;
     this.scheduler = scheduler;
     this.threadId = threadId;
-    this.taskSizeEstimator = taskSizeEstimator;
-    this.backlog = backlog;
   }
 
   // TODO: review
@@ -67,8 +55,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   TaskResult processSingleBatch(List<String> batch) {
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
-            proxyAPI, proxyId, properties, backlog, pushFormat, handlerKey, batch, null);
-    if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
+            proxyAPI, proxyId, properties, pushFormat, handlerKey, batch, null);
     return task.execute();
   }
 

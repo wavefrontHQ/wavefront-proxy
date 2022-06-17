@@ -1,9 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskResult;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -21,7 +19,6 @@ class SourceTagSenderTask extends AbstractSenderTask {
       Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());
 
   private final SourceTagAPI proxyAPI;
-  private final TaskQueue<SourceTagSubmissionTask> backlog;
 
   /**
    * Create new instance
@@ -31,18 +28,15 @@ class SourceTagSenderTask extends AbstractSenderTask {
    * @param threadId thread number.
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for this task
-   * @param backlog backing queue
    */
   SourceTagSenderTask(
       HandlerKey handlerKey,
       SourceTagAPI proxyAPI,
       int threadId,
       EntityProperties properties,
-      ScheduledExecutorService scheduler,
-      TaskQueue<SourceTagSubmissionTask> backlog) {
+      ScheduledExecutorService scheduler) {
     super(handlerKey, threadId, properties, scheduler);
     this.proxyAPI = proxyAPI;
-    this.backlog = backlog;
   }
 
   // TODO: review

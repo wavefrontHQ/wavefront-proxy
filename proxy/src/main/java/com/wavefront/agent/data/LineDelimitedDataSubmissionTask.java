@@ -7,7 +7,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +39,6 @@ public class LineDelimitedDataSubmissionTask
    * @param api API endpoint
    * @param proxyId Proxy identifier. Used to authenticate proxy with the API.
    * @param properties entity-specific wrapper over mutable proxy settings' container.
-   * @param backlog task queue.
    * @param format Data format (passed as an argument to the API)
    * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param payload Data payload
@@ -50,12 +48,11 @@ public class LineDelimitedDataSubmissionTask
       ProxyV2API api,
       UUID proxyId,
       EntityProperties properties,
-      TaskQueue<LineDelimitedDataSubmissionTask> backlog,
       String format,
       HandlerKey handle,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, timeProvider);
+    super(properties, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
@@ -85,7 +82,6 @@ public class LineDelimitedDataSubmissionTask
                 api,
                 proxyId,
                 properties,
-                backlog,
                 format,
                 handle,
                 payload.subList(startingIndex, endingIndex + 1),
@@ -100,15 +96,10 @@ public class LineDelimitedDataSubmissionTask
     return payload;
   }
 
-  public void injectMembers(
-      ProxyV2API api,
-      UUID proxyId,
-      EntityProperties properties,
-      TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
+  public void injectMembers(ProxyV2API api, UUID proxyId, EntityProperties properties) {
     this.api = api;
     this.proxyId = proxyId;
     this.properties = properties;
-    this.backlog = backlog;
     this.timeProvider = System::currentTimeMillis;
   }
 }

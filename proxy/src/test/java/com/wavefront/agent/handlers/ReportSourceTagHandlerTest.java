@@ -3,16 +3,12 @@ package com.wavefront.agent.handlers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.DefaultEntityPropertiesFactoryForTesting;
-import com.wavefront.agent.queueing.TaskQueue;
-import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 import edu.emory.mathcs.backport.java.util.Collections;
 import java.util.*;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
 import org.junit.Before;
@@ -31,7 +27,6 @@ public class ReportSourceTagHandlerTest {
   private ReportSourceTagHandlerImpl sourceTagHandler;
   private SenderTaskFactory senderTaskFactory;
   private SourceTagAPI mockAgentAPI;
-  private TaskQueueFactory taskQueueFactory;
   private UUID newAgentId;
   private HandlerKey handlerKey;
   private Logger blockedLogger = Logger.getLogger("RawBlockedPoints");
@@ -39,21 +34,11 @@ public class ReportSourceTagHandlerTest {
   @Before
   public void setup() {
     mockAgentAPI = EasyMock.createMock(SourceTagAPI.class);
-    taskQueueFactory =
-        new TaskQueueFactory() {
-          @Override
-          public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
-              @Nonnull HandlerKey handlerKey, int threadNum) {
-            return null;
-          }
-        };
     newAgentId = UUID.randomUUID();
     senderTaskFactory =
         new SenderTaskFactoryImpl(
             new APIContainer(null, mockAgentAPI, null, null),
             newAgentId,
-            taskQueueFactory,
-            null,
             Collections.singletonMap(
                 APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
 

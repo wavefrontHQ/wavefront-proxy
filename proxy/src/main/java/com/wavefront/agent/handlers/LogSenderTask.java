@@ -1,9 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.agent.data.TaskResult;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +19,6 @@ public class LogSenderTask extends AbstractSenderTask {
   private final int threadId;
   private final EntityProperties properties;
   private final ScheduledExecutorService scheduler;
-  private final TaskQueue<LogDataSubmissionTask> backlog;
 
   /**
    * @param handlerKey handler key, that serves as an identifier of the log pipeline.
@@ -30,7 +27,6 @@ public class LogSenderTask extends AbstractSenderTask {
    * @param threadId thread number.
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for running this task
-   * @param backlog backing queue
    */
   LogSenderTask(
       HandlerKey handlerKey,
@@ -38,8 +34,7 @@ public class LogSenderTask extends AbstractSenderTask {
       UUID proxyId,
       int threadId,
       EntityProperties properties,
-      ScheduledExecutorService scheduler,
-      TaskQueue<LogDataSubmissionTask> backlog) {
+      ScheduledExecutorService scheduler) {
     super(handlerKey, threadId, properties, scheduler);
     this.handlerKey = handlerKey;
     this.logAPI = logAPI;
@@ -47,7 +42,6 @@ public class LogSenderTask extends AbstractSenderTask {
     this.threadId = threadId;
     this.properties = properties;
     this.scheduler = scheduler;
-    this.backlog = backlog;
   }
 
   // TODO: review

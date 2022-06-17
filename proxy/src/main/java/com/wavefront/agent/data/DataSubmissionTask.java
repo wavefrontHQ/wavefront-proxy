@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.wavefront.data.ReportableEntityType;
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * A serializable data submission task.
@@ -35,13 +34,6 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    * @return operation result
    */
   TaskResult execute();
-
-  /**
-   * Persist task in the queue
-   *
-   * @param reason reason for queueing. used to increment metrics, if specified.
-   */
-  void enqueue(@Nullable QueueingReason reason);
 
   /**
    * Returns entity type handled.

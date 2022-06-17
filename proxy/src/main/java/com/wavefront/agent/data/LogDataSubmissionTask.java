@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.dto.Log;
 import java.util.ArrayList;
@@ -38,7 +37,6 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
    * @param api API endpoint.
    * @param proxyId Proxy identifier
    * @param properties entity-specific wrapper over mutable proxy settings' container.
-   * @param backlog task queue.
    * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param logs Data payload.
    * @param timeProvider Time provider (in millis).
@@ -47,11 +45,10 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       LogAPI api,
       UUID proxyId,
       EntityProperties properties,
-      TaskQueue<LogDataSubmissionTask> backlog,
       HandlerKey handle,
       @Nonnull List<Log> logs,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, timeProvider);
+    super(properties, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs);
@@ -83,7 +80,6 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
                 api,
                 proxyId,
                 properties,
-                backlog,
                 handle,
                 logs.subList(startingIndex, endingIndex + 1),
                 timeProvider));
@@ -93,15 +89,10 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
     return ImmutableList.of(this);
   }
 
-  public void injectMembers(
-      LogAPI api,
-      UUID proxyId,
-      EntityProperties properties,
-      TaskQueue<LogDataSubmissionTask> backlog) {
+  public void injectMembers(LogAPI api, UUID proxyId, EntityProperties properties) {
     this.api = api;
     this.proxyId = proxyId;
     this.properties = properties;
-    this.backlog = backlog;
     this.timeProvider = System::currentTimeMillis;
   }
 }

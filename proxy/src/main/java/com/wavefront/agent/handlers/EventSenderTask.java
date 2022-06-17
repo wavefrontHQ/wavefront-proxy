@@ -1,9 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.TaskResult;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
 import java.util.List;
 import java.util.UUID;
@@ -19,7 +17,6 @@ class EventSenderTask extends AbstractSenderTask {
 
   private final EventAPI proxyAPI;
   private final UUID proxyId;
-  private final TaskQueue<EventDataSubmissionTask> backlog;
 
   /**
    * @param handlerKey handler key, that serves as an identifier of the metrics pipeline.
@@ -28,7 +25,6 @@ class EventSenderTask extends AbstractSenderTask {
    * @param threadId thread number.
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for running this task
-   * @param backlog backing queue
    */
   EventSenderTask(
       HandlerKey handlerKey,
@@ -36,12 +32,10 @@ class EventSenderTask extends AbstractSenderTask {
       UUID proxyId,
       int threadId,
       EntityProperties properties,
-      ScheduledExecutorService scheduler,
-      TaskQueue<EventDataSubmissionTask> backlog) {
+      ScheduledExecutorService scheduler) {
     super(handlerKey, threadId, properties, scheduler);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
-    this.backlog = backlog;
   }
 
   // TODO: review

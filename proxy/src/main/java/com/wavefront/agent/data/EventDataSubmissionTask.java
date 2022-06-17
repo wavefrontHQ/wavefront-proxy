@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
 import com.wavefront.dto.Event;
 import java.util.ArrayList;
@@ -36,7 +35,6 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
    * @param api API endpoint.
    * @param proxyId Proxy identifier. Used to authenticate proxy with the API.
    * @param properties entity-specific wrapper over mutable proxy settings' container.
-   * @param backlog task queue.
    * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param events Data payload.
    * @param timeProvider Time provider (in millis).
@@ -45,11 +43,10 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       EventAPI api,
       UUID proxyId,
       EntityProperties properties,
-      TaskQueue<EventDataSubmissionTask> backlog,
       HandlerKey handle,
       @Nonnull List<Event> events,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, timeProvider);
+    super(properties, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.events = new ArrayList<>(events);
@@ -72,7 +69,6 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
                 api,
                 proxyId,
                 properties,
-                backlog,
                 handle,
                 events.subList(startingIndex, endingIndex + 1),
                 timeProvider));
@@ -91,15 +87,10 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     return events.size();
   }
 
-  public void injectMembers(
-      EventAPI api,
-      UUID proxyId,
-      EntityProperties properties,
-      TaskQueue<EventDataSubmissionTask> backlog) {
+  public void injectMembers(EventAPI api, UUID proxyId, EntityProperties properties) {
     this.api = api;
     this.proxyId = proxyId;
     this.properties = properties;
-    this.backlog = backlog;
     this.timeProvider = System::currentTimeMillis;
   }
 }

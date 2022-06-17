@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
 import java.util.List;
@@ -30,7 +29,6 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   /**
    * @param api API endpoint.
    * @param properties container for mutable proxy settings.
-   * @param backlog backing queue.
    * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param sourceTag source tag operation
    * @param timeProvider Time provider (in millis).
@@ -38,11 +36,10 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   public SourceTagSubmissionTask(
       SourceTagAPI api,
       EntityProperties properties,
-      TaskQueue<SourceTagSubmissionTask> backlog,
       HandlerKey handle,
       @Nonnull SourceTag sourceTag,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, backlog, handle, timeProvider);
+    super(properties, handle, timeProvider);
     this.api = api;
     this.sourceTag = sourceTag;
     this.limitRetries = true;
@@ -110,11 +107,9 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
     return ImmutableList.of(this);
   }
 
-  public void injectMembers(
-      SourceTagAPI api, EntityProperties properties, TaskQueue<SourceTagSubmissionTask> backlog) {
+  public void injectMembers(SourceTagAPI api, EntityProperties properties) {
     this.api = api;
     this.properties = properties;
-    this.backlog = backlog;
     this.timeProvider = System::currentTimeMillis;
   }
 }

@@ -19,7 +19,6 @@ public class LineDelimitedDataSubmissionTaskTest {
             null,
             null,
             null,
-            null,
             "graphite_v2",
             new HandlerKey(ReportableEntityType.POINT, "2878"),
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
