@@ -4,13 +4,14 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.yammer.metrics.core.Gauge;
 import java.util.List;
+import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 
 public interface Buffer {
   void registerNewHandlerKey(HandlerKey key);
 
-  void sendMsg(HandlerKey key, List<String> strPoints);
+  void createBridge(String addr, HandlerKey queue, int level);
 
-  void onMsg(HandlerKey key, OnMsgFunction func);
+  void sendMsg(HandlerKey key, List<String> strPoints) throws ActiveMQAddressFullException;
 
   void onMsgBatch(
       HandlerKey key, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func);

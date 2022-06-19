@@ -170,12 +170,6 @@ public class PushAgent extends AbstractAgent {
     cfg.l2 = true;
     BuffersManager.init(cfg);
 
-    //    csvToList(proxyConfig.getPushListenerPorts())
-    //        .forEach(
-    //            strPort -> {
-    //              BuffersManager.registerNewPort(strPort);
-    //            });
-
     /***** END PROXY NEW *****/
 
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());

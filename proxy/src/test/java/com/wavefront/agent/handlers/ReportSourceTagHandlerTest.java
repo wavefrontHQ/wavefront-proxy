@@ -3,6 +3,8 @@ package com.wavefront.agent.handlers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.BuffersManagerConfig;
 import com.wavefront.agent.data.DefaultEntityPropertiesFactoryForTesting;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
@@ -46,6 +48,11 @@ public class ReportSourceTagHandlerTest {
     sourceTagHandler =
         new ReportSourceTagHandlerImpl(
             handlerKey, 10, senderTaskFactory.createSenderTasks(handlerKey), null, blockedLogger);
+
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.l2 = false;
+    BuffersManager.init(cfg);
+    BuffersManager.registerNewHandlerKey(handlerKey);
   }
 
   /** This test will add 3 source tags and verify that the server side api is called properly. */

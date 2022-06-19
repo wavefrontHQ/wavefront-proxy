@@ -3,12 +3,14 @@ package com.wavefront.agent.buffer.activeMQ;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.buffer.Buffer;
+import com.wavefront.agent.buffer.BufferConfig;
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.agent.buffer.OnMsgFunction;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,18 +19,17 @@ import java.util.logging.Logger;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import org.apache.activemq.artemis.api.core.ActiveMQException;
-import org.apache.activemq.artemis.api.core.QueueConfiguration;
-import org.apache.activemq.artemis.api.core.RoutingType;
-import org.apache.activemq.artemis.api.core.SimpleString;
+import org.apache.activemq.artemis.api.core.*;
 import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.core.config.BridgeConfiguration;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
+import org.jetbrains.annotations.TestOnly;
 
-abstract class BufferActiveMQ implements Buffer {
+public abstract class BufferActiveMQ implements Buffer {
   private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
   private final EmbeddedActiveMQ amq;
@@ -39,23 +40,26 @@ abstract class BufferActiveMQ implements Buffer {
       new ConcurrentHashMap<>();
 
   private final Map<String, Gauge<Long>> mcMetrics = new HashMap<>();
+  private final Map<String, Histogram> msMetrics = new HashMap<>();
   private final String name;
+  @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
   private final int level;
   private final MBeanServer mbServer;
 
-  public BufferActiveMQ(int level, String name, boolean persistenceEnabled, String buffer) {
+  public BufferActiveMQ(int level, String name, boolean persistenceEnabled, BufferConfig cfg) {
     this.level = level;
     this.name = name;
+    this.cfg = cfg;
 
-    log.info("-> buffer:'" + buffer + "'");
+    log.info("-> buffer:'" + cfg.buffer + "'");
 
     Configuration config = new ConfigurationImpl();
     config.setName(name);
     config.setSecurityEnabled(false);
     config.setPersistenceEnabled(persistenceEnabled);
-    config.setJournalDirectory(buffer + "/journal");
-    config.setBindingsDirectory(buffer + "/bindings");
-    config.setLargeMessagesDirectory(buffer + "/largemessages");
+    config.setJournalDirectory(cfg.buffer + "/journal");
+    config.setBindingsDirectory(cfg.buffer + "/bindings");
+    config.setLargeMessagesDirectory(cfg.buffer + "/largemessages");
     config.setCreateBindingsDir(true);
     config.setCreateJournalDir(true);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
@@ -74,29 +78,26 @@ abstract class BufferActiveMQ implements Buffer {
     mbServer = amq.getActiveMQServer().getMBeanServer();
   }
 
-  public void registerNewHandlerKey(HandlerKey key) {
-    QueueConfiguration queue =
-        new QueueConfiguration(key.getQueue())
-            .setAddress(key.getPort())
-            .setRoutingType(RoutingType.ANYCAST);
-    QueueConfiguration queue_dl =
-        new QueueConfiguration(key.getQueue() + ".dl")
-            .setAddress(key.getPort())
-            .setRoutingType(RoutingType.ANYCAST);
+  @TestOnly
+  public void setQueueSize(HandlerKey key, long queueSize) {
+    AddressSettings addressSetting =
+        new AddressSettings()
+            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
+            .setMaxSizeMessages(-1)
+            .setMaxSizeBytes(queueSize);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getPort(), addressSetting);
+  }
 
-    try {
-      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
-      ClientSessionFactory factory = serverLocator.createSessionFactory();
-      ClientSession session = factory.createSession();
-      ClientSession.QueueQuery q = session.queueQuery(queue.getName());
-      if (!q.isExists()) {
-        session.createQueue(queue);
-        session.createQueue(queue_dl);
-      }
-    } catch (Exception e) {
-      log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
-    }
+  @Override
+  public void registerNewHandlerKey(HandlerKey key) {
+    AddressSettings addrSetting =
+        new AddressSettings()
+            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
+            .setMaxExpiryDelay(-1L)
+            .setMaxDeliveryAttempts(-1);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getPort(), addrSetting);
+
+    createQueue(key.getPort(), key.getQueue());
 
     try {
       registerQueueMetrics(key);
@@ -106,59 +107,36 @@ abstract class BufferActiveMQ implements Buffer {
     }
   }
 
-  void registerQueueMetrics(HandlerKey key) throws MalformedObjectNameException {
-    ObjectName nameMen =
-        new ObjectName(
-            "org.apache.activemq.artemis:"
-                + "broker=\""
-                + name
-                + "\","
-                + "component=addresses,"
-                + "address=\""
-                + key.getPort()
-                + "\","
-                + "subcomponent=queues,"
-                + "routing-type=\"anycast\","
-                + "queue=\""
-                + key.getQueue()
-                + "\"");
-    Gauge<Long> mc =
-        Metrics.newGauge(
-            new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
-            new Gauge<Long>() {
-              @Override
-              public Long value() {
-                Long mc = null;
-                try {
-                  mc = (Long) mbServer.getAttribute(nameMen, "MessageCount");
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  return 0L;
-                }
-                return mc; // datum.size();
-              }
-            });
-    mcMetrics.put(key.getQueue(), mc);
-  }
+  @Override
+  public void createBridge(String target, HandlerKey key, int targetLevel) {
+    String queue = key.getQueue();
+    String address = key.getPort();
+    createQueue(key.getPort() + ".dl", queue + ".dl");
 
-  public void createBridge(String addr, String queue, int level) {
-    AddressSettings addrSetting = new AddressSettings();
-    addrSetting.setMaxExpiryDelay(5000l); // TODO: config ?
-    addrSetting.setMaxDeliveryAttempts(3); // TODO: config ?
-    addrSetting.setDeadLetterAddress(SimpleString.toSimpleString(addr + "::" + queue + ".dl"));
-    addrSetting.setExpiryAddress(SimpleString.toSimpleString(addr + "::" + queue + ".dl"));
+    AddressSettings addressSetting_dl =
+        new AddressSettings().setMaxExpiryDelay(-1L).setMaxDeliveryAttempts(-1);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(address, addressSetting_dl);
 
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(addr, addrSetting);
+    AddressSettings addressSetting =
+        new AddressSettings()
+            .setMaxExpiryDelay(cfg.msgExpirationTime)
+            .setMaxDeliveryAttempts(cfg.msgRetry)
+            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
+            .setDeadLetterAddress(SimpleString.toSimpleString(address + ".dl::" + queue + ".dl"))
+            .setExpiryAddress(SimpleString.toSimpleString(address + ".dl::" + queue + ".dl"));
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(address, addressSetting);
 
-    BridgeConfiguration bridge = new BridgeConfiguration();
-    bridge.setName(addr + ".to.l" + level);
-    bridge.setQueueName(addr + "::" + queue + ".points.dl");
-    bridge.setForwardingAddress(addr + "::" + queue + ".points");
-    bridge.setStaticConnectors(Collections.singletonList("to.level_" + level));
+    BridgeConfiguration bridge =
+        new BridgeConfiguration()
+            .setName(queue + "." + name + ".to." + target)
+            .setQueueName(address + ".dl::" + queue + ".dl")
+            .setForwardingAddress(address + "::" + queue)
+            .setStaticConnectors(Collections.singletonList("to." + target));
+
     try {
       amq.getActiveMQServer()
           .getConfiguration()
-          .addConnectorConfiguration("to.level_" + (level), "vm://" + (level));
+          .addConnectorConfiguration("to." + target, "vm://" + targetLevel);
       amq.getActiveMQServer().deployBridge(bridge);
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
@@ -166,8 +144,58 @@ abstract class BufferActiveMQ implements Buffer {
     }
   }
 
+  void registerQueueMetrics(HandlerKey key) throws MalformedObjectNameException {
+    ObjectName queueObjectName =
+        new ObjectName(
+            String.format(
+                "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\",subcomponent=queues,routing-type=\"anycast\",queue=\"%s\"",
+                name, key.getPort(), key.getQueue()));
+    ObjectName addressObjectName =
+        new ObjectName(
+            String.format(
+                "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\"",
+                name, key.getPort()));
+    Gauge<Long> mc =
+        Metrics.newGauge(
+            new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
+            new Gauge<Long>() {
+              @Override
+              public Long value() {
+                Long mc;
+                try {
+                  mc = (Long) mbServer.getAttribute(queueObjectName, "MessageCount");
+                } catch (Exception e) {
+                  e.printStackTrace();
+                  return 0L;
+                }
+                return mc;
+              }
+            });
+    mcMetrics.put(key.getQueue(), mc);
+    Metrics.newGauge(
+        new MetricName("buffer." + name + "." + key.getQueue(), "", "usage"),
+        new Gauge<Integer>() {
+          @Override
+          public Integer value() {
+            Integer mc;
+            try {
+              mc = (Integer) mbServer.getAttribute(addressObjectName, "AddressLimitPercent");
+            } catch (Exception e) {
+              e.printStackTrace();
+              return 0;
+            }
+            return mc;
+          }
+        });
+
+    Histogram ms =
+        Metrics.newHistogram(
+            new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageSize"));
+    msMetrics.put(key.getQueue(), ms);
+  }
+
   @Override
-  public void sendMsg(HandlerKey key, List<String> strPoints) {
+  public void sendMsg(HandlerKey key, List<String> strPoints) throws ActiveMQAddressFullException {
     String sessionKey = key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientProducer> mqCtx =
         producers.computeIfAbsent(
@@ -196,9 +224,13 @@ abstract class BufferActiveMQ implements Buffer {
       for (String s : strPoints) {
         ClientMessage message = session.createMessage(true);
         message.writeBodyBufferString(s);
+        msMetrics.get(key.getQueue()).update(message.getWholeMessageSize());
         producer.send(message);
       }
       session.commit();
+    } catch (ActiveMQAddressFullException e) {
+      log.log(Level.FINE, "queue full: " + e.getMessage());
+      throw e;
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);
@@ -220,9 +252,6 @@ abstract class BufferActiveMQ implements Buffer {
       System.exit(-1);
     }
   }
-
-  @Override
-  public void onMsg(HandlerKey key, OnMsgFunction func) {}
 
   @Override
   public void onMsgBatch(
@@ -280,6 +309,23 @@ abstract class BufferActiveMQ implements Buffer {
         log.log(Level.SEVERE, "error", e);
         System.exit(-1);
       }
+    }
+  }
+
+  private void createQueue(String address, String queueName) {
+    try {
+      QueueConfiguration queue =
+          new QueueConfiguration(queueName).setAddress(address).setRoutingType(RoutingType.ANYCAST);
+      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+      ClientSessionFactory factory = serverLocator.createSessionFactory();
+      ClientSession session = factory.createSession();
+      ClientSession.QueueQuery q = session.queueQuery(queue.getName());
+      if (!q.isExists()) {
+        session.createQueue(queue);
+      }
+    } catch (Exception e) {
+      log.log(Level.SEVERE, "error", e);
+      System.exit(-1);
     }
   }
 }

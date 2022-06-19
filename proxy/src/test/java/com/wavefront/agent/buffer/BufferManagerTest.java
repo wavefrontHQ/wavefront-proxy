@@ -2,13 +2,16 @@ package com.wavefront.agent.buffer;
 
 import static com.wavefront.data.ReportableEntityType.POINT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
+import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.yammer.metrics.core.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import org.junit.Test;
 
 public class BufferManagerTest {
@@ -22,6 +25,8 @@ public class BufferManagerTest {
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = buffer.toFile().getAbsolutePath();
+    cfg.msgExpirationTime = 500;
+    cfg.msgRetry = -1;
     BuffersManager.init(cfg);
     BuffersManager.registerNewHandlerKey(points);
 
@@ -29,10 +34,8 @@ public class BufferManagerTest {
     assertEquals("MessageCount", 0l, mc2878.value());
     BuffersManager.sendMsg(points, Collections.singletonList("tururu"));
     assertEquals("MessageCount", 1l, mc2878.value());
-    for (int i = 0; i < 60; i++) {
-      assertEquals("MessageCount", 1l, mc2878.value());
-      Thread.sleep(1_000);
-    }
+    Thread.sleep(1_000);
+    assertEquals("MessageCount", 0l, mc2878.value());
   }
 
   @Test
@@ -45,6 +48,8 @@ public class BufferManagerTest {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.l2 = true;
+    cfg.msgExpirationTime = 100;
+    cfg.msgRetry = -1;
     BuffersManager.init(cfg);
     BuffersManager.registerNewHandlerKey(points);
 
@@ -54,63 +59,81 @@ public class BufferManagerTest {
     assertEquals("MessageCount", 0l, memory.value().longValue());
     BuffersManager.sendMsg(points, Collections.singletonList("tururu"));
     assertEquals("MessageCount", 1l, memory.value().longValue());
-    for (int i = 0; i < 10; i++) {
-      if (memory.value() != 1) {
-        break;
-      }
-      Thread.sleep(1_000);
-    }
     Thread.sleep(1_000);
     assertEquals("MessageCount", 0l, memory.value().longValue());
     assertEquals("MessageCount", 1l, disk.value().longValue());
-
-    for (int i = 0; i < 10; i++) {
-      if (disk.value() != 1) {
-        break;
-      }
-      Thread.sleep(1_000);
-    }
+    Thread.sleep(1_000);
     assertEquals("MessageCount", 1l, disk.value().longValue());
-
-    BuffersManager.getLeve2().onMsg(points, msg -> assertEquals("MessageCount", "tururu2", msg));
   }
 
   @Test
-  public void initTest() throws InterruptedException, IOException {
-    Path buffer = Files.createTempDirectory("wfproxy");
-    System.out.println("buffer: " + buffer);
-
+  public void MemoryQueueFull() throws IOException, InterruptedException {
     HandlerKey points_2878 = new HandlerKey(POINT, "2878");
     HandlerKey points_2879 = new HandlerKey(POINT, "2879");
 
+    Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.l2 = true;
+    cfg.msgRetry = -1;
+    cfg.msgExpirationTime = -1;
     cfg.buffer = buffer.toFile().getAbsolutePath();
     BuffersManager.init(cfg);
+
     BuffersManager.registerNewHandlerKey(points_2878);
     BuffersManager.registerNewHandlerKey(points_2879);
+
+    BuffersManager.getLeve1().setQueueSize(points_2878, 500);
 
     Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);
     Gauge mc2878_disk = BuffersManager.l2GetMcGauge(points_2878);
     Gauge mc2879 = BuffersManager.l1GetMcGauge(points_2879);
 
+    for (int i = 0; i < 10; i++) {
+      BuffersManager.sendMsg(points_2878, Collections.singletonList("tururu"));
+      BuffersManager.sendMsg(points_2879, Collections.singletonList("tururu"));
+    }
+
+    assertNotEquals("MessageCount", 0l, mc2878_memory.value());
+    assertNotEquals("MessageCount", 0l, mc2878_disk.value());
+    assertEquals("MessageCount", 10l, mc2879.value());
+  }
+
+  @Test
+  public void failDeliverTest() throws InterruptedException, IOException {
+    Path buffer = Files.createTempDirectory("wfproxy");
+    System.out.println("buffer: " + buffer);
+
+    List<String> msg = Collections.singletonList("tururu");
+
+    HandlerKey points_2878 = new HandlerKey(POINT, "2878");
+
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.buffer = buffer.toFile().getAbsolutePath();
+    cfg.msgExpirationTime = -1;
+    cfg.msgRetry = 3;
+    BuffersManager.init(cfg);
+    BuffersManager.registerNewHandlerKey(points_2878);
+
+    Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);
+    Gauge mc2878_disk = BuffersManager.l2GetMcGauge(points_2878);
+
     assertEquals("MessageCount", 0l, mc2878_memory.value());
     assertEquals("MessageCount", 0l, mc2878_disk.value());
-    assertEquals("MessageCount", 0l, mc2879.value());
 
-    BuffersManager.sendMsg(points_2878, Collections.singletonList("tururu"));
-    BuffersManager.sendMsg(points_2879, Collections.singletonList("tururu2"));
+    BuffersManager.sendMsg(points_2878, msg);
 
     assertEquals("MessageCount", 1l, mc2878_memory.value());
     assertEquals("MessageCount", 0l, mc2878_disk.value());
-    assertEquals("MessageCount", 1l, mc2879.value());
 
     // force MSG to DL
     for (int i = 0; i < 3; i++) {
       assertEquals("MessageCount", 1l, mc2878_memory.value());
-      BuffersManager.onMsg(
+      BuffersManager.onMsgBatch(
           points_2878,
-          msg -> {
-            assertEquals("MessageCount", "tururu", msg);
+          1,
+          new TestUtils.RateLimiter(),
+          msgs -> {
+            assertEquals("MessageCount", msg, msgs);
             throw new Exception("error");
           });
     }
@@ -119,17 +142,5 @@ public class BufferManagerTest {
 
     assertEquals("MessageCount", 0l, mc2878_memory.value());
     assertEquals("MessageCount", 1l, mc2878_disk.value());
-    assertEquals("MessageCount", 1l, mc2879.value());
-
-    BuffersManager.onMsg(points_2879, msg -> assertEquals("MessageCount", "tururu2", msg));
-
-    assertEquals("MessageCount", 0l, mc2878_memory.value());
-    assertEquals("MessageCount", 1l, mc2878_disk.value());
-    assertEquals("MessageCount", 0l, mc2879.value());
-
-    Thread.sleep(60000); // wait some time to allow the msg to flight from l0 to l1
-    assertEquals("MessageCount", 0l, mc2878_memory.value());
-    assertEquals("MessageCount", 1l, mc2878_disk.value());
-    assertEquals("MessageCount", 0l, mc2879.value());
   }
 }

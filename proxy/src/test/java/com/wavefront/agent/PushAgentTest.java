@@ -128,6 +128,10 @@ public class PushAgentTest {
     sslSocketFactory = context.getSocketFactory();
     HttpsURLConnection.setDefaultSSLSocketFactory(context.getSocketFactory());
     HttpsURLConnection.setDefaultHostnameVerifier((h, s) -> h.equals("localhost"));
+
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.l2 = false;
+    BuffersManager.init(cfg);
   }
 
   @Before
@@ -1845,7 +1849,6 @@ public class PushAgentTest {
   public void testDeltaCounterHandlerMixedData() throws Exception {
     deltaPort = findAvailablePort(5888);
     HandlerKey handlerKey = new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort));
-    BuffersManager.init(new BuffersManagerConfig());
     BuffersManager.registerNewHandlerKey(handlerKey);
 
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);

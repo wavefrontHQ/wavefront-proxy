@@ -321,6 +321,7 @@ public class ProxyConfig extends Configuration {
               + "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
   Integer pushRateLimitMaxBurstSeconds = 10;
 
+  // TODO: make it in bytes
   @Parameter(
       names = {"--pushMemoryBufferLimit"},
       description =
