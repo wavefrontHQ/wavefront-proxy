@@ -50,7 +50,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
-import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
@@ -1892,33 +1891,40 @@ public class PushAgentTest {
     deltaPort = findAvailablePort(5888);
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
+    proxy.proxyConfig.disableBuffer = true;
+
+    HandlerKey handlerKey = new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort));
+    BuffersManager.registerNewHandlerKey(handlerKey);
+
     proxy.startDeltaCounterListener(
         proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null,
         mockSenderTaskFactory,
         new SpanSampler(new RateSampler(1.0D), () -> null));
     waitUntilListenerIsOnline(deltaPort);
-    reset(mockSenderTask);
-    Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
-    //    mockSenderTask.add(Collections.singletonList(EasyMock.capture(capturedArgument)));
-    expectLastCall().atLeastOnce();
-    replay(mockSenderTask);
 
     String payloadStr = "∆test.mixed 1.0 " + alignedStartTimeEpochSeconds + " source=test1\n";
     assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
-    ReportableEntityHandler<?, ?> handler =
-        proxy.deltaCounterHandlerFactory.getHandler(
-            new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+    ReportableEntityHandler<?, ?> handler = proxy.deltaCounterHandlerFactory.getHandler(handlerKey);
     if (!(handler instanceof DeltaCounterAccumulationHandlerImpl)) fail();
     ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
 
     assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr));
     assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
+
     ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
-    verify(mockSenderTask);
-    assertEquals(2, capturedArgument.getValues().size());
-    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed\" 2.0"));
-    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed\" 3.0"));
+
+    BuffersManager.onMsgBatch(
+        handlerKey,
+        5,
+        new TestUtils.RateLimiter(),
+        batch -> {
+          assertEquals(2, batch.size());
+          batch.forEach(
+              s -> {
+                assertTrue(s.trim().matches("\"∆test.mixed\" [23].0(.*)"));
+              });
+        });
   }
 
   @Test

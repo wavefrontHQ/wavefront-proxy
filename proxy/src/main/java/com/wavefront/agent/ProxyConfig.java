@@ -118,6 +118,12 @@ public class ProxyConfig extends Configuration {
       order = 7)
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
+  @Parameter( // TODO: docs
+      names = {"--disable_buffer"},
+      description = "",
+      order = 7)
+  boolean disableBuffer = false;
+
   @Parameter(
       names = {"--bufferShardSize"},
       description =
@@ -1356,6 +1362,10 @@ public class ProxyConfig extends Configuration {
 
   public String getBufferFile() {
     return bufferFile;
+  }
+
+  public boolean getDisableBuffer() {
+    return disableBuffer;
   }
 
   public int getBufferShardSize() {

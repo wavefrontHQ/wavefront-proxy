@@ -2,7 +2,6 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
-import com.wavefront.agent.data.TaskResult;
 import com.wavefront.api.ProxyV2API;
 import java.util.List;
 import java.util.UUID;
@@ -52,7 +51,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
 
   // TODO: review
   @Override
-  TaskResult processSingleBatch(List<String> batch) {
+  public int processSingleBatch(List<String> batch) {
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
             proxyAPI, proxyId, properties, pushFormat, handlerKey, batch, null);

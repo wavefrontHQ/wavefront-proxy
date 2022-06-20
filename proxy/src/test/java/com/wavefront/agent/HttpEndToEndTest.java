@@ -9,7 +9,6 @@ import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -83,20 +82,18 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndMetrics() throws Exception {
-    AtomicInteger successfulSteps = new AtomicInteger(0);
-    AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
-    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
-    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.disableBuffer = true;
     proxy.proxyConfig.allowRegex = "^.*$";
     proxy.proxyConfig.blockRegex = "^.*blocklist.*$";
     proxy.proxyConfig.gzipCompression = false;
+    proxy.proxyConfig.pushFlushMaxPoints = 1;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
@@ -129,24 +126,26 @@ public class HttpEndToEndTest {
             + time
             + " source=\"metric.source\" \"tagk1\"=\"tagv4\"";
 
+    AtomicBoolean ok = new AtomicBoolean(false);
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
           logger.fine("Content received: " + content);
           assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
-          successfulSteps.incrementAndGet();
+          ok.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    HandlerKey key = new HandlerKey(ReportableEntityType.POINT, String.valueOf(proxyPort));
-    assertEquals(1, successfulSteps.getAndSet(0));
-    AtomicBoolean part1 = new AtomicBoolean(false);
-    AtomicBoolean part2 = new AtomicBoolean(false);
+    assertTrueWithTimeout(HTTP_timeout_tests, ok::get);
+
+    AtomicInteger successfulSteps = new AtomicInteger(0);
+    AtomicInteger testCounter = new AtomicInteger(0);
+    AtomicBoolean OK = new AtomicBoolean(false);
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
-          switch (testCounter.incrementAndGet()) {
+          logger.severe("(" + testCounter.incrementAndGet() + ") Content received: " + content);
+          switch (testCounter.get()) {
             case 1:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
@@ -154,29 +153,20 @@ public class HttpEndToEndTest {
             case 2:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
+              return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
             case 3:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.valueOf(407), "");
             case 4:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
-            case 5:
-            case 6:
-              if (content.equals(expectedTest1part1)) part1.set(true);
-              if (content.equals(expectedTest1part2)) part2.set(true);
-              successfulSteps.incrementAndGet();
+              OK.set(true);
               return makeResponse(HttpResponseStatus.OK, "");
           }
           throw new IllegalStateException();
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    assertEquals(6, successfulSteps.getAndSet(0));
-    assertTrue(part1.get());
-    assertTrue(part2.get());
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, OK::get);
   }
 
   @Ignore
@@ -381,7 +371,6 @@ public class HttpEndToEndTest {
     assertEquals(10, successfulSteps.getAndSet(0));
   }
 
-  @Ignore
   @Test
   public void testEndToEndHistograms() throws Exception {
     AtomicInteger successfulSteps = new AtomicInteger(0);
@@ -393,7 +382,7 @@ public class HttpEndToEndTest {
     int histHourPort = findAvailablePort(40002);
     int histDayPort = findAvailablePort(40003);
     int histDistPort = findAvailablePort(40000);
-    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
+
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
@@ -422,7 +411,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.splitPushWhenRateLimited = true;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 10000;
-    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.disableBuffer = true;
     proxy.proxyConfig.timeProvider = digestTime::get;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(histDistPort);
@@ -525,7 +514,7 @@ public class HttpEndToEndTest {
           String path = uri.getPath();
           assertEquals(HttpMethod.POST, req.method());
           assertEquals("/api/v2/wfproxy/report", path);
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           switch (testCounter.incrementAndGet()) {
             case 1:
               HashSet<String> histograms = new HashSet<>(Arrays.asList(content.split("\n")));
@@ -545,14 +534,13 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + histDayPort + "/", payloadHistograms);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", payloadHistograms); // should reject
     digestTime.set(System.currentTimeMillis());
-    proxy.histogramFlushRunnables.forEach(Runnable::run);
-    HandlerKey key = new HandlerKey(ReportableEntityType.HISTOGRAM, "histogram_ports");
+    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 1 == successfulSteps.get());
 
     digestTime.set(System.currentTimeMillis() - 1001);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", distPayload);
     digestTime.set(System.currentTimeMillis());
     proxy.histogramFlushRunnables.forEach(Runnable::run);
-    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 2 == successfulSteps.getAndSet(0));
+    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 2 == successfulSteps.get());
   }
 
   @Test
@@ -698,16 +686,16 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(HTTP_timeout_tests, gotSpanLog::get);
   }
 
+  @Ignore
   @Test
   public void testEndToEndLogs() throws Exception {
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
-    String buffer = Files.createTempDirectory("proxyTestBuffer").toFile().getAbsolutePath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.disableBuffer = true;
     proxy.proxyConfig.pushRateLimitLogs = 1024;
     proxy.proxyConfig.pushFlushIntervalLogs = 50;
 
@@ -734,8 +722,8 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
-    HandlerKey key = new HandlerKey(ReportableEntityType.LOGS, String.valueOf(proxyPort));
-    assertTrueWithTimeout(HTTP_timeout_tests, gotLog::get);
+
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, gotLog::get);
   }
 
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {

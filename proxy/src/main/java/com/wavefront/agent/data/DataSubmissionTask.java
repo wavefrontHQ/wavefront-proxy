@@ -19,6 +19,7 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    *
    * @return task weight
    */
+  // TODO: review this, not need it
   int weight();
 
   /**
@@ -26,14 +27,14 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    *
    * @return enqueue time in milliseconds
    */
-  long getEnqueuedMillis();
+  //  long getEnqueuedMillis();
 
   /**
    * Execute this task
    *
    * @return operation result
    */
-  TaskResult execute();
+  int execute();
 
   /**
    * Returns entity type handled.

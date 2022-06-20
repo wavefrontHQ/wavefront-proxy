@@ -2,7 +2,6 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.TaskResult;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,10 +25,9 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
     this.scheduler = scheduler;
   }
 
-  abstract TaskResult processSingleBatch(List<String> batch);
-
   @Override
   public void run() {
+    // TODO: review getDataPerBatch and getRateLimiter
     BuffersManager.onMsgBatch(
         handlerKey, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
     if (isRunning) {
@@ -52,15 +50,10 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   }
 
   private void processBatch(List<String> batch) throws Exception {
-    TaskResult result = processSingleBatch(batch);
-    switch (result) {
-      case DELIVERED:
-        break;
-      case PERSISTED:
-      case PERSISTED_RETRY:
-      case RETRY_LATER:
-      default:
-        throw new Exception("error"); // TODO: review Exception
+    int result = processSingleBatch(batch);
+    if (result != 0) {
+      // TODO: review Exception
+      throw new Exception("Error rending point to the server, error code:" + result);
     }
   }
 }

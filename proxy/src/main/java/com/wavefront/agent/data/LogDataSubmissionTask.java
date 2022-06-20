@@ -7,6 +7,9 @@ import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.api.LogAPI;
 import com.wavefront.dto.Log;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +17,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
+import wavefront.report.ReportLog;
 
 /**
  * A {@link DataSubmissionTask} that handles log payloads.
@@ -27,7 +31,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   private transient LogAPI api;
   private transient UUID proxyId;
 
-  @JsonProperty private List<Log> logs;
+  @JsonProperty private List<String> logs;
   private int weight;
 
   @SuppressWarnings("unused")
@@ -46,20 +50,31 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       UUID proxyId,
       EntityProperties properties,
       HandlerKey handle,
-      @Nonnull List<Log> logs,
+      @Nonnull List<String> logs,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, handle, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
-    this.logs = new ArrayList<>(logs);
-    for (Log l : logs) {
-      weight += l.getDataSize();
+    this.logs = new ArrayList<>(logs); // TODO: review why?
+    for (String l : logs) {
+      weight += l.length();
     }
   }
 
   @Override
   Response doExecute() {
-    return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
+    List<Log> logBatch = new ArrayList<>();
+    logs.forEach(
+        s -> {
+          try {
+            ReportLog rl =
+                ReportLog.fromByteBuffer(ByteBuffer.wrap(s.getBytes(StandardCharsets.UTF_8)));
+            logBatch.add(new Log(rl));
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        });
+    return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logBatch);
   }
 
   @Override

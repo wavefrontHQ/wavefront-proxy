@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.TaskResult;
 import com.wavefront.api.EventAPI;
 import java.util.List;
 import java.util.UUID;
@@ -55,7 +54,7 @@ class EventSenderTask extends AbstractSenderTask {
   //  }
 
   @Override
-  TaskResult processSingleBatch(List<String> batch) {
+  public int processSingleBatch(List<String> batch) {
     throw new UnsupportedOperationException("Not implemented");
   }
 }

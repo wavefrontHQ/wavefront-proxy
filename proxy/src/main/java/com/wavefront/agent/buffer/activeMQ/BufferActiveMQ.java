@@ -297,6 +297,10 @@ public abstract class BufferActiveMQ implements Buffer {
         }
         session.commit();
       } catch (Exception e) {
+        log.log(Level.SEVERE, e.getMessage());
+        if (log.isLoggable(Level.FINER)) {
+          log.log(Level.SEVERE, "error", e);
+        }
         session.rollback();
       }
     } catch (ActiveMQException e) {

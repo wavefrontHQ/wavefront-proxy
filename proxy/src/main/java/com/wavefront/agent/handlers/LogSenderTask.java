@@ -1,7 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.TaskResult;
+import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.api.LogAPI;
 import java.util.List;
 import java.util.UUID;
@@ -46,11 +46,10 @@ public class LogSenderTask extends AbstractSenderTask {
 
   // TODO: review
   @Override
-  TaskResult processSingleBatch(List<String> batch) {
-    throw new UnsupportedOperationException("Not implemented");
-    //      LogDataSubmissionTask task = new LogDataSubmissionTask(logAPI, proxyId, properties,
-    //          backlog, handlerKey.getHandle(), batch, null);
-    //      return task.execute();
+  public int processSingleBatch(List<String> batch) {
+    LogDataSubmissionTask task =
+        new LogDataSubmissionTask(logAPI, proxyId, properties, handlerKey, batch, null);
+    return task.execute();
   }
 
   //  @Override
