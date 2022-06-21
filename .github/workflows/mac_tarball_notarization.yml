@@ -41,6 +41,6 @@ jobs:
     - name: "${{ github.event.inputs.proxy_version }}-${{ github.event.inputs.release_type }}-notarize"
       run: |
         set -x
-        echo "chmod +x ./macos_proxy_notarization/proxy_notarization.sh; ./macos_proxy_notarization/proxy_notarization.sh 'wfproxy-${{ github.event.inputs.proxy_version }}.tar.gz'"
+        chmod +x ./macos_proxy_notarization/proxy_notarization.sh; ./macos_proxy_notarization/proxy_notarization.sh 'wfproxy-${{ github.event.inputs.proxy_version }}.tar.gz'
         set +x
         sleep 60
