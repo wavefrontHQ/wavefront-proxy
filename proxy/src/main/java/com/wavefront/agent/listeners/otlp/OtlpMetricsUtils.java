@@ -587,30 +587,30 @@ public class OtlpMetricsUtils {
     private final List<Double> explicitBounds;
     private final List<KeyValue> attributesList;
     private final long timeUnixNano;
-    private final boolean exponential;
+    private final boolean isExponential;
 
     private BucketHistogramDataPoint(
         List<Long> bucketCounts,
         List<Double> explicitBounds,
         List<KeyValue> attributesList,
         long timeUnixNano,
-        boolean exponential) {
+        boolean isExponential) {
       this.bucketCounts = bucketCounts;
       this.explicitBounds = explicitBounds;
       this.attributesList = attributesList;
       this.timeUnixNano = timeUnixNano;
-      this.exponential = exponential;
+      this.isExponential = isExponential;
     }
 
     List<CumulativeBucket> asCumulative() {
-      if (exponential) {
+      if (isExponential) {
         return asCumulative(1, bucketCounts.size());
       }
       return asCumulative(0, bucketCounts.size());
     }
 
     BinsAndCounts asDelta() {
-      if (exponential) {
+      if (isExponential) {
         return asDelta(1, bucketCounts.size() - 1);
       }
       return asDelta(0, bucketCounts.size());
