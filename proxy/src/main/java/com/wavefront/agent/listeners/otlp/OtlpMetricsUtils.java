@@ -108,7 +108,7 @@ public class OtlpMetricsUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       ReportPoint wfReportPoint,
-      ReportableEntityHandler<ReportPoint, String> spanHandler,
+      ReportableEntityHandler<ReportPoint, String> pointHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
@@ -117,9 +117,9 @@ public class OtlpMetricsUtils {
     String[] messageHolder = new String[1];
     if (!preprocessor.forReportPoint().filter(wfReportPoint, messageHolder)) {
       if (messageHolder[0] != null) {
-        spanHandler.reject(wfReportPoint, messageHolder[0]);
+        pointHandler.reject(wfReportPoint, messageHolder[0]);
       } else {
-        spanHandler.block(wfReportPoint);
+        pointHandler.block(wfReportPoint);
       }
       return true;
     }
@@ -281,19 +281,6 @@ public class OtlpMetricsUtils {
       reportPoints.add(rp);
     }
     return reportPoints;
-  }
-
-  private static Double getDeltaHistogramBound(List<Double> explicitBounds, int currentIndex) {
-    if (explicitBounds.size() == 0) {
-      // As coded in the metric exporter(OpenTelemetry Collector)
-      return 0.0;
-    }
-    if (currentIndex == 0) {
-      return explicitBounds.get(0);
-    } else if (currentIndex == explicitBounds.size()) {
-      return explicitBounds.get(explicitBounds.size() - 1);
-    }
-    return (explicitBounds.get(currentIndex - 1) + explicitBounds.get(currentIndex)) / 2.0;
   }
 
   private static List<ReportPoint> transformCumulativeHistogramDataPoint(
