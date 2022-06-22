@@ -57,8 +57,6 @@ public class DeltaCounterAccumulationHandlerImpl
    * @param handlerKey metrics pipeline key.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
-   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
-   *     Wavefront endpoint corresponding to the tenant name
    * @param validationConfig validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
    * @param receivedRateSink where to report received rate.
@@ -68,7 +66,6 @@ public class DeltaCounterAccumulationHandlerImpl
   public DeltaCounterAccumulationHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       long aggregationIntervalSeconds,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
@@ -78,7 +75,6 @@ public class DeltaCounterAccumulationHandlerImpl
         handlerKey,
         blockedItemsPerBatch,
         new ReportPointSerializer(),
-        senderTaskMap,
         true,
         null,
         blockedItemLogger);
@@ -121,17 +117,18 @@ public class DeltaCounterAccumulationHandlerImpl
       this.receivedRateTimer = null;
     } else {
       this.receivedRateTimer = new Timer("delta-counter-timer-" + handlerKey.getPort());
-      this.receivedRateTimer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
-              for (String tenantName : senderTaskMap.keySet()) {
-                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
-              }
-            }
-          },
-          1000,
-          1000);
+      // TODO: review
+      //      this.receivedRateTimer.scheduleAtFixedRate(
+      //          new TimerTask() {
+      //            @Override
+      //            public void run() {
+      //              for (String tenantName : senderTaskMap.keySet()) {
+      //                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+      //              }
+      //            }
+      //          },
+      //          1000,
+      //          1000);
     }
   }
 

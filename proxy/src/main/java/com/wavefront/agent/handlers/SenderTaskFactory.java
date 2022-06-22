@@ -1,14 +1,9 @@
 package com.wavefront.agent.handlers;
 
-import java.util.Collection;
-import java.util.Map;
+import com.wavefront.agent.buffer.QueueInfo;
 import javax.annotation.Nonnull;
 
-/**
- * Factory for {@link SenderTask} objects.
- *
- * @author vasily@wavefront.com
- */
+/** Factory for {@link SenderTask} objects. */
 public interface SenderTaskFactory {
 
   /**
@@ -18,7 +13,7 @@ public interface SenderTaskFactory {
    * @return created tasks corresponding to different Wavefront endpoints {@link
    *     com.wavefront.api.ProxyV2API}.
    */
-  <T> Map<String, Collection<SenderTask>> createSenderTasks(@Nonnull HandlerKey handlerKey);
+  void createSenderTasks(@Nonnull QueueInfo info);
 
   /** Shut down all tasks. */
   void shutdown();

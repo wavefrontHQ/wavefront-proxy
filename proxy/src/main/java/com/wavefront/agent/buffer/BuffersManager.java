@@ -4,9 +4,11 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.buffer.activeMQ.BufferActiveMQ;
 import com.wavefront.agent.buffer.activeMQ.BufferDisk;
 import com.wavefront.agent.buffer.activeMQ.BufferMemory;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.yammer.metrics.core.Gauge;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
@@ -20,9 +22,13 @@ public class BuffersManager {
   private static Buffer level_3;
   private static ActiveMQAddressFullException ex;
   private static BuffersManagerConfig cfg;
+  private static SenderTaskFactory senderTaskFactory;
+  private static final Map<String, Boolean> registeredQueues = new HashMap<>();
 
-  public static void init(BuffersManagerConfig cfg) {
+  public static void init(BuffersManagerConfig cfg, SenderTaskFactory senderTaskFactory) {
     BuffersManager.cfg = cfg;
+    BuffersManager.senderTaskFactory = senderTaskFactory;
+
     if (level_1 != null) {
       level_1.shutdown();
       level_1 = null;
@@ -45,15 +51,22 @@ public class BuffersManager {
     }
   }
 
-  public static void registerNewHandlerKey(HandlerKey handler) {
-    level_1.registerNewHandlerKey(handler);
-    if (level_2 != null) {
-      level_2.registerNewHandlerKey(handler);
-      level_1.createBridge("disk", handler, 1);
+  public static void registerNewQueueIfNeedIt(QueueInfo handler) {
+    Boolean registered = registeredQueues.computeIfAbsent(handler.getQueue(), s -> false);
+    if (!registered) {
+      level_1.registerNewQueueInfo(handler);
+      if (level_2 != null) {
+        level_2.registerNewQueueInfo(handler);
+        level_1.createBridge("disk", handler, 1);
+        RatedBridge.createNewBridge(level_2, level_1, handler);
+      }
+
+      senderTaskFactory.createSenderTasks(handler);
+      registeredQueues.put(handler.getQueue(), true);
     }
   }
 
-  public static void sendMsg(HandlerKey handler, List<String> strPoints) {
+  public static void sendMsg(QueueInfo handler, List<String> strPoints) {
     try {
       level_1.sendMsg(handler, strPoints);
     } catch (ActiveMQAddressFullException e) {
@@ -78,17 +91,17 @@ public class BuffersManager {
   }
 
   public static void onMsgBatch(
-      HandlerKey handler, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func) {
+      QueueInfo handler, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func) {
     level_1.onMsgBatch(handler, batchSize, rateLimiter, func);
   }
 
   @TestOnly
-  static Gauge<Long> l1GetMcGauge(HandlerKey handler) {
+  static Gauge<Long> l1GetMcGauge(QueueInfo handler) {
     return level_1.getMcGauge(handler);
   }
 
   @TestOnly
-  static Gauge<Long> l2GetMcGauge(HandlerKey handler) {
+  static Gauge<Long> l2GetMcGauge(QueueInfo handler) {
     return level_2.getMcGauge(handler);
   }
 

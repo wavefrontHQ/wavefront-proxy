@@ -4,9 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -31,8 +29,6 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
    * @param handlerKey pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
    *     main log.
-   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
-   *     Wavefront endpoint corresponding to the tenant name
    * @param receivedRateSink where to report received rate.
    * @param blockedEventsLogger logger for blocked events.
    * @param validEventsLogger logger for valid events.
@@ -40,7 +36,6 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   public EventHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {
@@ -48,7 +43,6 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
         handlerKey,
         blockedItemsPerBatch,
         EVENT_SERIALIZER,
-        senderTaskMap,
         true,
         receivedRateSink,
         blockedEventsLogger);

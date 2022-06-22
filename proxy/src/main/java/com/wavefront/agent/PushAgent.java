@@ -163,12 +163,15 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() throws Exception {
 
+    senderTaskFactory =
+        new SenderTaskFactoryImpl(apiContainer, agentId, entityPropertiesFactoryMap);
+
     /***** PROXY NEW *****/
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = proxyConfig.getBufferFile();
     cfg.l2 = !proxyConfig.getDisableBuffer();
-    BuffersManager.init(cfg);
+    BuffersManager.init(cfg, senderTaskFactory);
 
     /***** END PROXY NEW *****/
 
@@ -186,8 +189,6 @@ public class PushAgent extends AbstractAgent {
 
     remoteHostAnnotator =
         new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(), hostnameResolver);
-    senderTaskFactory =
-        new SenderTaskFactoryImpl(apiContainer, agentId, entityPropertiesFactoryMap);
     // MONIT-25479: when multicasting histogram, use the central cluster histogram accuracy
     if (proxyConfig.isHistogramPassthroughRecompression()) {
       histogramRecompressor =
@@ -240,8 +241,7 @@ public class PushAgent extends AbstractAgent {
     csvToList(proxyConfig.getDeltaCountersAggregationListenerPorts())
         .forEach(
             strPort -> {
-              startDeltaCounterListener(
-                  strPort, remoteHostAnnotator, senderTaskFactory, spanSampler);
+              startDeltaCounterListener(strPort, remoteHostAnnotator, spanSampler);
               logger.info("listening on port: " + strPort + " for Wavefront delta counter metrics");
             });
 
@@ -1268,10 +1268,7 @@ public class PushAgent extends AbstractAgent {
 
   @VisibleForTesting
   protected void startDeltaCounterListener(
-      String strPort,
-      SharedGraphiteHostAnnotator hostAnnotator,
-      SenderTaskFactory senderTaskFactory,
-      SpanSampler sampler) {
+      String strPort, SharedGraphiteHostAnnotator hostAnnotator, SpanSampler sampler) {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
@@ -1292,7 +1289,6 @@ public class PushAgent extends AbstractAgent {
                           new DeltaCounterAccumulationHandlerImpl(
                               handlerKey,
                               proxyConfig.getPushBlockedSamples(),
-                              senderTaskFactory.createSenderTasks(handlerKey),
                               validationConfiguration,
                               proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
                               (tenantName, rate) ->

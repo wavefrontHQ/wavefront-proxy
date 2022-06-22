@@ -11,10 +11,8 @@ import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -45,8 +43,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    * @param handlerKey pipeline hanler key.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
-   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
-   *     Wavefront endpoint corresponding to the tenant name
    * @param validationConfig parameters for data validation.
    * @param receivedRateSink where to report received rate.
    * @param blockedItemLogger logger for blocked items.
@@ -57,7 +53,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   SpanHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
@@ -68,7 +63,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
         handlerKey,
         blockedItemsPerBatch,
         new SpanSerializer(),
-        senderTaskMap,
         true,
         receivedRateSink,
         blockedItemLogger);

@@ -45,14 +45,12 @@ public class ReportSourceTagHandlerTest {
                 APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
 
     handlerKey = new HandlerKey(ReportableEntityType.SOURCE_TAG, "4878");
-    sourceTagHandler =
-        new ReportSourceTagHandlerImpl(
-            handlerKey, 10, senderTaskFactory.createSenderTasks(handlerKey), null, blockedLogger);
+    sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10, null, blockedLogger);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
-    BuffersManager.init(cfg);
-    BuffersManager.registerNewHandlerKey(handlerKey);
+    BuffersManager.init(cfg, senderTaskFactory);
+    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
   }
 
   /** This test will add 3 source tags and verify that the server side api is called properly. */
@@ -169,11 +167,7 @@ public class ReportSourceTagHandlerTest {
         ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tasks);
     ReportSourceTagHandlerImpl sourceTagHandler =
         new ReportSourceTagHandlerImpl(
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "4878"),
-            10,
-            taskMap,
-            null,
-            blockedLogger);
+            new HandlerKey(ReportableEntityType.SOURCE_TAG, "4878"), 10, null, blockedLogger);
     // todo: review
     //    task1.add(new SourceTag(sourceTag1));
     //    EasyMock.expectLastCall();

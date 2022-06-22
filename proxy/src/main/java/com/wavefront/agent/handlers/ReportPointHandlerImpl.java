@@ -13,7 +13,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,7 +64,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   ReportPointHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
@@ -76,7 +74,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
         handlerKey,
         blockedItemsPerBatch,
         new ReportPointSerializer(),
-        senderTaskMap,
         setupMetrics,
         receivedRateSink,
         blockedItemLogger);

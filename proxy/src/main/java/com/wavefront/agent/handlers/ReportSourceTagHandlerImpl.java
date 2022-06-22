@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
@@ -27,14 +26,12 @@ class ReportSourceTagHandlerImpl
   public ReportSourceTagHandlerImpl(
       HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       final Logger blockedItemLogger) {
     super(
         handlerKey,
         blockedItemsPerBatch,
         SOURCE_TAG_SERIALIZER,
-        senderTaskMap,
         true,
         receivedRateSink,
         blockedItemLogger);
@@ -58,12 +55,5 @@ class ReportSourceTagHandlerImpl
   static boolean annotationsAreValid(ReportSourceTag sourceTag) {
     if (sourceTag.getOperation() == SourceOperationType.SOURCE_DESCRIPTION) return true;
     return sourceTag.getAnnotations().stream().allMatch(Validation::charactersAreValid);
-  }
-
-  private SenderTask getTask(ReportSourceTag sourceTag) {
-    // we need to make sure the we preserve the order of operations for each source
-    List<SenderTask> senderTasks =
-        new ArrayList<>(senderTaskMap.get(APIContainer.CENTRAL_TENANT_NAME));
-    return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
   }
 }

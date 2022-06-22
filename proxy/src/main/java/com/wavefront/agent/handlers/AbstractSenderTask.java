@@ -1,6 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -10,17 +11,14 @@ import java.util.logging.Logger;
 abstract class AbstractSenderTask implements SenderTask, Runnable {
   private static final Logger logger =
       Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
-  private HandlerKey handlerKey;
+  private QueueInfo queue;
   private EntityProperties properties;
   private ScheduledExecutorService scheduler;
   private boolean isRunning;
 
   AbstractSenderTask(
-      HandlerKey handlerKey,
-      int threadId,
-      EntityProperties properties,
-      ScheduledExecutorService scheduler) {
-    this.handlerKey = handlerKey;
+      QueueInfo queue, EntityProperties properties, ScheduledExecutorService scheduler) {
+    this.queue = queue;
     this.properties = properties;
     this.scheduler = scheduler;
   }
@@ -29,7 +27,7 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   public void run() {
     // TODO: review getDataPerBatch and getRateLimiter
     BuffersManager.onMsgBatch(
-        handlerKey, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
+        queue, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
     if (isRunning) {
       scheduler.schedule(this, 1000, TimeUnit.MILLISECONDS);
     }

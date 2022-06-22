@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.api.ProxyV2API;
@@ -16,14 +17,14 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
 
   private final ProxyV2API proxyAPI;
   private final UUID proxyId;
-  private final HandlerKey handlerKey;
+  private final QueueInfo queue;
   private final String pushFormat;
   private EntityProperties properties;
   private final ScheduledExecutorService scheduler;
   private final int threadId;
 
   /**
-   * @param handlerKey pipeline handler key
+   * @param queue pipeline handler key
    * @param pushFormat format parameter passed to the API endpoint.
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId proxy ID.
@@ -32,15 +33,15 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
    * @param threadId thread number.
    */
   LineDelimitedSenderTask(
-      HandlerKey handlerKey,
+      QueueInfo queue,
       String pushFormat,
       ProxyV2API proxyAPI,
       UUID proxyId,
       final EntityProperties properties,
       ScheduledExecutorService scheduler,
       int threadId) {
-    super(handlerKey, threadId, properties, scheduler);
-    this.handlerKey = handlerKey;
+    super(queue, properties, scheduler);
+    this.queue = queue;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
@@ -54,7 +55,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   public int processSingleBatch(List<String> batch) {
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
-            proxyAPI, proxyId, properties, pushFormat, handlerKey, batch, null);
+            proxyAPI, proxyId, properties, pushFormat, queue, batch, null);
     return task.execute();
   }
 

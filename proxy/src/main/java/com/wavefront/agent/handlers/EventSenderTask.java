@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.EventAPI;
 import java.util.List;
@@ -18,7 +19,7 @@ class EventSenderTask extends AbstractSenderTask {
   private final UUID proxyId;
 
   /**
-   * @param handlerKey handler key, that serves as an identifier of the metrics pipeline.
+   * @param queue handler key, that serves as an identifier of the metrics pipeline.
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId id of the proxy.
    * @param threadId thread number.
@@ -26,13 +27,12 @@ class EventSenderTask extends AbstractSenderTask {
    * @param scheduler executor service for running this task
    */
   EventSenderTask(
-      HandlerKey handlerKey,
+      QueueInfo queue,
       EventAPI proxyAPI,
       UUID proxyId,
-      int threadId,
       EntityProperties properties,
       ScheduledExecutorService scheduler) {
-    super(handlerKey, threadId, properties, scheduler);
+    super(queue, properties, scheduler);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
   }

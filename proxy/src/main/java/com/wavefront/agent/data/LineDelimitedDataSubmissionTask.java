@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.api.ProxyV2API;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ public class LineDelimitedDataSubmissionTask
    * @param proxyId Proxy identifier. Used to authenticate proxy with the API.
    * @param properties entity-specific wrapper over mutable proxy settings' container.
    * @param format Data format (passed as an argument to the API)
-   * @param handle Handle (usually port number) of the pipeline where the data came from.
+   * @param queue Handle (usually port number) of the pipeline where the data came from.
    * @param payload Data payload
    * @param timeProvider Time provider (in millis)
    */
@@ -49,10 +49,10 @@ public class LineDelimitedDataSubmissionTask
       UUID proxyId,
       EntityProperties properties,
       String format,
-      HandlerKey handle,
+      QueueInfo queue,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, handle, timeProvider);
+    super(properties, queue, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
@@ -83,7 +83,7 @@ public class LineDelimitedDataSubmissionTask
                 proxyId,
                 properties,
                 format,
-                handle,
+                queue,
                 payload.subList(startingIndex, endingIndex + 1),
                 timeProvider));
       }

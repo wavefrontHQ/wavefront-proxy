@@ -1,8 +1,7 @@
 package com.wavefront.agent.buffer;
 
 import static com.wavefront.data.ReportableEntityType.POINT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.*;
 
 import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -10,11 +9,46 @@ import com.yammer.metrics.core.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.junit.Test;
 
 public class BufferManagerTest {
+
+  @Test
+  public void ratedBridgeTest()
+      throws IOException, InterruptedException, ActiveMQAddressFullException {
+    HandlerKey points = new HandlerKey(POINT, "2878");
+
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.buffer = Files.createTempDirectory("wfproxy").toFile().getAbsolutePath();
+    cfg.l2 = true;
+    cfg.msgExpirationTime = -1;
+    cfg.msgRetry = -1;
+    BuffersManager.init(cfg, null);
+    BuffersManager.registerNewQueueIfNeedIt(points);
+
+    Gauge<Long> memory = BuffersManager.l1GetMcGauge(points);
+    Gauge<Long> disk = BuffersManager.l2GetMcGauge(points);
+
+    assertEquals("MessageCount", 0L, memory.value().longValue());
+    assertEquals("MessageCount", 0L, disk.value().longValue());
+
+    List<String> msgs = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      msgs.add("turur");
+    }
+    BuffersManager.getLeve2().sendMsg(points, msgs);
+
+    int ticks = 0;
+    while (memory.value().longValue() != 100) {
+      ticks++;
+      Thread.sleep(1000);
+    }
+    assertTrue("ticks is " + ticks, ((ticks > 9) && (ticks < 13)));
+  }
 
   @Test
   public void expirationTest() throws IOException, InterruptedException {
@@ -27,8 +61,8 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = 500;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg);
-    BuffersManager.registerNewHandlerKey(points);
+    BuffersManager.init(cfg, null);
+    BuffersManager.registerNewQueueIfNeedIt(points);
 
     Gauge mc2878 = BuffersManager.l1GetMcGauge(points);
     assertEquals("MessageCount", 0l, mc2878.value());
@@ -50,8 +84,8 @@ public class BufferManagerTest {
     cfg.l2 = true;
     cfg.msgExpirationTime = 100;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg);
-    BuffersManager.registerNewHandlerKey(points);
+    BuffersManager.init(cfg, null);
+    BuffersManager.registerNewQueueIfNeedIt(points);
 
     Gauge<Long> memory = BuffersManager.l1GetMcGauge(points);
     Gauge<Long> disk = BuffersManager.l2GetMcGauge(points);
@@ -77,10 +111,10 @@ public class BufferManagerTest {
     cfg.msgRetry = -1;
     cfg.msgExpirationTime = -1;
     cfg.buffer = buffer.toFile().getAbsolutePath();
-    BuffersManager.init(cfg);
+    BuffersManager.init(cfg, null);
 
-    BuffersManager.registerNewHandlerKey(points_2878);
-    BuffersManager.registerNewHandlerKey(points_2879);
+    BuffersManager.registerNewQueueIfNeedIt(points_2878);
+    BuffersManager.registerNewQueueIfNeedIt(points_2879);
 
     BuffersManager.getLeve1().setQueueSize(points_2878, 500);
 
@@ -111,8 +145,8 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = -1;
     cfg.msgRetry = 3;
-    BuffersManager.init(cfg);
-    BuffersManager.registerNewHandlerKey(points_2878);
+    BuffersManager.init(cfg, null);
+    BuffersManager.registerNewQueueIfNeedIt(points_2878);
 
     Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);
     Gauge mc2878_disk = BuffersManager.l2GetMcGauge(points_2878);

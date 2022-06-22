@@ -9,9 +9,7 @@ import com.wavefront.dto.Log;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -36,7 +34,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final com.yammer.metrics.core.Counter receivedByteCount;
 
   /**
-   * @param senderTaskMap sender tasks.
    * @param handlerKey pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
    *     main log.
@@ -49,7 +46,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   public ReportLogHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
@@ -59,7 +55,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         handlerKey,
         blockedItemsPerBatch,
         LOG_SERIALIZER,
-        senderTaskMap,
         true,
         receivedRateSink,
         blockedLogsLogger);

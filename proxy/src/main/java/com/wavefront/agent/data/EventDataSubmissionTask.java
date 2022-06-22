@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.api.EventAPI;
 import com.wavefront.dto.Event;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
    * @param api API endpoint.
    * @param proxyId Proxy identifier. Used to authenticate proxy with the API.
    * @param properties entity-specific wrapper over mutable proxy settings' container.
-   * @param handle Handle (usually port number) of the pipeline where the data came from.
+   * @param queue Handle (usually port number) of the pipeline where the data came from.
    * @param events Data payload.
    * @param timeProvider Time provider (in millis).
    */
@@ -43,10 +43,10 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       EventAPI api,
       UUID proxyId,
       EntityProperties properties,
-      HandlerKey handle,
+      QueueInfo queue,
       @Nonnull List<Event> events,
       @Nullable Supplier<Long> timeProvider) {
-    super(properties, handle, timeProvider);
+    super(properties, queue, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.events = new ArrayList<>(events);
@@ -69,7 +69,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
                 api,
                 proxyId,
                 properties,
-                handle,
+                queue,
                 events.subList(startingIndex, endingIndex + 1),
                 timeProvider));
       }

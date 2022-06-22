@@ -22,8 +22,6 @@ import wavefront.report.Histogram;
  * Caching factory for {@link ReportableEntityHandler} objects. Makes sure there's only one handler
  * for each {@link HandlerKey}, which makes it possible to spin up handlers on demand at runtime, as
  * well as redirecting traffic to a different pipeline.
- *
- * @author vasily@wavefront.com
  */
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
   private static final Logger logger = Logger.getLogger("sampling");
@@ -74,7 +72,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
       new ConcurrentHashMap<>();
 
-  private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
   private final ValidationConfiguration validationConfig;
   private final Logger blockedPointsLogger;
@@ -103,7 +100,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
       final Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
       final Logger blockedLogsLogger) {
-    this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
     this.blockedPointsLogger = blockedPointsLogger;
@@ -115,7 +111,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   }
 
   @SuppressWarnings("unchecked")
-  // TODO: review all implementation of this method
+  // TODO: review all implementations of this method
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
     BiConsumer<String, Long> receivedRateSink =
@@ -124,7 +120,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                 .get(tenantName)
                 .get(handlerKey.getEntityType())
                 .reportReceivedRate(handlerKey.getPort(), rate);
-    BuffersManager.registerNewHandlerKey(handlerKey);
+    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
     return (ReportableEntityHandler<T, U>)
         handlers
             .computeIfAbsent(handlerKey.getPort(), h -> new ConcurrentHashMap<>())
@@ -136,7 +132,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new ReportPointHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           validationConfig,
                           true,
                           receivedRateSink,
@@ -147,7 +142,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new ReportPointHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           validationConfig,
                           true,
                           receivedRateSink,
@@ -156,16 +150,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           histogramRecompressor);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(
-                          handlerKey,
-                          blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
-                          receivedRateSink,
-                          blockedPointsLogger);
+                          handlerKey, blockedItemsPerBatch, receivedRateSink, blockedPointsLogger);
                     case TRACE:
                       return new SpanHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           validationConfig,
                           receivedRateSink,
                           blockedSpansLogger,
@@ -183,7 +172,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new SpanLogsHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           receivedRateSink,
                           blockedSpansLogger,
                           VALID_SPAN_LOGS_LOGGER);
@@ -191,7 +179,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new EventHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           receivedRateSink,
                           blockedPointsLogger,
                           VALID_EVENTS_LOGGER);
@@ -199,7 +186,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new ReportLogHandlerImpl(
                           handlerKey,
                           blockedItemsPerBatch,
-                          senderTaskFactory.createSenderTasks(handlerKey),
                           validationConfig,
                           true,
                           receivedRateSink,

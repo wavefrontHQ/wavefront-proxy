@@ -63,7 +63,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
     super(
         handlerKey,
         blockedItemsPerBatch,
-        null,
         validationConfig,
         !isHistogramInput,
         receivedRateSink,

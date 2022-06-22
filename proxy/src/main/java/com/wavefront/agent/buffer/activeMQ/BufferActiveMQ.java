@@ -2,11 +2,7 @@ package com.wavefront.agent.buffer.activeMQ;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.buffer.Buffer;
-import com.wavefront.agent.buffer.BufferConfig;
-import com.wavefront.agent.buffer.BuffersManager;
-import com.wavefront.agent.buffer.OnMsgFunction;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.buffer.*;
 import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -79,25 +75,25 @@ public abstract class BufferActiveMQ implements Buffer {
   }
 
   @TestOnly
-  public void setQueueSize(HandlerKey key, long queueSize) {
+  public void setQueueSize(QueueInfo key, long queueSize) {
     AddressSettings addressSetting =
         new AddressSettings()
             .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
             .setMaxSizeMessages(-1)
             .setMaxSizeBytes(queueSize);
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getPort(), addressSetting);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getQueue(), addressSetting);
   }
 
   @Override
-  public void registerNewHandlerKey(HandlerKey key) {
-    AddressSettings addrSetting =
+  public void registerNewQueueInfo(QueueInfo key) {
+    AddressSettings addressSetting =
         new AddressSettings()
             .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
             .setMaxExpiryDelay(-1L)
             .setMaxDeliveryAttempts(-1);
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getPort(), addrSetting);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getQueue(), addressSetting);
 
-    createQueue(key.getPort(), key.getQueue());
+    createQueue(key.getQueue());
 
     try {
       registerQueueMetrics(key);
@@ -108,29 +104,28 @@ public abstract class BufferActiveMQ implements Buffer {
   }
 
   @Override
-  public void createBridge(String target, HandlerKey key, int targetLevel) {
+  public void createBridge(String target, QueueInfo key, int targetLevel) {
     String queue = key.getQueue();
-    String address = key.getPort();
-    createQueue(key.getPort() + ".dl", queue + ".dl");
+    createQueue(queue + ".dl");
 
     AddressSettings addressSetting_dl =
         new AddressSettings().setMaxExpiryDelay(-1L).setMaxDeliveryAttempts(-1);
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(address, addressSetting_dl);
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(queue, addressSetting_dl);
 
     AddressSettings addressSetting =
         new AddressSettings()
             .setMaxExpiryDelay(cfg.msgExpirationTime)
             .setMaxDeliveryAttempts(cfg.msgRetry)
             .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
-            .setDeadLetterAddress(SimpleString.toSimpleString(address + ".dl::" + queue + ".dl"))
-            .setExpiryAddress(SimpleString.toSimpleString(address + ".dl::" + queue + ".dl"));
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(address, addressSetting);
+            .setDeadLetterAddress(SimpleString.toSimpleString(queue + ".dl::" + queue + ".dl"))
+            .setExpiryAddress(SimpleString.toSimpleString(queue + ".dl::" + queue + ".dl"));
+    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(queue, addressSetting);
 
     BridgeConfiguration bridge =
         new BridgeConfiguration()
             .setName(queue + "." + name + ".to." + target)
-            .setQueueName(address + ".dl::" + queue + ".dl")
-            .setForwardingAddress(address + "::" + queue)
+            .setQueueName(queue + ".dl::" + queue + ".dl")
+            .setForwardingAddress(queue + "::" + queue)
             .setStaticConnectors(Collections.singletonList("to." + target));
 
     try {
@@ -144,17 +139,17 @@ public abstract class BufferActiveMQ implements Buffer {
     }
   }
 
-  void registerQueueMetrics(HandlerKey key) throws MalformedObjectNameException {
+  void registerQueueMetrics(QueueInfo key) throws MalformedObjectNameException {
     ObjectName queueObjectName =
         new ObjectName(
             String.format(
                 "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\",subcomponent=queues,routing-type=\"anycast\",queue=\"%s\"",
-                name, key.getPort(), key.getQueue()));
+                name, key.getQueue(), key.getQueue()));
     ObjectName addressObjectName =
         new ObjectName(
             String.format(
                 "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\"",
-                name, key.getPort()));
+                name, key.getQueue()));
     Gauge<Long> mc =
         Metrics.newGauge(
             new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
@@ -195,8 +190,8 @@ public abstract class BufferActiveMQ implements Buffer {
   }
 
   @Override
-  public void sendMsg(HandlerKey key, List<String> strPoints) throws ActiveMQAddressFullException {
-    String sessionKey = key.getQueue() + "." + Thread.currentThread().getName();
+  public void sendMsg(QueueInfo key, List<String> strPoints) throws ActiveMQAddressFullException {
+    String sessionKey = "sendMsg." + key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientProducer> mqCtx =
         producers.computeIfAbsent(
             sessionKey,
@@ -207,7 +202,7 @@ public abstract class BufferActiveMQ implements Buffer {
                 // 1st false mean we commit msg.send on only on session.commit
                 ClientSession session = factory.createSession(false, false);
                 ClientProducer producer =
-                    session.createProducer(key.getPort() + "::" + key.getQueue());
+                    session.createProducer(key.getQueue() + "::" + key.getQueue());
                 return new Pair<>(session, producer);
               } catch (Exception e) {
                 e.printStackTrace();
@@ -239,8 +234,8 @@ public abstract class BufferActiveMQ implements Buffer {
 
   @Override
   @VisibleForTesting
-  public Gauge<Long> getMcGauge(HandlerKey handlerKey) {
-    return mcMetrics.get(handlerKey.getQueue());
+  public Gauge<Long> getMcGauge(QueueInfo QueueInfo) {
+    return mcMetrics.get(QueueInfo.getQueue());
   }
 
   @Override
@@ -255,8 +250,8 @@ public abstract class BufferActiveMQ implements Buffer {
 
   @Override
   public void onMsgBatch(
-      HandlerKey key, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func) {
-    String sessionKey = key.getQueue() + "." + Thread.currentThread().getName();
+      QueueInfo key, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func) {
+    String sessionKey = "onMsgBatch." + key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientConsumer> mqCtx =
         consumers.computeIfAbsent(
             sessionKey,
@@ -267,7 +262,7 @@ public abstract class BufferActiveMQ implements Buffer {
                 // 2sd false means that we send msg.ack only on session.commit
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer =
-                    session.createConsumer(key.getPort() + "::" + key.getQueue());
+                    session.createConsumer(key.getQueue() + "::" + key.getQueue());
                 return new Pair<>(session, consumer);
               } catch (Exception e) {
                 e.printStackTrace();
@@ -282,7 +277,7 @@ public abstract class BufferActiveMQ implements Buffer {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
       while ((batch.size() < batchSize) && (rateLimiter.tryAcquire())) {
-        ClientMessage msg = consumer.receive(10);
+        ClientMessage msg = consumer.receive(100);
         if (msg != null) {
           msg.acknowledge();
           batch.add(msg.getReadOnlyBodyBuffer().readString());
@@ -316,10 +311,13 @@ public abstract class BufferActiveMQ implements Buffer {
     }
   }
 
-  private void createQueue(String address, String queueName) {
+  private void createQueue(String queueName) {
     try {
       QueueConfiguration queue =
-          new QueueConfiguration(queueName).setAddress(address).setRoutingType(RoutingType.ANYCAST);
+          new QueueConfiguration(queueName)
+              .setAddress(queueName)
+              .setRoutingType(RoutingType.ANYCAST);
+
       ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
       ClientSessionFactory factory = serverLocator.createSessionFactory();
       ClientSession session = factory.createSession();

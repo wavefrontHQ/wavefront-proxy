@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.api.LogAPI;
@@ -13,10 +14,9 @@ import java.util.concurrent.ScheduledExecutorService;
  * @author amitw@vmware.com
  */
 public class LogSenderTask extends AbstractSenderTask {
-  private final HandlerKey handlerKey;
+  private final QueueInfo queue;
   private final LogAPI logAPI;
   private final UUID proxyId;
-  private final int threadId;
   private final EntityProperties properties;
   private final ScheduledExecutorService scheduler;
 
@@ -29,17 +29,15 @@ public class LogSenderTask extends AbstractSenderTask {
    * @param scheduler executor service for running this task
    */
   LogSenderTask(
-      HandlerKey handlerKey,
+      QueueInfo handlerKey,
       LogAPI logAPI,
       UUID proxyId,
-      int threadId,
       EntityProperties properties,
       ScheduledExecutorService scheduler) {
-    super(handlerKey, threadId, properties, scheduler);
-    this.handlerKey = handlerKey;
+    super(handlerKey, properties, scheduler);
+    this.queue = handlerKey;
     this.logAPI = logAPI;
     this.proxyId = proxyId;
-    this.threadId = threadId;
     this.properties = properties;
     this.scheduler = scheduler;
   }
@@ -48,7 +46,7 @@ public class LogSenderTask extends AbstractSenderTask {
   @Override
   public int processSingleBatch(List<String> batch) {
     LogDataSubmissionTask task =
-        new LogDataSubmissionTask(logAPI, proxyId, properties, handlerKey, batch, null);
+        new LogDataSubmissionTask(logAPI, proxyId, properties, queue, batch, null);
     return task.execute();
   }
 

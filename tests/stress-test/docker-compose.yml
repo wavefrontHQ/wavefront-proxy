@@ -5,6 +5,8 @@ services:
     volumes:
       - ./resources/metrics_filter:/opt/wf/
       - ./resources/certs:/opt/certs/
+    ports:
+      - "7000:7000"
     working_dir: /opt/wf/
     command: [ "node", "filter.js", "0" ]
 

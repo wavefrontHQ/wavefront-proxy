@@ -1,9 +1,11 @@
 package com.wavefront.agent.handlers;
 
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.api.agent.Constants.*;
 
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.ProxyV2API;
@@ -26,9 +28,8 @@ import javax.annotation.Nonnull;
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final Logger log = Logger.getLogger(SenderTaskFactoryImpl.class.getCanonicalName());
 
-  private final Map<String, List<ReportableEntityType>> entityTypes = new ConcurrentHashMap<>();
-  private final Map<HandlerKey, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
-  private final Map<HandlerKey, List<SenderTask>> managedTasks = new ConcurrentHashMap<>();
+  private final Map<String, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
+  private final Map<QueueInfo, List<SenderTask>> managedTasks = new ConcurrentHashMap<>();
 
   private final APIContainer apiContainer;
   private final UUID proxyId;
@@ -66,44 +67,31 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     //        });
   }
 
-  @SuppressWarnings("unchecked")
-  public Map<String, Collection<SenderTask>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
-    ReportableEntityType entityType = handlerKey.getEntityType();
-    String handle = handlerKey.getPort();
+  public void createSenderTasks(@Nonnull QueueInfo info) {
+    ReportableEntityType entityType = info.getEntityType();
 
     ScheduledExecutorService scheduler;
     Map<String, Collection<SenderTask>> toReturn = Maps.newHashMap();
-    // MONIT-25479: HandlerKey(EntityType, Port) --> HandlerKey(EntityType, Port, TenantName)
-    // Every SenderTask is tenant specific from this point
     for (String tenantName : apiContainer.getTenantNameList()) {
       int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
-      HandlerKey tenantHandlerKey = new HandlerKey(entityType, handle, tenantName);
-
       scheduler =
           executors.computeIfAbsent(
-              tenantHandlerKey,
+              info.getQueue(),
               x ->
                   Executors.newScheduledThreadPool(
-                      numThreads,
-                      new NamedThreadFactory(
-                          "submitter-"
-                              + tenantHandlerKey.getEntityType()
-                              + "-"
-                              + tenantHandlerKey.getPort())));
+                      numThreads, new NamedThreadFactory("submitter-" + info.getQueue())));
 
-      toReturn.put(tenantName, generateSenderTaskList(tenantHandlerKey, numThreads, scheduler));
+      generateSenderTaskList(info, numThreads, scheduler);
     }
-    return toReturn;
   }
 
   private Collection<SenderTask> generateSenderTaskList(
-      HandlerKey handlerKey, int numThreads, ScheduledExecutorService scheduler) {
-    String tenantName = handlerKey.getTenantName();
+      QueueInfo queue, int numThreads, ScheduledExecutorService scheduler) {
+    String tenantName = queue.getTenantName();
     if (tenantName == null) {
-      throw new IllegalArgumentException(
-          "Tenant name in handlerKey should not be null when " + "generating sender task list.");
+      tenantName = CENTRAL_TENANT_NAME;
     }
-    ReportableEntityType entityType = handlerKey.getEntityType();
+    ReportableEntityType entityType = queue.getEntityType();
     List<SenderTask> senderTaskList = new ArrayList<>(numThreads);
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
@@ -114,7 +102,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case DELTA_COUNTER:
           senderTask =
               new LineDelimitedSenderTask(
-                  handlerKey,
+                  queue,
                   PUSH_FORMAT_WAVEFRONT,
                   proxyV2API,
                   proxyId,
@@ -125,7 +113,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case HISTOGRAM:
           senderTask =
               new LineDelimitedSenderTask(
-                  handlerKey,
+                  queue,
                   PUSH_FORMAT_HISTOGRAM,
                   proxyV2API,
                   proxyId,
@@ -138,29 +126,19 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           // generated tasks for each tenant in case we have other multicasting mechanism
           senderTask =
               new SourceTagSenderTask(
-                  handlerKey,
-                  apiContainer.getSourceTagAPIForTenant(tenantName),
-                  threadNo,
-                  properties,
-                  scheduler);
+                  queue, apiContainer.getSourceTagAPIForTenant(tenantName), properties, scheduler);
           break;
         case TRACE:
           senderTask =
               new LineDelimitedSenderTask(
-                  handlerKey,
-                  PUSH_FORMAT_TRACING,
-                  proxyV2API,
-                  proxyId,
-                  properties,
-                  scheduler,
-                  threadNo);
+                  queue, PUSH_FORMAT_TRACING, proxyV2API, proxyId, properties, scheduler, threadNo);
           break;
         case TRACE_SPAN_LOGS:
           // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
           // generated tasks for each tenant in case we have other multicasting mechanism
           senderTask =
               new LineDelimitedSenderTask(
-                  handlerKey,
+                  queue,
                   PUSH_FORMAT_TRACING_SPAN_LOGS,
                   proxyV2API,
                   proxyId,
@@ -171,37 +149,29 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case EVENT:
           senderTask =
               new EventSenderTask(
-                  handlerKey,
+                  queue,
                   apiContainer.getEventAPIForTenant(tenantName),
                   proxyId,
-                  threadNo,
                   properties,
                   scheduler);
           break;
         case LOGS:
           senderTask =
               new LogSenderTask(
-                  handlerKey,
+                  queue,
                   apiContainer.getLogAPI(),
                   proxyId,
-                  threadNo,
                   entityPropsFactoryMap.get(tenantName).get(entityType),
                   scheduler);
           break;
         default:
           throw new IllegalArgumentException(
-              "Unexpected entity type "
-                  + handlerKey.getEntityType().name()
-                  + " for "
-                  + handlerKey.getPort());
+              "Unexpected entity type " + queue.getEntityType().name());
       }
       senderTaskList.add(senderTask);
       senderTask.start();
     }
-    managedTasks.put(handlerKey, senderTaskList);
-    entityTypes
-        .computeIfAbsent(handlerKey.getPort(), x -> new ArrayList<>())
-        .add(handlerKey.getEntityType());
+    managedTasks.put(queue, senderTaskList);
     return senderTaskList;
   }
 

@@ -39,7 +39,6 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
-import javax.annotation.Nonnull;
 import javax.net.SocketFactory;
 import javax.net.ssl.*;
 import junit.framework.AssertionFailedError;
@@ -90,25 +89,6 @@ public class PushAgentTest {
   private Map<String, Collection<SenderTask>> mockSenderTaskMap =
       ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, ImmutableList.of(mockSenderTask));
 
-  private SenderTaskFactory mockSenderTaskFactory =
-      new SenderTaskFactory() {
-        @SuppressWarnings("unchecked")
-        @Override
-        public Map<String, Collection<SenderTask>> createSenderTasks(
-            @Nonnull HandlerKey handlerKey) {
-          return mockSenderTaskMap;
-        }
-
-        @Override
-        public void shutdown() {}
-
-        @Override
-        public void shutdown(@Nonnull String handle) {}
-
-        @Override
-        public void truncateBuffers() {}
-      };
-
   private ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(
           mockPointHandler,
@@ -130,7 +110,7 @@ public class PushAgentTest {
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
-    BuffersManager.init(cfg);
+    BuffersManager.init(cfg, null);
   }
 
   @Before
@@ -1848,7 +1828,7 @@ public class PushAgentTest {
   public void testDeltaCounterHandlerMixedData() throws Exception {
     deltaPort = findAvailablePort(5888);
     HandlerKey handlerKey = new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort));
-    BuffersManager.registerNewHandlerKey(handlerKey);
+    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
 
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
@@ -1856,7 +1836,6 @@ public class PushAgentTest {
     proxy.startDeltaCounterListener(
         proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null,
-        mockSenderTaskFactory,
         new SpanSampler(new RateSampler(1.0D), () -> null));
     waitUntilListenerIsOnline(deltaPort);
 
@@ -1894,12 +1873,11 @@ public class PushAgentTest {
     proxy.proxyConfig.disableBuffer = true;
 
     HandlerKey handlerKey = new HandlerKey(ReportableEntityType.POINT, String.valueOf(deltaPort));
-    BuffersManager.registerNewHandlerKey(handlerKey);
+    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
 
     proxy.startDeltaCounterListener(
         proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null,
-        mockSenderTaskFactory,
         new SpanSampler(new RateSampler(1.0D), () -> null));
     waitUntilListenerIsOnline(deltaPort);
 

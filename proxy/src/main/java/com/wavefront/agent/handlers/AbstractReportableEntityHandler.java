@@ -5,7 +5,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import java.util.*;
 import java.util.Timer;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -39,16 +38,12 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final RateLimiter blockedItemsLimiter;
 
   final Function<T, String> serializer;
-  final Map<String, Collection<SenderTask>> senderTaskMap;
-  protected final boolean isMulticastingActive;
   final boolean reportReceivedStats;
   final String rateUnit;
 
   final BurstRateTrackingCounter receivedStats;
-  final BurstRateTrackingCounter deliveredStats;
 
   private final Timer timer;
-  private final AtomicLong roundRobinCounter = new AtomicLong();
 
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter noDataStatsRateLimiter = RateLimiter.create(1.0d / 60);
@@ -59,8 +54,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    *     the main log file.
    * @param serializer helper function to convert objects to string. Used when writing blocked
    *     points to logs.
-   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
-   *     Wavefront endpoint corresponding to the tenant name
    * @param reportReceivedStats Whether we should report a .received counter metric.
    * @param receivedRateSink Where to report received rate (tenant specific).
    * @param blockedItemsLogger a {@link Logger} instance for blocked items
@@ -69,7 +62,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       @NotNull HandlerKey handlerKey,
       final int blockedItemsPerBatch,
       final Function<T, String> serializer,
-      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       boolean reportReceivedStats,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemsLogger) {
@@ -78,22 +70,22 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.blockedItemsLimiter =
         blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
-    this.senderTaskMap = senderTaskMap == null ? new HashMap<>() : new HashMap<>(senderTaskMap);
-    this.isMulticastingActive = this.senderTaskMap.size() > 1;
     this.reportReceivedStats = reportReceivedStats;
     this.rateUnit = handlerKey.getEntityType().getRateUnit();
     this.blockedItemsLogger = blockedItemsLogger;
 
     MetricsRegistry registry = reportReceivedStats ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    String metricPrefix = handlerKey.getQueue();
+    String metricPrefix = handlerKey.getPort() + "." + handlerKey.getQueue();
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
-    MetricName deliveredMetricName = new MetricName(metricPrefix, "", "delivered");
     this.receivedCounter = registry.newCounter(receivedMetricName);
     this.attemptedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "sent"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
-    this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
+
+    // TODO: bring back this metric
+    //    this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
+
     registry.newGauge(
         new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
         new Gauge<Double>() {
@@ -103,19 +95,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
           }
         });
     timer = new Timer("stats-output-" + handlerKey);
-    if (receivedRateSink != null) {
-      timer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
-              for (String tenantName : senderTaskMap.keySet()) {
-                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
-              }
-            }
-          },
-          1000,
-          1000);
-    }
     timer.scheduleAtFixedRate(
         new TimerTask() {
           @Override
@@ -230,24 +209,25 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
               + rateUnit
               + " (current).");
     }
-    if (deliveredStats.getFiveMinuteCount() == 0) return;
-    logger.info(
-        "["
-            + handlerKey.getPort()
-            + "] "
-            + handlerKey.getEntityType().toCapitalizedString()
-            + " delivered rate: "
-            + deliveredStats.getOneMinutePrintableRate()
-            + " "
-            + rateUnit
-            + " (1 min), "
-            + deliveredStats.getFiveMinutePrintableRate()
-            + " "
-            + rateUnit
-            + " (5 min)");
+    //    if (deliveredStats.getFiveMinuteCount() == 0) return;
+    //    logger.info(
+    //        "["
+    //            + handlerKey.getPort()
+    //            + "] "
+    //            + handlerKey.getEntityType().toCapitalizedString()
+    //            + " delivered rate: "
+    //            + deliveredStats.getOneMinutePrintableRate()
+    //            + " "
+    //            + rateUnit
+    //            + " (1 min), "
+    //            + deliveredStats.getFiveMinutePrintableRate()
+    //            + " "
+    //            + rateUnit
+    //            + " (5 min)");
     // we are not going to display current delivered rate because it _will_ be misinterpreted.
   }
 
+  // TODO: review
   protected void printTotal() {
     logger.info(
         "["
