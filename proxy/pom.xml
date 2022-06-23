@@ -68,6 +68,39 @@
     </resources>
     <plugins>
       <plugin>
+        <!-- need it for linux //TODO: review-->
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.cosium.code</groupId>
+        <artifactId>git-code-format-maven-plugin</artifactId>
+        <version>3.3</version>
+        <executions>
+          <execution>
+            <id>format-code</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>format-code</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <version>3.0.0-M3</version>
@@ -541,6 +574,11 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
