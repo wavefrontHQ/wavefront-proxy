@@ -49,7 +49,7 @@ public class ReportSourceTagHandlerTest {
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
-    BuffersManager.init(cfg, senderTaskFactory);
+    BuffersManager.init(cfg, senderTaskFactory, null);
     BuffersManager.registerNewQueueIfNeedIt(handlerKey);
   }
 

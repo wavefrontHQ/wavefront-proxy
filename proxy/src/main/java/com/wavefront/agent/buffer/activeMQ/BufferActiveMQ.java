@@ -4,10 +4,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.buffer.*;
 import com.wavefront.common.Pair;
+import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.util.JmxGauge;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -35,7 +37,7 @@ public abstract class BufferActiveMQ implements Buffer {
   private final Map<String, Pair<ClientSession, ClientConsumer>> consumers =
       new ConcurrentHashMap<>();
 
-  private final Map<String, Gauge<Long>> mcMetrics = new HashMap<>();
+  private final Map<String, Gauge<Object>> mcMetrics = new HashMap<>();
   private final Map<String, Histogram> msMetrics = new HashMap<>();
   private final String name;
   @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
@@ -150,38 +152,23 @@ public abstract class BufferActiveMQ implements Buffer {
             String.format(
                 "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\"",
                 name, key.getQueue()));
-    Gauge<Long> mc =
+    Gauge<Object> mc =
         Metrics.newGauge(
             new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
-            new Gauge<Long>() {
-              @Override
-              public Long value() {
-                Long mc;
-                try {
-                  mc = (Long) mbServer.getAttribute(queueObjectName, "MessageCount");
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  return 0L;
-                }
-                return mc;
-              }
-            });
+            new JmxGauge(queueObjectName, "MessageCount"));
     mcMetrics.put(key.getQueue(), mc);
+
+    Metrics.newGauge(
+        new TaggedMetricName(key.getQueue(), "queued", "reason", "expired"),
+        new JmxGauge(queueObjectName, "MessagesExpired"));
+
+    Metrics.newGauge(
+        new TaggedMetricName(key.getQueue(), "queued", "reason", "failed"),
+        new JmxGauge(queueObjectName, "MessagesKilled"));
+
     Metrics.newGauge(
         new MetricName("buffer." + name + "." + key.getQueue(), "", "usage"),
-        new Gauge<Integer>() {
-          @Override
-          public Integer value() {
-            Integer mc;
-            try {
-              mc = (Integer) mbServer.getAttribute(addressObjectName, "AddressLimitPercent");
-            } catch (Exception e) {
-              e.printStackTrace();
-              return 0;
-            }
-            return mc;
-          }
-        });
+        new JmxGauge(queueObjectName, "AddressLimitPercent"));
 
     Histogram ms =
         Metrics.newHistogram(
@@ -206,7 +193,6 @@ public abstract class BufferActiveMQ implements Buffer {
                 return new Pair<>(session, producer);
               } catch (Exception e) {
                 e.printStackTrace();
-                System.exit(-1);
               }
               return null;
             });
@@ -228,13 +214,12 @@ public abstract class BufferActiveMQ implements Buffer {
       throw e;
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
     }
   }
 
   @Override
   @VisibleForTesting
-  public Gauge<Long> getMcGauge(QueueInfo QueueInfo) {
+  public Gauge<Object> getMcGauge(QueueInfo QueueInfo) {
     return mcMetrics.get(QueueInfo.getQueue());
   }
 
@@ -266,7 +251,6 @@ public abstract class BufferActiveMQ implements Buffer {
                 return new Pair<>(session, consumer);
               } catch (Exception e) {
                 e.printStackTrace();
-                System.exit(-1);
               }
               return null;
             });
@@ -274,9 +258,12 @@ public abstract class BufferActiveMQ implements Buffer {
     ClientSession session = mqCtx._1;
     ClientConsumer consumer = mqCtx._2;
     try {
+      long start = System.currentTimeMillis();
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
-      while ((batch.size() < batchSize) && (rateLimiter.tryAcquire())) {
+      while ((batch.size() < batchSize)
+          && (rateLimiter.tryAcquire())
+          && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = consumer.receive(100);
         if (msg != null) {
           msg.acknowledge();
@@ -306,7 +293,6 @@ public abstract class BufferActiveMQ implements Buffer {
         session.stop();
       } catch (ActiveMQException e) {
         log.log(Level.SEVERE, "error", e);
-        System.exit(-1);
       }
     }
   }

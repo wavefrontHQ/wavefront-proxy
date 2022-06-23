@@ -1,9 +1,12 @@
 package com.wavefront.agent.buffer;
 
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
+
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.buffer.activeMQ.BufferActiveMQ;
 import com.wavefront.agent.buffer.activeMQ.BufferDisk;
 import com.wavefront.agent.buffer.activeMQ.BufferMemory;
+import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.yammer.metrics.core.Gauge;
 import java.util.HashMap;
@@ -23,11 +26,16 @@ public class BuffersManager {
   private static ActiveMQAddressFullException ex;
   private static BuffersManagerConfig cfg;
   private static SenderTaskFactory senderTaskFactory;
+  private static Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap;
   private static final Map<String, Boolean> registeredQueues = new HashMap<>();
 
-  public static void init(BuffersManagerConfig cfg, SenderTaskFactory senderTaskFactory) {
+  public static void init(
+      BuffersManagerConfig cfg,
+      SenderTaskFactory senderTaskFactory,
+      Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap) {
     BuffersManager.cfg = cfg;
     BuffersManager.senderTaskFactory = senderTaskFactory;
+    BuffersManager.entityPropertiesFactoryMap = entityPropertiesFactoryMap;
 
     if (level_1 != null) {
       level_1.shutdown();
@@ -58,7 +66,14 @@ public class BuffersManager {
       if (level_2 != null) {
         level_2.registerNewQueueInfo(handler);
         level_1.createBridge("disk", handler, 1);
-        RatedBridge.createNewBridge(level_2, level_1, handler);
+        RatedBridge.createNewBridge(
+            level_2,
+            level_1,
+            handler,
+            entityPropertiesFactoryMap
+                .get(CENTRAL_TENANT_NAME)
+                .get(handler.getEntityType())
+                .getRateLimit());
       }
 
       senderTaskFactory.createSenderTasks(handler);
@@ -96,12 +111,12 @@ public class BuffersManager {
   }
 
   @TestOnly
-  static Gauge<Long> l1GetMcGauge(QueueInfo handler) {
+  static Gauge<Object> l1GetMcGauge(QueueInfo handler) {
     return level_1.getMcGauge(handler);
   }
 
   @TestOnly
-  static Gauge<Long> l2GetMcGauge(QueueInfo handler) {
+  static Gauge<Object> l2GetMcGauge(QueueInfo handler) {
     return level_2.getMcGauge(handler);
   }
 

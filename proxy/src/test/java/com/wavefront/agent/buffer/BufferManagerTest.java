@@ -27,14 +27,14 @@ public class BufferManagerTest {
     cfg.l2 = true;
     cfg.msgExpirationTime = -1;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
     BuffersManager.registerNewQueueIfNeedIt(points);
 
-    Gauge<Long> memory = BuffersManager.l1GetMcGauge(points);
-    Gauge<Long> disk = BuffersManager.l2GetMcGauge(points);
+    Gauge<Object> memory = BuffersManager.l1GetMcGauge(points);
+    Gauge<Object> disk = BuffersManager.l2GetMcGauge(points);
 
-    assertEquals("MessageCount", 0L, memory.value().longValue());
-    assertEquals("MessageCount", 0L, disk.value().longValue());
+    assertEquals("MessageCount", 0L, memory.value());
+    assertEquals("MessageCount", 0L, disk.value());
 
     List<String> msgs = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -43,7 +43,7 @@ public class BufferManagerTest {
     BuffersManager.getLeve2().sendMsg(points, msgs);
 
     int ticks = 0;
-    while (memory.value().longValue() != 100) {
+    while ((Long) memory.value() != 100L) {
       ticks++;
       Thread.sleep(1000);
     }
@@ -61,7 +61,7 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = 500;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
     BuffersManager.registerNewQueueIfNeedIt(points);
 
     Gauge mc2878 = BuffersManager.l1GetMcGauge(points);
@@ -84,20 +84,20 @@ public class BufferManagerTest {
     cfg.l2 = true;
     cfg.msgExpirationTime = 100;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
     BuffersManager.registerNewQueueIfNeedIt(points);
 
-    Gauge<Long> memory = BuffersManager.l1GetMcGauge(points);
-    Gauge<Long> disk = BuffersManager.l2GetMcGauge(points);
+    Gauge<Object> memory = BuffersManager.l1GetMcGauge(points);
+    Gauge<Object> disk = BuffersManager.l2GetMcGauge(points);
 
-    assertEquals("MessageCount", 0l, memory.value().longValue());
+    assertEquals("MessageCount", 0l, memory.value());
     BuffersManager.sendMsg(points, Collections.singletonList("tururu"));
-    assertEquals("MessageCount", 1l, memory.value().longValue());
+    assertEquals("MessageCount", 1l, memory.value());
     Thread.sleep(1_000);
-    assertEquals("MessageCount", 0l, memory.value().longValue());
-    assertEquals("MessageCount", 1l, disk.value().longValue());
+    assertEquals("MessageCount", 0l, memory.value());
+    assertEquals("MessageCount", 1l, disk.value());
     Thread.sleep(1_000);
-    assertEquals("MessageCount", 1l, disk.value().longValue());
+    assertEquals("MessageCount", 1l, disk.value());
   }
 
   @Test
@@ -111,7 +111,7 @@ public class BufferManagerTest {
     cfg.msgRetry = -1;
     cfg.msgExpirationTime = -1;
     cfg.buffer = buffer.toFile().getAbsolutePath();
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
 
     BuffersManager.registerNewQueueIfNeedIt(points_2878);
     BuffersManager.registerNewQueueIfNeedIt(points_2879);
@@ -145,7 +145,7 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = -1;
     cfg.msgRetry = 3;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
     BuffersManager.registerNewQueueIfNeedIt(points_2878);
 
     Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);

@@ -15,7 +15,7 @@ public interface Buffer {
   void onMsgBatch(
       QueueInfo key, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func);
 
-  Gauge<Long> getMcGauge(QueueInfo key);
+  Gauge<Object> getMcGauge(QueueInfo key);
 
   void shutdown();
 }

@@ -171,7 +171,7 @@ public class PushAgent extends AbstractAgent {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = proxyConfig.getBufferFile();
     cfg.l2 = !proxyConfig.getDisableBuffer();
-    BuffersManager.init(cfg, senderTaskFactory);
+    BuffersManager.init(cfg, senderTaskFactory, entityPropertiesFactoryMap);
 
     /***** END PROXY NEW *****/
 

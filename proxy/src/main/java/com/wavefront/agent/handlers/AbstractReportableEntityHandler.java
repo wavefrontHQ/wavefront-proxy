@@ -94,7 +94,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
             return receivedStats.getMaxBurstRateAndClear();
           }
         });
-    timer = new Timer("stats-output-" + handlerKey);
+    timer = new Timer("stats-output-" + handlerKey.getQueue() + "." + handlerKey.getPort());
     timer.scheduleAtFixedRate(
         new TimerTask() {
           @Override

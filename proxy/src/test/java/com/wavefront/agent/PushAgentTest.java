@@ -110,7 +110,7 @@ public class PushAgentTest {
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg, null, null);
   }
 
   @Before
