@@ -547,7 +547,7 @@ public class OtlpMetricsUtils {
       bucketCounts.add(negativeBucketCounts.get(i));
       le /=
           base; // We divide by base because our explicit bounds are getting smaller in magnitude as
-                // we go
+      // we go
       explicitBounds.add(le);
     }
   }

@@ -1,23 +1,23 @@
 package com.wavefront.agent.formatter;
 
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * @author Andrew Kao (andrew@wavefront.com)
- */
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** @author Andrew Kao (andrew@wavefront.com) */
 public class GraphiteFormatterTest {
 
   private static final Logger logger = LoggerFactory.getLogger(GraphiteFormatterTest.class);
 
   @Test
   public void testCollectdGraphiteParsing() {
-    String format = "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that order
+    String format =
+        "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that
+                 // order
     String format2 = "2";
     String delimiter = "_";
 
@@ -26,12 +26,14 @@ public class GraphiteFormatterTest {
     String testString2 = "collectd.com.bigcorp.www02_web.cpu.loadavg.1m 40 1415233342";
     String testString3 = "collectd.almost.too.short 40 1415233342";
     String testString4 = "collectd.too.short 40 1415233342";
-    String testString5 = "collectd.www02_web_bigcorp_com.cpu.loadavg.1m;context=abc;hostname=www02.web.bigcorp.com 40 1415233342";
+    String testString5 =
+        "collectd.www02_web_bigcorp_com.cpu.loadavg.1m;context=abc;hostname=www02.web.bigcorp.com 40 1415233342";
 
     // Test output
     String expected1 = "collectd.cpu.loadavg.1m 40 source=www02.web.bigcorp.com";
     String expected2 = "collectd.cpu.loadavg.1m 40 1415233342 source=www02.web.bigcorp.com";
-    String expected5 = "collectd.cpu.loadavg.1m 40 1415233342 source=www02.web.bigcorp.com context=abc hostname=www02.web.bigcorp.com";
+    String expected5 =
+        "collectd.cpu.loadavg.1m 40 1415233342 source=www02.web.bigcorp.com context=abc hostname=www02.web.bigcorp.com";
 
     // Test basic functionality with correct input
     GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, "");
@@ -70,11 +72,15 @@ public class GraphiteFormatterTest {
     long end = System.nanoTime();
 
     // Report/validate performance
-    logger.error(" Time to parse 1M strings: " + (end - start) + " ns for " + formatter.getOps() + " runs");
+    logger.error(
+        " Time to parse 1M strings: " + (end - start) + " ns for " + formatter.getOps() + " runs");
     long nsPerOps = (end - start) / formatter.getOps();
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
-    assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
-    assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+    assertTrue(formatter.getOps() >= 1000 * 1000); // make sure we actually ran it 1M times
+    assertTrue(
+        nsPerOps
+            < 10
+                * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
 
     // new addition to test the point tags inside the metric names
     formatter = new GraphiteFormatter(format2, delimiter, "");
@@ -86,7 +92,7 @@ public class GraphiteFormatterTest {
   public void testFieldsToRemove() {
     String format = "2"; // Extract the 2nd field for host name
     String delimiter = "_";
-    String remove = "1,3";  // remove the 1st and 3rd fields from metric name
+    String remove = "1,3"; // remove the 1st and 3rd fields from metric name
 
     // Test input
     String testString1 = "hosts.host1.collectd.cpu.loadavg.1m 40";

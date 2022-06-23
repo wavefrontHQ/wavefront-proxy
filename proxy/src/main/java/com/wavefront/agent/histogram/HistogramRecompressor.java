@@ -1,22 +1,21 @@
 package com.wavefront.agent.histogram;
 
+import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import wavefront.report.Histogram;
-import wavefront.report.HistogramType;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
 
 /**
  * Recompresses histograms to reduce their size.
@@ -25,14 +24,14 @@ import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
  */
 public class HistogramRecompressor implements Function<Histogram, Histogram> {
   private final Supplier<Short> storageAccuracySupplier;
-  private final Supplier<Counter> histogramsCompacted = Utils.lazySupplier(() ->
-      Metrics.newCounter(new TaggedMetricName("histogram", "histograms_compacted")));
-  private final Supplier<Counter> histogramsRecompressed = Utils.lazySupplier(() ->
-      Metrics.newCounter(new TaggedMetricName("histogram", "histograms_recompressed")));
+  private final Supplier<Counter> histogramsCompacted =
+      Utils.lazySupplier(
+          () -> Metrics.newCounter(new TaggedMetricName("histogram", "histograms_compacted")));
+  private final Supplier<Counter> histogramsRecompressed =
+      Utils.lazySupplier(
+          () -> Metrics.newCounter(new TaggedMetricName("histogram", "histograms_recompressed")));
 
-  /**
-   * @param storageAccuracySupplier Supplier for histogram storage accuracy
-   */
+  /** @param storageAccuracySupplier Supplier for histogram storage accuracy */
   public HistogramRecompressor(Supplier<Short> storageAccuracySupplier) {
     this.storageAccuracySupplier = storageAccuracySupplier;
   }

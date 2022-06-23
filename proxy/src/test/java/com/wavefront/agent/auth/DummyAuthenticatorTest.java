@@ -1,9 +1,9 @@
 package com.wavefront.agent.auth;
 
+import static org.junit.Assert.assertTrue;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
 
 public class DummyAuthenticatorTest {
 

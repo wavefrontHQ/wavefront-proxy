@@ -1,7 +1,6 @@
 package com.wavefront.agent.auth;
 
 import com.google.common.base.Preconditions;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

@@ -2,36 +2,32 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
 /**
- * Blocking regex-based filter. Rejects a log if a specified component (message, source, or log
- * tag value, depending on the "scope" parameter) doesn't match the regex.
+ * Blocking regex-based filter. Rejects a log if a specified component (message, source, or log tag
+ * value, depending on the "scope" parameter) doesn't match the regex.
  *
  * @author amitw@vmware.com
  */
 public class ReportLogBlockFilter implements AnnotatedPredicate<ReportLog> {
 
-  @Nullable
-  private final String scope;
-  @Nullable
-  private final Pattern compiledPattern;
+  @Nullable private final String scope;
+  @Nullable private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Predicate<ReportLog> v2Predicate;
   private boolean isV1PredicatePresent = false;
 
-  public ReportLogBlockFilter(@Nullable final String scope,
-                              @Nullable final String patternMatch,
-                              @Nullable final Predicate<ReportLog> v2Predicate,
-                              @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportLogBlockFilter(
+      @Nullable final String scope,
+      @Nullable final String patternMatch,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
 
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
@@ -45,19 +41,21 @@ public class ReportLogBlockFilter implements AnnotatedPredicate<ReportLog> {
       isV1PredicatePresent = true;
     } else {
       // If v2 predicate is present, verify all or none of v1 predicate parameters are present.
-      boolean bothV1PredicatesValid = !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
+      boolean bothV1PredicatesValid =
+          !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
       boolean bothV1PredicatesNull = scope == null && patternMatch == null;
 
       if (bothV1PredicatesValid) {
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
         // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
-        throw new IllegalArgumentException("[match], [scope] for rule should both be valid non " +
-            "null/blank values or both null.");
+        throw new IllegalArgumentException(
+            "[match], [scope] for rule should both be valid non "
+                + "null/blank values or both null.");
       }
     }
 
-    if(isV1PredicatePresent) {
+    if (isV1PredicatePresent) {
       this.compiledPattern = Pattern.compile(patternMatch);
       this.scope = scope;
     } else {
@@ -93,13 +91,12 @@ public class ReportLogBlockFilter implements AnnotatedPredicate<ReportLog> {
           break;
         default:
           for (Annotation annotation : reportLog.getAnnotations()) {
-            if (annotation.getKey().equals(scope) &&
-                compiledPattern.matcher(annotation.getValue()).matches()) {
+            if (annotation.getKey().equals(scope)
+                && compiledPattern.matcher(annotation.getValue()).matches()) {
               ruleMetrics.incrementRuleAppliedCounter();
               return false;
             }
           }
-
       }
       return true;
     } finally {

@@ -1,5 +1,8 @@
 package com.wavefront.agent.queueing;
 
+import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
+import static javax.xml.bind.DatatypeConverter.printBase64Binary;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.DeleteMessageRequest;
@@ -14,27 +17,21 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.Utils;
-
-import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
-import static javax.xml.bind.DatatypeConverter.printBase64Binary;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Implements proxy-specific queue interface as a wrapper over {@link AmazonSQS}
  *
  * @param <T> type of objects stored.
- *
  * @author mike@wavefront.com
  */
 public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
@@ -49,13 +46,11 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
   private volatile T head = null;
 
   /**
-   * @param queueUrl   The FQDN of the SQS Queue
-   * @param sqsClient  The {@link AmazonSQS} client.
-   * @param converter  The {@link TaskQueue<T>} for converting tasks into and from the Queue
+   * @param queueUrl The FQDN of the SQS Queue
+   * @param sqsClient The {@link AmazonSQS} client.
+   * @param converter The {@link TaskQueue<T>} for converting tasks into and from the Queue
    */
-  public SQSSubmissionQueue(String queueUrl,
-                            AmazonSQS sqsClient,
-                            TaskConverter<T> converter) {
+  public SQSSubmissionQueue(String queueUrl, AmazonSQS sqsClient, TaskConverter<T> converter) {
     this.queueUrl = queueUrl;
     this.converter = converter;
     this.sqsClient = sqsClient;
@@ -116,8 +111,8 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
         return;
       }
       int taskSize = head.weight();
-      DeleteMessageRequest deleteRequest = new DeleteMessageRequest(this.queueUrl,
-          this.messageHandle);
+      DeleteMessageRequest deleteRequest =
+          new DeleteMessageRequest(this.queueUrl, this.messageHandle);
       sqsClient.deleteMessage(deleteRequest);
       this.head = null;
       this.messageHandle = null;
@@ -142,13 +137,18 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
       GetQueueAttributesRequest request = new GetQueueAttributesRequest(this.queueUrl);
       request.withAttributeNames(QueueAttributeName.ApproximateNumberOfMessages);
       GetQueueAttributesResult result = sqsClient.getQueueAttributes(request);
-      queueSize = Integer.parseInt(result.getAttributes().getOrDefault(
-          QueueAttributeName.ApproximateNumberOfMessages.toString(), "0"));
+      queueSize =
+          Integer.parseInt(
+              result
+                  .getAttributes()
+                  .getOrDefault(QueueAttributeName.ApproximateNumberOfMessages.toString(), "0"));
     } catch (AmazonClientException e) {
       log.log(Level.SEVERE, "Unable to obtain ApproximateNumberOfMessages from queue", e);
     } catch (NumberFormatException e) {
-      log.log(Level.SEVERE, "Value returned for approximate number of messages is not a " +
-          "valid number", e);
+      log.log(
+          Level.SEVERE,
+          "Value returned for approximate number of messages is not a " + "valid number",
+          e);
     }
     return queueSize;
   }
@@ -167,8 +167,8 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
   @Nullable
   @Override
   public Long getAvailableBytes() {
-    throw new UnsupportedOperationException("Cannot obtain total bytes from SQS queue, " +
-        "consider using size instead");
+    throw new UnsupportedOperationException(
+        "Cannot obtain total bytes from SQS queue, " + "consider using size instead");
   }
 
   @NotNull

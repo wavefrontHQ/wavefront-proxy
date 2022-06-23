@@ -30,7 +30,8 @@ public class TokenAuthenticatorBuilder {
     this.staticToken = null;
   }
 
-  public TokenAuthenticatorBuilder setTokenValidationMethod(TokenValidationMethod tokenValidationMethod) {
+  public TokenAuthenticatorBuilder setTokenValidationMethod(
+      TokenValidationMethod tokenValidationMethod) {
     this.tokenValidationMethod = tokenValidationMethod;
     return this;
   }
@@ -40,7 +41,8 @@ public class TokenAuthenticatorBuilder {
     return this;
   }
 
-  public TokenAuthenticatorBuilder setTokenIntrospectionServiceUrl(String tokenIntrospectionServiceUrl) {
+  public TokenAuthenticatorBuilder setTokenIntrospectionServiceUrl(
+      String tokenIntrospectionServiceUrl) {
     this.tokenIntrospectionServiceUrl = tokenIntrospectionServiceUrl;
     return this;
   }
@@ -66,9 +68,7 @@ public class TokenAuthenticatorBuilder {
     return this;
   }
 
-  /**
-   * @return {@link TokenAuthenticator} instance.
-   */
+  /** @return {@link TokenAuthenticator} instance. */
   public TokenAuthenticator build() {
     switch (tokenValidationMethod) {
       case NONE:
@@ -76,11 +76,19 @@ public class TokenAuthenticatorBuilder {
       case STATIC_TOKEN:
         return new StaticTokenAuthenticator(staticToken);
       case HTTP_GET:
-        return new HttpGetTokenIntrospectionAuthenticator(httpClient, tokenIntrospectionServiceUrl,
-            tokenIntrospectionAuthorizationHeader, authResponseRefreshInterval, authResponseMaxTtl);
+        return new HttpGetTokenIntrospectionAuthenticator(
+            httpClient,
+            tokenIntrospectionServiceUrl,
+            tokenIntrospectionAuthorizationHeader,
+            authResponseRefreshInterval,
+            authResponseMaxTtl);
       case OAUTH2:
-        return new Oauth2TokenIntrospectionAuthenticator(httpClient, tokenIntrospectionServiceUrl,
-            tokenIntrospectionAuthorizationHeader, authResponseRefreshInterval, authResponseMaxTtl);
+        return new Oauth2TokenIntrospectionAuthenticator(
+            httpClient,
+            tokenIntrospectionServiceUrl,
+            tokenIntrospectionAuthorizationHeader,
+            authResponseRefreshInterval,
+            authResponseMaxTtl);
       default:
         throw new IllegalStateException("Unknown token validation method!");
     }

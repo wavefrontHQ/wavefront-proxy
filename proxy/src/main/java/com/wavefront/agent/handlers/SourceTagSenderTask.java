@@ -7,8 +7,6 @@ import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -16,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nullable;
 
 /**
  * This class is responsible for accumulating the source tag changes and post it in a batch. This
@@ -34,17 +33,20 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
   /**
    * Create new instance
    *
-   * @param proxyAPI    handles interaction with Wavefront servers as well as queueing.
-   * @param handlerKey  metrics pipeline handler key.
-   * @param threadId    thread number.
-   * @param properties  container for mutable proxy settings.
-   * @param scheduler   executor service for this task
-   * @param backlog     backing queue
+   * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
+   * @param handlerKey metrics pipeline handler key.
+   * @param threadId thread number.
+   * @param properties container for mutable proxy settings.
+   * @param scheduler executor service for this task
+   * @param backlog backing queue
    */
-  SourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
-                      int threadId, EntityProperties properties,
-                      ScheduledExecutorService scheduler,
-                      TaskQueue<SourceTagSubmissionTask> backlog) {
+  SourceTagSenderTask(
+      HandlerKey handlerKey,
+      SourceTagAPI proxyAPI,
+      int threadId,
+      EntityProperties properties,
+      ScheduledExecutorService scheduler,
+      TaskQueue<SourceTagSubmissionTask> backlog) {
     super(handlerKey, threadId, properties, scheduler);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
@@ -66,8 +68,9 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
       while (iterator.hasNext()) {
         if (rateLimiter == null || rateLimiter.tryAcquire()) {
           SourceTag tag = iterator.next();
-          SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties,
-              backlog, handlerKey.getHandle(), tag, null);
+          SourceTagSubmissionTask task =
+              new SourceTagSubmissionTask(
+                  proxyAPI, properties, backlog, handlerKey.getHandle(), tag, null);
           TaskResult result = task.execute();
           this.attemptedCounter.inc();
           switch (result) {
@@ -94,10 +97,21 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
           // to introduce some degree of fairness.
           nextRunMillis = (int) (1 + Math.random()) * nextRunMillis / 4;
           final long willRetryIn = nextRunMillis;
-          throttledLogger.log(Level.INFO, () -> "[" + handlerKey.getHandle() + " thread " +
-              threadId + "]: WF-4 Proxy rate limiter " + "active (pending " +
-              handlerKey.getEntityType() + ": " + datum.size() + "), will retry in " +
-              willRetryIn + "ms");
+          throttledLogger.log(
+              Level.INFO,
+              () ->
+                  "["
+                      + handlerKey.getHandle()
+                      + " thread "
+                      + threadId
+                      + "]: WF-4 Proxy rate limiter "
+                      + "active (pending "
+                      + handlerKey.getEntityType()
+                      + ": "
+                      + datum.size()
+                      + "), will retry in "
+                      + willRetryIn
+                      + "ms");
           return;
         }
       }
@@ -112,8 +126,9 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
   @Override
   void flushSingleBatch(List<SourceTag> batch, @Nullable QueueingReason reason) {
     for (SourceTag tag : batch) {
-      SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties, backlog,
-          handlerKey.getHandle(), tag, null);
+      SourceTagSubmissionTask task =
+          new SourceTagSubmissionTask(
+              proxyAPI, properties, backlog, handlerKey.getHandle(), tag, null);
       task.enqueue(reason);
     }
   }

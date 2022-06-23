@@ -1,12 +1,11 @@
 package com.wavefront.agent.histogram;
 
-import java.util.concurrent.TimeUnit;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.concurrent.TimeUnit;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
-
-import static com.google.common.truth.Truth.assertThat;
 
 /**
  * Shared test helpers around histograms
@@ -23,22 +22,25 @@ public final class TestUtils {
   public static double DEFAULT_VALUE = 1D;
 
   /**
-   * Creates a histogram accumulation key for given metric at minute granularity and DEFAULT_TIME_MILLIS
+   * Creates a histogram accumulation key for given metric at minute granularity and
+   * DEFAULT_TIME_MILLIS
    */
   public static HistogramKey makeKey(String metric) {
     return makeKey(metric, Granularity.MINUTE);
   }
 
   /**
-   * Creates a histogram accumulation key for a given metric and granularity around DEFAULT_TIME_MILLIS
+   * Creates a histogram accumulation key for a given metric and granularity around
+   * DEFAULT_TIME_MILLIS
    */
   public static HistogramKey makeKey(String metric, Granularity granularity) {
     return HistogramUtils.makeKey(
-        ReportPoint.newBuilder().
-            setMetric(metric).
-            setAnnotations(ImmutableMap.of("tagk", "tagv")).
-            setTimestamp(DEFAULT_TIME_MILLIS).
-            setValue(DEFAULT_VALUE).build(),
+        ReportPoint.newBuilder()
+            .setMetric(metric)
+            .setAnnotations(ImmutableMap.of("tagk", "tagv"))
+            .setTimestamp(DEFAULT_TIME_MILLIS)
+            .setValue(DEFAULT_VALUE)
+            .build(),
         granularity);
   }
 
@@ -52,6 +54,7 @@ public final class TestUtils {
     assertThat(key.getSource()).isEqualTo(point.getHost());
     assertThat(key.getTagsAsMap()).isEqualTo(point.getAnnotations());
     assertThat(key.getBinTimeMillis()).isEqualTo(point.getTimestamp());
-    assertThat(key.getBinDurationInMillis()).isEqualTo(((Histogram) point.getValue()).getDuration());
+    assertThat(key.getBinDurationInMillis())
+        .isEqualTo(((Histogram) point.getValue()).getDuration());
   }
 }
