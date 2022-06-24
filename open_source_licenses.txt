@@ -1,6 +1,6 @@
 open_source_licenses.txt
 
-Wavefront by VMware 11.2 GA
+Wavefront by VMware 11.3 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
@@ -28933,4 +28933,4 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQPROXY112GAJA061622]
+[WAVEFRONTHQPROXY113GAJA062322]
