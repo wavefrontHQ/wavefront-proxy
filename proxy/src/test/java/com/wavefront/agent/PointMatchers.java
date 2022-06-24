@@ -1,17 +1,13 @@
 package com.wavefront.agent;
 
+import java.util.Map;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
-
-import java.util.Map;
-
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/**
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** @author Mori Bellamy (mori@wavefront.com) */
 public class PointMatchers {
 
   private static String mapToString(Map<String, String> map) {
@@ -37,47 +33,61 @@ public class PointMatchers {
     return isSubMap(m1, m2) && isSubMap(m2, m1);
   }
 
-  public static Matcher<ReportPoint> matches(Object value, String metricName, Map<String, String> tags) {
+  public static Matcher<ReportPoint> matches(
+      Object value, String metricName, Map<String, String> tags) {
     return new BaseMatcher<ReportPoint>() {
 
       @Override
       public boolean matches(Object o) {
         ReportPoint me = (ReportPoint) o;
-        return me.getValue().equals(value) && me.getMetric().equals(metricName)
+        return me.getValue().equals(value)
+            && me.getMetric().equals(metricName)
             && mapsEqual(me.getAnnotations(), tags);
       }
 
       @Override
       public void describeTo(Description description) {
         description.appendText(
-            "Value should equal " + value.toString() + " and have metric name " + metricName + " and tags "
+            "Value should equal "
+                + value.toString()
+                + " and have metric name "
+                + metricName
+                + " and tags "
                 + mapToString(tags));
-
       }
     };
   }
 
-  public static Matcher<ReportPoint> matches(Object value, String metricName, String hostName,
-                                             Map<String, String> tags) {
+  public static Matcher<ReportPoint> matches(
+      Object value, String metricName, String hostName, Map<String, String> tags) {
     return new BaseMatcher<ReportPoint>() {
 
       @Override
       public boolean matches(Object o) {
         ReportPoint me = (ReportPoint) o;
-        return me.getValue().equals(value) && me.getMetric().equals(metricName) && me.getHost().equals(hostName)
+        return me.getValue().equals(value)
+            && me.getMetric().equals(metricName)
+            && me.getHost().equals(hostName)
             && mapsEqual(me.getAnnotations(), tags);
       }
 
       @Override
       public void describeTo(Description description) {
         description.appendText(
-            "Value should equal " + value.toString() + " and have metric name " + metricName + ", host " + hostName +
-                ", and tags " + mapToString(tags));
+            "Value should equal "
+                + value.toString()
+                + " and have metric name "
+                + metricName
+                + ", host "
+                + hostName
+                + ", and tags "
+                + mapToString(tags));
       }
     };
   }
 
-  public static Matcher<ReportPoint> almostMatches(double value, String metricName, Map<String, String> tags) {
+  public static Matcher<ReportPoint> almostMatches(
+      double value, String metricName, Map<String, String> tags) {
     return new BaseMatcher<ReportPoint>() {
 
       @Override
@@ -92,9 +102,12 @@ public class PointMatchers {
       @Override
       public void describeTo(Description description) {
         description.appendText(
-            "Value should approximately equal " + value + " and have metric name " + metricName + " and tags "
+            "Value should approximately equal "
+                + value
+                + " and have metric name "
+                + metricName
+                + " and tags "
                 + mapToString(tags));
-
       }
     };
   }

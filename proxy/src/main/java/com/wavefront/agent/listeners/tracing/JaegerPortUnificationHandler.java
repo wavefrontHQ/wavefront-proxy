@@ -1,9 +1,14 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -20,20 +25,10 @@ import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
 import io.jaegertracing.thriftjava.Batch;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.thrift.TDeserializer;
-
-import wavefront.report.Span;
-import wavefront.report.SpanLogs;
-
-import javax.annotation.Nullable;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -46,32 +41,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
+import org.apache.thrift.TDeserializer;
+import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes Jaeger Thrift trace data over HTTP and converts them to Wavefront format.
  *
  * @author Han Zhang (zhanghan@vmware.com)
  */
-public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implements Runnable,
-    Closeable {
+public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
+    implements Runnable, Closeable {
   protected static final Logger logger =
       Logger.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
 
-  private final static String JAEGER_COMPONENT = "jaeger";
-  private final static String DEFAULT_SOURCE = "jaeger";
+  private static final String JAEGER_COMPONENT = "jaeger";
+  private static final String DEFAULT_SOURCE = "jaeger";
 
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
-  @Nullable
-  private final WavefrontSender wfSender;
-  @Nullable
-  private final WavefrontInternalReporter wfInternalReporter;
+  @Nullable private final WavefrontSender wfSender;
+  @Nullable private final WavefrontInternalReporter wfInternalReporter;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -88,40 +80,50 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  private final static String JAEGER_VALID_PATH = "/api/traces/";
-  private final static String JAEGER_VALID_HTTP_METHOD = "POST";
+  private static final String JAEGER_VALID_PATH = "/api/traces/";
+  private static final String JAEGER_VALID_HTTP_METHOD = "POST";
 
-  public JaegerPortUnificationHandler(String handle,
-                                      final TokenAuthenticator tokenAuthenticator,
-                                      final HealthCheckManager healthCheckManager,
-                                      ReportableEntityHandlerFactory handlerFactory,
-                                      @Nullable WavefrontSender wfSender,
-                                      Supplier<Boolean> traceDisabled,
-                                      Supplier<Boolean> spanLogsDisabled,
-                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      SpanSampler sampler,
-                                      @Nullable String traceJaegerApplicationName,
-                                      Set<String> traceDerivedCustomTagKeys) {
-    this(handle, tokenAuthenticator, healthCheckManager,
+  public JaegerPortUnificationHandler(
+      String handle,
+      final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
+      ReportableEntityHandlerFactory handlerFactory,
+      @Nullable WavefrontSender wfSender,
+      Supplier<Boolean> traceDisabled,
+      Supplier<Boolean> spanLogsDisabled,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+      SpanSampler sampler,
+      @Nullable String traceJaegerApplicationName,
+      Set<String> traceDerivedCustomTagKeys) {
+    this(
+        handle,
+        tokenAuthenticator,
+        healthCheckManager,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler,
-        traceJaegerApplicationName, traceDerivedCustomTagKeys);
+        wfSender,
+        traceDisabled,
+        spanLogsDisabled,
+        preprocessor,
+        sampler,
+        traceJaegerApplicationName,
+        traceDerivedCustomTagKeys);
   }
 
   @VisibleForTesting
-  JaegerPortUnificationHandler(String handle,
-                               final TokenAuthenticator tokenAuthenticator,
-                               final HealthCheckManager healthCheckManager,
-                               ReportableEntityHandler<Span, String> spanHandler,
-                               ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                               @Nullable WavefrontSender wfSender,
-                               Supplier<Boolean> traceDisabled,
-                               Supplier<Boolean> spanLogsDisabled,
-                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                               SpanSampler sampler,
-                               @Nullable String traceJaegerApplicationName,
-                               Set<String> traceDerivedCustomTagKeys) {
+  JaegerPortUnificationHandler(
+      String handle,
+      final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontSender wfSender,
+      Supplier<Boolean> traceDisabled,
+      Supplier<Boolean> spanLogsDisabled,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+      SpanSampler sampler,
+      @Nullable String traceJaegerApplicationName,
+      Set<String> traceDerivedCustomTagKeys) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -130,30 +132,34 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     this.spanLogsDisabled = spanLogsDisabled;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
-    this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
-        "Jaeger" : traceJaegerApplicationName.trim();
+    this.proxyLevelApplicationName =
+        StringUtils.isBlank(traceJaegerApplicationName)
+            ? "Jaeger"
+            : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
-    this.discardedTraces = Metrics.newCounter(
-        new MetricName("spans." + handle, "", "discarded"));
-    this.discardedBatches = Metrics.newCounter(
-        new MetricName("spans." + handle + ".batches", "", "discarded"));
-    this.processedBatches = Metrics.newCounter(
-        new MetricName("spans." + handle + ".batches", "", "processed"));
-    this.failedBatches = Metrics.newCounter(
-        new MetricName("spans." + handle + ".batches", "", "failed"));
-    this.discardedSpansBySampler = Metrics.newCounter(
-        new MetricName("spans." + handle, "", "sampler.discarded"));
-    this.receivedSpansTotal = Metrics.newCounter(new MetricName(
-        "spans." + handle, "", "received.total"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedBatches =
+        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+    this.processedBatches =
+        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+    this.failedBatches =
+        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+    this.discardedSpansBySampler =
+        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+    this.receivedSpansTotal =
+        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
-    this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
-        new NamedThreadFactory("jaeger-heart-beater"));
+    this.scheduledExecutorService =
+        Executors.newScheduledThreadPool(1, new NamedThreadFactory("jaeger-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
     if (wfSender != null) {
-      wfInternalReporter = new WavefrontInternalReporter.Builder().
-          prefixedWith(TRACING_DERIVED_PREFIX).withSource(DEFAULT_SOURCE).reportMinuteDistribution().
-          build(wfSender);
+      wfInternalReporter =
+          new WavefrontInternalReporter.Builder()
+              .prefixedWith(TRACING_DERIVED_PREFIX)
+              .withSource(DEFAULT_SOURCE)
+              .reportMinuteDistribution()
+              .build(wfSender);
       // Start the reporter
       wfInternalReporter.start(1, TimeUnit.MINUTES);
     } else {
@@ -162,8 +168,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   }
 
   @Override
-  protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) throws URISyntaxException {
+  protected void handleHttpMessage(final ChannelHandlerContext ctx, final FullHttpRequest request)
+      throws URISyntaxException {
     URI uri = new URI(request.uri());
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
 
@@ -175,8 +181,10 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     }
     if (!request.method().toString().equalsIgnoreCase(JAEGER_VALID_HTTP_METHOD)) {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", request);
-      logWarning("Requested http method '" + request.method().toString() +
-          "' is not supported.", null, ctx);
+      logWarning(
+          "Requested http method '" + request.method().toString() + "' is not supported.",
+          null,
+          ctx);
       return;
     }
 
@@ -189,10 +197,23 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
       Batch batch = new Batch();
       new TDeserializer().deserialize(batch, bytesArray);
 
-      processBatch(batch, output, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
-          spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
-          preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
-          discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics,
+      processBatch(
+          batch,
+          output,
+          DEFAULT_SOURCE,
+          proxyLevelApplicationName,
+          spanHandler,
+          spanLogsHandler,
+          wfInternalReporter,
+          traceDisabled,
+          spanLogsDisabled,
+          preprocessorSupplier,
+          sampler,
+          traceDerivedCustomTagKeys,
+          discardedTraces,
+          discardedBatches,
+          discardedSpansBySampler,
+          discoveredHeartbeatMetrics,
           receivedSpansTotal);
       status = HttpResponseStatus.ACCEPTED;
       processedBatches.inc();

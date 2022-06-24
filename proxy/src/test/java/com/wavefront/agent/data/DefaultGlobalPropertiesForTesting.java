@@ -1,16 +1,12 @@
 package com.wavefront.agent.data;
 
-import com.wavefront.api.agent.SpanSamplingPolicy;
-
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 
-/**
- * @author vasily@wavefront.com
- */
+import com.wavefront.api.agent.SpanSamplingPolicy;
+import java.util.List;
+import javax.annotation.Nullable;
+
+/** @author vasily@wavefront.com */
 public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
 
   @Override
@@ -19,8 +15,7 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
   }
 
   @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-  }
+  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {}
 
   @Override
   public short getHistogramStorageAccuracy() {
@@ -28,8 +23,7 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
   }
 
   @Override
-  public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
-  }
+  public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {}
 
   @Override
   public double getTraceSamplingRate() {
@@ -37,8 +31,7 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
   }
 
   @Override
-  public void setTraceSamplingRate(Double traceSamplingRate) {
-  }
+  public void setTraceSamplingRate(Double traceSamplingRate) {}
 
   @Override
   public Integer getDropSpansDelayedMinutes() {
@@ -46,8 +39,7 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
   }
 
   @Override
-  public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
-  }
+  public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {}
 
   @Override
   public List<SpanSamplingPolicy> getActiveSpanSamplingPolicies() {
@@ -55,6 +47,6 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
   }
 
   @Override
-  public void setActiveSpanSamplingPolicies(@Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {
-  }
+  public void setActiveSpanSamplingPolicies(
+      @Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {}
 }

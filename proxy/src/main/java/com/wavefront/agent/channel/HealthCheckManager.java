@@ -1,12 +1,10 @@
 package com.wavefront.agent.channel;
 
-import javax.annotation.Nonnull;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-
 import java.net.URISyntaxException;
+import javax.annotation.Nonnull;
 
 /**
  * Centrally manages healthcheck statuses (for controlling load balancers).
@@ -14,8 +12,8 @@ import java.net.URISyntaxException;
  * @author vasily@wavefront.com
  */
 public interface HealthCheckManager {
-  HttpResponse getHealthCheckResponse(ChannelHandlerContext ctx,
-                                      @Nonnull FullHttpRequest request) throws URISyntaxException;
+  HttpResponse getHealthCheckResponse(ChannelHandlerContext ctx, @Nonnull FullHttpRequest request)
+      throws URISyntaxException;
 
   boolean isHealthy(int port);
 
@@ -29,5 +27,3 @@ public interface HealthCheckManager {
 
   void enableHealthcheck(int port);
 }
-
-

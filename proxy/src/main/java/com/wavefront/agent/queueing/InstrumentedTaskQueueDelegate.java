@@ -1,29 +1,28 @@
 package com.wavefront.agent.queueing;
 
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Logger;
-
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A thread-safe wrapper for {@link TaskQueue<T>} that reports queue metrics.
  *
  * @param <T> type of objects stored.
- *
  * @author vasily@wavefront.com
  */
-public class InstrumentedTaskQueueDelegate<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
+public class InstrumentedTaskQueueDelegate<T extends DataSubmissionTask<T>>
+    implements TaskQueue<T> {
   private static final Logger log =
       Logger.getLogger(InstrumentedTaskQueueDelegate.class.getCanonicalName());
 
@@ -38,26 +37,27 @@ public class InstrumentedTaskQueueDelegate<T extends DataSubmissionTask<T>> impl
   private final Counter itemsRemovedCounter;
 
   /**
-   * @param delegate     delegate {@link TaskQueue<T>}.
+   * @param delegate delegate {@link TaskQueue<T>}.
    * @param metricPrefix prefix for metric names (default: "buffer")
-   * @param metricTags   point tags for metrics (default: none)
-   * @param entityType   entity type (default: points)
+   * @param metricTags point tags for metrics (default: none)
+   * @param entityType entity type (default: points)
    */
-  public InstrumentedTaskQueueDelegate(TaskQueue<T> delegate,
-                                       @Nullable String metricPrefix,
-                                       @Nullable Map<String, String> metricTags,
-                                       @Nullable ReportableEntityType entityType) {
+  public InstrumentedTaskQueueDelegate(
+      TaskQueue<T> delegate,
+      @Nullable String metricPrefix,
+      @Nullable Map<String, String> metricTags,
+      @Nullable ReportableEntityType entityType) {
     this.delegate = delegate;
     String entityName = entityType == null ? "points" : entityType.toString();
     this.prefix = firstNonNull(metricPrefix, "buffer");
     this.tags = metricTags == null ? ImmutableMap.of() : metricTags;
     this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName(prefix, "task-added", tags));
-    this.itemsAddedCounter = Metrics.newCounter(new TaggedMetricName(prefix, entityName + "-added",
-        tags));
-    this.tasksRemovedCounter = Metrics.newCounter(new TaggedMetricName(prefix, "task-removed",
-        tags));
-    this.itemsRemovedCounter = Metrics.newCounter(new TaggedMetricName(prefix, entityName +
-        "-removed", tags));
+    this.itemsAddedCounter =
+        Metrics.newCounter(new TaggedMetricName(prefix, entityName + "-added", tags));
+    this.tasksRemovedCounter =
+        Metrics.newCounter(new TaggedMetricName(prefix, "task-removed", tags));
+    this.itemsRemovedCounter =
+        Metrics.newCounter(new TaggedMetricName(prefix, entityName + "-removed", tags));
   }
 
   @Override
@@ -130,7 +130,7 @@ public class InstrumentedTaskQueueDelegate<T extends DataSubmissionTask<T>> impl
 
   @Nullable
   @Override
-  public Long getAvailableBytes()  {
+  public Long getAvailableBytes() {
     return delegate.getAvailableBytes();
   }
 

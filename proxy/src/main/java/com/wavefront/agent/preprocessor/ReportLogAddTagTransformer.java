@@ -1,16 +1,13 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.function.Predicate;
-
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
-
-import static com.wavefront.predicates.Util.expandPlaceholders;
 
 /**
  * Creates a new log tag with a specified value, or overwrite an existing one.
@@ -24,10 +21,11 @@ public class ReportLogAddTagTransformer implements Function<ReportLog, ReportLog
   protected final PreprocessorRuleMetrics ruleMetrics;
   protected final Predicate<ReportLog> v2Predicate;
 
-  public ReportLogAddTagTransformer(final String tag,
-                                    final String value,
-                                    @Nullable final Predicate<ReportLog> v2Predicate,
-                                    final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportLogAddTagTransformer(
+      final String tag,
+      final String value,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");

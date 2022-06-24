@@ -1,24 +1,29 @@
 package com.wavefront.agent.data;
 
-import com.google.common.collect.ImmutableList;
-import com.wavefront.data.ReportableEntityType;
-import org.junit.Test;
-
-import java.util.List;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-/**
- * @author vasily@wavefront.com
- */
+import com.google.common.collect.ImmutableList;
+import com.wavefront.data.ReportableEntityType;
+import java.util.List;
+import org.junit.Test;
+
+/** @author vasily@wavefront.com */
 public class LineDelimitedDataSubmissionTaskTest {
   @Test
   public void testSplitTask() {
-    LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(null, null, null,
-        null, "graphite_v2", ReportableEntityType.POINT, "2878",
-        ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"), null);
+    LineDelimitedDataSubmissionTask task =
+        new LineDelimitedDataSubmissionTask(
+            null,
+            null,
+            null,
+            null,
+            "graphite_v2",
+            ReportableEntityType.POINT,
+            "2878",
+            ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
+            null);
 
     List<LineDelimitedDataSubmissionTask> split;
 

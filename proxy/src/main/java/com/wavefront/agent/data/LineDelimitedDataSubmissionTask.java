@@ -9,14 +9,13 @@ import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.data.ReportableEntityType;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
 
 /**
  * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.
@@ -31,32 +30,33 @@ public class LineDelimitedDataSubmissionTask
   private transient ProxyV2API api;
   private transient UUID proxyId;
 
-  @JsonProperty
-  private String format;
-  @VisibleForTesting
-  @JsonProperty
-  protected List<String> payload;
+  @JsonProperty private String format;
+  @VisibleForTesting @JsonProperty protected List<String> payload;
 
   @SuppressWarnings("unused")
-  LineDelimitedDataSubmissionTask() {
-  }
+  LineDelimitedDataSubmissionTask() {}
 
   /**
-   * @param api          API endpoint
-   * @param proxyId      Proxy identifier. Used to authenticate proxy with the API.
-   * @param properties   entity-specific wrapper over mutable proxy settings' container.
-   * @param backlog      task queue.
-   * @param format       Data format (passed as an argument to the API)
-   * @param entityType   Entity type handled
-   * @param handle       Handle (usually port number) of the pipeline where the data came from.
-   * @param payload      Data payload
+   * @param api API endpoint
+   * @param proxyId Proxy identifier. Used to authenticate proxy with the API.
+   * @param properties entity-specific wrapper over mutable proxy settings' container.
+   * @param backlog task queue.
+   * @param format Data format (passed as an argument to the API)
+   * @param entityType Entity type handled
+   * @param handle Handle (usually port number) of the pipeline where the data came from.
+   * @param payload Data payload
    * @param timeProvider Time provider (in millis)
    */
-  public LineDelimitedDataSubmissionTask(ProxyV2API api, UUID proxyId, EntityProperties properties,
-                                         TaskQueue<LineDelimitedDataSubmissionTask> backlog,
-                                         String format, ReportableEntityType entityType,
-                                         String handle, @Nonnull List<String> payload,
-                                         @Nullable Supplier<Long> timeProvider) {
+  public LineDelimitedDataSubmissionTask(
+      ProxyV2API api,
+      UUID proxyId,
+      EntityProperties properties,
+      TaskQueue<LineDelimitedDataSubmissionTask> backlog,
+      String format,
+      ReportableEntityType entityType,
+      String handle,
+      @Nonnull List<String> payload,
+      @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, entityType, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
@@ -82,9 +82,17 @@ public class LineDelimitedDataSubmissionTask
       int endingIndex = 0;
       for (int startingIndex = 0; endingIndex < payload.size() - 1; startingIndex += stride) {
         endingIndex = Math.min(payload.size(), startingIndex + stride) - 1;
-        result.add(new LineDelimitedDataSubmissionTask(api, proxyId, properties, backlog, format,
-            getEntityType(), handle, payload.subList(startingIndex, endingIndex + 1),
-            timeProvider));
+        result.add(
+            new LineDelimitedDataSubmissionTask(
+                api,
+                proxyId,
+                properties,
+                backlog,
+                format,
+                getEntityType(),
+                handle,
+                payload.subList(startingIndex, endingIndex + 1),
+                timeProvider));
       }
       return result;
     }
@@ -95,8 +103,11 @@ public class LineDelimitedDataSubmissionTask
     return payload;
   }
 
-  public void injectMembers(ProxyV2API api, UUID proxyId, EntityProperties properties,
-                            TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
+  public void injectMembers(
+      ProxyV2API api,
+      UUID proxyId,
+      EntityProperties properties,
+      TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
     this.api = api;
     this.proxyId = proxyId;
     this.properties = properties;

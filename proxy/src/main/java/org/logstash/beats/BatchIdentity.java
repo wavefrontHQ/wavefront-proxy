@@ -2,7 +2,6 @@ package org.logstash.beats;
 
 import java.util.Map;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 /**
@@ -14,13 +13,15 @@ public class BatchIdentity {
   private final String timestampStr;
   private final int highestSequence;
   private final int size;
-  @Nullable
-  private final String logFile;
-  @Nullable
-  private final Integer logFileOffset;
+  @Nullable private final String logFile;
+  @Nullable private final Integer logFileOffset;
 
-  BatchIdentity(String timestampStr, int highestSequence, int size, @Nullable String logFile,
-                @Nullable Integer logFileOffset) {
+  BatchIdentity(
+      String timestampStr,
+      int highestSequence,
+      int size,
+      @Nullable String logFile,
+      @Nullable Integer logFileOffset) {
     this.timestampStr = timestampStr;
     this.highestSequence = highestSequence;
     this.size = size;
@@ -33,11 +34,11 @@ public class BatchIdentity {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     BatchIdentity that = (BatchIdentity) o;
-    return this.highestSequence == that.highestSequence &&
-        this.size == that.size &&
-        Objects.equals(this.timestampStr, that.timestampStr) &&
-        Objects.equals(this.logFile, that.logFile) &&
-        Objects.equals(this.logFileOffset, that.logFileOffset);
+    return this.highestSequence == that.highestSequence
+        && this.size == that.size
+        && Objects.equals(this.timestampStr, that.timestampStr)
+        && Objects.equals(this.logFile, that.logFile)
+        && Objects.equals(this.logFileOffset, that.logFileOffset);
   }
 
   @Override
@@ -52,12 +53,17 @@ public class BatchIdentity {
 
   @Override
   public String toString() {
-    return "BatchIdentity{timestampStr=" + timestampStr +
-        ", highestSequence=" + highestSequence +
-        ", size=" + size +
-        ", logFile=" + logFile +
-        ", logFileOffset=" + logFileOffset +
-        "}";
+    return "BatchIdentity{timestampStr="
+        + timestampStr
+        + ", highestSequence="
+        + highestSequence
+        + ", size="
+        + size
+        + ", logFile="
+        + logFile
+        + ", logFileOffset="
+        + logFileOffset
+        + "}";
   }
 
   @Nullable
@@ -76,8 +82,12 @@ public class BatchIdentity {
         }
       }
     }
-    return new BatchIdentity((String) messageData.get("@timestamp"),
-        message.getBatch().getHighestSequence(), message.getBatch().size(), logFile, logFileOffset);
+    return new BatchIdentity(
+        (String) messageData.get("@timestamp"),
+        message.getBatch().getHighestSequence(),
+        message.getBatch().size(),
+        logFile,
+        logFileOffset);
   }
 
   @Nullable

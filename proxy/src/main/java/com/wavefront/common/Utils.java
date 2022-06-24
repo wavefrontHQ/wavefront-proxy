@@ -5,12 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
-
-import org.apache.commons.lang.StringUtils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -21,6 +15,10 @@ import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * A placeholder class for miscellaneous utility methods.
@@ -82,10 +80,11 @@ public abstract class Utils {
 
   /**
    * Method converts a string Id to {@code UUID}. This Method specifically converts id's with less
-   * than 32 digit hex characters into UUID format (See <a href="http://www.ietf.org/rfc/rfc4122.txt">
-   * <i>RFC&nbsp;4122: A Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding
-   * id with Zeroes and adding hyphens. It assumes that if the input id contains hyphens it is
-   * already an UUID. Please don't use this method to validate/guarantee your id as an UUID.
+   * than 32 digit hex characters into UUID format (See <a
+   * href="http://www.ietf.org/rfc/rfc4122.txt"><i>RFC&nbsp;4122: A Universally Unique IDentifier
+   * (UUID) URN Namespace</i></a>) by left padding id with Zeroes and adding hyphens. It assumes
+   * that if the input id contains hyphens it is already an UUID. Please don't use this method to
+   * validate/guarantee your id as an UUID.
    *
    * @param id a string encoded in hex characters.
    * @return a UUID string.
@@ -106,9 +105,9 @@ public abstract class Utils {
    */
   @Nonnull
   public static List<String> csvToList(@Nullable String inputString) {
-    return inputString == null ?
-        Collections.emptyList() :
-        Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
+    return inputString == null
+        ? Collections.emptyList()
+        : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
   }
 
   /**
@@ -143,9 +142,11 @@ public abstract class Utils {
    * @return java runtime version as string
    */
   public static String getJavaVersion() {
-    return System.getProperty("java.runtime.name", "(unknown runtime)") + " (" +
-        System.getProperty("java.vendor", "") + ") " +
-        System.getProperty("java.version", "(unknown version)");
+    return System.getProperty("java.runtime.name", "(unknown runtime)")
+        + " ("
+        + System.getProperty("java.vendor", "")
+        + ") "
+        + System.getProperty("java.version", "(unknown version)");
   }
 
   /**
@@ -162,9 +163,12 @@ public abstract class Utils {
         if (!network.isUp() || network.isLoopback()) {
           continue;
         }
-        for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
+        for (Enumeration<InetAddress> addresses = network.getInetAddresses();
+            addresses.hasMoreElements(); ) {
           InetAddress address = addresses.nextElement();
-          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress()) {
+          if (address.isAnyLocalAddress()
+              || address.isLoopbackAddress()
+              || address.isMulticastAddress()) {
             continue;
           }
           if (address instanceof Inet4Address) { // prefer ipv4
@@ -186,9 +190,8 @@ public abstract class Utils {
   }
 
   /**
-   * Check if the HTTP 407/408 response was actually received from Wavefront - if it's a
-   * JSON object containing "code" key, with value equal to the HTTP response code,
-   * it's most likely from us.
+   * Check if the HTTP 407/408 response was actually received from Wavefront - if it's a JSON object
+   * containing "code" key, with value equal to the HTTP response code, it's most likely from us.
    *
    * @param response Response object.
    * @return whether we consider it a Wavefront response
@@ -216,9 +219,7 @@ public abstract class Utils {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private static class Status {
-    @JsonProperty
-    String message;
-    @JsonProperty
-    int code;
+    @JsonProperty String message;
+    @JsonProperty int code;
   }
 }

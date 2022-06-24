@@ -1,51 +1,48 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
-
+import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
-
-import static com.wavefront.predicates.Util.expandPlaceholders;
 
 /**
  * Create a log tag by extracting a portion of a message, source name or another log tag
  *
  * @author amitw@vmware.com
  */
-public class ReportLogExtractTagTransformer implements Function<ReportLog, ReportLog>{
+public class ReportLogExtractTagTransformer implements Function<ReportLog, ReportLog> {
 
   protected final String tag;
   protected final String input;
   protected final String patternReplace;
   protected final Pattern compiledSearchPattern;
-  @Nullable
-  protected final Pattern compiledMatchPattern;
-  @Nullable
-  protected final String patternReplaceInput;
+  @Nullable protected final Pattern compiledMatchPattern;
+  @Nullable protected final String patternReplaceInput;
   protected final PreprocessorRuleMetrics ruleMetrics;
   protected final Predicate<ReportLog> v2Predicate;
 
-  public ReportLogExtractTagTransformer(final String tag,
-                                        final String input,
-                                        final String patternSearch,
-                                        final String patternReplace,
-                                        @Nullable final String replaceInput,
-                                        @Nullable final String patternMatch,
-                                        @Nullable final Predicate<ReportLog> v2Predicate,
-                                        final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportLogExtractTagTransformer(
+      final String tag,
+      final String input,
+      final String patternSearch,
+      final String patternReplace,
+      @Nullable final String replaceInput,
+      @Nullable final String patternMatch,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.input = Preconditions.checkNotNull(input, "[input] can't be null");
-    this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
+    this.compiledSearchPattern =
+        Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     Preconditions.checkArgument(!input.isEmpty(), "[input] can't be blank");
@@ -57,10 +54,11 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
     this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
-  protected boolean extractTag(@Nonnull ReportLog reportLog, final String extractFrom,
-                               List<Annotation> buffer) {
+  protected boolean extractTag(
+      @Nonnull ReportLog reportLog, final String extractFrom, List<Annotation> buffer) {
     Matcher patternMatcher;
-    if (extractFrom == null || (compiledMatchPattern != null && !compiledMatchPattern.matcher(extractFrom).matches())) {
+    if (extractFrom == null
+        || (compiledMatchPattern != null && !compiledMatchPattern.matcher(extractFrom).matches())) {
       return false;
     }
     patternMatcher = compiledSearchPattern.matcher(extractFrom);
@@ -80,14 +78,18 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
     switch (input) {
       case "message":
         if (extractTag(reportLog, reportLog.getMessage(), buffer) && patternReplaceInput != null) {
-          reportLog.setMessage(compiledSearchPattern.matcher(reportLog.getMessage()).
-              replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
+          reportLog.setMessage(
+              compiledSearchPattern
+                  .matcher(reportLog.getMessage())
+                  .replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
         }
         break;
       case "sourceName":
         if (extractTag(reportLog, reportLog.getHost(), buffer) && patternReplaceInput != null) {
-          reportLog.setHost(compiledSearchPattern.matcher(reportLog.getHost()).
-              replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
+          reportLog.setHost(
+              compiledSearchPattern
+                  .matcher(reportLog.getHost())
+                  .replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
         }
         break;
       default:
@@ -95,8 +97,10 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
           if (logTagKV.getKey().equals(input)) {
             if (extractTag(reportLog, logTagKV.getValue(), buffer)) {
               if (patternReplaceInput != null) {
-                logTagKV.setValue(compiledSearchPattern.matcher(logTagKV.getValue()).
-                    replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
+                logTagKV.setValue(
+                    compiledSearchPattern
+                        .matcher(logTagKV.getValue())
+                        .replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
               }
             }
           }

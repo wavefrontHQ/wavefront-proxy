@@ -1,13 +1,13 @@
 package com.wavefront.agent.queueing;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 
 /**
- * Proxy-specific FIFO queue interface for storing {@code byte[]}. This allows us to
- * potentially support multiple backing storages in the future.
+ * Proxy-specific FIFO queue interface for storing {@code byte[]}. This allows us to potentially
+ * support multiple backing storages in the future.
  *
  * @author vasily@wavefront.com
  */
@@ -28,13 +28,11 @@ public interface QueueFile extends Closeable, Iterable<byte[]> {
    * @param offset to start from in buffer
    * @param count number of bytes to copy
    * @throws IndexOutOfBoundsException if {@code offset < 0} or {@code count < 0}, or if {@code
-   * offset + count} is bigger than the length of {@code buffer}.
+   *     offset + count} is bigger than the length of {@code buffer}.
    */
   void add(byte[] data, int offset, int count) throws IOException;
 
-  /**
-   * Clears this queue. Truncates the file to the initial size.
-   */
+  /** Clears this queue. Truncates the file to the initial size. */
   void clear() throws IOException;
 
   /**
@@ -51,7 +49,8 @@ public interface QueueFile extends Closeable, Iterable<byte[]> {
    *
    * @return the eldest element.
    */
-  @Nullable byte[] peek() throws IOException;
+  @Nullable
+  byte[] peek() throws IOException;
 
   /**
    * Removes the eldest element.
@@ -60,9 +59,7 @@ public interface QueueFile extends Closeable, Iterable<byte[]> {
    */
   void remove() throws IOException;
 
-  /**
-   * Returns the number of elements in this queue.
-   */
+  /** Returns the number of elements in this queue. */
   int size();
 
   /**
