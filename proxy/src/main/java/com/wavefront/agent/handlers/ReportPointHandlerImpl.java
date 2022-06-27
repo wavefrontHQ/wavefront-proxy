@@ -13,7 +13,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -52,8 +51,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param handlerKey handler key for the metrics pipeline.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
-   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
-   *     Wavefront endpoint corresponding to the tenant name
    * @param validationConfig validation configuration.
    * @param setupMetrics Whether we should report counter metrics.
    * @param receivedRateSink Where to report received rate.
@@ -95,7 +92,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
   @Override
   void reportInternal(ReportPoint point) {
-    //    logger.severe("reportInternal " + Thread.currentThread().getName());
     receivedTagCount.update(point.getAnnotations().size());
     try {
       validatePoint(point, validationConfig);
@@ -111,40 +107,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     final String strPoint = serializer.apply(point);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, Collections.singletonList(strPoint));
+    BuffersManager.sendMsg(handlerKey, strPoint);
 
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
-  }
-
-  private void toDisk(String strPoint) {
-    System.out.println("--> msg toDisk ");
-    Pair<ClientSession, ClientProducer> mqCtx =
-        mqContextDisk.computeIfAbsent(
-            Thread.currentThread().getName(),
-            s -> {
-              try {
-                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://1");
-                ClientSessionFactory factory = serverLocator.createSessionFactory();
-                ClientSession session = factory.createSession();
-                ClientProducer producer = session.createProducer("diskBuffer");
-                session.start();
-                return new Pair<>(session, producer);
-              } catch (Exception e) {
-                e.printStackTrace();
-                System.exit(-1);
-              }
-              return null;
-            });
-
-    ClientSession session = mqCtx._1;
-    ClientProducer producer = mqCtx._2;
-    try {
-      ClientMessage message = session.createMessage(true);
-      message.writeBodyBufferString(strPoint);
-      producer.send(message);
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
   }
 }

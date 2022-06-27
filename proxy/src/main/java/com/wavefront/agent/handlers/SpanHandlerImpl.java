@@ -11,7 +11,6 @@ import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -104,7 +103,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     final String strSpan = serializer.apply(span);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, Collections.singletonList(strSpan));
+    BuffersManager.sendMsg(handlerKey, strSpan);
 
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }

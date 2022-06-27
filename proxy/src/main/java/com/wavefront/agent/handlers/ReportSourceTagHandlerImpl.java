@@ -45,7 +45,7 @@ class ReportSourceTagHandlerImpl
     }
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, Collections.singletonList(sourceTag.toString()));
+    BuffersManager.sendMsg(handlerKey, sourceTag.toString());
 
     getReceivedCounter().inc();
     // tagK=tagV based multicasting is not support

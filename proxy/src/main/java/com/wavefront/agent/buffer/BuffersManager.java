@@ -10,7 +10,6 @@ import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.yammer.metrics.core.Gauge;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -81,17 +80,17 @@ public class BuffersManager {
     }
   }
 
-  public static void sendMsg(QueueInfo handler, List<String> strPoints) {
+  public static void sendMsg(QueueInfo handler, String strPoint) {
     try {
-      level_1.sendMsg(handler, strPoints);
+      level_1.sendMsg(handler, strPoint);
     } catch (ActiveMQAddressFullException e) {
       if (level_2 != null) {
         try {
-          level_2.sendMsg(handler, strPoints);
+          level_2.sendMsg(handler, strPoint);
         } catch (ActiveMQAddressFullException ex) {
           if (level_3 != null) {
             try {
-              level_3.sendMsg(handler, strPoints);
+              level_3.sendMsg(handler, strPoint);
             } catch (ActiveMQAddressFullException exx) {
               logger.log(Level.SEVERE, exx.getMessage(), exx);
             }

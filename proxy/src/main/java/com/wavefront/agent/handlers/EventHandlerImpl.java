@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
-import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -56,7 +55,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     }
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, Collections.singletonList(event.toString()));
+    BuffersManager.sendMsg(handlerKey, event.toString());
 
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));

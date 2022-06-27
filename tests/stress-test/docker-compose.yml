@@ -13,6 +13,7 @@ services:
   wf-proxy:
     hostname: stress-test-wfproxy
     build: docker/proxy
+    # build: docker/proxy-latest
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}

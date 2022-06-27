@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.junit.Test;
@@ -40,7 +39,7 @@ public class BufferManagerTest {
     for (int i = 0; i < 100; i++) {
       msgs.add("turur");
     }
-    BuffersManager.getLeve2().sendMsg(points, msgs);
+    //    BuffersManager.getLeve2().sendMsg(points, msgs);
 
     int ticks = 0;
     while ((Long) memory.value() != 100L) {
@@ -66,7 +65,7 @@ public class BufferManagerTest {
 
     Gauge mc2878 = BuffersManager.l1GetMcGauge(points);
     assertEquals("MessageCount", 0l, mc2878.value());
-    BuffersManager.sendMsg(points, Collections.singletonList("tururu"));
+    BuffersManager.sendMsg(points, "tururu");
     assertEquals("MessageCount", 1l, mc2878.value());
     Thread.sleep(1_000);
     assertEquals("MessageCount", 0l, mc2878.value());
@@ -91,7 +90,7 @@ public class BufferManagerTest {
     Gauge<Object> disk = BuffersManager.l2GetMcGauge(points);
 
     assertEquals("MessageCount", 0l, memory.value());
-    BuffersManager.sendMsg(points, Collections.singletonList("tururu"));
+    BuffersManager.sendMsg(points, "tururu");
     assertEquals("MessageCount", 1l, memory.value());
     Thread.sleep(1_000);
     assertEquals("MessageCount", 0l, memory.value());
@@ -123,8 +122,8 @@ public class BufferManagerTest {
     Gauge mc2879 = BuffersManager.l1GetMcGauge(points_2879);
 
     for (int i = 0; i < 10; i++) {
-      BuffersManager.sendMsg(points_2878, Collections.singletonList("tururu"));
-      BuffersManager.sendMsg(points_2879, Collections.singletonList("tururu"));
+      BuffersManager.sendMsg(points_2878, "tururu");
+      BuffersManager.sendMsg(points_2879, "tururu");
     }
 
     assertNotEquals("MessageCount", 0l, mc2878_memory.value());
@@ -137,7 +136,7 @@ public class BufferManagerTest {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
-    List<String> msg = Collections.singletonList("tururu");
+    String msg = "tururu";
 
     HandlerKey points_2878 = new HandlerKey(POINT, "2878");
 

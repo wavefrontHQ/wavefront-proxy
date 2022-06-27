@@ -2,7 +2,6 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.ingester.SpanLogsSerializer;
-import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
@@ -49,7 +48,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     if (strSpanLogs != null) {
 
       getReceivedCounter().inc();
-      BuffersManager.sendMsg(handlerKey, Collections.singletonList(strSpanLogs));
+      BuffersManager.sendMsg(handlerKey, strSpanLogs);
 
       getReceivedCounter().inc();
       if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);

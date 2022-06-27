@@ -21,6 +21,13 @@ if (Number.isNaN(delay)) {
         }
     });
 
+    // server.forAnyRequest().thenCallback(async (request) => {
+    //     console.log('reques: ', request);
+    // });
+
+
+    server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough();
+
     server.forPost("/api/v2/wfproxy/checkin").thenPassThrough();
 
     server.forPost("/api/v2/wfproxy/report").thenCallback(async (request) => {

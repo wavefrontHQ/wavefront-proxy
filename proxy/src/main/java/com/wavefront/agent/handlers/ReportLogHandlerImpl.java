@@ -9,7 +9,6 @@ import com.wavefront.dto.Log;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
-import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -80,7 +79,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     receivedByteCount.inc(logObj.toString().getBytes().length);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, Collections.singletonList(logObj.toString()));
+    BuffersManager.sendMsg(handlerKey, logObj.toString());
 
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {

@@ -41,7 +41,7 @@ public class RatedBridge implements Runnable {
         1000,
         rate,
         batch -> {
-          dst.sendMsg(key, batch);
+          //          dst.sendMsg(key, batch);
         });
   }
 }
