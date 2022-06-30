@@ -1,15 +1,14 @@
 package com.wavefront.agent.queueing;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import com.wavefront.common.TimeProvider;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.function.BiConsumer;
-
-import com.wavefront.common.TimeProvider;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A {@link com.squareup.tape2.QueueFile} to {@link QueueFile} adapter.
@@ -33,34 +32,33 @@ public class TapeQueueFile implements QueueFile {
   }
 
   private final com.squareup.tape2.QueueFile delegate;
-  @Nullable
-  private final BiConsumer<Integer, Long> writeStatsConsumer;
+  @Nullable private final BiConsumer<Integer, Long> writeStatsConsumer;
   private final TimeProvider clock;
 
-  /**
-   * @param delegate           tape queue file
-   */
+  /** @param delegate tape queue file */
   public TapeQueueFile(com.squareup.tape2.QueueFile delegate) {
     this(delegate, null, null);
   }
 
   /**
-   * @param delegate           tape queue file
+   * @param delegate tape queue file
    * @param writeStatsConsumer consumer for statistics on writes (bytes written and millis taken)
    */
-  public TapeQueueFile(com.squareup.tape2.QueueFile delegate,
-                       @Nullable BiConsumer<Integer, Long> writeStatsConsumer) {
+  public TapeQueueFile(
+      com.squareup.tape2.QueueFile delegate,
+      @Nullable BiConsumer<Integer, Long> writeStatsConsumer) {
     this(delegate, writeStatsConsumer, null);
   }
 
   /**
-   * @param delegate           tape queue file
+   * @param delegate tape queue file
    * @param writeStatsConsumer consumer for statistics on writes (bytes written and millis taken)
-   * @param clock              time provider (in millis)
+   * @param clock time provider (in millis)
    */
-  public TapeQueueFile(com.squareup.tape2.QueueFile delegate,
-                       @Nullable BiConsumer<Integer, Long> writeStatsConsumer,
-                       @Nullable TimeProvider clock) {
+  public TapeQueueFile(
+      com.squareup.tape2.QueueFile delegate,
+      @Nullable BiConsumer<Integer, Long> writeStatsConsumer,
+      @Nullable TimeProvider clock) {
     this.delegate = delegate;
     this.writeStatsConsumer = writeStatsConsumer;
     this.clock = clock == null ? System::currentTimeMillis : clock;

@@ -1,5 +1,10 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
+import static com.wavefront.common.Utils.*;
+import static java.util.Collections.EMPTY_LIST;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
@@ -9,22 +14,20 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
-
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
-import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
 import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
+import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.queueing.QueueExporter;
 import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
-import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
@@ -34,10 +37,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ObjectUtils;
-
-import javax.net.ssl.SSLException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -54,11 +53,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
-import static com.wavefront.common.Utils.*;
-import static java.util.Collections.EMPTY_LIST;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
+import javax.net.ssl.SSLException;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -69,11 +66,9 @@ public abstract class AbstractAgent {
   protected static final Logger logger = Logger.getLogger("proxy");
   final Counter activeListeners =
       Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
-  /**
-   * A set of commandline parameters to hide when echoing command line arguments
-   */
-  protected static final Set<String> PARAMETERS_TO_HIDE = ImmutableSet.of("-t", "--token",
-      "--proxyPassword");
+  /** A set of commandline parameters to hide when echoing command line arguments */
+  protected static final Set<String> PARAMETERS_TO_HIDE =
+      ImmutableSet.of("-t", "--token", "--proxyPassword");
 
   protected final ProxyConfig proxyConfig = new ProxyConfig();
   protected APIContainer apiContainer;
@@ -81,7 +76,8 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
-  protected final Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap = Maps.newHashMap();
+  protected final Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap =
+      Maps.newHashMap();
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected final AtomicBoolean truncate = new AtomicBoolean(false);
   protected ProxyCheckInScheduler proxyCheckinScheduler;
@@ -96,28 +92,32 @@ public abstract class AbstractAgent {
   }
 
   public AbstractAgent() {
-    entityPropertiesFactoryMap.put(APIContainer.CENTRAL_TENANT_NAME,
-        new EntityPropertiesFactoryImpl(proxyConfig));
+    entityPropertiesFactoryMap.put(
+        APIContainer.CENTRAL_TENANT_NAME, new EntityPropertiesFactoryImpl(proxyConfig));
   }
 
   private void addPreprocessorFilters(String ports, String allowList, String blockList) {
     if (ports != null && (allowList != null || blockList != null)) {
       for (String strPort : Splitter.on(",").omitEmptyStrings().trimResults().split(ports)) {
-        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-            Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected",
-                "port", strPort)),
-            Metrics.newCounter(new TaggedMetricName("validationRegex", "cpu-nanos",
-                "port", strPort)),
-            Metrics.newCounter(new TaggedMetricName("validationRegex", "points-checked",
-                "port", strPort))
-        );
+        PreprocessorRuleMetrics ruleMetrics =
+            new PreprocessorRuleMetrics(
+                Metrics.newCounter(
+                    new TaggedMetricName("validationRegex", "points-rejected", "port", strPort)),
+                Metrics.newCounter(
+                    new TaggedMetricName("validationRegex", "cpu-nanos", "port", strPort)),
+                Metrics.newCounter(
+                    new TaggedMetricName("validationRegex", "points-checked", "port", strPort)));
         if (blockList != null) {
-          preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new LineBasedBlockFilter(blockList, ruleMetrics));
+          preprocessors
+              .getSystemPreprocessor(strPort)
+              .forPointLine()
+              .addFilter(new LineBasedBlockFilter(blockList, ruleMetrics));
         }
         if (allowList != null) {
-          preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new LineBasedAllowFilter(allowList, ruleMetrics));
+          preprocessors
+              .getSystemPreprocessor(strPort)
+              .forPointLine()
+              .addFilter(new LineBasedAllowFilter(allowList, ruleMetrics));
         }
       }
     }
@@ -126,12 +126,15 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void initSslContext() throws SSLException {
     if (!isEmpty(proxyConfig.getPrivateCertPath()) && !isEmpty(proxyConfig.getPrivateKeyPath())) {
-      sslContext = SslContextBuilder.forServer(new File(proxyConfig.getPrivateCertPath()),
-              new File(proxyConfig.getPrivateKeyPath())).build();
+      sslContext =
+          SslContextBuilder.forServer(
+                  new File(proxyConfig.getPrivateCertPath()),
+                  new File(proxyConfig.getPrivateKeyPath()))
+              .build();
     }
     if (!isEmpty(proxyConfig.getTlsPorts()) && sslContext == null) {
-      Preconditions.checkArgument(sslContext != null,
-              "Missing TLS certificate/private key configuration.");
+      Preconditions.checkArgument(
+          sslContext != null, "Missing TLS certificate/private key configuration.");
     }
     if (StringUtils.equals(proxyConfig.getTlsPorts(), "*")) {
       secureAllPorts = true;
@@ -147,24 +150,28 @@ public abstract class AbstractAgent {
         preprocessors.loadFile(configFileName);
         preprocessors.setUpConfigFileMonitoring(configFileName, 5000); // check every 5s
       } catch (FileNotFoundException ex) {
-        throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " +
-            configFileName);
+        throw new RuntimeException(
+            "Unable to load preprocessor rules - file does not exist: " + configFileName);
       }
       logger.info("Preprocessor configuration loaded from " + configFileName);
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.
     // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and picklePorts
-    String allPorts = StringUtils.join(new String[]{
-        ObjectUtils.firstNonNull(proxyConfig.getPushListenerPorts(), ""),
-        ObjectUtils.firstNonNull(proxyConfig.getGraphitePorts(), ""),
-        ObjectUtils.firstNonNull(proxyConfig.getPicklePorts(), ""),
-        ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
-    }, ",");
-    addPreprocessorFilters(allPorts, proxyConfig.getAllowRegex(),
-        proxyConfig.getBlockRegex());
+    String allPorts =
+        StringUtils.join(
+            new String[] {
+              ObjectUtils.firstNonNull(proxyConfig.getPushListenerPorts(), ""),
+              ObjectUtils.firstNonNull(proxyConfig.getGraphitePorts(), ""),
+              ObjectUtils.firstNonNull(proxyConfig.getPicklePorts(), ""),
+              ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
+            },
+            ",");
+    addPreprocessorFilters(allPorts, proxyConfig.getAllowRegex(), proxyConfig.getBlockRegex());
     // opentsdb block/allow lists are applied to opentsdbPorts only
-    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbAllowRegex(),
+    addPreprocessorFilters(
+        proxyConfig.getOpentsdbPorts(),
+        proxyConfig.getOpentsdbAllowRegex(),
         proxyConfig.getOpentsdbBlockRegex());
   }
 
@@ -175,8 +182,8 @@ public abstract class AbstractAgent {
         return null;
       }
       ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-      return objectMapper.readValue(new File(proxyConfig.getLogsIngestionConfigFile()),
-          LogsIngestionConfig.class);
+      return objectMapper.readValue(
+          new File(proxyConfig.getLogsIngestionConfigFile()), LogsIngestionConfig.class);
     } catch (UnrecognizedPropertyException e) {
       logger.severe("Unable to load logs ingestion config: " + e.getMessage());
     } catch (Exception e) {
@@ -195,17 +202,19 @@ public abstract class AbstractAgent {
     // Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
-      throw new IllegalArgumentException("hostname cannot be blank! Please correct your configuration settings.");
+      throw new IllegalArgumentException(
+          "hostname cannot be blank! Please correct your configuration settings.");
     }
 
     if (proxyConfig.isSqsQueueBuffer()) {
       if (StringUtils.isBlank(proxyConfig.getSqsQueueIdentifier())) {
-        throw new IllegalArgumentException("sqsQueueIdentifier cannot be blank! Please correct " +
-            "your configuration settings.");
+        throw new IllegalArgumentException(
+            "sqsQueueIdentifier cannot be blank! Please correct " + "your configuration settings.");
       }
       if (!SQSQueueFactoryImpl.isValidSQSTemplate(proxyConfig.getSqsQueueNameTemplate())) {
-        throw new IllegalArgumentException("sqsQueueNameTemplate is invalid! Must contain " +
-            "{{id}} {{entity}} and {{port}} replacements.");
+        throw new IllegalArgumentException(
+            "sqsQueueNameTemplate is invalid! Must contain "
+                + "{{id}} {{entity}} and {{port}} replacements.");
       }
     }
   }
@@ -213,9 +222,14 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void parseArguments(String[] args) {
     // read build information and print version.
-    String versionStr = "Wavefront Proxy version " + getBuildVersion() +
-            " (pkg:" + getPackage() + ")" +
-        ", runtime: " + getJavaVersion();
+    String versionStr =
+        "Wavefront Proxy version "
+            + getBuildVersion()
+            + " (pkg:"
+            + getPackage()
+            + ")"
+            + ", runtime: "
+            + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
@@ -226,9 +240,12 @@ public abstract class AbstractAgent {
       System.exit(1);
     }
     logger.info(versionStr);
-    logger.info("Arguments: " + IntStream.range(0, args.length).
-        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
-        collect(Collectors.joining(" ")));
+    logger.info(
+        "Arguments: "
+            + IntStream.range(0, args.length)
+                .mapToObj(
+                    i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i])
+                .collect(Collectors.joining(" ")));
     proxyConfig.verifyAndInit();
   }
 
@@ -250,25 +267,30 @@ public abstract class AbstractAgent {
       initSslContext();
       initPreprocessors();
 
-      if (proxyConfig.isTestLogs() || proxyConfig.getTestPreprocessorForPort() != null ||
-          proxyConfig.getTestSpanPreprocessorForPort() != null) {
+      if (proxyConfig.isTestLogs()
+          || proxyConfig.getTestPreprocessorForPort() != null
+          || proxyConfig.getTestSpanPreprocessorForPort() != null) {
         InteractiveTester interactiveTester;
         if (proxyConfig.isTestLogs()) {
           logger.info("Reading line-by-line sample log messages from STDIN");
-          interactiveTester = new InteractiveLogsTester(this::loadLogsIngestionConfig,
-              proxyConfig.getPrefix());
+          interactiveTester =
+              new InteractiveLogsTester(this::loadLogsIngestionConfig, proxyConfig.getPrefix());
         } else if (proxyConfig.getTestPreprocessorForPort() != null) {
           logger.info("Reading line-by-line points from STDIN");
-          interactiveTester = new InteractivePreprocessorTester(
-              preprocessors.get(proxyConfig.getTestPreprocessorForPort()),
-              ReportableEntityType.POINT, proxyConfig.getTestPreprocessorForPort(),
-              proxyConfig.getCustomSourceTags());
+          interactiveTester =
+              new InteractivePreprocessorTester(
+                  preprocessors.get(proxyConfig.getTestPreprocessorForPort()),
+                  ReportableEntityType.POINT,
+                  proxyConfig.getTestPreprocessorForPort(),
+                  proxyConfig.getCustomSourceTags());
         } else if (proxyConfig.getTestSpanPreprocessorForPort() != null) {
           logger.info("Reading line-by-line spans from STDIN");
-          interactiveTester = new InteractivePreprocessorTester(
-              preprocessors.get(String.valueOf(proxyConfig.getTestPreprocessorForPort())),
-              ReportableEntityType.TRACE, proxyConfig.getTestPreprocessorForPort(),
-              proxyConfig.getCustomSourceTags());
+          interactiveTester =
+              new InteractivePreprocessorTester(
+                  preprocessors.get(String.valueOf(proxyConfig.getTestPreprocessorForPort())),
+                  ReportableEntityType.TRACE,
+                  proxyConfig.getTestPreprocessorForPort(),
+                  proxyConfig.getCustomSourceTags());
         } else {
           throw new IllegalStateException();
         }
@@ -280,14 +302,20 @@ public abstract class AbstractAgent {
       }
 
       // If we are exporting data from the queue, run export and exit
-      if (proxyConfig.getExportQueueOutputFile() != null &&
-          proxyConfig.getExportQueuePorts() != null) {
-        TaskQueueFactory tqFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(), false,
-            false, proxyConfig.getBufferShardSize());
+      if (proxyConfig.getExportQueueOutputFile() != null
+          && proxyConfig.getExportQueuePorts() != null) {
+        TaskQueueFactory tqFactory =
+            new TaskQueueFactoryImpl(
+                proxyConfig.getBufferFile(), false, false, proxyConfig.getBufferShardSize());
         EntityPropertiesFactory epFactory = new EntityPropertiesFactoryImpl(proxyConfig);
-        QueueExporter queueExporter = new QueueExporter(proxyConfig.getBufferFile(),
-            proxyConfig.getExportQueuePorts(), proxyConfig.getExportQueueOutputFile(),
-            proxyConfig.isExportQueueRetainData(), tqFactory, epFactory);
+        QueueExporter queueExporter =
+            new QueueExporter(
+                proxyConfig.getBufferFile(),
+                proxyConfig.getExportQueuePorts(),
+                proxyConfig.getExportQueueOutputFile(),
+                proxyConfig.isExportQueueRetainData(),
+                tqFactory,
+                epFactory);
         logger.info("Starting queue export for ports: " + proxyConfig.getExportQueuePorts());
         queueExporter.export();
         logger.info("Done");
@@ -302,8 +330,14 @@ public abstract class AbstractAgent {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
       }
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
-      proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> System.exit(1), this::truncateBacklog);
+      proxyCheckinScheduler =
+          new ProxyCheckInScheduler(
+              agentId,
+              proxyConfig,
+              apiContainer,
+              this::processConfiguration,
+              () -> System.exit(1),
+              this::truncateBacklog);
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -317,28 +351,30 @@ public abstract class AbstractAgent {
             public void run() {
               // exit if no active listeners
               if (activeListeners.count() == 0) {
-                logger.severe("**** All listener threads failed to start - there is already a " +
-                    "running instance listening on configured ports, or no listening ports " +
-                    "configured!");
+                logger.severe(
+                    "**** All listener threads failed to start - there is already a "
+                        + "running instance listening on configured ports, or no listening ports "
+                        + "configured!");
                 logger.severe("Aborting start-up");
                 System.exit(1);
               }
 
-              Runtime.getRuntime().addShutdownHook(new Thread("proxy-shutdown-hook") {
-                @Override
-                public void run() {
-                  shutdown();
-                }
-              });
+              Runtime.getRuntime()
+                  .addShutdownHook(
+                      new Thread("proxy-shutdown-hook") {
+                        @Override
+                        public void run() {
+                          shutdown();
+                        }
+                      });
 
               logger.info("setup complete");
             }
           },
-          5000
-      );
+          5000);
     } catch (Exception e) {
       logger.log(Level.SEVERE, e.getMessage(), e);
-//      logger.severe(e.getMessage());
+      //      logger.severe(e.getMessage());
       System.exit(1);
     }
   }
@@ -360,9 +396,7 @@ public abstract class AbstractAgent {
     }
   }
 
-  /**
-   * Best-effort graceful shutdown.
-   */
+  /** Best-effort graceful shutdown. */
   public void shutdown() {
     if (!shuttingDown.compareAndSet(false, true)) return;
     try {
@@ -378,14 +412,15 @@ public abstract class AbstractAgent {
       System.out.println("Shutting down: Stopping schedulers...");
       if (proxyCheckinScheduler != null) proxyCheckinScheduler.shutdown();
       managedExecutors.forEach(ExecutorService::shutdownNow);
-        // wait for up to request timeout
-      managedExecutors.forEach(x -> {
-        try {
-          x.awaitTermination(proxyConfig.getHttpRequestTimeout(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-          // ignore
-        }
-      });
+      // wait for up to request timeout
+      managedExecutors.forEach(
+          x -> {
+            try {
+              x.awaitTermination(proxyConfig.getHttpRequestTimeout(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+              // ignore
+            }
+          });
 
       System.out.println("Shutting down: Running finalizing tasks...");
       shutdownTasks.forEach(Runnable::run);
@@ -401,14 +436,10 @@ public abstract class AbstractAgent {
     }
   }
 
-  /**
-   * Starts all listeners as configured.
-   */
+  /** Starts all listeners as configured. */
   protected abstract void startListeners() throws Exception;
 
-  /**
-   * Stops all listeners before terminating the process.
-   */
+  /** Stops all listeners before terminating the process. */
   protected abstract void stopListeners();
 
   /**
@@ -420,4 +451,3 @@ public abstract class AbstractAgent {
 
   protected abstract void truncateBacklog();
 }
-

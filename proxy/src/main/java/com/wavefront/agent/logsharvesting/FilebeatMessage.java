@@ -1,17 +1,14 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.google.common.collect.ImmutableMap;
-
-import org.logstash.beats.Message;
-
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 import java.util.Map;
-
 import javax.annotation.Nullable;
+import org.logstash.beats.Message;
 
 /**
  * Abstraction for {@link org.logstash.beats.Message}

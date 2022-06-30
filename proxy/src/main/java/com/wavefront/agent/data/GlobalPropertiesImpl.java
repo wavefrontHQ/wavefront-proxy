@@ -1,14 +1,12 @@
 package com.wavefront.agent.data;
 
-import javax.annotation.Nullable;
+import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.agent.SpanSamplingPolicy;
-
 import java.util.List;
-
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import javax.annotation.Nullable;
 
 /**
  * Dynamic non-entity specific properties, that may change at runtime.
@@ -78,8 +76,8 @@ public final class GlobalPropertiesImpl implements GlobalProperties {
   }
 
   @Override
-  public void setActiveSpanSamplingPolicies(@Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {
+  public void setActiveSpanSamplingPolicies(
+      @Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {
     this.activeSpanSamplingPolicies = activeSpanSamplingPolicies;
   }
 }
-

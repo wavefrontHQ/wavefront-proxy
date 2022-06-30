@@ -43,3 +43,4 @@ jobs:
         set -x
         chmod +x ./macos_proxy_notarization/proxy_notarization.sh; ./macos_proxy_notarization/proxy_notarization.sh 'wfproxy-${{ github.event.inputs.proxy_version }}.tar.gz'
         set +x
+        sleep 60

@@ -1,39 +1,5 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.google.common.collect.ImmutableSet;
-
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.agent.sampler.SpanSampler;
-import com.wavefront.common.TraceConstants;
-import com.wavefront.internal.reporter.WavefrontInternalReporter;
-import com.wavefront.sdk.common.Pair;
-import com.yammer.metrics.core.Counter;
-
-import org.apache.commons.lang.StringUtils;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
-
-import io.jaegertracing.thriftjava.Batch;
-import io.jaegertracing.thriftjava.SpanRef;
-import io.jaegertracing.thriftjava.Tag;
-import io.jaegertracing.thriftjava.TagType;
-import wavefront.report.Annotation;
-import wavefront.report.Span;
-import wavefront.report.SpanLog;
-import wavefront.report.SpanLogs;
-
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
@@ -48,6 +14,35 @@ import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
+import com.google.common.collect.ImmutableSet;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.common.TraceConstants;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
+import com.yammer.metrics.core.Counter;
+import io.jaegertracing.thriftjava.Batch;
+import io.jaegertracing.thriftjava.SpanRef;
+import io.jaegertracing.thriftjava.Tag;
+import io.jaegertracing.thriftjava.TagType;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
+
 /**
  * Utility methods for processing Jaeger Thrift trace data.
  *
@@ -58,29 +53,29 @@ public abstract class JaegerThriftUtils {
       Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
 
   // TODO: support sampling
-  private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
+  private static final Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
-  private JaegerThriftUtils() {
-  }
+  private JaegerThriftUtils() {}
 
-  public static void processBatch(Batch batch,
-                                  @Nullable StringBuilder output,
-                                  String sourceName,
-                                  String applicationName,
-                                  ReportableEntityHandler<Span, String> spanHandler,
-                                  ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                                  @Nullable WavefrontInternalReporter wfInternalReporter,
-                                  Supplier<Boolean> traceDisabled,
-                                  Supplier<Boolean> spanLogsDisabled,
-                                  Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  SpanSampler sampler,
-                                  Set<String> traceDerivedCustomTagKeys,
-                                  Counter discardedTraces,
-                                  Counter discardedBatches,
-                                  Counter discardedSpansBySampler,
-                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
-                                  Counter receivedSpansTotal) {
+  public static void processBatch(
+      Batch batch,
+      @Nullable StringBuilder output,
+      String sourceName,
+      String applicationName,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontInternalReporter wfInternalReporter,
+      Supplier<Boolean> traceDisabled,
+      Supplier<Boolean> spanLogsDisabled,
+      Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Set<String> traceDerivedCustomTagKeys,
+      Counter discardedTraces,
+      Counter discardedBatches,
+      Counter discardedSpansBySampler,
+      Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
+      Counter receivedSpansTotal) {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
@@ -135,29 +130,43 @@ public abstract class JaegerThriftUtils {
     }
     receivedSpansTotal.inc(batch.getSpansSize());
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
-      processSpan(span, serviceName, sourceName, applicationName, cluster, shard, processAnnotations,
-          spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
-          preprocessorSupplier, sampler, traceDerivedCustomTagKeys, discardedSpansBySampler,
+      processSpan(
+          span,
+          serviceName,
+          sourceName,
+          applicationName,
+          cluster,
+          shard,
+          processAnnotations,
+          spanHandler,
+          spanLogsHandler,
+          wfInternalReporter,
+          spanLogsDisabled,
+          preprocessorSupplier,
+          sampler,
+          traceDerivedCustomTagKeys,
+          discardedSpansBySampler,
           discoveredHeartbeatMetrics);
     }
   }
 
-  private static void processSpan(io.jaegertracing.thriftjava.Span span,
-                                  String serviceName,
-                                  String sourceName,
-                                  String applicationName,
-                                  String cluster,
-                                  String shard,
-                                  List<Annotation> processAnnotations,
-                                  ReportableEntityHandler<Span, String> spanHandler,
-                                  ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                                  @Nullable WavefrontInternalReporter wfInternalReporter,
-                                  Supplier<Boolean> spanLogsDisabled,
-                                  Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  SpanSampler sampler,
-                                  Set<String> traceDerivedCustomTagKeys,
-                                  Counter discardedSpansBySampler,
-                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
+  private static void processSpan(
+      io.jaegertracing.thriftjava.Span span,
+      String serviceName,
+      String sourceName,
+      String applicationName,
+      String cluster,
+      String shard,
+      List<Annotation> processAnnotations,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontInternalReporter wfInternalReporter,
+      Supplier<Boolean> spanLogsDisabled,
+      Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Set<String> traceDerivedCustomTagKeys,
+      Counter discardedSpansBySampler,
+      Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
     List<Annotation> annotations = new ArrayList<>(processAnnotations);
 
     String traceId = new UUID(span.getTraceIdHigh(), span.getTraceIdLow()).toString();
@@ -178,8 +187,8 @@ public abstract class JaegerThriftUtils {
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (IGNORE_TAGS.contains(tag.getKey()) ||
-            (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
+        if (IGNORE_TAGS.contains(tag.getKey())
+            || (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
           continue;
         }
 
@@ -226,13 +235,16 @@ public abstract class JaegerThriftUtils {
         switch (reference.refType) {
           case CHILD_OF:
             if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
-              annotations.add(new Annotation(TraceConstants.PARENT_KEY,
-                  new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(
+                  new Annotation(
+                      TraceConstants.PARENT_KEY, new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
             if (reference.getSpanId() != 0) {
-              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY,
-                  new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(
+                  new Annotation(
+                      TraceConstants.FOLLOWS_FROM_KEY,
+                      new UUID(0, reference.getSpanId()).toString()));
             }
           default:
         }
@@ -243,16 +255,17 @@ public abstract class JaegerThriftUtils {
       annotations.add(new Annotation("_spanLogs", "true"));
     }
 
-    Span wavefrontSpan = Span.newBuilder()
-        .setCustomer("dummy")
-        .setName(span.getOperationName())
-        .setSource(sourceName)
-        .setSpanId(new UUID(0, span.getSpanId()).toString())
-        .setTraceId(traceId)
-        .setStartMillis(span.getStartTime() / 1000)
-        .setDuration(span.getDuration() / 1000)
-        .setAnnotations(annotations)
-        .build();
+    Span wavefrontSpan =
+        Span.newBuilder()
+            .setCustomer("dummy")
+            .setName(span.getOperationName())
+            .setSource(sourceName)
+            .setSpanId(new UUID(0, span.getSpanId()).toString())
+            .setTraceId(traceId)
+            .setStartMillis(span.getStartTime() / 1000)
+            .setDuration(span.getDuration() / 1000)
+            .setAnnotations(annotations)
+            .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
     if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
@@ -275,39 +288,46 @@ public abstract class JaegerThriftUtils {
     }
     if (sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
-      if (span.getLogs() != null && !span.getLogs().isEmpty() &&
-          !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
-        SpanLogs spanLogs = SpanLogs.newBuilder().
-            setCustomer("default").
-            setTraceId(wavefrontSpan.getTraceId()).
-            setSpanId(wavefrontSpan.getSpanId()).
-            setLogs(span.getLogs().stream().map(x -> {
-              Map<String, String> fields = new HashMap<>(x.fields.size());
-              x.fields.forEach(t -> {
-                switch (t.vType) {
-                  case STRING:
-                    fields.put(t.getKey(), t.getVStr());
-                    break;
-                  case BOOL:
-                    fields.put(t.getKey(), String.valueOf(t.isVBool()));
-                    break;
-                  case LONG:
-                    fields.put(t.getKey(), String.valueOf(t.getVLong()));
-                    break;
-                  case DOUBLE:
-                    fields.put(t.getKey(), String.valueOf(t.getVDouble()));
-                    break;
-                  case BINARY:
-                    // ignore
-                  default:
-                }
-              });
-              return SpanLog.newBuilder().
-                  setTimestamp(x.timestamp).
-                  setFields(fields).
-                  build();
-            }).collect(Collectors.toList())).
-            build();
+      if (span.getLogs() != null
+          && !span.getLogs().isEmpty()
+          && !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        SpanLogs spanLogs =
+            SpanLogs.newBuilder()
+                .setCustomer("default")
+                .setTraceId(wavefrontSpan.getTraceId())
+                .setSpanId(wavefrontSpan.getSpanId())
+                .setLogs(
+                    span.getLogs().stream()
+                        .map(
+                            x -> {
+                              Map<String, String> fields = new HashMap<>(x.fields.size());
+                              x.fields.forEach(
+                                  t -> {
+                                    switch (t.vType) {
+                                      case STRING:
+                                        fields.put(t.getKey(), t.getVStr());
+                                        break;
+                                      case BOOL:
+                                        fields.put(t.getKey(), String.valueOf(t.isVBool()));
+                                        break;
+                                      case LONG:
+                                        fields.put(t.getKey(), String.valueOf(t.getVLong()));
+                                        break;
+                                      case DOUBLE:
+                                        fields.put(t.getKey(), String.valueOf(t.getVDouble()));
+                                        break;
+                                      case BINARY:
+                                        // ignore
+                                      default:
+                                    }
+                                  });
+                              return SpanLog.newBuilder()
+                                  .setTimestamp(x.timestamp)
+                                  .setFields(fields)
+                                  .build();
+                            })
+                        .collect(Collectors.toList()))
+                .build();
         spanLogsHandler.report(spanLogs);
       }
     }
@@ -338,13 +358,26 @@ public abstract class JaegerThriftUtils {
             continue;
         }
       }
-      List<Pair<String, String>> spanTags = processedAnnotations.stream().map(
-          a -> new Pair<>(a.getKey(), a.getValue())).collect(Collectors.toList());
+      List<Pair<String, String>> spanTags =
+          processedAnnotations.stream()
+              .map(a -> new Pair<>(a.getKey(), a.getValue()))
+              .collect(Collectors.toList());
       // TODO: Modify to use new method from wavefront internal reporter.
-      discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
-          wavefrontSpan.getName(), applicationName, serviceName, cluster, shard,
-          wavefrontSpan.getSource(), componentTagValue, isError, span.getDuration(),
-          traceDerivedCustomTagKeys, spanTags, true));
+      discoveredHeartbeatMetrics.add(
+          reportWavefrontGeneratedData(
+              wfInternalReporter,
+              wavefrontSpan.getName(),
+              applicationName,
+              serviceName,
+              cluster,
+              shard,
+              wavefrontSpan.getSource(),
+              componentTagValue,
+              isError,
+              span.getDuration(),
+              traceDerivedCustomTagKeys,
+              spanTags,
+              true));
     }
   }
 

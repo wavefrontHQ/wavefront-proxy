@@ -575,7 +575,7 @@ public class PushAgent extends AbstractAgent {
             + (histMinPorts.size() > 0 ? 1 : 0)
             + (histDistPorts.size() > 0 ? 1 : 0);
     if (activeHistogramAggregationTypes > 0) {
-        /*Histograms enabled*/
+      /*Histograms enabled*/
       histogramExecutor =
           Executors.newScheduledThreadPool(
               1 + activeHistogramAggregationTypes, new NamedThreadFactory("histogram-service"));

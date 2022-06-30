@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.data.ReportableEntityType;
-
 import javax.annotation.Nonnull;
 
 /**
@@ -22,8 +21,8 @@ public interface ReportableEntityHandlerFactory {
   /**
    * Create, or return existing, {@link ReportableEntityHandler}.
    *
-   * @param  entityType ReportableEntityType for the handler.
-   * @param  handle     handle.
+   * @param entityType ReportableEntityType for the handler.
+   * @param handle handle.
    * @return new or existing handler.
    */
   default <T, U> ReportableEntityHandler<T, U> getHandler(
@@ -31,8 +30,6 @@ public interface ReportableEntityHandlerFactory {
     return getHandler(HandlerKey.of(entityType, handle));
   }
 
-  /**
-   * Shutdown pipeline for a specific handle.
-   */
+  /** Shutdown pipeline for a specific handle. */
   void shutdown(@Nonnull String handle);
 }

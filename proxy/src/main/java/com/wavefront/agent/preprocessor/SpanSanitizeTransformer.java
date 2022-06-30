@@ -1,12 +1,11 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
+
 import com.google.common.base.Function;
+import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
-
-import javax.annotation.Nullable;
-
-import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
 
 /**
  * Sanitize spans (e.g., span source and tag keys) according to the same rules that are applied at
@@ -74,9 +73,7 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
     return span;
   }
 
-  /**
-   * Remove leading/trailing whitespace and escape newlines.
-   */
+  /** Remove leading/trailing whitespace and escape newlines. */
   private String sanitizeValue(String s) {
     // TODO: sanitize using SDK instead
     return s.trim().replaceAll("\\n", "\\\\n");

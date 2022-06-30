@@ -2,27 +2,25 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.base.Suppliers;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.GlobalProperties;
-import com.wavefront.common.Managed;
-import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.handlers.HandlerKey;
-
-import javax.annotation.Nonnull;
+import com.wavefront.common.Managed;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 
 /**
  * A thread responsible for processing the backlog from a single task queue.
  *
  * @param <T> type of queued tasks
- *
  * @author vasily@wavefront.com
  */
 public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable, Managed {
@@ -42,18 +40,19 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   private Supplier<T> storedTask;
 
   /**
-   * @param handlerKey         pipeline handler key
-   * @param taskQueue          backing queue
-   * @param taskInjector       injects members into task objects after deserialization
-   * @param entityProps        container for mutable proxy settings.
-   * @param globalProps        container for mutable global proxy settings.
+   * @param handlerKey pipeline handler key
+   * @param taskQueue backing queue
+   * @param taskInjector injects members into task objects after deserialization
+   * @param entityProps container for mutable proxy settings.
+   * @param globalProps container for mutable global proxy settings.
    */
-  public QueueProcessor(final HandlerKey handlerKey,
-                        @Nonnull final TaskQueue<T> taskQueue,
-                        final TaskInjector<T> taskInjector,
-                        final ScheduledExecutorService scheduler,
-                        final EntityProperties entityProps,
-                        final GlobalProperties globalProps) {
+  public QueueProcessor(
+      final HandlerKey handlerKey,
+      @Nonnull final TaskQueue<T> taskQueue,
+      final TaskInjector<T> taskInjector,
+      final ScheduledExecutorService scheduler,
+      final EntityProperties entityProps,
+      final GlobalProperties globalProps) {
     this.handlerKey = handlerKey;
     this.taskQueue = taskQueue;
     this.taskInjector = taskInjector;
@@ -99,8 +98,12 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
                 break;
               case REMOVED:
                 failures++;
-                logger.warning("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
-                    " will be dropped from backlog!");
+                logger.warning(
+                    "["
+                        + handlerKey.getHandle()
+                        + "] "
+                        + handlerKey.getEntityType()
+                        + " will be dropped from backlog!");
                 break;
               case PERSISTED:
                 rateLimiter.recyclePermits(taskSize);
@@ -133,21 +136,31 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
     } finally {
       long nextFlush;
       if (rateLimiting) {
-        logger.fine("[" + handlerKey.getHandle() + "] Rate limiter active, will re-attempt later " +
-            "to prioritize eal-time traffic.");
+        logger.fine(
+            "["
+                + handlerKey.getHandle()
+                + "] Rate limiter active, will re-attempt later "
+                + "to prioritize eal-time traffic.");
         // if proxy rate limit exceeded, try again in 1/4 to 1/2 flush interval
         // (to introduce some degree of fairness)
-        nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4 *
-            schedulerTimingFactor);
+        nextFlush =
+            (int)
+                ((1 + Math.random())
+                    * runtimeProperties.getPushFlushInterval()
+                    / 4
+                    * schedulerTimingFactor);
       } else {
         if (successes == 0 && failures > 0) {
           backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
         } else {
           backoffExponent = 1;
         }
-        nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
-            Math.pow(globalProps.getRetryBackoffBaseSeconds(),
-                backoffExponent) * schedulerTimingFactor);
+        nextFlush =
+            (long)
+                ((Math.random() + 1.0)
+                    * runtimeProperties.getPushFlushInterval()
+                    * Math.pow(globalProps.getRetryBackoffBaseSeconds(), backoffExponent)
+                    * schedulerTimingFactor);
         logger.fine("[" + handlerKey.getHandle() + "] Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {
@@ -170,6 +183,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
 
   /**
    * Returns the timestamp of the task at the head of the queue.
+   *
    * @return timestamp
    */
   long getHeadTaskTimestamp() {
@@ -178,6 +192,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
 
   /**
    * Returns the backing queue.
+   *
    * @return task queue
    */
   TaskQueue<T> getTaskQueue() {
@@ -186,8 +201,9 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
 
   /**
    * Adjusts the timing multiplier for this processor. If the timingFactor value is lower than 1,
-   * delays between cycles get shorter which results in higher priority for the queue;
-   * if it's higher than 1, delays get longer, which, naturally, lowers the priority.
+   * delays between cycles get shorter which results in higher priority for the queue; if it's
+   * higher than 1, delays get longer, which, naturally, lowers the priority.
+   *
    * @param timingFactor timing multiplier
    */
   void setTimingFactor(double timingFactor) {

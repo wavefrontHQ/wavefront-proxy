@@ -1,26 +1,23 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.data.ReportableEntityType;
-
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.Objects;
-
 /**
- * An immutable unique identifier for a handler pipeline (type of objects handled + port/handle
- * name + tenant name)
+ * An immutable unique identifier for a handler pipeline (type of objects handled + port/handle name
+ * + tenant name)
  *
  * @author vasily@wavefront.com
  */
 public class HandlerKey {
   private final ReportableEntityType entityType;
-  @Nonnull
-  private final String handle;
-  @Nullable
-  private final String tenantName;
+  @Nonnull private final String handle;
+  @Nullable private final String tenantName;
 
-  private HandlerKey(ReportableEntityType entityType, @Nonnull String handle, @Nullable String tenantName) {
+  private HandlerKey(
+      ReportableEntityType entityType, @Nonnull String handle, @Nullable String tenantName) {
     this.entityType = entityType;
     this.handle = handle;
     this.tenantName = tenantName;
@@ -47,15 +44,16 @@ public class HandlerKey {
     return new HandlerKey(entityType, handle, null);
   }
 
-  public static HandlerKey of(ReportableEntityType entityType, @Nonnull String handle,
-                              @Nonnull String tenantName) {
+  public static HandlerKey of(
+      ReportableEntityType entityType, @Nonnull String handle, @Nonnull String tenantName) {
     return new HandlerKey(entityType, handle, tenantName);
   }
 
   @Override
   public int hashCode() {
-    return 31 * 31 * entityType.hashCode() + 31 * handle.hashCode() + (this.tenantName == null ?
-        0 : this.tenantName.hashCode());
+    return 31 * 31 * entityType.hashCode()
+        + 31 * handle.hashCode()
+        + (this.tenantName == null ? 0 : this.tenantName.hashCode());
   }
 
   @Override
@@ -71,6 +69,9 @@ public class HandlerKey {
 
   @Override
   public String toString() {
-    return this.entityType + "." + this.handle + (this.tenantName == null ? "" : "." + this.tenantName);
+    return this.entityType
+        + "."
+        + this.handle
+        + (this.tenantName == null ? "" : "." + this.tenantName);
   }
 }

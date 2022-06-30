@@ -1,11 +1,10 @@
 package com.wavefront.agent.api;
 
-import javax.ws.rs.core.Response;
-import java.util.List;
-import java.util.UUID;
-
 import com.wavefront.api.EventAPI;
 import com.wavefront.dto.Event;
+import java.util.List;
+import java.util.UUID;
+import javax.ws.rs.core.Response;
 
 /**
  * A no-op SourceTagAPI stub.

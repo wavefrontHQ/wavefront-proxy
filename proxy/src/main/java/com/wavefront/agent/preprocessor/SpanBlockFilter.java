@@ -2,37 +2,33 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 /**
- * Blocking regex-based filter. Rejects a span if a specified component (name, source, or
- * annotation value, depending on the "scope" parameter) doesn't match the regex.
+ * Blocking regex-based filter. Rejects a span if a specified component (name, source, or annotation
+ * value, depending on the "scope" parameter) doesn't match the regex.
  *
  * @author vasily@wavefront.com
  */
 public class SpanBlockFilter implements AnnotatedPredicate<Span> {
 
-  @Nullable
-  private final String scope;
-  @Nullable
-  private final Pattern compiledPattern;
+  @Nullable private final String scope;
+  @Nullable private final Pattern compiledPattern;
   private final Predicate<Span> v2Predicate;
   private boolean isV1PredicatePresent = false;
 
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  public SpanBlockFilter(@Nullable final String scope,
-                         @Nullable final String patternMatch,
-                         @Nullable final Predicate<Span> v2Predicate,
-                         @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
+  public SpanBlockFilter(
+      @Nullable final String scope,
+      @Nullable final String patternMatch,
+      @Nullable final Predicate<Span> v2Predicate,
+      @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
     // If v2 predicate is null, v1 predicate becomes mandatory.
@@ -45,15 +41,17 @@ public class SpanBlockFilter implements AnnotatedPredicate<Span> {
       isV1PredicatePresent = true;
     } else {
       // If v2 predicate is present, verify all or none of v1 predicate parameters are present.
-      boolean bothV1PredicatesValid = !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
+      boolean bothV1PredicatesValid =
+          !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
       boolean bothV1PredicatesNull = scope == null && patternMatch == null;
 
       if (bothV1PredicatesValid) {
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
         // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
-        throw new IllegalArgumentException("[match], [scope] for rule should both be valid non " +
-            "null/blank values or both null.");
+        throw new IllegalArgumentException(
+            "[match], [scope] for rule should both be valid non "
+                + "null/blank values or both null.");
       }
     }
 
@@ -93,8 +91,8 @@ public class SpanBlockFilter implements AnnotatedPredicate<Span> {
           break;
         default:
           for (Annotation annotation : span.getAnnotations()) {
-            if (annotation.getKey().equals(scope) &&
-                compiledPattern.matcher(annotation.getValue()).matches()) {
+            if (annotation.getKey().equals(scope)
+                && compiledPattern.matcher(annotation.getValue()).matches()) {
               ruleMetrics.incrementRuleAppliedCounter();
               return false;
             }

@@ -1,6 +1,7 @@
 package com.wavefront.agent.sampler;
 
-import com.google.common.annotations.VisibleForTesting;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
+import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
 
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -10,9 +11,6 @@ import com.wavefront.predicates.ExpressionSyntaxException;
 import com.wavefront.predicates.Predicates;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.core.Counter;
-
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,15 +18,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
+import org.checkerframework.checker.nullness.qual.NonNull;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
-
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
 
 /**
  * Sampler that takes a {@link Span} as input and delegates to a {@link Sampler} when evaluating the
@@ -42,29 +36,33 @@ public class SpanSampler {
   private static final int POLICY_BASED_SAMPLING_MOD_FACTOR = 100;
   private static final Logger logger = Logger.getLogger(SpanSampler.class.getCanonicalName());
   private final Sampler delegate;
-  private final LoadingCache<String, Predicate<Span>> spanPredicateCache = Caffeine.newBuilder().expireAfterAccess(EXPIRE_AFTER_ACCESS_SECONDS,
-      TimeUnit.SECONDS).build(new CacheLoader<String, Predicate<Span>>() {
-    @Override
-    @Nullable
-    public Predicate<Span> load(@NonNull String key) {
-      try {
-        return Predicates.fromPredicateEvalExpression(key);
-      } catch (ExpressionSyntaxException ex) {
-        logger.severe("Policy expression " + key + " is invalid: " + ex.getMessage());
-        return null;
-      }
-    }
-  });
+  private final LoadingCache<String, Predicate<Span>> spanPredicateCache =
+      Caffeine.newBuilder()
+          .expireAfterAccess(EXPIRE_AFTER_ACCESS_SECONDS, TimeUnit.SECONDS)
+          .build(
+              new CacheLoader<String, Predicate<Span>>() {
+                @Override
+                @Nullable
+                public Predicate<Span> load(@NonNull String key) {
+                  try {
+                    return Predicates.fromPredicateEvalExpression(key);
+                  } catch (ExpressionSyntaxException ex) {
+                    logger.severe("Policy expression " + key + " is invalid: " + ex.getMessage());
+                    return null;
+                  }
+                }
+              });
   private final Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier;
 
   /**
    * Creates a new instance from a {@Sampler} delegate.
    *
-   * @param delegate                           The delegate {@Sampler}.
+   * @param delegate The delegate {@Sampler}.
    * @param activeSpanSamplingPoliciesSupplier Active span sampling policies to be applied.
    */
-  public SpanSampler(Sampler delegate,
-                     @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier) {
+  public SpanSampler(
+      Sampler delegate,
+      @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier) {
     this.delegate = delegate;
     this.activeSpanSamplingPoliciesSupplier = activeSpanSamplingPoliciesSupplier;
   }
@@ -72,7 +70,7 @@ public class SpanSampler {
   /**
    * Evaluates whether a span should be allowed or discarded.
    *
-   * @param span  The span to sample.
+   * @param span The span to sample.
    * @return true if the span should be allowed, false otherwise.
    */
   public boolean sample(Span span) {
@@ -83,7 +81,7 @@ public class SpanSampler {
    * Evaluates whether a span should be allowed or discarded, and increment a counter if it should
    * be discarded.
    *
-   * @param span      The span to sample.
+   * @param span The span to sample.
    * @param discarded The counter to increment if the decision is to discard the span.
    * @return true if the span should be allowed, false otherwise.
    */
@@ -98,15 +96,17 @@ public class SpanSampler {
       String policyId = null;
       for (SpanSamplingPolicy policy : activeSpanSamplingPolicies) {
         Predicate<Span> spanPredicate = spanPredicateCache.get(policy.getExpression());
-        if (spanPredicate != null && spanPredicate.test(span) &&
-            policy.getSamplingPercent() > samplingPercent) {
+        if (spanPredicate != null
+            && spanPredicate.test(span)
+            && policy.getSamplingPercent() > samplingPercent) {
           samplingPercent = policy.getSamplingPercent();
           policyId = policy.getPolicyId();
         }
       }
-      if (samplingPercent > 0 &&
-          Math.abs(UUID.fromString(span.getTraceId()).getLeastSignificantBits()) %
-              POLICY_BASED_SAMPLING_MOD_FACTOR <= samplingPercent) {
+      if (samplingPercent > 0
+          && Math.abs(UUID.fromString(span.getTraceId()).getLeastSignificantBits())
+                  % POLICY_BASED_SAMPLING_MOD_FACTOR
+              <= samplingPercent) {
         if (span.getAnnotations() == null) {
           span.setAnnotations(new ArrayList<>());
         }
@@ -114,7 +114,9 @@ public class SpanSampler {
         return true;
       }
     }
-    if (delegate.sample(span.getName(), UUID.fromString(span.getTraceId()).getLeastSignificantBits(),
+    if (delegate.sample(
+        span.getName(),
+        UUID.fromString(span.getTraceId()).getLeastSignificantBits(),
         span.getDuration())) {
       return true;
     }
@@ -125,10 +127,9 @@ public class SpanSampler {
   }
 
   /**
-   * Util method to determine if a span is force sampled.
-   * Currently force samples if any of the below conditions are met.
-   * 1. The span annotation debug=true is present
-   * 2. alwaysSampleErrors=true and the span annotation error=true is present.
+   * Util method to determine if a span is force sampled. Currently force samples if any of the
+   * below conditions are met. 1. The span annotation debug=true is present 2.
+   * alwaysSampleErrors=true and the span annotation error=true is present.
    *
    * @param span The span to sample
    * @return true if the span should be force sampled.

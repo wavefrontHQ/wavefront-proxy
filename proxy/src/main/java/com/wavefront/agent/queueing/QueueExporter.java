@@ -1,6 +1,6 @@
 package com.wavefront.agent.queueing;
 
-import javax.annotation.Nullable;
+import static com.wavefront.agent.queueing.ConcurrentShardedQueueFile.listFiles;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
@@ -12,8 +12,6 @@ import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
-import org.apache.commons.lang.math.NumberUtils;
-
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -26,8 +24,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static com.wavefront.agent.queueing.ConcurrentShardedQueueFile.listFiles;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.math.NumberUtils;
 
 /**
  * Supports proxy's ability to export data from buffer files.
@@ -51,12 +49,16 @@ public class QueueExporter {
    * @param exportQueuePorts
    * @param exportQueueOutputFile
    * @param retainData
-   * @param taskQueueFactory        Factory for task queues
+   * @param taskQueueFactory Factory for task queues
    * @param entityPropertiesFactory Entity properties factory
    */
-  public QueueExporter(String bufferFile, String exportQueuePorts, String exportQueueOutputFile,
-                       boolean retainData, TaskQueueFactory taskQueueFactory,
-                       EntityPropertiesFactory entityPropertiesFactory) {
+  public QueueExporter(
+      String bufferFile,
+      String exportQueuePorts,
+      String exportQueueOutputFile,
+      boolean retainData,
+      TaskQueueFactory taskQueueFactory,
+      EntityPropertiesFactory entityPropertiesFactory) {
     this.bufferFile = bufferFile;
     this.exportQueuePorts = exportQueuePorts;
     this.exportQueueOutputFile = exportQueueOutputFile;
@@ -65,12 +67,10 @@ public class QueueExporter {
     this.entityPropertiesFactory = entityPropertiesFactory;
   }
 
-  /**
-   * Starts data exporting process.
-   */
+  /** Starts data exporting process. */
   public void export() {
-    Set<HandlerKey> handlerKeys = getValidHandlerKeys(listFiles(bufferFile, ".spool"),
-        exportQueuePorts);
+    Set<HandlerKey> handlerKeys =
+        getValidHandlerKeys(listFiles(bufferFile, ".spool"), exportQueuePorts);
     handlerKeys.forEach(this::processHandlerKey);
   }
 
@@ -81,8 +81,15 @@ public class QueueExporter {
     for (int i = 0; i < threads; i++) {
       TaskQueue<T> taskQueue = taskQueueFactory.getTaskQueue(key, i);
       if (!(taskQueue instanceof TaskQueueStub)) {
-        String outputFileName = exportQueueOutputFile + "." + key.getEntityType() +
-            "." + key.getHandle() + "." + i + ".txt";
+        String outputFileName =
+            exportQueueOutputFile
+                + "."
+                + key.getEntityType()
+                + "."
+                + key.getHandle()
+                + "."
+                + i
+                + ".txt";
         logger.info("Exporting data to " + outputFileName);
         try {
           BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName));
@@ -97,8 +104,8 @@ public class QueueExporter {
   }
 
   @VisibleForTesting
-  <T extends DataSubmissionTask<T>> void processQueue(TaskQueue<T> queue,
-                                                      BufferedWriter writer) throws IOException {
+  <T extends DataSubmissionTask<T>> void processQueue(TaskQueue<T> queue, BufferedWriter writer)
+      throws IOException {
     int tasksProcessed = 0;
     int itemsExported = 0;
     Iterator<T> iterator = queue.iterator();
@@ -138,20 +145,23 @@ public class QueueExporter {
     if (files == null) {
       return Collections.emptySet();
     }
-    Set<String> ports = new HashSet<>(Splitter.on(",").omitEmptyStrings().trimResults().
-        splitToList(portList));
+    Set<String> ports =
+        new HashSet<>(Splitter.on(",").omitEmptyStrings().trimResults().splitToList(portList));
     Set<HandlerKey> out = new HashSet<>();
-    files.forEach(x -> {
-      Matcher matcher = FILENAME.matcher(x);
-      if (matcher.matches()) {
-        ReportableEntityType type = ReportableEntityType.fromString(matcher.group(2));
-        String handle = matcher.group(3);
-        if (type != null && NumberUtils.isDigits(matcher.group(4)) && !handle.startsWith("_") &&
-            (portList.equalsIgnoreCase("all") || ports.contains(handle))) {
-          out.add(HandlerKey.of(type, handle));
-        }
-      }
-    });
+    files.forEach(
+        x -> {
+          Matcher matcher = FILENAME.matcher(x);
+          if (matcher.matches()) {
+            ReportableEntityType type = ReportableEntityType.fromString(matcher.group(2));
+            String handle = matcher.group(3);
+            if (type != null
+                && NumberUtils.isDigits(matcher.group(4))
+                && !handle.startsWith("_")
+                && (portList.equalsIgnoreCase("all") || ports.contains(handle))) {
+              out.add(HandlerKey.of(type, handle));
+            }
+          }
+        });
     return out;
   }
 }

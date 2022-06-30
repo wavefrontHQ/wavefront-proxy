@@ -8,9 +8,7 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public interface TokenAuthenticator {
-  /**
-   * Shared dummy authenticator.
-   */
+  /** Shared dummy authenticator. */
   TokenAuthenticator DUMMY_AUTHENTICATOR = new DummyAuthenticator();
 
   /**
