@@ -1,17 +1,11 @@
 package com.wavefront.agent.buffer;
 
-import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.buffer.activeMQ.BufferActiveMQ;
-import com.wavefront.agent.buffer.activeMQ.BufferDisk;
-import com.wavefront.agent.buffer.activeMQ.BufferMemory;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.yammer.metrics.core.Gauge;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.jetbrains.annotations.TestOnly;
@@ -19,9 +13,9 @@ import org.jetbrains.annotations.TestOnly;
 public class BuffersManager {
   private static final Logger logger = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
-  private static Buffer level_1;
-  private static Buffer level_2;
-  private static Buffer level_3;
+  private static MemoryBuffer level_1;
+  private static DiskBuffer level_2;
+  //  private static Buffer level_3;
   private static ActiveMQAddressFullException ex;
   private static BuffersManagerConfig cfg;
   private static SenderTaskFactory senderTaskFactory;
@@ -49,12 +43,13 @@ public class BuffersManager {
     memCfg.buffer = cfg.buffer + "/memory";
     memCfg.msgExpirationTime = cfg.msgExpirationTime;
     memCfg.msgRetry = cfg.msgRetry;
-    level_1 = new BufferMemory(0, "memory", memCfg);
+    level_1 = new MemoryBuffer(0, "memory", memCfg);
 
     if (cfg.l2) {
       BufferConfig dskCfg = new BufferConfig();
       dskCfg.buffer = cfg.buffer + "/disk";
-      level_2 = new BufferDisk(1, "disk", dskCfg);
+      level_2 = new DiskBuffer(1, "disk", dskCfg);
+      level_1.setNextBuffer(level_2);
     }
   }
 
@@ -64,15 +59,15 @@ public class BuffersManager {
       level_1.registerNewQueueInfo(handler);
       if (level_2 != null) {
         level_2.registerNewQueueInfo(handler);
-        level_1.createBridge("disk", handler, 1);
-        RatedBridge.createNewBridge(
-            level_2,
-            level_1,
-            handler,
-            entityPropertiesFactoryMap
-                .get(CENTRAL_TENANT_NAME)
-                .get(handler.getEntityType())
-                .getRateLimit());
+        //        level_1.createBridge("disk", handler, 1);
+        //        RatedBridge.createNewBridge(
+        //            level_2,
+        //            level_1,
+        //            handler,
+        //            entityPropertiesFactoryMap
+        //                .get(CENTRAL_TENANT_NAME)
+        //                .get(handler.getEntityType())
+        //                .getRateLimit());
       }
 
       senderTaskFactory.createSenderTasks(handler);
@@ -81,27 +76,7 @@ public class BuffersManager {
   }
 
   public static void sendMsg(QueueInfo handler, String strPoint) {
-    try {
-      level_1.sendMsg(handler, strPoint);
-    } catch (ActiveMQAddressFullException e) {
-      if (level_2 != null) {
-        try {
-          level_2.sendMsg(handler, strPoint);
-        } catch (ActiveMQAddressFullException ex) {
-          if (level_3 != null) {
-            try {
-              level_3.sendMsg(handler, strPoint);
-            } catch (ActiveMQAddressFullException exx) {
-              logger.log(Level.SEVERE, exx.getMessage(), exx);
-            }
-          } else {
-            logger.log(Level.SEVERE, ex.getMessage(), ex);
-          }
-        }
-      } else {
-        logger.log(Level.SEVERE, e.getMessage(), e);
-      }
-    }
+    level_1.sendMsg(handler, strPoint);
   }
 
   public static void onMsgBatch(
@@ -120,8 +95,8 @@ public class BuffersManager {
   }
 
   @TestOnly
-  static BufferActiveMQ getLeve1() {
-    return (BufferActiveMQ) level_1;
+  static ActiveMQBuffer getLeve1() {
+    return level_1;
   }
 
   @TestOnly

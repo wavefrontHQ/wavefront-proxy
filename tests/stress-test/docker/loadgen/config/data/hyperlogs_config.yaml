@@ -1,0 +1,19 @@
+defaultKeys:
+  timestamp: "timestamp"
+  message: "message"
+  application: "application"
+  service: "service"
+labelsVariantsAmount: 12
+labelsStartRange: 5
+labelsEndRange: 6
+labelKeyMaxSize: 16 # in chars
+labelValueMaxSize: 16 # in chars
+messageMaxSize: 330 # in chars
+serviceMaxSize: 12 # in chars
+applicationMaxSize: 12 # in chars
+logsPerRequest: 7000
+useCustomLabelKeys: false
+customLabelKeys:
+  - "1tag_cluster"
+  - "custom-Label1"
+  - "custom.Label1"

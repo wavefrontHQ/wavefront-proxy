@@ -1,0 +1,14 @@
+namePart: "metric.part"
+nameEndings:
+  - "m1"
+valueBound: 1000
+minValue: 10
+timestampChanger: 100000
+sources:
+  - "source1"
+  - "source2"
+  - "source3"
+tagsVariantsAmount: 2
+tagsStartRange: 19
+tagsEndRange: 20
+paramsSurrounding: "DOUBLE_QUOTES"

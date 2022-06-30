@@ -1,0 +1,16 @@
+namePart: "delta.part"
+nameEndings:
+  - "d1"
+  - "d2"
+  - "d3"
+  - "d4"
+  - "d5"
+valueBound: 1000
+sources:
+  - "source1"
+  - "source2"
+  - "source3"
+tagsVariantsAmount: 5
+tagsStartRange: 8
+tagsEndRange: 15
+paramsSurrounding: "DOUBLE_QUOTES"

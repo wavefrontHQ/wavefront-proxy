@@ -43,10 +43,9 @@ services:
         "/opt/wavefront/wavefront-proxy/run.sh"
       ]
 
-  jmeter:
-    build: docker/jmeter
+  loadgen:
+    build: docker/loadgen
     volumes:
-      - ./resources/jmeter:/opt/jmeter/
       - ./resources/others:/opt/others/
     depends_on:
       - "wf-proxy"
@@ -56,10 +55,5 @@ services:
         "wf-proxy:2878",
         "--timeout=30",
         "--",
-        "jmeter",
-        "-n",
-        "-t",
-        "/opt/jmeter/stress.jmx",
-        "-p",
-        "/opt/jmeter/stress.properties"
+        "/opt/loadgen/run.sh"
       ]

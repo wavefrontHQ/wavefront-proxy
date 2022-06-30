@@ -1,0 +1,32 @@
+namePart: "span.part"
+nameEndings:
+  - "sp1"
+  - "sp2"
+  - "sp3"
+  - "sp4"
+durationBound: 1000
+timestampChanger: 100000
+isTraceIdConstant: true
+isSpanIdConstant: true
+# next params works only if isTraceIdConstant == false
+#spansOnEachTraceId: 10
+#variantsAmount: 200
+sources:
+  - "sp1"
+  - "sp2"
+  - "sp3"
+  - "sp4"
+applications:
+  - "loadgen1"
+  - "loadgen2"
+  - "loadgen3"
+  - "loadgen4"
+services:
+  - "test-service1"
+  - "test-service2"
+  - "test-service3"
+  - "test-service4"
+tagsVariantsAmount: 5
+tagsStartRange: 8
+tagsEndRange: 15
+paramsSurrounding: "DOUBLE_QUOTES"

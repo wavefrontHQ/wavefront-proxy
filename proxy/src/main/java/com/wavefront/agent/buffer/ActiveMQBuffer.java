@@ -1,8 +1,7 @@
-package com.wavefront.agent.buffer.activeMQ;
+package com.wavefront.agent.buffer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.buffer.*;
 import com.wavefront.common.Pair;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -27,7 +26,7 @@ import org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.jetbrains.annotations.TestOnly;
 
-public abstract class BufferActiveMQ implements Buffer {
+public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
   private final EmbeddedActiveMQ amq;
@@ -37,14 +36,14 @@ public abstract class BufferActiveMQ implements Buffer {
   private final Map<String, Pair<ClientSession, ClientConsumer>> consumers =
       new ConcurrentHashMap<>();
 
-  private final Map<String, Gauge<Object>> mcMetrics = new HashMap<>();
+  private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
   private final Map<String, Histogram> msMetrics = new HashMap<>();
   private final String name;
   @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
   private final int level;
   private final MBeanServer mbServer;
 
-  public BufferActiveMQ(int level, String name, boolean persistenceEnabled, BufferConfig cfg) {
+  public ActiveMQBuffer(int level, String name, boolean persistenceEnabled, BufferConfig cfg) {
     this.level = level;
     this.name = name;
     this.cfg = cfg;
@@ -61,8 +60,6 @@ public abstract class BufferActiveMQ implements Buffer {
     config.setCreateBindingsDir(true);
     config.setCreateJournalDir(true);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
-    config.setThreadPoolMaxSize(-1);
-    config.setScheduledThreadPoolMaxSize(16);
 
     amq = new EmbeddedActiveMQ();
 
@@ -157,11 +154,16 @@ public abstract class BufferActiveMQ implements Buffer {
             String.format(
                 "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\"",
                 name, key.getQueue()));
-    Gauge<Object> mc =
+
+    Gauge<Object> size =
         Metrics.newGauge(
-            new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageCount"),
-            new JmxGauge(addressObjectName, "MessageCount"));
-    mcMetrics.put(key.getQueue(), mc);
+            new MetricName("buffer." + name + "." + key.getQueue(), "", "size"),
+            new JmxGauge(addressObjectName, "AddressSize"));
+    sizeMetrics.put(key.getQueue(), size);
+
+    Metrics.newGauge(
+        new MetricName("buffer." + name + "." + key.getQueue(), "", "usage"),
+        new JmxGauge(addressObjectName, "AddressLimitPercent"));
 
     //    Metrics.newGauge(
     //        new TaggedMetricName(key.getQueue(), "queued", "reason", "expired"),
@@ -171,10 +173,6 @@ public abstract class BufferActiveMQ implements Buffer {
     //        new TaggedMetricName(key.getQueue(), "queued", "reason", "failed"),
     //        new JmxGauge(addressObjectName, "MessagesKilled"));
 
-    Metrics.newGauge(
-        new MetricName("buffer." + name + "." + key.getQueue(), "", "usage"),
-        new JmxGauge(addressObjectName, "AddressLimitPercent"));
-
     Histogram ms =
         Metrics.newHistogram(
             new MetricName("buffer." + name + "." + key.getQueue(), "", "MessageSize"));
@@ -182,7 +180,7 @@ public abstract class BufferActiveMQ implements Buffer {
   }
 
   @Override
-  public void sendMsg(QueueInfo key, String strPoint) throws ActiveMQAddressFullException {
+  public void sendMsgs(QueueInfo key, List<String> points) throws ActiveMQAddressFullException {
     String sessionKey = "sendMsg." + key.getQueue() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientProducer> mqCtx =
         producers.computeIfAbsent(
@@ -205,8 +203,9 @@ public abstract class BufferActiveMQ implements Buffer {
     ClientProducer producer = mqCtx._2;
     try {
       ClientMessage message = session.createMessage(true);
-      message.writeBodyBufferString(strPoint);
-      msMetrics.get(key.getQueue()).update(message.getWholeMessageSize());
+      message.writeBodyBufferString(String.join("\n", points));
+      // TODO: reimplement Merict size
+      //      msMetrics.get(key.getQueue()).update(message.getWholeMessageSize());
       producer.send(message);
     } catch (ActiveMQAddressFullException e) {
       log.log(Level.FINE, "queue full: " + e.getMessage());
@@ -219,7 +218,7 @@ public abstract class BufferActiveMQ implements Buffer {
   @Override
   @VisibleForTesting
   public Gauge<Object> getMcGauge(QueueInfo QueueInfo) {
-    return mcMetrics.get(QueueInfo.getQueue());
+    return sizeMetrics.get(QueueInfo.getQueue());
   }
 
   @Override
@@ -270,13 +269,19 @@ public abstract class BufferActiveMQ implements Buffer {
       long start = System.currentTimeMillis();
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
-      while ((batch.size() < batchSize)
-          //          && (rateLimiter.tryAcquire())
-          && ((System.currentTimeMillis() - start) < 1000)) {
+      boolean done = false;
+      while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = consumer.receive(100);
         if (msg != null) {
-          msg.acknowledge();
-          batch.add(msg.getReadOnlyBodyBuffer().readString());
+          List msgs = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
+          boolean ok = rateLimiter.tryAcquire(msgs.size());
+          if (ok) {
+            msg.acknowledge();
+            batch.addAll(msgs);
+          } else {
+            log.info("rate limit reached on queue '" + key.getQueue() + "'");
+            done = true;
+          }
         } else {
           break;
         }
@@ -295,6 +300,9 @@ public abstract class BufferActiveMQ implements Buffer {
         session.rollback();
       }
     } catch (ActiveMQException e) {
+      log.log(Level.SEVERE, "error", e);
+      System.exit(-1);
+    } catch (Throwable e) {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     } finally {
