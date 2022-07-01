@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LogDataSubmissionTask;
@@ -21,20 +22,22 @@ public class LogSenderTask extends AbstractSenderTask {
   private final ScheduledExecutorService scheduler;
 
   /**
+   * @param threadId thread number.
    * @param handlerKey handler key, that serves as an identifier of the log pipeline.
    * @param logAPI handles interaction with log systems as well as queueing.
    * @param proxyId id of the proxy.
-   * @param threadId thread number.
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for running this task
+   * @param buffer
    */
   LogSenderTask(
       QueueInfo handlerKey,
       LogAPI logAPI,
       UUID proxyId,
       EntityProperties properties,
-      ScheduledExecutorService scheduler) {
-    super(handlerKey, properties, scheduler);
+      ScheduledExecutorService scheduler,
+      Buffer buffer) {
+    super(handlerKey, properties, scheduler, buffer);
     this.queue = handlerKey;
     this.logAPI = logAPI;
     this.proxyId = proxyId;

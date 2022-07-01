@@ -1,6 +1,6 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.agent.buffer.BuffersManager;
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import java.util.List;
@@ -14,19 +14,24 @@ abstract class AbstractSenderTask implements SenderTask, Runnable {
   private QueueInfo queue;
   private EntityProperties properties;
   private ScheduledExecutorService scheduler;
+  private Buffer buffer;
   private boolean isRunning;
 
   AbstractSenderTask(
-      QueueInfo queue, EntityProperties properties, ScheduledExecutorService scheduler) {
+      QueueInfo queue,
+      EntityProperties properties,
+      ScheduledExecutorService scheduler,
+      Buffer buffer) {
     this.queue = queue;
     this.properties = properties;
     this.scheduler = scheduler;
+    this.buffer = buffer;
   }
 
   @Override
   public void run() {
     // TODO: review getDataPerBatch and getRateLimiter
-    BuffersManager.onMsgBatch(
+    buffer.onMsgBatch(
         queue, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
     if (isRunning) {
       scheduler.schedule(this, 1000, TimeUnit.MILLISECONDS);

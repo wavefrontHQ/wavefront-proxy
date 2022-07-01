@@ -5,6 +5,7 @@ import static com.wavefront.api.agent.Constants.*;
 
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -67,7 +68,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     //        });
   }
 
-  public void createSenderTasks(@Nonnull QueueInfo info) {
+  public void createSenderTasks(@Nonnull QueueInfo info, Buffer buffer) {
     ReportableEntityType entityType = info.getEntityType();
 
     ScheduledExecutorService scheduler;
@@ -81,12 +82,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   Executors.newScheduledThreadPool(
                       numThreads, new NamedThreadFactory("submitter-" + info.getQueue())));
 
-      generateSenderTaskList(info, numThreads, scheduler);
+      generateSenderTaskList(info, numThreads, scheduler, buffer);
     }
   }
 
   private Collection<SenderTask> generateSenderTaskList(
-      QueueInfo queue, int numThreads, ScheduledExecutorService scheduler) {
+      QueueInfo queue, int numThreads, ScheduledExecutorService scheduler, Buffer buffer) {
     String tenantName = queue.getTenantName();
     if (tenantName == null) {
       tenantName = CENTRAL_TENANT_NAME;
@@ -108,7 +109,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   proxyId,
                   properties,
                   scheduler,
-                  threadNo);
+                  threadNo,
+                  buffer);
           break;
         case HISTOGRAM:
           senderTask =
@@ -119,19 +121,31 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   proxyId,
                   properties,
                   scheduler,
-                  threadNo);
+                  threadNo,
+                  buffer);
           break;
         case SOURCE_TAG:
           // In MONIT-25479, SOURCE_TAG does not support tag based multicasting. But still
           // generated tasks for each tenant in case we have other multicasting mechanism
           senderTask =
               new SourceTagSenderTask(
-                  queue, apiContainer.getSourceTagAPIForTenant(tenantName), properties, scheduler);
+                  queue,
+                  apiContainer.getSourceTagAPIForTenant(tenantName),
+                  properties,
+                  scheduler,
+                  buffer);
           break;
         case TRACE:
           senderTask =
               new LineDelimitedSenderTask(
-                  queue, PUSH_FORMAT_TRACING, proxyV2API, proxyId, properties, scheduler, threadNo);
+                  queue,
+                  PUSH_FORMAT_TRACING,
+                  proxyV2API,
+                  proxyId,
+                  properties,
+                  scheduler,
+                  threadNo,
+                  buffer);
           break;
         case TRACE_SPAN_LOGS:
           // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
@@ -144,7 +158,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   proxyId,
                   properties,
                   scheduler,
-                  threadNo);
+                  threadNo,
+                  buffer);
           break;
         case EVENT:
           senderTask =
@@ -153,7 +168,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   apiContainer.getEventAPIForTenant(tenantName),
                   proxyId,
                   properties,
-                  scheduler);
+                  scheduler,
+                  buffer);
           break;
         case LOGS:
           senderTask =
@@ -162,7 +178,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   apiContainer.getLogAPI(),
                   proxyId,
                   entityPropsFactoryMap.get(tenantName).get(entityType),
-                  scheduler);
+                  scheduler,
+                  buffer);
           break;
         default:
           throw new IllegalArgumentException(

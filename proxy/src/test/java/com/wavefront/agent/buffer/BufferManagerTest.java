@@ -1,56 +1,23 @@
 package com.wavefront.agent.buffer;
 
+import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.data.ReportableEntityType.POINT;
 import static org.junit.Assert.*;
 
 import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.yammer.metrics.core.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 public class BufferManagerTest {
 
   @Test
-  public void ratedBridgeTest()
-      throws IOException, InterruptedException, ActiveMQAddressFullException {
-    HandlerKey points = new HandlerKey(POINT, "2878");
-
-    BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = Files.createTempDirectory("wfproxy").toFile().getAbsolutePath();
-    cfg.l2 = true;
-    cfg.msgExpirationTime = -1;
-    cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null, null);
-    BuffersManager.registerNewQueueIfNeedIt(points);
-
-    Gauge<Object> memory = BuffersManager.l1GetMcGauge(points);
-    Gauge<Object> disk = BuffersManager.l2GetMcGauge(points);
-
-    assertEquals("MessageCount", 0L, memory.value());
-    assertEquals("MessageCount", 0L, disk.value());
-
-    List<String> msgs = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      msgs.add("turur");
-    }
-    //    BuffersManager.getLeve2().sendMsg(points, msgs);
-
-    int ticks = 0;
-    while ((Long) memory.value() != 100L) {
-      ticks++;
-      Thread.sleep(1000);
-    }
-    assertTrue("ticks is " + ticks, ((ticks > 9) && (ticks < 13)));
-  }
-
-  @Test
-  public void expirationTest() throws IOException, InterruptedException {
+  public void expirationTest() throws IOException {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
@@ -60,15 +27,23 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = 500;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null, null);
+    BuffersManager.init(cfg, senderTaskFactory, null);
     BuffersManager.registerNewQueueIfNeedIt(points);
 
-    Gauge mc2878 = BuffersManager.l1GetMcGauge(points);
-    assertEquals("MessageCount", 0l, mc2878.value());
+    Gauge size_memory = BuffersManager.l1_getSizeGauge(points);
+    Gauge size_disk = BuffersManager.l2_getSizeGauge(points);
+
+    assertEquals("MessageCount", 0l, size_memory.value());
+    assertEquals("MessageCount", 0l, size_disk.value());
+
     BuffersManager.sendMsg(points, "tururu");
-    assertEquals("MessageCount", 1l, mc2878.value());
-    Thread.sleep(1_000);
-    assertEquals("MessageCount", 0l, mc2878.value());
+    BuffersManager.flush(points);
+
+    assertNotEquals("MessageCount", 0l, size_memory.value());
+    assertEquals("MessageCount", 0l, size_disk.value());
+
+    assertTrueWithTimeout(5000, () -> 0L == ((Long) size_memory.value()));
+    assertTrueWithTimeout(5000, () -> 0L != ((Long) size_disk.value()));
   }
 
   @Test
@@ -83,11 +58,11 @@ public class BufferManagerTest {
     cfg.l2 = true;
     cfg.msgExpirationTime = 100;
     cfg.msgRetry = -1;
-    BuffersManager.init(cfg, null, null);
+    BuffersManager.init(cfg, senderTaskFactory, null);
     BuffersManager.registerNewQueueIfNeedIt(points);
 
-    Gauge<Object> memory = BuffersManager.l1GetMcGauge(points);
-    Gauge<Object> disk = BuffersManager.l2GetMcGauge(points);
+    Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
+    Gauge<Object> disk = BuffersManager.l2_getSizeGauge(points);
 
     assertEquals("MessageCount", 0l, memory.value());
     BuffersManager.sendMsg(points, "tururu");
@@ -101,8 +76,7 @@ public class BufferManagerTest {
 
   @Test
   public void MemoryQueueFull() throws IOException, InterruptedException {
-    HandlerKey points_2878 = new HandlerKey(POINT, "2878");
-    HandlerKey points_2879 = new HandlerKey(POINT, "2879");
+    HandlerKey points = new HandlerKey(POINT, "2878");
 
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
@@ -110,25 +84,39 @@ public class BufferManagerTest {
     cfg.msgRetry = -1;
     cfg.msgExpirationTime = -1;
     cfg.buffer = buffer.toFile().getAbsolutePath();
-    BuffersManager.init(cfg, null, null);
+    BuffersManager.init(cfg, senderTaskFactory, null);
 
-    BuffersManager.registerNewQueueIfNeedIt(points_2878);
-    BuffersManager.registerNewQueueIfNeedIt(points_2879);
+    BuffersManager.registerNewQueueIfNeedIt(points);
 
-    BuffersManager.getLeve1().setQueueSize(points_2878, 500);
+    // setting queue max size to 500 bytes
+    BuffersManager.getLeve1().setQueueSize(points, 500);
 
-    Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);
-    Gauge mc2878_disk = BuffersManager.l2GetMcGauge(points_2878);
-    Gauge mc2879 = BuffersManager.l1GetMcGauge(points_2879);
+    Gauge size_memory = BuffersManager.l1_getSizeGauge(points);
+    Gauge size_disk = BuffersManager.l2_getSizeGauge(points);
 
-    for (int i = 0; i < 10; i++) {
-      BuffersManager.sendMsg(points_2878, "tururu");
-      BuffersManager.sendMsg(points_2879, "tururu");
+    assertEquals("MessageCount", 0l, size_memory.value());
+    assertEquals("MessageCount", 0l, size_disk.value());
+
+    // 20 messages are around 619 bytes, that should go in the queue
+    // and then mark the queue as full
+    for (int i = 0; i < 20; i++) {
+      BuffersManager.sendMsg(points, "tururu");
     }
 
-    assertNotEquals("MessageCount", 0l, mc2878_memory.value());
-    assertNotEquals("MessageCount", 0l, mc2878_disk.value());
-    assertEquals("MessageCount", 10l, mc2879.value());
+    BuffersManager.flush(points);
+
+    assertNotEquals("MessageCount", 0l, size_memory.value());
+    assertEquals("MessageCount", 0l, size_disk.value());
+
+    // the queue is already full, so this ones go directly to disk
+    for (int i = 0; i < 20; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
+
+    BuffersManager.flush(points);
+
+    assertNotEquals("MessageCount", 0l, size_memory.value());
+    assertNotEquals("MessageCount", 0l, size_disk.value());
   }
 
   @Test
@@ -144,23 +132,23 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     cfg.msgExpirationTime = -1;
     cfg.msgRetry = 3;
-    BuffersManager.init(cfg, null, null);
+    BuffersManager.init(cfg, senderTaskFactory, null);
     BuffersManager.registerNewQueueIfNeedIt(points_2878);
 
-    Gauge mc2878_memory = BuffersManager.l1GetMcGauge(points_2878);
-    Gauge mc2878_disk = BuffersManager.l2GetMcGauge(points_2878);
+    Gauge size_2878_memory = BuffersManager.l1_getSizeGauge(points_2878);
+    Gauge size_2878_disk = BuffersManager.l2_getSizeGauge(points_2878);
 
-    assertEquals("MessageCount", 0l, mc2878_memory.value());
-    assertEquals("MessageCount", 0l, mc2878_disk.value());
+    assertEquals("MessageCount", 0l, size_2878_memory.value());
+    assertEquals("MessageCount", 0l, size_2878_disk.value());
 
     BuffersManager.sendMsg(points_2878, msg);
 
-    assertEquals("MessageCount", 1l, mc2878_memory.value());
-    assertEquals("MessageCount", 0l, mc2878_disk.value());
+    assertEquals("MessageCount", 1l, size_2878_memory.value());
+    assertEquals("MessageCount", 0l, size_2878_disk.value());
 
     // force MSG to DL
     for (int i = 0; i < 3; i++) {
-      assertEquals("MessageCount", 1l, mc2878_memory.value());
+      assertEquals("MessageCount", 1l, size_2878_memory.value());
       BuffersManager.onMsgBatch(
           points_2878,
           1,
@@ -173,7 +161,22 @@ public class BufferManagerTest {
 
     Thread.sleep(1000); // wait some time to allow the msg to flight from l0 to l1
 
-    assertEquals("MessageCount", 0l, mc2878_memory.value());
-    assertEquals("MessageCount", 1l, mc2878_disk.value());
+    assertEquals("MessageCount", 0l, size_2878_memory.value());
+    assertEquals("MessageCount", 1l, size_2878_disk.value());
   }
+
+  private static SenderTaskFactory senderTaskFactory =
+      new SenderTaskFactory() {
+        @Override
+        public void createSenderTasks(@NotNull QueueInfo info, Buffer level_1) {}
+
+        @Override
+        public void shutdown() {}
+
+        @Override
+        public void shutdown(@NotNull String handle) {}
+
+        @Override
+        public void truncateBuffers() {}
+      };
 }

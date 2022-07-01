@@ -30,6 +30,8 @@ public class BuffersManager {
     BuffersManager.senderTaskFactory = senderTaskFactory;
     BuffersManager.entityPropertiesFactoryMap = entityPropertiesFactoryMap;
 
+    registeredQueues.clear();
+
     if (level_1 != null) {
       level_1.shutdown();
       level_1 = null;
@@ -70,7 +72,8 @@ public class BuffersManager {
         //                .getRateLimit());
       }
 
-      senderTaskFactory.createSenderTasks(handler);
+      senderTaskFactory.createSenderTasks(handler, level_1);
+      senderTaskFactory.createSenderTasks(handler, level_2);
       registeredQueues.put(handler.getQueue(), true);
     }
   }
@@ -84,14 +87,18 @@ public class BuffersManager {
     level_1.onMsgBatch(handler, batchSize, rateLimiter, func);
   }
 
-  @TestOnly
-  static Gauge<Object> l1GetMcGauge(QueueInfo handler) {
-    return level_1.getMcGauge(handler);
+  public static void flush(QueueInfo queue) {
+    level_1.flush(queue);
   }
 
   @TestOnly
-  static Gauge<Object> l2GetMcGauge(QueueInfo handler) {
-    return level_2.getMcGauge(handler);
+  static Gauge<Object> l1_getSizeGauge(QueueInfo handler) {
+    return level_1.getSizeGauge(handler);
+  }
+
+  @TestOnly
+  static Gauge<Object> l2_getSizeGauge(QueueInfo handler) {
+    return level_2.getSizeGauge(handler);
   }
 
   @TestOnly

@@ -28,18 +28,6 @@ public class HandlerKey implements QueueInfo {
         entityType + ((CENTRAL_TENANT_NAME.equals(this.tenantName)) ? "" : "." + this.tenantName);
   }
 
-  public int hashCode() {
-    return queue.hashCode();
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    HandlerKey that = (HandlerKey) o;
-    return queue.equals(that.queue);
-  }
-
   @Override
   public String getQueue() {
     return queue;

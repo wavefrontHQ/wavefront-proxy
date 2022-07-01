@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
@@ -39,8 +40,9 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
       UUID proxyId,
       final EntityProperties properties,
       ScheduledExecutorService scheduler,
-      int threadId) {
-    super(queue, properties, scheduler);
+      int threadId,
+      Buffer buffer) {
+    super(queue, properties, scheduler, buffer);
     this.queue = queue;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;

@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.SourceTagAPI;
@@ -23,17 +24,19 @@ class SourceTagSenderTask extends AbstractSenderTask {
   /**
    * Create new instance
    *
-   * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param queue metrics pipeline handler key.
+   * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param properties container for mutable proxy settings.
    * @param scheduler executor service for this task
+   * @param buffer
    */
   SourceTagSenderTask(
       QueueInfo queue,
       SourceTagAPI proxyAPI,
       EntityProperties properties,
-      ScheduledExecutorService scheduler) {
-    super(queue, properties, scheduler);
+      ScheduledExecutorService scheduler,
+      Buffer buffer) {
+    super(queue, properties, scheduler, buffer);
     this.proxyAPI = proxyAPI;
   }
 

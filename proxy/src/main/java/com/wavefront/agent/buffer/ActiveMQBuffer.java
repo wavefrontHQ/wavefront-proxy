@@ -1,5 +1,8 @@
 package com.wavefront.agent.buffer;
 
+import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.FAIL;
+import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.PAGE;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.common.Pair;
@@ -22,7 +25,6 @@ import org.apache.activemq.artemis.core.config.BridgeConfiguration;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
-import org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.jetbrains.annotations.TestOnly;
 
@@ -39,6 +41,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
   private final Map<String, Histogram> msMetrics = new HashMap<>();
   private final String name;
+  private boolean persistenceEnabled;
   @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
   private final int level;
   private final MBeanServer mbServer;
@@ -46,6 +49,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   public ActiveMQBuffer(int level, String name, boolean persistenceEnabled, BufferConfig cfg) {
     this.level = level;
     this.name = name;
+    this.persistenceEnabled = persistenceEnabled;
     this.cfg = cfg;
 
     log.info("-> buffer:'" + cfg.buffer + "'");
@@ -57,9 +61,11 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
     config.setJournalDirectory(cfg.buffer + "/journal");
     config.setBindingsDirectory(cfg.buffer + "/bindings");
     config.setLargeMessagesDirectory(cfg.buffer + "/largemessages");
+    config.setPagingDirectory(cfg.buffer + "/paging");
     config.setCreateBindingsDir(true);
     config.setCreateJournalDir(true);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
+    config.setGlobalMaxSize(256_000_000);
 
     amq = new EmbeddedActiveMQ();
 
@@ -79,7 +85,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   public void setQueueSize(QueueInfo key, long queueSize) {
     AddressSettings addressSetting =
         new AddressSettings()
-            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
+            .setAddressFullMessagePolicy(FAIL)
             .setMaxSizeMessages(-1)
             .setMaxSizeBytes(queueSize);
     amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getQueue(), addressSetting);
@@ -89,14 +95,19 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   public void registerNewQueueInfo(QueueInfo key) {
     AddressSettings addressSetting =
         new AddressSettings()
-            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
+            .setAddressFullMessagePolicy(persistenceEnabled ? PAGE : FAIL)
+            .setMaxSizeMessages(-1)
             .setMaxExpiryDelay(-1L)
             .setMaxDeliveryAttempts(-1);
+    if (persistenceEnabled) {
+      addressSetting.setMaxSizeBytes(-1);
+    }
     amq.getActiveMQServer().getAddressSettingsRepository().addMatch(key.getQueue(), addressSetting);
 
-    //    for (int i = 0; i < 50; i++) {
-    //      createQueue(key.getQueue(), i);
-    //    }
+    // TODO this should be "FlushThreads" and it have to be on sync with SenderTaskFactoryImpl
+    for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+      createQueue(key.getQueue(), i);
+    }
 
     try {
       registerQueueMetrics(key);
@@ -109,26 +120,22 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   @Override
   public void createBridge(String target, QueueInfo key, int targetLevel) {
     String queue = key.getQueue();
-    createQueue(queue + ".dl", 1);
-
-    AddressSettings addressSetting_dl =
-        new AddressSettings().setMaxExpiryDelay(-1L).setMaxDeliveryAttempts(-1);
-    amq.getActiveMQServer().getAddressSettingsRepository().addMatch(queue, addressSetting_dl);
+    createQueue(queue + ".dl", -1);
 
     AddressSettings addressSetting =
         new AddressSettings()
             .setMaxExpiryDelay(cfg.msgExpirationTime)
             .setMaxDeliveryAttempts(cfg.msgRetry)
-            .setAddressFullMessagePolicy(AddressFullMessagePolicy.FAIL)
-            .setDeadLetterAddress(SimpleString.toSimpleString(queue + ".dl::" + queue + ".dl"))
-            .setExpiryAddress(SimpleString.toSimpleString(queue + ".dl::" + queue + ".dl"));
+            .setAddressFullMessagePolicy(FAIL)
+            .setDeadLetterAddress(SimpleString.toSimpleString(queue + ".dl"))
+            .setExpiryAddress(SimpleString.toSimpleString(queue + ".dl"));
     amq.getActiveMQServer().getAddressSettingsRepository().addMatch(queue, addressSetting);
 
     BridgeConfiguration bridge =
         new BridgeConfiguration()
             .setName(queue + "." + name + ".to." + target)
-            .setQueueName(queue + ".dl::" + queue + ".dl")
-            .setForwardingAddress(queue + "::" + queue)
+            .setQueueName(queue + ".dl")
+            .setForwardingAddress(queue)
             .setStaticConnectors(Collections.singletonList("to." + target));
 
     try {
@@ -210,14 +217,16 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
     } catch (ActiveMQAddressFullException e) {
       log.log(Level.FINE, "queue full: " + e.getMessage());
       throw e;
+    } catch (ActiveMQObjectClosedException e) {
+      log.log(Level.FINE, "connection close: " + e.getMessage());
+      producers.remove(key.getQueue());
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
     }
   }
 
-  @Override
   @VisibleForTesting
-  public Gauge<Object> getMcGauge(QueueInfo QueueInfo) {
+  protected Gauge<Object> getSizeGauge(QueueInfo QueueInfo) {
     return sizeMetrics.get(QueueInfo.getQueue());
   }
 
@@ -248,11 +257,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
                 ClientSession session = factory.createSession(false, false);
 
                 int idx = qIdxs2.getAndIncrement();
-                QueueConfiguration queue =
-                    new QueueConfiguration(key.getQueue() + "." + idx)
-                        .setAddress(key.getQueue())
-                        .setRoutingType(RoutingType.ANYCAST);
-                session.createQueue(queue);
+                createQueue(key.getQueue(), idx);
 
                 ClientConsumer consumer =
                     session.createConsumer(key.getQueue() + "::" + key.getQueue() + "." + idx);
@@ -317,7 +322,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private void createQueue(String queueName, int i) {
     try {
       QueueConfiguration queue =
-          new QueueConfiguration(queueName + "." + i)
+          new QueueConfiguration(queueName + (i < 0 ? "" : ("." + i)))
               .setAddress(queueName)
               .setRoutingType(RoutingType.ANYCAST);
 

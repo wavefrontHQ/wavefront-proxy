@@ -10,7 +10,7 @@ import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 
 public class MemoryBuffer extends ActiveMQBuffer {
   private static final Logger logger = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
-  private static Map<QueueInfo, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap();
+  private static Map<String, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap();
   private final ScheduledExecutorService executor;
   private BufferBatch nextBuffer;
 
@@ -25,7 +25,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   public void sendMsg(QueueInfo key, String strPoint) {
     LinkedTransferQueue<String> midBuffer =
-        midBuffers.computeIfAbsent(key, s -> new LinkedTransferQueue<>());
+        midBuffers.computeIfAbsent(key.getQueue(), s -> new LinkedTransferQueue<>());
     midBuffer.add(strPoint);
   }
 
@@ -35,6 +35,10 @@ public class MemoryBuffer extends ActiveMQBuffer {
     for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
       executor.scheduleAtFixedRate(new sender(queue, nextBuffer), 1, 1, TimeUnit.SECONDS);
     }
+  }
+
+  public void flush(QueueInfo queue) {
+    new sender(queue, nextBuffer).run();
   }
 
   public void setNextBuffer(BufferBatch nextBuffer) {
@@ -56,7 +60,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
     @Override
     public void run() {
-      LinkedTransferQueue<String> midBuffer = midBuffers.get(queue);
+      LinkedTransferQueue<String> midBuffer = midBuffers.get(queue.getQueue());
       if ((midBuffer != null) && (midBuffer.size() != 0)) {
         boolean done = false;
         while (!done) {

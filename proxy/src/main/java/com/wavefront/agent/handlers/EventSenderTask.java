@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.buffer.Buffer;
 import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.EventAPI;
@@ -31,8 +32,9 @@ class EventSenderTask extends AbstractSenderTask {
       EventAPI proxyAPI,
       UUID proxyId,
       EntityProperties properties,
-      ScheduledExecutorService scheduler) {
-    super(queue, properties, scheduler);
+      ScheduledExecutorService scheduler,
+      Buffer buffer) {
+    super(queue, properties, scheduler, buffer);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
   }
