@@ -1,8 +1,8 @@
 package com.wavefront.agent.listeners.otlp;
 
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import io.grpc.stub.StreamObserver;
@@ -45,14 +45,16 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
   }
 
   public OtlpGrpcMetricsHandler(
-      String handle,
+      int port,
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics) {
     this(
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle)),
+        handlerFactory.getHandler(
+            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.POINT)),
+        handlerFactory.getHandler(
+            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)),
         preprocessorSupplier,
         defaultSource,
         includeResourceAttrsForMetrics);

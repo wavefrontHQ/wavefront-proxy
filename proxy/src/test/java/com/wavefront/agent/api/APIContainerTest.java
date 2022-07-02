@@ -1,8 +1,6 @@
 package com.wavefront.agent.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.ProxyConfig;

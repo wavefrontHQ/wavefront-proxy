@@ -36,25 +36,6 @@ public class HistogramRecompressor implements Function<Histogram, Histogram> {
     this.storageAccuracySupplier = storageAccuracySupplier;
   }
 
-  @Override
-  public Histogram apply(Histogram input) {
-    Histogram result = input;
-    if (hasDuplicateCentroids(input)) {
-      // merge centroids with identical values first, and if we get the number of centroids
-      // low enough, we might not need to incur recompression overhead after all.
-      result = compactCentroids(input);
-      histogramsCompacted.get().inc();
-    }
-    if (result.getBins().size() > 2 * storageAccuracySupplier.get()) {
-      AgentDigest digest = new AgentDigest(storageAccuracySupplier.get(), 0);
-      mergeHistogram(digest, result);
-      digest.compress();
-      result = digest.toHistogram(input.getDuration());
-      histogramsRecompressed.get().inc();
-    }
-    return result;
-  }
-
   @VisibleForTesting
   static boolean hasDuplicateCentroids(wavefront.report.Histogram histogram) {
     Set<Double> uniqueBins = new HashSet<>();
@@ -98,5 +79,24 @@ public class HistogramRecompressor implements Function<Histogram, Histogram> {
         .setCounts(newCounts)
         .setType(HistogramType.TDIGEST)
         .build();
+  }
+
+  @Override
+  public Histogram apply(Histogram input) {
+    Histogram result = input;
+    if (hasDuplicateCentroids(input)) {
+      // merge centroids with identical values first, and if we get the number of centroids
+      // low enough, we might not need to incur recompression overhead after all.
+      result = compactCentroids(input);
+      histogramsCompacted.get().inc();
+    }
+    if (result.getBins().size() > 2 * storageAccuracySupplier.get()) {
+      AgentDigest digest = new AgentDigest(storageAccuracySupplier.get(), 0);
+      mergeHistogram(digest, result);
+      digest.compress();
+      result = digest.toHistogram(input.getDuration());
+      histogramsRecompressed.get().inc();
+    }
+    return result;
   }
 }

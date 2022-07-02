@@ -54,16 +54,15 @@ public class ProxyCheckInScheduler {
   private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
   private final Runnable truncateBacklog;
-
-  private String serverEndpointUrl = null;
-  private volatile JsonNode agentMetrics;
   private final AtomicInteger retries = new AtomicInteger(0);
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
-  private boolean retryImmediately = false;
-
   /** Executors for support tasks. */
   private final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
+
+  private String serverEndpointUrl = null;
+  private volatile JsonNode agentMetrics;
+  private boolean retryImmediately = false;
 
   /**
    * @param proxyId Proxy UUID.

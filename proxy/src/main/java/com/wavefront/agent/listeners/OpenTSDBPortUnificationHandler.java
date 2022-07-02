@@ -1,8 +1,6 @@
 package com.wavefront.agent.listeners;
 
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.getRemoteAddress;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.channel.ChannelUtils.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,8 +8,9 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
@@ -54,16 +53,18 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
   @Nullable private final Function<InetAddress, String> resolver;
 
   public OpenTSDBPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityDecoder<String, ReportPoint> decoder,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       @Nullable final Function<InetAddress, String> resolver) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.decoder = decoder;
-    this.pointHandler = handlerFactory.getHandler(ReportableEntityType.POINT, handle);
+    this.pointHandler =
+        handlerFactory.getHandler(
+            String.valueOf(this.port), QueuesManager.initQueue(ReportableEntityType.POINT));
     this.preprocessorSupplier = preprocessor;
     this.resolver = resolver;
   }

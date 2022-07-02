@@ -1,20 +1,14 @@
 package com.wavefront.agent.preprocessor;
 
 import com.wavefront.agent.InteractiveTester;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.HistogramDecoder;
-import com.wavefront.ingester.ReportPointDecoder;
-import com.wavefront.ingester.ReportPointDecoderWrapper;
-import com.wavefront.ingester.ReportPointSerializer;
-import com.wavefront.ingester.ReportableEntityDecoder;
-import com.wavefront.ingester.SpanDecoder;
-import com.wavefront.ingester.SpanSerializer;
+import com.wavefront.ingester.*;
 import java.util.List;
 import java.util.Scanner;
 import java.util.function.Supplier;
@@ -36,15 +30,16 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   private final Scanner stdin = new Scanner(System.in);
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final ReportableEntityType entityType;
-  private final String port;
+  private final int port;
   private final List<String> customSourceTags;
 
   private final ReportableEntityHandlerFactory factory =
       new ReportableEntityHandlerFactory() {
         @SuppressWarnings("unchecked")
         @Override
-        public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-          if (handlerKey.getEntityType() == ReportableEntityType.TRACE) {
+        public <T, U> ReportableEntityHandler<T, U> getHandler(
+            String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
+          if (queue.getEntityType() == ReportableEntityType.TRACE) {
             return (ReportableEntityHandler<T, U>)
                 new ReportableEntityHandler<Span, String>() {
                   @Override
@@ -112,7 +107,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
         }
 
         @Override
-        public void shutdown(@Nonnull String handle) {}
+        public void shutdown(@Nonnull int handle) {}
       };
 
   /**
@@ -124,7 +119,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   public InteractivePreprocessorTester(
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       ReportableEntityType entityType,
-      String port,
+      int port,
       List<String> customSourceTags) {
     this.preprocessorSupplier = preprocessorSupplier;
     this.entityType = entityType;
@@ -136,11 +131,13 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   public boolean interactiveTest() {
     String line = stdin.nextLine();
     if (entityType == ReportableEntityType.TRACE) {
-      ReportableEntityHandler<Span, String> handler = factory.getHandler(entityType, port);
+      ReportableEntityHandler<Span, String> handler =
+          factory.getHandler(port, QueuesManager.initQueue(entityType));
       SpanUtils.preprocessAndHandleSpan(
           line, SPAN_DECODER, handler, handler::report, preprocessorSupplier, null, x -> true);
     } else {
-      ReportableEntityHandler<ReportPoint, String> handler = factory.getHandler(entityType, port);
+      ReportableEntityHandler<ReportPoint, String> handler =
+          factory.getHandler(port, QueuesManager.initQueue(entityType));
       ReportableEntityDecoder<String, ReportPoint> decoder;
       if (DataFormat.autodetect(line) == DataFormat.HISTOGRAM) {
         decoder = new ReportPointDecoderWrapper(new HistogramDecoder());

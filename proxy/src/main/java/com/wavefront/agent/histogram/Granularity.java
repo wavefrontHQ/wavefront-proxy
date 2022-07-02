@@ -19,6 +19,16 @@ public enum Granularity {
     this.inMillis = inMillis;
   }
 
+  public static Granularity fromMillis(long millis) {
+    if (millis <= 60 * 1000) {
+      return MINUTE;
+    } else if (millis <= 60 * 60 * 1000) {
+      return HOUR;
+    } else {
+      return DAY;
+    }
+  }
+
   /**
    * Duration of a corresponding bin in milliseconds.
    *
@@ -49,15 +59,5 @@ public enum Granularity {
         return "minute";
     }
     return "unknown";
-  }
-
-  public static Granularity fromMillis(long millis) {
-    if (millis <= 60 * 1000) {
-      return MINUTE;
-    } else if (millis <= 60 * 60 * 1000) {
-      return HOUR;
-    } else {
-      return DAY;
-    }
   }
 }

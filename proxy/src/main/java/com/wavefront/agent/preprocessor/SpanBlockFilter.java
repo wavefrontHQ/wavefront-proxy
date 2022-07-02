@@ -20,9 +20,8 @@ public class SpanBlockFilter implements AnnotatedPredicate<Span> {
   @Nullable private final String scope;
   @Nullable private final Pattern compiledPattern;
   private final Predicate<Span> v2Predicate;
-  private boolean isV1PredicatePresent = false;
-
   private final PreprocessorRuleMetrics ruleMetrics;
+  private boolean isV1PredicatePresent = false;
 
   public SpanBlockFilter(
       @Nullable final String scope,

@@ -2,15 +2,8 @@ package com.wavefront.agent.listeners;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
-import static com.wavefront.agent.formatter.DataFormat.SPAN;
-import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.formatter.DataFormat.*;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 
@@ -18,10 +11,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.Utils;
@@ -45,12 +38,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-import wavefront.report.ReportEvent;
-import wavefront.report.ReportLog;
-import wavefront.report.ReportPoint;
-import wavefront.report.ReportSourceTag;
-import wavefront.report.Span;
-import wavefront.report.SpanLogs;
+import wavefront.report.*;
 
 /**
  * Process incoming Wavefront-formatted data. Also allows sourceTag formatted data and
@@ -114,7 +102,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(
-      final String port,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
@@ -132,7 +120,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
     this.wavefrontHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, port));
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder =
@@ -149,24 +137,34 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         (ReportableEntityDecoder<String, ReportLog>) decoders.get(ReportableEntityType.LOGS);
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, port)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.sourceTagHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.SOURCE_TAG, port)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, port)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.TRACE)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, port)));
+                    port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
     this.eventHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.EVENT, port)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.EVENT)));
     this.logHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.LOGS, port)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.LOGS)));
     this.histogramDisabled = histogramDisabled;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
@@ -195,6 +193,112 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.receivedLogsTotal =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
+  }
+
+  public static void preprocessAndHandlePoint(
+      String message,
+      ReportableEntityDecoder<String, ReportPoint> decoder,
+      ReportableEntityHandler<ReportPoint, String> handler,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      @Nullable ChannelHandlerContext ctx,
+      String type) {
+    ReportableEntityPreprocessor preprocessor =
+        preprocessorSupplier == null ? null : preprocessorSupplier.get();
+    String[] messageHolder = new String[1];
+    // transform the line if needed
+    if (preprocessor != null) {
+      message = preprocessor.forPointLine().transform(message);
+
+      // apply white/black lists after formatting
+      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
+        if (messageHolder[0] != null) {
+          handler.reject((ReportPoint) null, message);
+        } else {
+          handler.block(null, message);
+        }
+        return;
+      }
+    }
+
+    List<ReportPoint> output = new ArrayList<>(1);
+    try {
+      decoder.decode(message, output, "dummy");
+    } catch (Exception e) {
+      handler.reject(
+          message,
+          formatErrorMessage("WF-300 Cannot parse " + type + ": \"" + message + "\"", e, ctx));
+      return;
+    }
+
+    for (ReportPoint object : output) {
+      if (preprocessor != null) {
+        preprocessor.forReportPoint().transform(object);
+        if (!preprocessor.forReportPoint().filter(object, messageHolder)) {
+          if (messageHolder[0] != null) {
+            handler.reject(object, messageHolder[0]);
+          } else {
+            handler.block(object);
+          }
+          return;
+        }
+      }
+      handler.report(object);
+    }
+  }
+
+  public static void preprocessAndHandleLog(
+      String message,
+      ReportableEntityDecoder<String, ReportLog> decoder,
+      ReportableEntityHandler<ReportLog, ReportLog> handler,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      @Nullable ChannelHandlerContext ctx) {
+    ReportableEntityPreprocessor preprocessor =
+        preprocessorSupplier == null ? null : preprocessorSupplier.get();
+
+    String[] messageHolder = new String[1];
+    // transform the line if needed
+    if (preprocessor != null) {
+      message = preprocessor.forPointLine().transform(message);
+      // apply white/black lists after formatting
+      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
+        if (messageHolder[0] != null) {
+          handler.reject((ReportLog) null, message);
+        } else {
+          handler.block(null, message);
+        }
+        return;
+      }
+    }
+
+    List<ReportLog> output = new ArrayList<>(1);
+    try {
+      decoder.decode(message, output, "dummy");
+    } catch (Exception e) {
+      handler.reject(
+          message, formatErrorMessage("WF-600 Cannot parse Log: \"" + message + "\"", e, ctx));
+      return;
+    }
+
+    if (output.get(0) == null) {
+      handler.reject(
+          message, formatErrorMessage("WF-600 Cannot parse Log: \"" + message + "\"", null, ctx));
+      return;
+    }
+
+    for (ReportLog object : output) {
+      if (preprocessor != null) {
+        preprocessor.forReportLog().transform(object);
+        if (!preprocessor.forReportLog().filter(object, messageHolder)) {
+          if (messageHolder[0] != null) {
+            handler.reject(object, messageHolder[0]);
+          } else {
+            handler.block(object);
+          }
+          return;
+        }
+      }
+      handler.report(object);
+    }
   }
 
   @Override
@@ -342,112 +446,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         message = annotator == null ? message : annotator.apply(ctx, message);
         preprocessAndHandlePoint(
             message, wavefrontDecoder, wavefrontHandler, preprocessorSupplier, ctx, "metric");
-    }
-  }
-
-  public static void preprocessAndHandlePoint(
-      String message,
-      ReportableEntityDecoder<String, ReportPoint> decoder,
-      ReportableEntityHandler<ReportPoint, String> handler,
-      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx,
-      String type) {
-    ReportableEntityPreprocessor preprocessor =
-        preprocessorSupplier == null ? null : preprocessorSupplier.get();
-    String[] messageHolder = new String[1];
-    // transform the line if needed
-    if (preprocessor != null) {
-      message = preprocessor.forPointLine().transform(message);
-
-      // apply white/black lists after formatting
-      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
-        if (messageHolder[0] != null) {
-          handler.reject((ReportPoint) null, message);
-        } else {
-          handler.block(null, message);
-        }
-        return;
-      }
-    }
-
-    List<ReportPoint> output = new ArrayList<>(1);
-    try {
-      decoder.decode(message, output, "dummy");
-    } catch (Exception e) {
-      handler.reject(
-          message,
-          formatErrorMessage("WF-300 Cannot parse " + type + ": \"" + message + "\"", e, ctx));
-      return;
-    }
-
-    for (ReportPoint object : output) {
-      if (preprocessor != null) {
-        preprocessor.forReportPoint().transform(object);
-        if (!preprocessor.forReportPoint().filter(object, messageHolder)) {
-          if (messageHolder[0] != null) {
-            handler.reject(object, messageHolder[0]);
-          } else {
-            handler.block(object);
-          }
-          return;
-        }
-      }
-      handler.report(object);
-    }
-  }
-
-  public static void preprocessAndHandleLog(
-      String message,
-      ReportableEntityDecoder<String, ReportLog> decoder,
-      ReportableEntityHandler<ReportLog, ReportLog> handler,
-      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx) {
-    ReportableEntityPreprocessor preprocessor =
-        preprocessorSupplier == null ? null : preprocessorSupplier.get();
-
-    String[] messageHolder = new String[1];
-    // transform the line if needed
-    if (preprocessor != null) {
-      message = preprocessor.forPointLine().transform(message);
-      // apply white/black lists after formatting
-      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
-        if (messageHolder[0] != null) {
-          handler.reject((ReportLog) null, message);
-        } else {
-          handler.block(null, message);
-        }
-        return;
-      }
-    }
-
-    List<ReportLog> output = new ArrayList<>(1);
-    try {
-      decoder.decode(message, output, "dummy");
-    } catch (Exception e) {
-      handler.reject(
-          message, formatErrorMessage("WF-600 Cannot parse Log: \"" + message + "\"", e, ctx));
-      return;
-    }
-
-    if (output.get(0) == null) {
-      handler.reject(
-          message, formatErrorMessage("WF-600 Cannot parse Log: \"" + message + "\"", null, ctx));
-      return;
-    }
-
-    for (ReportLog object : output) {
-      if (preprocessor != null) {
-        preprocessor.forReportLog().transform(object);
-        if (!preprocessor.forReportLog().filter(object, messageHolder)) {
-          if (messageHolder[0] != null) {
-            handler.reject(object, messageHolder[0]);
-          } else {
-            handler.block(object);
-          }
-          return;
-        }
-      }
-      handler.report(object);
     }
   }
 }

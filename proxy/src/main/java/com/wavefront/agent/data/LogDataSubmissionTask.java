@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.api.LogAPI;
 import com.wavefront.dto.Log;
 import java.io.IOException;
@@ -49,7 +48,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       LogAPI api,
       UUID proxyId,
       EntityProperties properties,
-      QueueInfo handle,
+      com.wavefront.agent.core.queues.QueueInfo handle,
       @Nonnull List<String> logs,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, handle, timeProvider);

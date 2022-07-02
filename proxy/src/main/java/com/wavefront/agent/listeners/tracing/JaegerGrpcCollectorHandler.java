@@ -6,9 +6,9 @@ import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
@@ -71,7 +71,7 @@ public class JaegerGrpcCollectorHandler extends CollectorServiceGrpc.CollectorSe
   private final ScheduledExecutorService scheduledExecutorService;
 
   public JaegerGrpcCollectorHandler(
-      String handle,
+      int port,
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
@@ -81,9 +81,10 @@ public class JaegerGrpcCollectorHandler extends CollectorServiceGrpc.CollectorSe
       @Nullable String traceJaegerApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
     this(
-        handle,
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        port,
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,
@@ -94,7 +95,7 @@ public class JaegerGrpcCollectorHandler extends CollectorServiceGrpc.CollectorSe
   }
 
   public JaegerGrpcCollectorHandler(
-      String handle,
+      int port,
       ReportableEntityHandler<Span, String> spanHandler,
       ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
@@ -116,17 +117,17 @@ public class JaegerGrpcCollectorHandler extends CollectorServiceGrpc.CollectorSe
             ? "Jaeger"
             : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + port, "", "discarded"));
     this.discardedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "discarded"));
     this.processedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "processed"));
     this.failedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "failed"));
     this.discardedSpansBySampler =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded"));
     this.receivedSpansTotal =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("jaeger-heart-beater"));

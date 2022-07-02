@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /** @author Mori Bellamy (mori@wavefront.com) */
 public abstract class Configuration {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   protected void ensure(boolean b, String message) throws ConfigurationException {
     if (!b) {
       throw new ConfigurationException(message);
@@ -12,8 +14,6 @@ public abstract class Configuration {
   }
 
   public abstract void verifyAndInit() throws ConfigurationException;
-
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Override
   public String toString() {

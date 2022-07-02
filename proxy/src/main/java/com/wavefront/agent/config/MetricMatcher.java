@@ -81,6 +81,28 @@ public class MetricMatcher extends Configuration {
   private Grok grok = null;
   private Map<String, String> additionalPatterns = Maps.newHashMap();
 
+  private static String expandTemplate(String template, Map<String, Object> replacements) {
+    if (template.contains("%{")) {
+      StringBuffer result = new StringBuffer();
+      Matcher placeholders = Pattern.compile("%\\{(.*?)}").matcher(template);
+      while (placeholders.find()) {
+        if (placeholders.group(1).isEmpty()) {
+          placeholders.appendReplacement(result, placeholders.group(0));
+        } else {
+          if (replacements.get(placeholders.group(1)) != null) {
+            placeholders.appendReplacement(
+                result, (String) replacements.get(placeholders.group(1)));
+          } else {
+            placeholders.appendReplacement(result, placeholders.group(0));
+          }
+        }
+      }
+      placeholders.appendTail(result);
+      return result.toString();
+    }
+    return template;
+  }
+
   public String getValueLabel() {
     return valueLabel;
   }
@@ -121,28 +143,6 @@ public class MetricMatcher extends Configuration {
       }
       return grok;
     }
-  }
-
-  private static String expandTemplate(String template, Map<String, Object> replacements) {
-    if (template.contains("%{")) {
-      StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("%\\{(.*?)}").matcher(template);
-      while (placeholders.find()) {
-        if (placeholders.group(1).isEmpty()) {
-          placeholders.appendReplacement(result, placeholders.group(0));
-        } else {
-          if (replacements.get(placeholders.group(1)) != null) {
-            placeholders.appendReplacement(
-                result, (String) replacements.get(placeholders.group(1)));
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
-        }
-      }
-      placeholders.appendTail(result);
-      return result.toString();
-    }
-    return template;
   }
 
   /**

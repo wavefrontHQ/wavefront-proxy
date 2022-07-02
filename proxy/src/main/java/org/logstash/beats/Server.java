@@ -22,12 +22,11 @@ public class Server {
   private final int port;
   private final String host;
   private final int beatsHeandlerThreadCount;
+  private final int clientInactivityTimeoutSeconds;
   private NioEventLoopGroup workGroup;
   private IMessageListener messageListener = new MessageListener();
   private SslSimpleBuilder sslBuilder;
   private BeatsInitializer beatsInitializer;
-
-  private final int clientInactivityTimeoutSeconds;
 
   public Server(String host, int p, int timeout, int threadCount) {
     this.host = host;

@@ -1,15 +1,7 @@
 package com.wavefront.agent.listeners;
 
 import static com.wavefront.agent.channel.ChannelUtils.*;
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,10 +15,10 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
@@ -77,31 +69,28 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  private ProxyConfig proxyConfig;
   private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
   private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SharedGraphiteHostAnnotator annotator;
-
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<Boolean> logsDisabled;
-
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> receivedSpansTotal;
   private final Supplier<Counter> discardedLogs;
   private final Supplier<Counter> receivedLogsTotal;
-
   private final APIContainer apiContainer;
+  private ProxyConfig proxyConfig;
   /**
    * Create new instance with lazy initialization for handlers.
    *
-   * @param handle handle/port number.
+   * @param port port/port number.
    * @param tokenAuthenticator tokenAuthenticator for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param decoders decoders.
@@ -114,7 +103,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
    */
   @SuppressWarnings("unchecked")
   public RelayPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
@@ -127,28 +116,31 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       final Supplier<Boolean> logsDisabled,
       final APIContainer apiContainer,
       final ProxyConfig proxyConfig) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.decoders = decoders;
     this.wavefrontDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.proxyConfig = proxyConfig;
     this.wavefrontHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
             () ->
-                handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle)));
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)));
+            () ->
+                handlerFactory.getHandler(
+                    port, QueuesManager.initQueue(ReportableEntityType.TRACE)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+                    port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
     this.receivedSpansTotal =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "received.total")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
     this.preprocessorSupplier = preprocessorSupplier;
     this.annotator = annotator;
     this.histogramDisabled = histogramDisabled;
@@ -161,16 +153,16 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             () -> Metrics.newCounter(new MetricName("histogram", "", "discarded_points")));
     this.discardedSpans =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.discardedSpanLogs =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
     this.discardedLogs =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("logs." + port, "", "discarded")));
     this.receivedLogsTotal =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "received.total")));
+            () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
 
     this.apiContainer = apiContainer;
   }

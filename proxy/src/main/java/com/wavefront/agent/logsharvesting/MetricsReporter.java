@@ -2,9 +2,9 @@ package com.wavefront.agent.logsharvesting;
 
 import static com.wavefront.common.Utils.lazySupplier;
 
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
@@ -18,7 +18,6 @@ import java.util.logging.Logger;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class MetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(MetricsReporter.class.getCanonicalName());
@@ -39,12 +38,12 @@ public class MetricsReporter extends AbstractPollingReporter {
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    new HandlerKey(ReportableEntityType.POINT, "logs-ingester")));
+                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.POINT)));
     this.histogramHandlerSupplier =
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    new HandlerKey(ReportableEntityType.HISTOGRAM, "logs-ingester")));
+                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.prefix = prefix;
   }
 

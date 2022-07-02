@@ -13,9 +13,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
@@ -114,7 +114,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final ScheduledThreadPoolExecutor threadpool;
 
   public DataDogPortUnificationHandler(
-      final String handle,
+      final int port,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory,
       final int fanout,
@@ -125,9 +125,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     this(
-        handle,
+        port,
         healthCheckManager,
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT)),
         fanout,
         synchronousMode,
         processSystemMetrics,
@@ -139,7 +139,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @VisibleForTesting
   protected DataDogPortUnificationHandler(
-      final String handle,
+      final int port,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandler<ReportPoint, String> pointHandler,
       final int fanout,
@@ -149,7 +149,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       @Nullable final HttpClient requestRelayClient,
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
+    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, port);
     this.pointHandler = pointHandler;
     this.threadpool = new ScheduledThreadPoolExecutor(fanout, new NamedThreadFactory("dd-relay"));
     this.synchronousMode = synchronousMode;
@@ -161,7 +161,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     this.jsonParser = new ObjectMapper();
     this.httpRequestSize =
         Metrics.newHistogram(
-            new TaggedMetricName("listeners", "http-requests.payload-points", "port", handle));
+            new TaggedMetricName(
+                "listeners", "http-requests.payload-points", "port", String.valueOf(port)));
     this.httpStatusCounterCache =
         Caffeine.newBuilder()
             .build(
@@ -171,9 +172,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
                             "listeners",
                             "http-relay.status." + status + ".count",
                             "port",
-                            handle)));
+                            String.valueOf(port))));
     Metrics.newGauge(
-        new TaggedMetricName("listeners", "tags-cache-size", "port", handle),
+        new TaggedMetricName("listeners", "tags-cache-size", "port", String.valueOf(port)),
         new Gauge<Long>() {
           @Override
           public Long value() {
@@ -181,7 +182,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           }
         });
     Metrics.newGauge(
-        new TaggedMetricName("listeners", "http-relay.threadpool.queue-size", "port", handle),
+        new TaggedMetricName(
+            "listeners", "http-relay.threadpool.queue-size", "port", String.valueOf(port)),
         new Gauge<Integer>() {
           @Override
           public Integer value() {
@@ -202,7 +204,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     if (requestRelayClient != null && requestRelayTarget != null && request.method() == POST) {
       Histogram requestRelayDuration =
           Metrics.newHistogram(
-              new TaggedMetricName("listeners", "http-relay.duration-nanos", "port", handle));
+              new TaggedMetricName(
+                  "listeners", "http-relay.duration-nanos", "port", String.valueOf(port)));
       long startNanos = System.nanoTime();
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
@@ -243,14 +246,17 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
                   logger.warning(
                       "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
                   Metrics.newCounter(
-                          new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
+                          new TaggedMetricName(
+                              "listeners", "http-relay.failed", "port", String.valueOf(port)))
                       .inc();
                 }
               });
         }
       } catch (IOException e) {
         logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
-        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
+        Metrics.newCounter(
+                new TaggedMetricName(
+                    "listeners", "http-relay.failed", "port", String.valueOf(port)))
             .inc();
         writeHttpResponse(
             ctx,
@@ -281,7 +287,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       case "/api/v1/check_run/":
         if (!processServiceChecks) {
           Metrics.newCounter(
-                  new TaggedMetricName("listeners", "http-requests.ignored", "port", handle))
+                  new TaggedMetricName(
+                      "listeners", "http-requests.ignored", "port", String.valueOf(port)))
               .inc();
           writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, request);
           return;
@@ -521,7 +528,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
 
     if (!reportSystemMetrics) {
-      Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port", handle))
+      Metrics.newCounter(
+              new TaggedMetricName(
+                  "listeners", "http-requests.ignored", "port", String.valueOf(port)))
           .inc();
       return HttpResponseStatus.ACCEPTED;
     }

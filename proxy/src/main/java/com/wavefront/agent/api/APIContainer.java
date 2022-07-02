@@ -48,21 +48,17 @@ public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
   public static final String API_SERVER = "server";
   public static final String API_TOKEN = "token";
-
+  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
   private final boolean discardData;
-
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
   private Map<String, EventAPI> eventAPIsForMulticasting;
-
   private LogAPI logAPI;
   private String logServerToken;
   private String logServerEndpointUrl;
-
-  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
 
   /**
    * @param proxyConfig proxy configuration settings

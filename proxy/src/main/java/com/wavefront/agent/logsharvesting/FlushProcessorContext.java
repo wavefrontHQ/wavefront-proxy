@@ -1,6 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.common.MetricConstants;
 import java.util.function.Supplier;
 import wavefront.report.Histogram;

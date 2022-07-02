@@ -8,11 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
@@ -31,35 +27,6 @@ import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.junit.Test;
 
 public final class HttpClientTest {
-
-  @Path("")
-  public interface SimpleRESTEasyAPI {
-    @GET
-    @Path("search")
-    @Produces(MediaType.TEXT_HTML)
-    void search(@QueryParam("q") String query);
-  }
-
-  class SocketServerRunnable implements Runnable {
-    private ServerSocket server;
-
-    public int getPort() {
-      return server.getLocalPort();
-    }
-
-    public SocketServerRunnable() throws IOException {
-      server = new ServerSocket(0);
-    }
-
-    public void run() {
-      try {
-        Socket sock = server.accept();
-        sock.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-  }
 
   @Test(expected = ProcessingException.class)
   public void httpClientTimeoutsWork() throws Exception {
@@ -128,5 +95,34 @@ public final class HttpClientTest {
     ResteasyWebTarget target = client.target("https://localhost:" + sr.getPort());
     SimpleRESTEasyAPI proxy = target.proxy(SimpleRESTEasyAPI.class);
     proxy.search("resteasy");
+  }
+
+  @Path("")
+  public interface SimpleRESTEasyAPI {
+    @GET
+    @Path("search")
+    @Produces(MediaType.TEXT_HTML)
+    void search(@QueryParam("q") String query);
+  }
+
+  class SocketServerRunnable implements Runnable {
+    private ServerSocket server;
+
+    public SocketServerRunnable() throws IOException {
+      server = new ServerSocket(0);
+    }
+
+    public int getPort() {
+      return server.getLocalPort();
+    }
+
+    public void run() {
+      try {
+        Socket sock = server.accept();
+        sock.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
   }
 }

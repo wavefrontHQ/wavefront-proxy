@@ -18,10 +18,6 @@ public enum TaskQueueLevel {
     this.level = level;
   }
 
-  public boolean isLessThan(TaskQueueLevel other) {
-    return this.level < other.level;
-  }
-
   public static TaskQueueLevel fromString(String name) {
     for (TaskQueueLevel level : TaskQueueLevel.values()) {
       if (level.toString().equalsIgnoreCase(name)) {
@@ -29,5 +25,9 @@ public enum TaskQueueLevel {
       }
     }
     return null;
+  }
+
+  public boolean isLessThan(TaskQueueLevel other) {
+    return this.level < other.level;
   }
 }

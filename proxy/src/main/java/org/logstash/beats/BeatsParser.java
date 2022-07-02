@@ -17,25 +17,6 @@ public class BeatsParser extends ByteToMessageDecoder {
   private static final Logger logger = LogManager.getLogger(BeatsParser.class);
 
   private Batch batch;
-
-  private enum States {
-    READ_HEADER(1),
-    READ_FRAME_TYPE(1),
-    READ_WINDOW_SIZE(4),
-    READ_JSON_HEADER(8),
-    READ_COMPRESSED_FRAME_HEADER(4),
-    READ_COMPRESSED_FRAME(
-        -1), // -1 means the length to read is variable and defined in the frame itself.
-    READ_JSON(-1),
-    READ_DATA_FIELDS(-1);
-
-    private int length;
-
-    States(int length) {
-      this.length = length;
-    }
-  }
-
   private States currentState = States.READ_HEADER;
   private int requiredBytes = 0;
   private int sequence = 0;
@@ -253,6 +234,24 @@ public class BeatsParser extends ByteToMessageDecoder {
     requiredBytes = 0;
     sequence = 0;
     batch = null;
+  }
+
+  private enum States {
+    READ_HEADER(1),
+    READ_FRAME_TYPE(1),
+    READ_WINDOW_SIZE(4),
+    READ_JSON_HEADER(8),
+    READ_COMPRESSED_FRAME_HEADER(4),
+    READ_COMPRESSED_FRAME(
+        -1), // -1 means the length to read is variable and defined in the frame itself.
+    READ_JSON(-1),
+    READ_DATA_FIELDS(-1);
+
+    private int length;
+
+    States(int length) {
+      this.length = length;
+    }
   }
 
   public class InvalidFrameProtocolException extends Exception {

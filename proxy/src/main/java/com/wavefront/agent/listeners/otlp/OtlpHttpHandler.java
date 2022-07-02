@@ -11,9 +11,9 @@ import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -29,14 +29,7 @@ import com.yammer.metrics.core.MetricName;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.Closeable;
@@ -78,7 +71,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable TokenAuthenticator tokenAuthenticator,
       @Nullable HealthCheckManager healthCheckManager,
-      @NonNull String handle,
+      @NonNull int port,
       @Nullable WavefrontSender wfSender,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       SpanSampler sampler,
@@ -87,36 +80,35 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       String defaultSource,
       Set<String> traceDerivedCustomTagKeys,
       boolean includeResourceAttrsForMetrics) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
     this.spanHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle));
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE));
     this.spanLogsHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle));
+        handlerFactory.getHandler(
+            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
     this.metricsHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandler =
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.HISTOGRAM, handle));
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
 
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
-    this.receivedSpans =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+    this.receivedSpans = Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
     this.spanSamplerAndCounter =
         Pair.of(
-            sampler,
-            Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
+            sampler, Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
     this.spansDisabled =
         Pair.of(
             spansFeatureDisabled,
-            Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+            Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.spanLogsDisabled =
         Pair.of(
             spanLogsFeatureDisabled,
-            Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+            Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
 
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-http-heart-beater"));

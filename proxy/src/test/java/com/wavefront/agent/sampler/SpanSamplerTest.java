@@ -1,9 +1,6 @@
 package com.wavefront.agent.sampler;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import com.wavefront.api.agent.SpanSamplingPolicy;

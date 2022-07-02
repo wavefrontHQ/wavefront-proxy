@@ -2,25 +2,16 @@ package com.wavefront.agent.listeners.tracing;
 
 import static com.google.protobuf.util.Timestamps.fromMillis;
 import static com.wavefront.agent.TestUtils.verifyWithTimeout;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import static com.wavefront.sdk.common.Constants.*;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Duration;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
@@ -63,6 +54,17 @@ public class JaegerGrpcCollectorHandlerTest {
   private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
   private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
+  private final StreamObserver<Collector.PostSpansResponse> emptyStreamObserver =
+      new StreamObserver<Collector.PostSpansResponse>() {
+        @Override
+        public void onNext(Collector.PostSpansResponse postSpansResponse) {}
+
+        @Override
+        public void onError(Throwable throwable) {}
+
+        @Override
+        public void onCompleted() {}
+      };
 
   @Test
   public void testJaegerGrpcCollector() throws Exception {
@@ -173,7 +175,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -405,7 +407,7 @@ public class JaegerGrpcCollectorHandlerTest {
     // Verify span level "application" tags precedence
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -577,7 +579,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -699,7 +701,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -857,7 +859,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1055,7 +1057,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1207,7 +1209,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1337,7 +1339,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1444,7 +1446,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1647,7 +1649,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     JaegerGrpcCollectorHandler handler =
         new JaegerGrpcCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             mockWavefrontSender,
@@ -1703,16 +1705,4 @@ public class JaegerGrpcCollectorHandlerTest {
     assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
     assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
   }
-
-  private final StreamObserver<Collector.PostSpansResponse> emptyStreamObserver =
-      new StreamObserver<Collector.PostSpansResponse>() {
-        @Override
-        public void onNext(Collector.PostSpansResponse postSpansResponse) {}
-
-        @Override
-        public void onError(Throwable throwable) {}
-
-        @Override
-        public void onCompleted() {}
-      };
 }

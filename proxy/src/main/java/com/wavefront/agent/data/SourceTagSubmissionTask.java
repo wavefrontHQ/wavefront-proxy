@@ -3,7 +3,6 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
 import java.util.List;
@@ -36,7 +35,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   public SourceTagSubmissionTask(
       SourceTagAPI api,
       EntityProperties properties,
-      HandlerKey handle,
+      com.wavefront.agent.core.queues.QueueInfo handle,
       @Nonnull SourceTag sourceTag,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, handle, timeProvider);

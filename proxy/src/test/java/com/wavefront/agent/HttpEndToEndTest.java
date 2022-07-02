@@ -1,23 +1,18 @@
 package com.wavefront.agent;
 
 import static com.wavefront.agent.ProxyUtil.createInitializer;
-import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
-import static com.wavefront.agent.TestUtils.findAvailablePort;
-import static com.wavefront.agent.TestUtils.gzippedHttpPost;
-import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
+import static com.wavefront.agent.TestUtils.*;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
@@ -50,19 +45,17 @@ import org.junit.Test;
 /** @author vasily@wavefront.com */
 public class HttpEndToEndTest {
   private static final Logger logger = Logger.getLogger("test");
-
+  public static int HTTP_timeout_tests = 1000;
   private PushAgent proxy;
   private MutableFunc<FullHttpRequest, HttpResponse> server = new MutableFunc<>(x -> null);
   private Thread thread;
   private int backendPort;
   private int proxyPort;
-  public static int HTTP_timeout_tests = 1000;
 
   @Before
   public void setup() throws Exception {
     backendPort = findAvailablePort(8081);
-    ChannelHandler channelHandler =
-        new WrappingHttpHandler(null, null, String.valueOf(backendPort), server);
+    ChannelHandler channelHandler = new WrappingHttpHandler(null, null, backendPort, server);
     thread =
         new Thread(
             new TcpIngester(
@@ -76,7 +69,6 @@ public class HttpEndToEndTest {
   @After
   public void teardown() {
     thread.interrupt();
-    proxy.stopListener(proxyPort);
     proxy.shutdown();
   }
 
@@ -96,7 +88,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushMaxPoints = 1;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String payload =
         "metric.name 1 "
@@ -189,7 +180,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String payloadEvents =
         "@Event "
@@ -280,7 +270,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String payloadSourceTags =
         "@SourceTag action=add source=testSource addTag1 addTag2 addTag3\n"
@@ -367,7 +356,8 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
-    HandlerKey key = new HandlerKey(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
+    com.wavefront.agent.core.queues.QueueInfo key =
+        QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
     assertEquals(10, successfulSteps.getAndSet(0));
   }
 
@@ -415,7 +405,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.timeProvider = digestTime::get;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(histDistPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String payloadHistograms =
         "metric.name 1 "
@@ -554,10 +543,8 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
-    proxy.proxyConfig.trafficShaping = true;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;
@@ -625,7 +612,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;
@@ -701,7 +687,6 @@ public class HttpEndToEndTest {
 
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
 
     long timestamp = time * 1000 + 12345;
     String payload =
@@ -732,9 +717,9 @@ public class HttpEndToEndTest {
     public WrappingHttpHandler(
         @Nullable TokenAuthenticator tokenAuthenticator,
         @Nullable HealthCheckManager healthCheckManager,
-        @Nullable String handle,
+        @Nullable int port,
         @Nonnull Function<FullHttpRequest, HttpResponse> func) {
-      super(tokenAuthenticator, healthCheckManager, handle);
+      super(tokenAuthenticator, healthCheckManager, port);
       this.func = func;
     }
 
@@ -754,7 +739,7 @@ public class HttpEndToEndTest {
         ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
         jsonResponse.put("currentTime", Clock.now());
         jsonResponse.put("allowAnyHostKeys", true);
-        jsonResponse.put("logServerEndpointUrl", "http://localhost:" + handle + "/api/");
+        jsonResponse.put("logServerEndpointUrl", "http://localhost:" + port + "/api/");
         jsonResponse.put("logServerToken", "12345");
         writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
         return;

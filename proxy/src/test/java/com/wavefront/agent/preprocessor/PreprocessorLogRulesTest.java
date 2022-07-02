@@ -2,9 +2,7 @@ package com.wavefront.agent.preprocessor;
 
 import static com.wavefront.agent.preprocessor.LengthLimitActionType.TRUNCATE;
 import static com.wavefront.agent.preprocessor.LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.GraphiteDecoder;
@@ -55,41 +55,85 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
   /**
    * Create a new instance.
    *
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param healthCheckManager shared health check endpoint handler.
    * @param handlerFactory factory for ReportableEntityHandler objects.
    * @param defaultHost default host name to use, if none specified.
    * @param preprocessor preprocessor.
    */
   public WriteHttpJsonPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory,
       final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     this(
-        handle,
+        port,
         authenticator,
         healthCheckManager,
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT)),
         defaultHost,
         preprocessor);
   }
 
   @VisibleForTesting
   protected WriteHttpJsonPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandler<ReportPoint, String> pointHandler,
       final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle);
+    super(authenticator, healthCheckManager, port);
     this.pointHandler = pointHandler;
     this.defaultHost = defaultHost;
     this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
+  }
+
+  /**
+   * Generates a metric name from json format: { "values": [197141504, 175136768], "dstypes":
+   * ["counter", "counter"], "dsnames": ["read", "write"], "time": 1251533299, "interval": 10,
+   * "host": "leeloo.lan.home.verplant.org", "plugin": "disk", "plugin_instance": "sda", "type":
+   * "disk_octets", "type_instance": "" }
+   *
+   * <p>host "/" plugin ["-" plugin instance] "/" type ["-" type instance] =>
+   * {plugin}[.{plugin_instance}].{type}[.{type_instance}]
+   */
+  private static String getMetricName(final JsonNode metric, int index) {
+    JsonNode plugin = metric.get("plugin");
+    JsonNode plugin_instance = metric.get("plugin_instance");
+    JsonNode type = metric.get("type");
+    JsonNode type_instance = metric.get("type_instance");
+
+    if (plugin == null || type == null) {
+      throw new IllegalArgumentException("plugin or type is missing");
+    }
+
+    StringBuilder sb = new StringBuilder();
+    extractMetricFragment(plugin, plugin_instance, sb);
+    extractMetricFragment(type, type_instance, sb);
+
+    JsonNode dsnames = metric.get("dsnames");
+    if (dsnames == null || !dsnames.isArray() || dsnames.size() <= index) {
+      throw new IllegalArgumentException("dsnames is not set");
+    }
+    sb.append(dsnames.get(index).textValue());
+    return sb.toString();
+  }
+
+  private static void extractMetricFragment(
+      JsonNode node, JsonNode instance_node, StringBuilder sb) {
+    sb.append(node.textValue());
+    sb.append('.');
+    if (instance_node != null) {
+      String value = instance_node.textValue();
+      if (value != null && !value.isEmpty()) {
+        sb.append(value);
+        sb.append('.');
+      }
+    }
   }
 
   @Override
@@ -180,50 +224,6 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
           pointHandler.report(parsedPoint);
         }
         index++;
-      }
-    }
-  }
-
-  /**
-   * Generates a metric name from json format: { "values": [197141504, 175136768], "dstypes":
-   * ["counter", "counter"], "dsnames": ["read", "write"], "time": 1251533299, "interval": 10,
-   * "host": "leeloo.lan.home.verplant.org", "plugin": "disk", "plugin_instance": "sda", "type":
-   * "disk_octets", "type_instance": "" }
-   *
-   * <p>host "/" plugin ["-" plugin instance] "/" type ["-" type instance] =>
-   * {plugin}[.{plugin_instance}].{type}[.{type_instance}]
-   */
-  private static String getMetricName(final JsonNode metric, int index) {
-    JsonNode plugin = metric.get("plugin");
-    JsonNode plugin_instance = metric.get("plugin_instance");
-    JsonNode type = metric.get("type");
-    JsonNode type_instance = metric.get("type_instance");
-
-    if (plugin == null || type == null) {
-      throw new IllegalArgumentException("plugin or type is missing");
-    }
-
-    StringBuilder sb = new StringBuilder();
-    extractMetricFragment(plugin, plugin_instance, sb);
-    extractMetricFragment(type, type_instance, sb);
-
-    JsonNode dsnames = metric.get("dsnames");
-    if (dsnames == null || !dsnames.isArray() || dsnames.size() <= index) {
-      throw new IllegalArgumentException("dsnames is not set");
-    }
-    sb.append(dsnames.get(index).textValue());
-    return sb.toString();
-  }
-
-  private static void extractMetricFragment(
-      JsonNode node, JsonNode instance_node, StringBuilder sb) {
-    sb.append(node.textValue());
-    sb.append('.');
-    if (instance_node != null) {
-      String value = instance_node.textValue();
-      if (value != null && !value.isEmpty()) {
-        sb.append(value);
-        sb.append('.');
       }
     }
   }

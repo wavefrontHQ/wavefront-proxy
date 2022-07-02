@@ -1,25 +1,15 @@
 package com.wavefront.agent.listeners.tracing;
 
 import static com.wavefront.agent.TestUtils.verifyWithTimeout;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import static com.wavefront.sdk.common.Constants.*;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
@@ -30,11 +20,7 @@ import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Supplier;
@@ -50,19 +36,18 @@ import zipkin2.codec.SpanBytesEncoder;
 
 public class ZipkinPortUnificationHandlerTest {
   private static final String DEFAULT_SOURCE = "zipkin";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
-      MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
-      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
-  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
-  private long startTime = System.currentTimeMillis();
-
   // Derived RED metrics related.
   private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
   private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
   private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
   private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
+  private ReportableEntityHandler<Span, String> mockTraceHandler =
+      MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
+  private long startTime = System.currentTimeMillis();
 
   /**
    * Test for derived metrics emitted from Zipkin trace listeners. Derived metrics should report tag
@@ -140,7 +125,7 @@ public class ZipkinPortUnificationHandlerTest {
 
     ZipkinPortUnificationHandler handler =
         new ZipkinPortUnificationHandler(
-            "9411",
+            9411,
             new NoopHealthCheckManager(),
             mockTraceHandler,
             mockTraceSpanLogsHandler,
@@ -231,7 +216,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler =
         new ZipkinPortUnificationHandler(
-            "9411",
+            9411,
             new NoopHealthCheckManager(),
             mockTraceHandler,
             mockTraceSpanLogsHandler,
@@ -457,7 +442,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinDurationSampler() throws Exception {
     ZipkinPortUnificationHandler handler =
         new ZipkinPortUnificationHandler(
-            "9411",
+            9411,
             new NoopHealthCheckManager(),
             mockTraceHandler,
             mockTraceSpanLogsHandler,
@@ -571,7 +556,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinDebugOverride() throws Exception {
     ZipkinPortUnificationHandler handler =
         new ZipkinPortUnificationHandler(
-            "9411",
+            9411,
             new NoopHealthCheckManager(),
             mockTraceHandler,
             mockTraceSpanLogsHandler,
@@ -751,7 +736,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinCustomSource() throws Exception {
     ZipkinPortUnificationHandler handler =
         new ZipkinPortUnificationHandler(
-            "9411",
+            9411,
             new NoopHealthCheckManager(),
             mockTraceHandler,
             mockTraceSpanLogsHandler,

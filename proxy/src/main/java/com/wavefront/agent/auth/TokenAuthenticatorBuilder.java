@@ -16,10 +16,6 @@ public class TokenAuthenticatorBuilder {
   private int authResponseMaxTtl;
   private String staticToken;
 
-  public static TokenAuthenticatorBuilder create() {
-    return new TokenAuthenticatorBuilder();
-  }
-
   private TokenAuthenticatorBuilder() {
     this.tokenValidationMethod = TokenValidationMethod.NONE;
     this.httpClient = null;
@@ -28,6 +24,10 @@ public class TokenAuthenticatorBuilder {
     this.authResponseRefreshInterval = 600; // 10 min
     this.authResponseMaxTtl = 24 * 60 * 60; // 1 day
     this.staticToken = null;
+  }
+
+  public static TokenAuthenticatorBuilder create() {
+    return new TokenAuthenticatorBuilder();
   }
 
   public TokenAuthenticatorBuilder setTokenValidationMethod(

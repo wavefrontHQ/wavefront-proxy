@@ -1,20 +1,11 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
+import static com.wavefront.sdk.common.Constants.*;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.WavefrontSender;
 import io.grpc.stub.StreamObserver;
@@ -39,6 +30,17 @@ public class OtlpGrpcTraceHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
+  private final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
+      new StreamObserver<ExportTraceServiceResponse>() {
+        @Override
+        public void onNext(ExportTraceServiceResponse postSpansResponse) {}
+
+        @Override
+        public void onError(Throwable throwable) {}
+
+        @Override
+        public void onCompleted() {}
+      };
 
   @Test
   public void testMinimalSpanAndEventAndHeartbeat() throws Exception {
@@ -69,7 +71,7 @@ public class OtlpGrpcTraceHandlerTest {
     // 2. Act
     OtlpGrpcTraceHandler otlpGrpcTraceHandler =
         new OtlpGrpcTraceHandler(
-            "9876",
+            9876,
             mockSpanHandler,
             mockSpanLogsHandler,
             mockSender,
@@ -103,16 +105,4 @@ public class OtlpGrpcTraceHandlerTest {
     assertEquals("none", actualHeartbeatTags.get(SHARD_TAG_KEY));
     assertEquals("none", actualHeartbeatTags.get("span.kind"));
   }
-
-  private final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
-      new StreamObserver<ExportTraceServiceResponse>() {
-        @Override
-        public void onNext(ExportTraceServiceResponse postSpansResponse) {}
-
-        @Override
-        public void onError(Throwable throwable) {}
-
-        @Override
-        public void onCompleted() {}
-      };
 }

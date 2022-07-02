@@ -9,12 +9,9 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -104,10 +101,12 @@ public abstract class Utils {
    * @return iterator
    */
   @Nonnull
-  public static List<String> csvToList(@Nullable String inputString) {
-    return inputString == null
-        ? Collections.emptyList()
-        : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
+  public static List<Integer> csvToList(@Nullable String inputString) {
+    List<String> res =
+        inputString == null
+            ? Collections.emptyList()
+            : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
+    return res.stream().map(Integer::parseInt).collect(Collectors.toList());
   }
 
   /**

@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
@@ -19,11 +18,7 @@ import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
-import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
-import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
-import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.preprocessor.*;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
@@ -35,13 +30,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,14 +49,11 @@ import org.apache.commons.lang3.ObjectUtils;
  */
 public abstract class AbstractAgent {
   protected static final Logger logger = Logger.getLogger("proxy");
-  final Counter activeListeners =
-      Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
   /** A set of commandline parameters to hide when echoing command line arguments */
   protected static final Set<String> PARAMETERS_TO_HIDE =
       ImmutableSet.of("-t", "--token", "--proxyPassword");
 
   protected final ProxyConfig proxyConfig = new ProxyConfig();
-  protected APIContainer apiContainer;
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
@@ -76,10 +62,13 @@ public abstract class AbstractAgent {
       Maps.newHashMap();
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected final AtomicBoolean truncate = new AtomicBoolean(false);
+  final Counter activeListeners =
+      Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  protected APIContainer apiContainer;
   protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
   protected SslContext sslContext;
-  protected List<String> tlsPorts = EMPTY_LIST;
+  protected List<Integer> tlsPorts = EMPTY_LIST;
   protected boolean secureAllPorts = false;
 
   @Deprecated
@@ -94,28 +83,39 @@ public abstract class AbstractAgent {
 
   private void addPreprocessorFilters(String ports, String allowList, String blockList) {
     if (ports != null && (allowList != null || blockList != null)) {
-      for (String strPort : Splitter.on(",").omitEmptyStrings().trimResults().split(ports)) {
-        PreprocessorRuleMetrics ruleMetrics =
-            new PreprocessorRuleMetrics(
-                Metrics.newCounter(
-                    new TaggedMetricName("validationRegex", "points-rejected", "port", strPort)),
-                Metrics.newCounter(
-                    new TaggedMetricName("validationRegex", "cpu-nanos", "port", strPort)),
-                Metrics.newCounter(
-                    new TaggedMetricName("validationRegex", "points-checked", "port", strPort)));
-        if (blockList != null) {
-          preprocessors
-              .getSystemPreprocessor(strPort)
-              .forPointLine()
-              .addFilter(new LineBasedBlockFilter(blockList, ruleMetrics));
-        }
-        if (allowList != null) {
-          preprocessors
-              .getSystemPreprocessor(strPort)
-              .forPointLine()
-              .addFilter(new LineBasedAllowFilter(allowList, ruleMetrics));
-        }
-      }
+      csvToList(ports)
+          .forEach(
+              port -> {
+                PreprocessorRuleMetrics ruleMetrics =
+                    new PreprocessorRuleMetrics(
+                        Metrics.newCounter(
+                            new TaggedMetricName(
+                                "validationRegex",
+                                "points-rejected",
+                                "port",
+                                String.valueOf(port))),
+                        Metrics.newCounter(
+                            new TaggedMetricName(
+                                "validationRegex", "cpu-nanos", "port", String.valueOf(port))),
+                        Metrics.newCounter(
+                            new TaggedMetricName(
+                                "validationRegex",
+                                "points-checked",
+                                "port",
+                                String.valueOf(port))));
+                if (blockList != null) {
+                  preprocessors
+                      .getSystemPreprocessor(port)
+                      .forPointLine()
+                      .addFilter(new LineBasedBlockFilter(blockList, ruleMetrics));
+                }
+                if (allowList != null) {
+                  preprocessors
+                      .getSystemPreprocessor(port)
+                      .forPointLine()
+                      .addFilter(new LineBasedAllowFilter(allowList, ruleMetrics));
+                }
+              });
     }
   }
 
@@ -263,17 +263,17 @@ public abstract class AbstractAgent {
           logger.info("Reading line-by-line points from STDIN");
           interactiveTester =
               new InteractivePreprocessorTester(
-                  preprocessors.get(proxyConfig.getTestPreprocessorForPort()),
+                  preprocessors.get(Integer.parseInt(proxyConfig.getTestPreprocessorForPort())),
                   ReportableEntityType.POINT,
-                  proxyConfig.getTestPreprocessorForPort(),
+                  Integer.parseInt(proxyConfig.getTestPreprocessorForPort()),
                   proxyConfig.getCustomSourceTags());
         } else if (proxyConfig.getTestSpanPreprocessorForPort() != null) {
           logger.info("Reading line-by-line spans from STDIN");
           interactiveTester =
               new InteractivePreprocessorTester(
-                  preprocessors.get(String.valueOf(proxyConfig.getTestPreprocessorForPort())),
+                  preprocessors.get(Integer.parseInt(proxyConfig.getTestPreprocessorForPort())),
                   ReportableEntityType.TRACE,
-                  proxyConfig.getTestPreprocessorForPort(),
+                  Integer.parseInt(proxyConfig.getTestPreprocessorForPort()),
                   proxyConfig.getCustomSourceTags());
         } else {
           throw new IllegalStateException();
@@ -411,13 +411,6 @@ public abstract class AbstractAgent {
 
   /** Stops all listeners before terminating the process. */
   protected abstract void stopListeners();
-
-  /**
-   * Shut down specific listener pipeline.
-   *
-   * @param port port number.
-   */
-  protected abstract void stopListener(int port);
 
   protected abstract void truncateBacklog();
 }

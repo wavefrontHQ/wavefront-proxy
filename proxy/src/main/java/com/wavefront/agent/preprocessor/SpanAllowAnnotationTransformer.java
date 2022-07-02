@@ -39,29 +39,6 @@ public class SpanAllowAnnotationTransformer implements Function<Span, Span> {
     this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
-  @Nullable
-  @Override
-  public Span apply(@Nullable Span span) {
-    if (span == null) return null;
-    long startNanos = ruleMetrics.ruleStart();
-    try {
-      if (!v2Predicate.test(span)) return span;
-
-      List<Annotation> annotations =
-          span.getAnnotations().stream()
-              .filter(x -> allowedKeys.containsKey(x.getKey()))
-              .filter(x -> isPatternNullOrMatches(allowedKeys.get(x.getKey()), x.getValue()))
-              .collect(Collectors.toList());
-      if (annotations.size() < span.getAnnotations().size()) {
-        span.setAnnotations(annotations);
-        ruleMetrics.incrementRuleAppliedCounter();
-      }
-      return span;
-    } finally {
-      ruleMetrics.ruleEnd(startNanos);
-    }
-  }
-
   private static boolean isPatternNullOrMatches(@Nullable Pattern pattern, String string) {
     return pattern == null || pattern.matcher(string).matches();
   }
@@ -90,5 +67,28 @@ public class SpanAllowAnnotationTransformer implements Function<Span, Span> {
       return new SpanAllowAnnotationTransformer(map, null, ruleMetrics);
     }
     throw new IllegalArgumentException("[allow] is not a list or a map");
+  }
+
+  @Nullable
+  @Override
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
+    long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(span)) return span;
+
+      List<Annotation> annotations =
+          span.getAnnotations().stream()
+              .filter(x -> allowedKeys.containsKey(x.getKey()))
+              .filter(x -> isPatternNullOrMatches(allowedKeys.get(x.getKey()), x.getValue()))
+              .collect(Collectors.toList());
+      if (annotations.size() < span.getAnnotations().size()) {
+        span.setAnnotations(annotations);
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
+    }
   }
 }

@@ -29,10 +29,10 @@ public class LogsIngestionConfigManager {
       Metrics.newCounter(new MetricName("logsharvesting", "", "config-reloads.successful"));
   private static final Counter failedConfigReloads =
       Metrics.newCounter(new MetricName("logsharvesting", "", "config-reloads.failed"));
-  private LogsIngestionConfig lastParsedConfig;
   // The only key in this cache is "true". Basically we want the cache expiry and reloading logic.
   private final LoadingCache<Boolean, LogsIngestionConfig> logsIngestionConfigLoadingCache;
   private final Consumer<MetricMatcher> removalListener;
+  private LogsIngestionConfig lastParsedConfig;
 
   public LogsIngestionConfigManager(
       Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,

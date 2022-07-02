@@ -34,29 +34,6 @@ public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportL
     this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
-  @Nullable
-  @Override
-  public ReportLog apply(@Nullable ReportLog reportLog) {
-    if (reportLog == null) return null;
-    long startNanos = ruleMetrics.ruleStart();
-    try {
-      if (!v2Predicate.test(reportLog)) return reportLog;
-
-      List<Annotation> annotations =
-          reportLog.getAnnotations().stream()
-              .filter(x -> allowedTags.containsKey(x.getKey()))
-              .filter(x -> isPatternNullOrMatches(allowedTags.get(x.getKey()), x.getValue()))
-              .collect(Collectors.toList());
-      if (annotations.size() < reportLog.getAnnotations().size()) {
-        reportLog.setAnnotations(annotations);
-        ruleMetrics.incrementRuleAppliedCounter();
-      }
-      return reportLog;
-    } finally {
-      ruleMetrics.ruleEnd(startNanos);
-    }
-  }
-
   private static boolean isPatternNullOrMatches(@Nullable Pattern pattern, String string) {
     return pattern == null || pattern.matcher(string).matches();
   }
@@ -84,5 +61,28 @@ public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportL
       return new ReportLogAllowTagTransformer(map, null, ruleMetrics);
     }
     throw new IllegalArgumentException("[allow] is not a list or a map");
+  }
+
+  @Nullable
+  @Override
+  public ReportLog apply(@Nullable ReportLog reportLog) {
+    if (reportLog == null) return null;
+    long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportLog)) return reportLog;
+
+      List<Annotation> annotations =
+          reportLog.getAnnotations().stream()
+              .filter(x -> allowedTags.containsKey(x.getKey()))
+              .filter(x -> isPatternNullOrMatches(allowedTags.get(x.getKey()), x.getValue()))
+              .collect(Collectors.toList());
+      if (annotations.size() < reportLog.getAnnotations().size()) {
+        reportLog.setAnnotations(annotations);
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return reportLog;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
+    }
   }
 }

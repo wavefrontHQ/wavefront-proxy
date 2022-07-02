@@ -25,13 +25,13 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AbstractHttpOnlyHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final String handle) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+      @Nullable final int port) {
+    super(tokenAuthenticator, healthCheckManager, port);
   }
 
   protected abstract void handleHttpMessage(
@@ -42,6 +42,6 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
   protected void handlePlainTextMessage(
       final ChannelHandlerContext ctx, @Nonnull final String message) {
     pointsDiscarded.get().inc();
-    logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
+    logger.warning("Input discarded: plaintext protocol is not supported on port " + port);
   }
 }

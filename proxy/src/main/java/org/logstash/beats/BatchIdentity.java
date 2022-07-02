@@ -29,43 +29,6 @@ public class BatchIdentity {
     this.logFileOffset = logFileOffset;
   }
 
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    BatchIdentity that = (BatchIdentity) o;
-    return this.highestSequence == that.highestSequence
-        && this.size == that.size
-        && Objects.equals(this.timestampStr, that.timestampStr)
-        && Objects.equals(this.logFile, that.logFile)
-        && Objects.equals(this.logFileOffset, that.logFileOffset);
-  }
-
-  @Override
-  public int hashCode() {
-    int result = timestampStr != null ? timestampStr.hashCode() : 0;
-    result = 31 * result + highestSequence;
-    result = 31 * result + size;
-    result = 31 * result + (logFile != null ? logFile.hashCode() : 0);
-    result = 31 * result + (logFileOffset != null ? logFileOffset.hashCode() : 0);
-    return result;
-  }
-
-  @Override
-  public String toString() {
-    return "BatchIdentity{timestampStr="
-        + timestampStr
-        + ", highestSequence="
-        + highestSequence
-        + ", size="
-        + size
-        + ", logFile="
-        + logFile
-        + ", logFileOffset="
-        + logFileOffset
-        + "}";
-  }
-
   @Nullable
   public static BatchIdentity valueFrom(Message message) {
     Map messageData = message.getData();
@@ -106,5 +69,42 @@ public class BatchIdentity {
       }
     }
     return null;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    BatchIdentity that = (BatchIdentity) o;
+    return this.highestSequence == that.highestSequence
+        && this.size == that.size
+        && Objects.equals(this.timestampStr, that.timestampStr)
+        && Objects.equals(this.logFile, that.logFile)
+        && Objects.equals(this.logFileOffset, that.logFileOffset);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = timestampStr != null ? timestampStr.hashCode() : 0;
+    result = 31 * result + highestSequence;
+    result = 31 * result + size;
+    result = 31 * result + (logFile != null ? logFile.hashCode() : 0);
+    result = 31 * result + (logFileOffset != null ? logFileOffset.hashCode() : 0);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "BatchIdentity{timestampStr="
+        + timestampStr
+        + ", highestSequence="
+        + highestSequence
+        + ", size="
+        + size
+        + ", logFile="
+        + logFile
+        + ", logFileOffset="
+        + logFileOffset
+        + "}";
   }
 }

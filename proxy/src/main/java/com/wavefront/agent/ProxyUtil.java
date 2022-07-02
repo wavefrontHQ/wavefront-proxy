@@ -152,17 +152,19 @@ abstract class ProxyUtil {
       int port,
       int idleTimeout,
       @Nullable SslContext sslContext) {
-    String strPort = String.valueOf(port);
     ChannelHandler idleStateEventHandler =
         new IdleStateEventHandler(
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
+                new TaggedMetricName(
+                    "listeners", "connections.idle.closed", "port", String.valueOf(port))));
     ChannelHandler connectionTracker =
         new ConnectionTrackingHandler(
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.accepted", "port", strPort)),
+                new TaggedMetricName(
+                    "listeners", "connections.accepted", "port", String.valueOf(port))),
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.active", "port", strPort)));
+                new TaggedMetricName(
+                    "listeners", "connections.active", "port", String.valueOf(port))));
     if (sslContext != null) {
       logger.info("TLS enabled on port: " + port);
     }

@@ -5,7 +5,7 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import io.netty.channel.ChannelHandlerContext;

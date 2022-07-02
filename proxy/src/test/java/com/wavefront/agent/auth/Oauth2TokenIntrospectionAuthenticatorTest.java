@@ -3,9 +3,7 @@ package com.wavefront.agent.auth;
 import static com.wavefront.agent.HttpEndToEndTest.HTTP_timeout_tests;
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.agent.TestUtils.httpEq;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.TestUtils;

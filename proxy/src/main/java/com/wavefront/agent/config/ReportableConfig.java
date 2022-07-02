@@ -30,6 +30,32 @@ public class ReportableConfig {
 
   public ReportableConfig() {}
 
+  public static void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
+    reportGauge(numberSupplier, new MetricName("config", "", key));
+  }
+
+  public static void reportGauge(Supplier<Number> numberSupplier, MetricName metricName) {
+    Metrics.newGauge(
+        metricName,
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return numberSupplier.get().doubleValue();
+          }
+        });
+  }
+
+  public static void reportGauge(Number number, MetricName metricName) {
+    Metrics.newGauge(
+        metricName,
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return number.doubleValue();
+          }
+        });
+  }
+
   /** Returns string value for the property without tracking it as a metric */
   public String getRawProperty(String key, String defaultValue) {
     return prop.getProperty(key, defaultValue);
@@ -120,31 +146,5 @@ public class ReportableConfig {
 
   public Boolean isDefined(String key) {
     return prop.getProperty(key) != null;
-  }
-
-  public static void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
-    reportGauge(numberSupplier, new MetricName("config", "", key));
-  }
-
-  public static void reportGauge(Supplier<Number> numberSupplier, MetricName metricName) {
-    Metrics.newGauge(
-        metricName,
-        new Gauge<Double>() {
-          @Override
-          public Double value() {
-            return numberSupplier.get().doubleValue();
-          }
-        });
-  }
-
-  public static void reportGauge(Number number, MetricName metricName) {
-    Metrics.newGauge(
-        metricName,
-        new Gauge<Double>() {
-          @Override
-          public Double value() {
-            return number.doubleValue();
-          }
-        });
   }
 }

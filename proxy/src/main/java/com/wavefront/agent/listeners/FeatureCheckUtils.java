@@ -15,9 +15,6 @@ import org.apache.commons.lang3.StringUtils;
  * @author vasily@wavefront.com
  */
 public abstract class FeatureCheckUtils {
-  private static final Logger logger = Logger.getLogger(FeatureCheckUtils.class.getCanonicalName());
-
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
   public static final String HISTO_DISABLED =
       "Ingested point discarded because histogram "
           + "feature has not been enabled for your account";
@@ -29,6 +26,8 @@ public abstract class FeatureCheckUtils {
           + "this feature has not been enabled for your account.";
   public static final String LOGS_DISABLED =
       "Ingested logs discarded because " + "this feature has not been enabled for your account.";
+  private static final Logger logger = Logger.getLogger(FeatureCheckUtils.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
 
   /**
    * Check whether feature disabled flag is set, log a warning message, increment the counter by 1.

@@ -25,13 +25,10 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
       Logger.getLogger(TokenIntrospectionAuthenticator.class.getCanonicalName());
 
   private final long authResponseMaxTtlMillis;
-
-  private volatile Long lastSuccessfulCallTs = null;
-
   private final Counter serviceCalls = Metrics.newCounter(new MetricName("auth", "", "api-calls"));
   private final Counter errorCount = Metrics.newCounter(new MetricName("auth", "", "api-errors"));
-
   private final LoadingCache<String, Boolean> tokenValidityCache;
+  private volatile Long lastSuccessfulCallTs = null;
 
   TokenIntrospectionAuthenticator(
       int authResponseRefreshInterval,

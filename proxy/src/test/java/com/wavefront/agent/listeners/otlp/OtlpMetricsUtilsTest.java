@@ -1,12 +1,7 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.*;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
@@ -16,17 +11,7 @@ import com.wavefront.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
-import io.opentelemetry.proto.metrics.v1.ExponentialHistogram;
-import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
-import io.opentelemetry.proto.metrics.v1.Gauge;
-import io.opentelemetry.proto.metrics.v1.Histogram;
-import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
-import io.opentelemetry.proto.metrics.v1.Metric;
-import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
-import io.opentelemetry.proto.metrics.v1.Sum;
-import io.opentelemetry.proto.metrics.v1.Summary;
-import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
+import io.opentelemetry.proto.metrics.v1.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

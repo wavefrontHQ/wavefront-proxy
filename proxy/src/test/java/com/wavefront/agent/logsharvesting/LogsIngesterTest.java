@@ -17,9 +17,9 @@ import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.data.ReportableEntityType;
@@ -73,13 +73,14 @@ public class LogsIngesterTest {
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
     expect(
             (ReportableEntityHandler)
-                mockFactory.getHandler(new HandlerKey(ReportableEntityType.POINT, "logs-ingester")))
+                mockFactory.getHandler(
+                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.POINT)))
         .andReturn(mockPointHandler)
         .anyTimes();
     expect(
             (ReportableEntityHandler)
                 mockFactory.getHandler(
-                    new HandlerKey(ReportableEntityType.HISTOGRAM, "logs-ingester")))
+                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)))
         .andReturn(mockHistogramHandler)
         .anyTimes();
     replay(mockFactory);
@@ -89,7 +90,7 @@ public class LogsIngesterTest {
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
     rawLogsIngesterUnderTest =
         new RawLogsIngesterPortUnificationHandler(
-            "12345",
+            12345,
             logsIngesterUnderTest,
             x -> "testHost",
             TokenAuthenticatorBuilder.create().build(),

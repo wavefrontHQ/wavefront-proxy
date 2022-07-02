@@ -2,13 +2,7 @@ package com.wavefront.agent.listeners.tracing;
 
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.*;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,9 +10,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.data.ReportableEntityType;
@@ -58,7 +52,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
   private final String proxyLevelServiceName;
 
   /**
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param traceDecoder trace decoders.
@@ -72,7 +66,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
    * @param traceDerivedCustomTagKeys custom tags added to derived RED metrics.
    */
   public CustomTracingPortUnificationHandler(
-      String handle,
+      int port,
       TokenAuthenticator tokenAuthenticator,
       HealthCheckManager healthCheckManager,
       ReportableEntityDecoder<String, Span> traceDecoder,
@@ -88,14 +82,15 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       @Nullable String customTracingApplicationName,
       @Nullable String customTracingServiceName) {
     this(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(new HandlerKey(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         sampler,
         traceDisabled,
         spanLogsDisabled,
@@ -108,7 +103,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
 
   @VisibleForTesting
   public CustomTracingPortUnificationHandler(
-      String handle,
+      int port,
       TokenAuthenticator tokenAuthenticator,
       HealthCheckManager healthCheckManager,
       ReportableEntityDecoder<String, Span> traceDecoder,
@@ -125,7 +120,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       @Nullable String customTracingApplicationName,
       @Nullable String customTracingServiceName) {
     super(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
         traceDecoder,

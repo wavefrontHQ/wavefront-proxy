@@ -3,22 +3,12 @@ package com.wavefront.agent.listeners.otlp;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
-import static com.wavefront.sdk.common.Constants.SPAN_LOG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.*;
+import static com.wavefront.sdk.common.Constants.*;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -35,17 +25,7 @@ import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span.SpanKind;
 import io.opentelemetry.proto.trace.v1.Status;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -85,24 +65,6 @@ public class OtlpTraceUtils {
           put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
         }
       };
-
-  static class WavefrontSpanAndLogs {
-    Span span;
-    SpanLogs spanLogs;
-
-    public WavefrontSpanAndLogs(Span span, SpanLogs spanLogs) {
-      this.span = span;
-      this.spanLogs = spanLogs;
-    }
-
-    public Span getSpan() {
-      return span;
-    }
-
-    public SpanLogs getSpanLogs() {
-      return spanLogs;
-    }
-  }
 
   public static void exportToWavefront(
       ExportTraceServiceRequest request,
@@ -532,5 +494,23 @@ public class OtlpTraceUtils {
       return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
     }
     return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
+  }
+
+  static class WavefrontSpanAndLogs {
+    Span span;
+    SpanLogs spanLogs;
+
+    public WavefrontSpanAndLogs(Span span, SpanLogs spanLogs) {
+      this.span = span;
+      this.spanLogs = spanLogs;
+    }
+
+    public Span getSpan() {
+      return span;
+    }
+
+    public SpanLogs getSpanLogs() {
+      return spanLogs;
+    }
   }
 }

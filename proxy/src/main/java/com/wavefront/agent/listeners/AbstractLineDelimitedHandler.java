@@ -36,13 +36,13 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AbstractLineDelimitedHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final String handle) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+      @Nullable final int port) {
+    super(tokenAuthenticator, healthCheckManager, port);
   }
 
   /** Handles an incoming HTTP message. Accepts HTTP POST on all paths */

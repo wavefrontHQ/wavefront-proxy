@@ -24,46 +24,6 @@ public class GZIPEncodingInterceptorWithVariableCompression implements WriterInt
     this.level = level;
   }
 
-  public static class EndableGZIPOutputStream extends GZIPOutputStream {
-    public EndableGZIPOutputStream(final OutputStream os, int level) throws IOException {
-      super(os);
-      this.def.setLevel(level);
-    }
-
-    @Override
-    public void finish() throws IOException {
-      super.finish();
-      def.end();
-    }
-  }
-
-  public static class CommittedGZIPOutputStream extends CommitHeaderOutputStream {
-    private final int level;
-
-    protected CommittedGZIPOutputStream(final OutputStream delegate, int level) {
-      super(delegate, null);
-      this.level = level;
-    }
-
-    protected GZIPOutputStream gzip;
-
-    public GZIPOutputStream getGzip() {
-      return gzip;
-    }
-
-    @Override
-    public synchronized void commit() {
-      if (isHeadersCommitted) return;
-      isHeadersCommitted = true;
-      try {
-        gzip = new EndableGZIPOutputStream(delegate, level);
-        delegate = gzip;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-
   @Override
   public void aroundWriteTo(WriterInterceptorContext context)
       throws IOException, WebApplicationException {
@@ -81,6 +41,45 @@ public class GZIPEncodingInterceptorWithVariableCompression implements WriterInt
       }
     } else {
       context.proceed();
+    }
+  }
+
+  public static class EndableGZIPOutputStream extends GZIPOutputStream {
+    public EndableGZIPOutputStream(final OutputStream os, int level) throws IOException {
+      super(os);
+      this.def.setLevel(level);
+    }
+
+    @Override
+    public void finish() throws IOException {
+      super.finish();
+      def.end();
+    }
+  }
+
+  public static class CommittedGZIPOutputStream extends CommitHeaderOutputStream {
+    private final int level;
+    protected GZIPOutputStream gzip;
+
+    protected CommittedGZIPOutputStream(final OutputStream delegate, int level) {
+      super(delegate, null);
+      this.level = level;
+    }
+
+    public GZIPOutputStream getGzip() {
+      return gzip;
+    }
+
+    @Override
+    public synchronized void commit() {
+      if (isHeadersCommitted) return;
+      isHeadersCommitted = true;
+      try {
+        gzip = new EndableGZIPOutputStream(delegate, level);
+        delegate = gzip;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

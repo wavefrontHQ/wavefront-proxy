@@ -4,11 +4,7 @@ import com.google.common.base.Preconditions;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import net.jafama.FastMath;
@@ -59,53 +55,40 @@ import wavefront.report.HistogramType;
  */
 public class AgentDigest extends AbstractTDigest {
 
+  /** Comprises of the dispatch-time (8 bytes) + compression (2 bytes) */
+  private static final int FIXED_SIZE = 8 + 2;
+  /** Weight, mean float pair */
+  private static final int PER_CENTROID_SIZE = 8;
+
   private final short compression;
+  private final double[] tempWeight;
+  private final double[] tempMean;
+  // array used for sorting the temp centroids.  This is a field
+  // to avoid allocations during operation
+  private final int[] order;
   // points to the centroid that is currently being merged
   // if weight[lastUsedCell] == 0, then this is the number of centroids
   // else the number is lastUsedCell+1
   private int lastUsedCell;
-
   // sum_i weight[i]  See also unmergedWeight
   private double totalWeight = 0;
-
   // number of points that have been added to each merged centroid
   private double[] weight;
   // mean of points added to each merged centroid
   private double[] mean;
-
   // history of all data added to centroids (for testing purposes)
   private List<List<Double>> data = null;
-
   // buffers for merging
   private double[] mergeWeight;
   private double[] mergeMean;
   private List<List<Double>> mergeData = null;
-
   // sum_i tempWeight[i]
   private double unmergedWeight = 0;
-
   // this is the index of the next temporary centroid
   // this is a more Java-like convention than lastUsedCell uses
   private int tempUsed = 0;
-  private final double[] tempWeight;
-  private final double[] tempMean;
   private List<List<Double>> tempData = null;
-
-  // array used for sorting the temp centroids.  This is a field
-  // to avoid allocations during operation
-  private final int[] order;
-
   private long dispatchTimeMillis;
-
-  // should only need ceiling(compression * PI / 2).  Double the allocation for now for safety
-  private static int defaultSizeForCompression(short compression) {
-    return (int) (Math.PI * compression + 0.5);
-  }
-
-  // magic formula created by regressing against known sizes for sample compression values
-  private static int bufferSizeForCompression(short compression) {
-    return (int) (7.5 + 0.37 * compression - 2e-4 * compression * compression);
-  }
 
   public AgentDigest(short compression, long dispatchTimeMillis) {
     Preconditions.checkArgument(compression >= 20D);
@@ -125,6 +108,16 @@ public class AgentDigest extends AbstractTDigest {
 
     lastUsedCell = 0;
     this.dispatchTimeMillis = dispatchTimeMillis;
+  }
+
+  // should only need ceiling(compression * PI / 2).  Double the allocation for now for safety
+  private static int defaultSizeForCompression(short compression) {
+    return (int) (Math.PI * compression + 0.5);
+  }
+
+  // magic formula created by regressing against known sizes for sample compression values
+  private static int bufferSizeForCompression(short compression) {
+    return (int) (7.5 + 0.37 * compression - 2e-4 * compression * compression);
   }
 
   /** Turns on internal data recording. */
@@ -419,13 +412,23 @@ public class AgentDigest extends AbstractTDigest {
         .build();
   }
 
-  /** Comprises of the dispatch-time (8 bytes) + compression (2 bytes) */
-  private static final int FIXED_SIZE = 8 + 2;
-  /** Weight, mean float pair */
-  private static final int PER_CENTROID_SIZE = 8;
-
   private int encodedSize() {
     return FIXED_SIZE + centroidCount() * PER_CENTROID_SIZE;
+  }
+
+  @Override
+  public void asBytes(ByteBuffer buf) {
+    // Ignore
+  }
+
+  @Override
+  public void asSmallBytes(ByteBuffer buf) {
+    // Ignore
+  }
+
+  /** Time at which this digest should be dispatched to wavefront. */
+  public long getDispatchTimeMillis() {
+    return dispatchTimeMillis;
   }
 
   /** Stateless AgentDigest codec for chronicle maps */
@@ -515,20 +518,5 @@ public class AgentDigest extends AbstractTDigest {
     public void writeMarshallable(@Nonnull WireOut wire) {
       // ignore
     }
-  }
-
-  @Override
-  public void asBytes(ByteBuffer buf) {
-    // Ignore
-  }
-
-  @Override
-  public void asSmallBytes(ByteBuffer buf) {
-    // Ignore
-  }
-
-  /** Time at which this digest should be dispatched to wavefront. */
-  public long getDispatchTimeMillis() {
-    return dispatchTimeMillis;
   }
 }

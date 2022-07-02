@@ -2,10 +2,10 @@ package com.wavefront.agent.data;
 
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
@@ -19,8 +19,8 @@ import wavefront.report.SourceTagAction;
 /** @author vasily@wavefront.com */
 public class SourceTagSubmissionTaskTest {
 
-  private SourceTagAPI sourceTagAPI = EasyMock.createMock(SourceTagAPI.class);
   private final EntityProperties props = new DefaultEntityPropertiesForTesting();
+  private SourceTagAPI sourceTagAPI = EasyMock.createMock(SourceTagAPI.class);
 
   @Test
   public void test200() {
@@ -40,21 +40,21 @@ public class SourceTagSubmissionTaskTest {
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(200).build()).once();
@@ -83,21 +83,21 @@ public class SourceTagSubmissionTaskTest {
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(404).build()).once();
@@ -128,21 +128,21 @@ public class SourceTagSubmissionTaskTest {
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceDescDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task2 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagDelete),
             System::currentTimeMillis);
     SourceTagSubmissionTask task3 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
             props,
-            new HandlerKey(ReportableEntityType.SOURCE_TAG, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG),
             new SourceTag(sourceTagAdd),
             System::currentTimeMillis);
     expect(sourceTagAPI.removeDescription("dummy")).andReturn(Response.status(500).build()).once();

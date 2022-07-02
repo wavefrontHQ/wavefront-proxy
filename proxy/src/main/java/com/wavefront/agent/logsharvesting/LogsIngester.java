@@ -5,7 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Metric;
@@ -28,9 +28,9 @@ import wavefront.report.TimeSeries;
 public class LogsIngester {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
   private static final ReadProcessor readProcessor = new ReadProcessor();
-  private final FlushProcessor flushProcessor;
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting final LogsIngestionConfigManager logsIngestionConfigManager;
+  private final FlushProcessor flushProcessor;
   private final Counter unparsed, parsed;
   private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;

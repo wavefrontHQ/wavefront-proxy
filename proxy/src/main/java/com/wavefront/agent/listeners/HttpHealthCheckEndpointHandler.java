@@ -20,7 +20,7 @@ public class HttpHealthCheckEndpointHandler extends AbstractHttpOnlyHandler {
 
   public HttpHealthCheckEndpointHandler(
       @Nullable final HealthCheckManager healthCheckManager, int port) {
-    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, String.valueOf(port));
+    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, port);
   }
 
   @Override

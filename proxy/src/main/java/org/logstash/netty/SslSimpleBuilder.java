@@ -20,19 +20,6 @@ import org.apache.logging.log4j.Logger;
 /** Created by ph on 2016-05-27. */
 public class SslSimpleBuilder {
 
-  public static enum SslClientVerifyMode {
-    VERIFY_PEER,
-    FORCE_PEER,
-  }
-
-  private static final Logger logger = LogManager.getLogger(SslSimpleBuilder.class);
-
-  private File sslKeyFile;
-  private File sslCertificateFile;
-  private SslClientVerifyMode verifyMode = SslClientVerifyMode.FORCE_PEER;
-
-  private long handshakeTimeoutMilliseconds = 10000;
-
   /*
   Mordern Ciphers List from
   https://wiki.mozilla.org/Security/Server_Side_TLS
@@ -49,7 +36,13 @@ public class SslSimpleBuilder {
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
         "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
       };
+  private static final Logger logger = LogManager.getLogger(SslSimpleBuilder.class);
 
+  private File sslKeyFile;
+  private File sslCertificateFile;
+  private SslClientVerifyMode verifyMode = SslClientVerifyMode.FORCE_PEER;
+
+  private long handshakeTimeoutMilliseconds = 10000;
   private String[] ciphers = DEFAULT_CIPHERS;
   private String[] protocols = new String[] {"TLSv1.2"};
   private String[] certificateAuthorities;
@@ -61,11 +54,6 @@ public class SslSimpleBuilder {
     sslKeyFile = new File(sslKeyFilePath);
     passPhrase = pass;
     ciphers = DEFAULT_CIPHERS;
-  }
-
-  public SslSimpleBuilder setProtocols(String[] protocols) {
-    this.protocols = protocols;
-    return this;
   }
 
   public SslSimpleBuilder setCipherSuites(String[] ciphersSuite) throws IllegalArgumentException {
@@ -189,5 +177,15 @@ public class SslSimpleBuilder {
    */
   String[] getProtocols() {
     return protocols.clone();
+  }
+
+  public SslSimpleBuilder setProtocols(String[] protocols) {
+    this.protocols = protocols;
+    return this;
+  }
+
+  public static enum SslClientVerifyMode {
+    VERIFY_PEER,
+    FORCE_PEER,
   }
 }

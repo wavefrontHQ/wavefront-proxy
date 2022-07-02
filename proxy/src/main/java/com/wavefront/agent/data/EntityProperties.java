@@ -153,6 +153,5 @@ public interface EntityProperties {
    */
   long getTotalReceivedRate();
 
-  /** Updates received rate for specific port. */
   void reportReceivedRate(String handle, long receivedRate);
 }

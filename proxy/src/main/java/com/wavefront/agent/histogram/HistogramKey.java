@@ -42,12 +42,24 @@ public class HistogramKey {
     return granularityOrdinal;
   }
 
+  void setGranularityOrdinal(byte granularityOrdinal) {
+    this.granularityOrdinal = granularityOrdinal;
+  }
+
   public int getBinId() {
     return binId;
   }
 
+  void setBinId(int binId) {
+    this.binId = binId;
+  }
+
   public String getMetric() {
     return metric;
+  }
+
+  void setMetric(String metric) {
+    this.metric = metric;
   }
 
   @Nullable
@@ -55,9 +67,17 @@ public class HistogramKey {
     return source;
   }
 
+  void setSource(@Nullable String source) {
+    this.source = source;
+  }
+
   @Nullable
   public String[] getTags() {
     return tags;
+  }
+
+  void setTags(@Nullable String[] tags) {
+    this.tags = tags;
   }
 
   @Override
@@ -119,25 +139,5 @@ public class HistogramKey {
 
   public long getBinDurationInMillis() {
     return Granularity.values()[granularityOrdinal].getInMillis();
-  }
-
-  void setGranularityOrdinal(byte granularityOrdinal) {
-    this.granularityOrdinal = granularityOrdinal;
-  }
-
-  void setBinId(int binId) {
-    this.binId = binId;
-  }
-
-  void setMetric(String metric) {
-    this.metric = metric;
-  }
-
-  void setSource(@Nullable String source) {
-    this.source = source;
-  }
-
-  void setTags(@Nullable String[] tags) {
-    this.tags = tags;
   }
 }

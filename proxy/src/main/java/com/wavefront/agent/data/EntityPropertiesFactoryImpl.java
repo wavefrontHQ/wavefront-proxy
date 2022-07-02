@@ -56,7 +56,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   /** Common base for all wrappers (to avoid code duplication) */
   private abstract static class AbstractEntityProperties implements EntityProperties {
-    private Integer dataPerBatch = null;
     protected final ProxyConfig wrapped;
     private final RecyclableRateLimiter rateLimiter;
     private final LoadingCache<String, AtomicInteger> backlogSizeCache =
@@ -65,6 +64,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
             .build(x -> new AtomicInteger());
     private final LoadingCache<String, AtomicLong> receivedRateCache =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
+    private Integer dataPerBatch = null;
 
     public AbstractEntityProperties(ProxyConfig wrapped) {
       this.wrapped = wrapped;
@@ -145,6 +145,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       return receivedRateCache.asMap().values().stream().mapToLong(AtomicLong::get).sum();
     }
 
+    // TODO: review
     @Override
     public void reportReceivedRate(String handle, long receivedRate) {
       receivedRateCache.get(handle).set(receivedRate);

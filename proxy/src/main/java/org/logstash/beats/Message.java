@@ -9,14 +9,13 @@ import java.io.InputStream;
 import java.util.Map;
 
 public class Message implements Comparable<Message> {
+  public static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new AfterburnerModule());
   private final int sequence;
   private String identityStream;
   private Map data;
   private Batch batch;
   private ByteBuf buffer;
-
-  public static final ObjectMapper MAPPER =
-      new ObjectMapper().registerModule(new AfterburnerModule());
 
   /**
    * Create a message using a map of key, value pairs

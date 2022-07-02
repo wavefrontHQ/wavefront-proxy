@@ -1,22 +1,6 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_EVENTS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_INTERVAL;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_EVENTS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-import static com.wavefront.agent.data.EntityProperties.MAX_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
-import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT_BYTES;
+import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static io.opentracing.tag.Tags.SPAN_KIND;
@@ -38,13 +22,7 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
 
@@ -58,6 +36,53 @@ public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+
+  @Parameter(
+      names = {"--privateCertPath"},
+      description =
+          "TLS certificate path to use for securing all the ports. "
+              + "X.509 certificate chain file in PEM format.")
+  protected String privateCertPath = "";
+
+  @Parameter(
+      names = {"--privateKeyPath"},
+      description =
+          "TLS private key path to use for securing all the ports. "
+              + "PKCS#8 private key file in PEM format.")
+  protected String privateKeyPath = "";
+
+  @Parameter(
+      names = {"--tlsPorts"},
+      description =
+          "Comma-separated list of ports to be secured using TLS. "
+              + "All ports will be secured when * specified.")
+  protected String tlsPorts = "";
+
+  @Parameter(
+      names = {"--corsEnabledPorts"},
+      description =
+          "Enables CORS for specified "
+              + "comma-delimited list of listening ports. Default: none (CORS disabled)")
+  protected String corsEnabledPorts = "";
+
+  @Parameter(
+      names = {"--corsOrigin"},
+      description =
+          "Allowed origin for CORS requests, " + "or '*' to allow everything. Default: none")
+  protected String corsOrigin = "";
+
+  @Parameter(
+      names = {"--corsAllowNullOrigin"},
+      description = "Allow 'null' origin for CORS " + "requests. Default: false")
+  protected boolean corsAllowNullOrigin = false;
+
+  @Parameter(
+      names = {"--multicastingTenants"},
+      description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
+  protected int multicastingTenants = 0;
+  // the multicasting tenant list is parsed separately
+  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
+  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   @Parameter(
       names = {"--help"},
@@ -326,7 +351,6 @@ public class ProxyConfig extends Configuration {
           "Max number of burst seconds to allow "
               + "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
   Integer pushRateLimitMaxBurstSeconds = 10;
-
   // TODO: make it in bytes
   @Parameter(
       names = {"--pushMemoryBufferLimit"},
@@ -758,7 +782,6 @@ public class ProxyConfig extends Configuration {
       arity = 1,
       description = "If true, includes OTLP resource attributes on metrics (Default: false)")
   boolean otlpResourceAttrsOnMetricsIncluded = false;
-
   // logs ingestion
   @Parameter(
       names = {"--filebeatPort"},
@@ -1223,68 +1246,6 @@ public class ProxyConfig extends Configuration {
   String deltaCountersAggregationListenerPorts = "";
 
   @Parameter(
-      names = {"--privateCertPath"},
-      description =
-          "TLS certificate path to use for securing all the ports. "
-              + "X.509 certificate chain file in PEM format.")
-  protected String privateCertPath = "";
-
-  @Parameter(
-      names = {"--privateKeyPath"},
-      description =
-          "TLS private key path to use for securing all the ports. "
-              + "PKCS#8 private key file in PEM format.")
-  protected String privateKeyPath = "";
-
-  @Parameter(
-      names = {"--tlsPorts"},
-      description =
-          "Comma-separated list of ports to be secured using TLS. "
-              + "All ports will be secured when * specified.")
-  protected String tlsPorts = "";
-
-  @Parameter(
-      names = {"--trafficShaping"},
-      description =
-          "Enables intelligent traffic shaping "
-              + "based on received rate over last 5 minutes. Default: disabled",
-      arity = 1)
-  protected boolean trafficShaping = false;
-
-  @Parameter(
-      names = {"--trafficShapingWindowSeconds"},
-      description =
-          "Sets the width "
-              + "(in seconds) for the sliding time window which would be used to calculate received "
-              + "traffic rate. Default: 600 (10 minutes)")
-  protected Integer trafficShapingWindowSeconds = 600;
-
-  @Parameter(
-      names = {"--trafficShapingHeadroom"},
-      description =
-          "Sets the headroom multiplier "
-              + " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
-  protected double trafficShapingHeadroom = 1.15;
-
-  @Parameter(
-      names = {"--corsEnabledPorts"},
-      description =
-          "Enables CORS for specified "
-              + "comma-delimited list of listening ports. Default: none (CORS disabled)")
-  protected String corsEnabledPorts = "";
-
-  @Parameter(
-      names = {"--corsOrigin"},
-      description =
-          "Allowed origin for CORS requests, " + "or '*' to allow everything. Default: none")
-  protected String corsOrigin = "";
-
-  @Parameter(
-      names = {"--corsAllowNullOrigin"},
-      description = "Allow 'null' origin for CORS " + "requests. Default: false")
-  protected boolean corsAllowNullOrigin = false;
-
-  @Parameter(
       names = {"--customTimestampTags"},
       description =
           "Comma separated list of log tag "
@@ -1315,14 +1276,6 @@ public class ProxyConfig extends Configuration {
               + "keys that should be treated as the service in Wavefront in the absence of a tag named "
               + "`service`. Default: none")
   String customServiceTags = "";
-
-  @Parameter(
-      names = {"--multicastingTenants"},
-      description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
-  protected int multicastingTenants = 0;
-  // the multicasting tenant list is parsed separately
-  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
-  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   @Parameter() List<String> unparsed_params;
 
@@ -2172,18 +2125,6 @@ public class ProxyConfig extends Configuration {
     return tlsPorts;
   }
 
-  public boolean isTrafficShaping() {
-    return trafficShaping;
-  }
-
-  public Integer getTrafficShapingWindowSeconds() {
-    return trafficShapingWindowSeconds;
-  }
-
-  public double getTrafficShapingHeadroom() {
-    return trafficShapingHeadroom;
-  }
-
   public int getMulticastingTenants() {
     return multicastingTenants;
   }
@@ -2587,12 +2528,6 @@ public class ProxyConfig extends Configuration {
       privateCertPath = config.getString("privateCertPath", privateCertPath);
       privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
       tlsPorts = config.getString("tlsPorts", tlsPorts);
-
-      // Traffic shaping config
-      trafficShaping = config.getBoolean("trafficShaping", trafficShaping);
-      trafficShapingWindowSeconds =
-          config.getInteger("trafficShapingWindowSeconds", trafficShapingWindowSeconds);
-      trafficShapingHeadroom = config.getDouble("trafficShapingHeadroom", trafficShapingHeadroom);
 
       // CORS configuration
       corsEnabledPorts = config.getString("corsEnabledPorts", corsEnabledPorts);

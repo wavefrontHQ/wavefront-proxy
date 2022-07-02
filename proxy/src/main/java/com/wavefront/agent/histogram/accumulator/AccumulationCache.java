@@ -2,11 +2,7 @@ package com.wavefront.agent.histogram.accumulator;
 
 import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.CacheWriter;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.Ticker;
+import com.github.benmanes.caffeine.cache.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.SharedMetricsRegistry;

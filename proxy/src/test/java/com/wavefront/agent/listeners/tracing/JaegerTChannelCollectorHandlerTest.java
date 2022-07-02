@@ -1,25 +1,18 @@
 package com.wavefront.agent.listeners.tracing;
 
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import static org.easymock.EasyMock.*;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.uber.tchannel.messages.ThriftRequest;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.api.agent.SpanSamplingPolicy;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
-import io.jaegertracing.thriftjava.Batch;
-import io.jaegertracing.thriftjava.Collector;
-import io.jaegertracing.thriftjava.Log;
+import io.jaegertracing.thriftjava.*;
 import io.jaegertracing.thriftjava.Process;
-import io.jaegertracing.thriftjava.Tag;
-import io.jaegertracing.thriftjava.TagType;
 import org.junit.Test;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
@@ -151,7 +144,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -329,7 +322,7 @@ public class JaegerTChannelCollectorHandlerTest {
     // Verify span level "application" tags precedence
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -475,7 +468,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -620,7 +613,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -760,7 +753,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -922,7 +915,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1031,7 +1024,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1129,7 +1122,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1217,7 +1210,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,

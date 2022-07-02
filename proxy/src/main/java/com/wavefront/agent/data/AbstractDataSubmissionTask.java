@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
-import com.wavefront.agent.buffer.QueueInfo;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
@@ -38,7 +37,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       new MessageDedupingLogger(
           Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
 
-  @JsonProperty protected QueueInfo queue;
+  @JsonProperty protected com.wavefront.agent.core.queues.QueueInfo queue;
   @JsonProperty protected Boolean limitRetries = null;
 
   protected transient Supplier<Long> timeProvider;
@@ -52,7 +51,9 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
    * @param timeProvider time provider (in millis)
    */
   AbstractDataSubmissionTask(
-      EntityProperties properties, QueueInfo queue, @Nullable Supplier<Long> timeProvider) {
+      EntityProperties properties,
+      com.wavefront.agent.core.queues.QueueInfo queue,
+      @Nullable Supplier<Long> timeProvider) {
     this.properties = properties;
     this.queue = queue;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
@@ -84,21 +85,21 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     //    }
     TimerContext timer =
         Metrics.newTimer(
-                new MetricName("push." + queue.getQueue(), "", "duration"),
+                new MetricName("push." + queue.getName(), "", "duration"),
                 TimeUnit.MILLISECONDS,
                 TimeUnit.MINUTES)
             .time();
     try (Response response = doExecute()) {
       Metrics.newCounter(
               new TaggedMetricName(
-                  "push", queue.getQueue() + ".http." + response.getStatus() + ".count"))
+                  "push", queue.getName() + ".http." + response.getStatus() + ".count"))
           .inc();
 
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
-        Metrics.newCounter(new MetricName(queue.getQueue(), "", "delivered")).inc(this.weight());
+        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered")).inc(this.weight());
         return 0;
       } else {
-        Metrics.newCounter(new MetricName(queue.getQueue(), "", "failed")).inc(this.weight());
+        Metrics.newCounter(new MetricName(queue.getName(), "", "failed")).inc(this.weight());
         return response.getStatus();
       }
 
@@ -153,9 +154,8 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       // TODO: review this
     } catch (DataSubmissionException ex) {
       if (ex instanceof IgnoreStatusCodeException) {
-        Metrics.newCounter(new TaggedMetricName("push", queue.getQueue() + ".http.404.count"))
-            .inc();
-        Metrics.newCounter(new MetricName(queue.getQueue(), "", "delivered")).inc(this.weight());
+        Metrics.newCounter(new TaggedMetricName("push", queue.getName() + ".http.404.count")).inc();
+        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered")).inc(this.weight());
       }
       throw new RuntimeException("Unhandled DataSubmissionException", ex);
     } catch (ProcessingException ex) {
@@ -163,7 +163,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       if (rootCause instanceof UnknownHostException) {
         log.warning(
             "["
-                + queue.getQueue()
+                + queue.getName()
                 + "] Error sending data to Wavefront: Unknown host "
                 + rootCause.getMessage()
                 + ", please check your network!");
@@ -171,19 +171,19 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           || rootCause instanceof SocketTimeoutException) {
         log.warning(
             "["
-                + queue.getQueue()
+                + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + rootCause.getMessage()
                 + ", please verify your network/HTTP proxy settings!");
       } else if (ex.getCause() instanceof SSLHandshakeException) {
         log.warning(
             "["
-                + queue.getQueue()
+                + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + ex.getCause()
                 + ", please verify that your environment has up-to-date root certificates!");
       } else {
-        log.warning("[" + queue.getQueue() + "] Error sending data to Wavefront: " + rootCause);
+        log.warning("[" + queue.getName() + "] Error sending data to Wavefront: " + rootCause);
       }
       if (log.isLoggable(Level.FINE)) {
         log.log(Level.FINE, "Full stacktrace: ", ex);
@@ -191,7 +191,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     } catch (Exception ex) {
       log.warning(
           "["
-              + queue.getQueue()
+              + queue.getName()
               + "] Error sending data to Wavefront: "
               + Throwables.getRootCause(ex));
       if (log.isLoggable(Level.FINE)) {

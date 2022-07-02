@@ -1,11 +1,9 @@
 package com.wavefront.agent.data;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
 import org.junit.Test;
@@ -20,7 +18,7 @@ public class LineDelimitedDataSubmissionTaskTest {
             null,
             null,
             "graphite_v2",
-            new HandlerKey(ReportableEntityType.POINT, "2878"),
+            QueuesManager.initQueue(ReportableEntityType.POINT),
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
             null);
 

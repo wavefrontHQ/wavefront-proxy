@@ -3,9 +3,8 @@ package com.wavefront.agent.logsharvesting;
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.ingester.ReportPointSerializer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -39,7 +38,8 @@ public class InteractiveLogsTester implements InteractiveTester {
         new ReportableEntityHandlerFactory() {
           @SuppressWarnings("unchecked")
           @Override
-          public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+          public <T, U> ReportableEntityHandler<T, U> getHandler(
+              String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
             return (ReportableEntityHandler<T, U>)
                 new ReportableEntityHandler<ReportPoint, String>() {
                   @Override
@@ -74,7 +74,7 @@ public class InteractiveLogsTester implements InteractiveTester {
           }
 
           @Override
-          public void shutdown(@Nonnull String handle) {}
+          public void shutdown(@Nonnull int handle) {}
         };
 
     LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix);

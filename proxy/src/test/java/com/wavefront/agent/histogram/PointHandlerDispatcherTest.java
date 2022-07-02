@@ -3,7 +3,7 @@ package com.wavefront.agent.histogram;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
 import java.util.LinkedList;

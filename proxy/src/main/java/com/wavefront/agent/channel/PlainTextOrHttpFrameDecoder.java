@@ -33,7 +33,8 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 
   protected static final Logger logger =
       Logger.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
-
+  private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
+  private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
   /** The object for handling requests of either protocol */
   private final ChannelHandler handler;
 
@@ -41,9 +42,6 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
   @Nullable private final CorsConfig corsConfig;
   private final int maxLengthPlaintext;
   private final int maxLengthHttp;
-
-  private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
-  private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
 
   /**
    * @param handler the object responsible for handling the incoming messages on either protocol.
@@ -70,6 +68,46 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
     this.maxLengthPlaintext = maxLengthPlaintext;
     this.maxLengthHttp = maxLengthHttp;
     this.detectGzip = detectGzip;
+  }
+
+  /**
+   * @param magic1 the first byte of the incoming message
+   * @param magic2 the second byte of the incoming message
+   * @return true if this is an HTTP message; false o/w
+   * @see <a
+   *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
+   *     Port Unification Example</a>
+   */
+  private static boolean isHttp(int magic1, int magic2) {
+    return ((magic1 == 'G' && magic2 == 'E')
+        || // GET
+        (magic1 == 'P' && magic2 == 'O')
+        || // POST
+        (magic1 == 'P' && magic2 == 'U')
+        || // PUT
+        (magic1 == 'H' && magic2 == 'E')
+        || // HEAD
+        (magic1 == 'O' && magic2 == 'P')
+        || // OPTIONS
+        (magic1 == 'P' && magic2 == 'A')
+        || // PATCH
+        (magic1 == 'D' && magic2 == 'E')
+        || // DELETE
+        (magic1 == 'T' && magic2 == 'R')
+        || // TRACE
+        (magic1 == 'C' && magic2 == 'O')); // CONNECT
+  }
+
+  /**
+   * @param magic1 the first byte of the incoming message
+   * @param magic2 the second byte of the incoming message
+   * @return true if this is a GZIP stream; false o/w
+   * @see <a
+   *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
+   *     Port Unification Example</a>
+   */
+  private static boolean isGzip(int magic1, int magic2) {
+    return magic1 == 31 && magic2 == 139;
   }
 
   /**
@@ -123,45 +161,5 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
           .addLast("handler", this.handler);
     }
     pipeline.remove(this);
-  }
-
-  /**
-   * @param magic1 the first byte of the incoming message
-   * @param magic2 the second byte of the incoming message
-   * @return true if this is an HTTP message; false o/w
-   * @see <a
-   *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
-   *     Port Unification Example</a>
-   */
-  private static boolean isHttp(int magic1, int magic2) {
-    return ((magic1 == 'G' && magic2 == 'E')
-        || // GET
-        (magic1 == 'P' && magic2 == 'O')
-        || // POST
-        (magic1 == 'P' && magic2 == 'U')
-        || // PUT
-        (magic1 == 'H' && magic2 == 'E')
-        || // HEAD
-        (magic1 == 'O' && magic2 == 'P')
-        || // OPTIONS
-        (magic1 == 'P' && magic2 == 'A')
-        || // PATCH
-        (magic1 == 'D' && magic2 == 'E')
-        || // DELETE
-        (magic1 == 'T' && magic2 == 'R')
-        || // TRACE
-        (magic1 == 'C' && magic2 == 'O')); // CONNECT
-  }
-
-  /**
-   * @param magic1 the first byte of the incoming message
-   * @param magic2 the second byte of the incoming message
-   * @return true if this is a GZIP stream; false o/w
-   * @see <a
-   *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
-   *     Port Unification Example</a>
-   */
-  private static boolean isGzip(int magic1, int magic2) {
-    return magic1 == 31 && magic2 == 139;
   }
 }

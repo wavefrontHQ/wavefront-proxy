@@ -13,10 +13,9 @@ import org.apache.logging.log4j.Logger;
 
 /** Manages the connection state to the beats client. */
 public class ConnectionHandler extends ChannelDuplexHandler {
-  private static final Logger logger = LogManager.getLogger(ConnectionHandler.class);
-
   public static final AttributeKey<AtomicBoolean> CHANNEL_SEND_KEEP_ALIVE =
       AttributeKey.valueOf("channel-send-keep-alive");
+  private static final Logger logger = LogManager.getLogger(ConnectionHandler.class);
 
   @Override
   public void channelActive(final ChannelHandlerContext ctx) throws Exception {

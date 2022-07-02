@@ -44,7 +44,7 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
   /**
    * Create new instance.
    *
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param ingester log ingester.
    * @param hostnameResolver rDNS lookup for remote clients ({@link InetAddress} to {@link String}
    *     resolver)
@@ -53,13 +53,13 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
    * @param preprocessor preprocessor.
    */
   public RawLogsIngesterPortUnificationHandler(
-      String handle,
+      int port,
       @Nonnull LogsIngester ingester,
       @Nonnull Function<InetAddress, String> hostnameResolver,
       @Nullable TokenAuthenticator authenticator,
       @Nullable HealthCheckManager healthCheckManager,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle);
+    super(authenticator, healthCheckManager, port);
     this.logsIngester = ingester;
     this.hostnameResolver = hostnameResolver;
     this.preprocessorSupplier = preprocessor;
