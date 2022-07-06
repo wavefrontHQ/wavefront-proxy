@@ -2,6 +2,7 @@ package com.wavefront.agent.core.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
 import java.util.function.Function;
@@ -22,7 +23,7 @@ class ReportSourceTagHandlerImpl
 
   public ReportSourceTagHandlerImpl(
       int port,
-      com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       final Logger blockedItemLogger) {
     super(port, handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, true, blockedItemLogger);

@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.ingester.SpanLogsSerializer;
 import java.util.logging.Logger;
@@ -22,13 +23,12 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * @param handlerKey pipeline handler key.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
-   * @param receivedRateSink where to report received rate.
    * @param blockedItemLogger logger for blocked items.
    * @param validItemsLogger logger for valid items.
    */
   SpanLogsHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {

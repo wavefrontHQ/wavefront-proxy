@@ -1,7 +1,7 @@
 package com.wavefront.agent.core.buffers;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.yammer.metrics.core.Gauge;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,12 +19,9 @@ public class BuffersManager {
   //  private static Buffer level_3;
   private static ActiveMQAddressFullException ex;
   private static BuffersManagerConfig cfg;
-  private static Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap;
 
-  public static void init(
-      BuffersManagerConfig cfg, Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap) {
+  public static void init(BuffersManagerConfig cfg) {
     BuffersManager.cfg = cfg;
-    BuffersManager.entityPropertiesFactoryMap = entityPropertiesFactoryMap;
 
     registeredQueues.clear();
 
@@ -51,17 +48,17 @@ public class BuffersManager {
     }
   }
 
-  public static List<Buffer> registerNewQueueIfNeedIt(
-      com.wavefront.agent.core.queues.QueueInfo handler) {
+  public static List<Buffer> registerNewQueueIfNeedIt(QueueInfo handler) {
     List<Buffer> buffers = new ArrayList<>();
     Boolean registered = registeredQueues.computeIfAbsent(handler.getName(), s -> false);
     if (!registered) { // is controlled by queue manager, but we do  it also here just in case.
+
       level_1.registerNewQueueInfo(handler);
       buffers.add(level_1);
       if (level_2 != null) {
         level_2.registerNewQueueInfo(handler);
-        buffers.add(level_1);
-        //        level_1.createBridge("disk", handler, 1);
+        buffers.add(level_2);
+        level_1.createBridge("disk", handler, 1);
         //        RatedBridge.createNewBridge(
         //            level_2,
         //            level_1,
@@ -78,29 +75,30 @@ public class BuffersManager {
     return buffers;
   }
 
-  public static void sendMsg(com.wavefront.agent.core.queues.QueueInfo handler, String strPoint) {
+  public static void sendMsg(QueueInfo handler, String strPoint) {
     level_1.sendMsg(handler, strPoint);
   }
 
   public static void onMsgBatch(
-      com.wavefront.agent.core.queues.QueueInfo handler,
+      QueueInfo handler,
+      int idx,
       int batchSize,
       RecyclableRateLimiter rateLimiter,
       OnMsgFunction func) {
-    level_1.onMsgBatch(handler, batchSize, rateLimiter, func);
+    level_1.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
   }
 
-  public static void flush(com.wavefront.agent.core.queues.QueueInfo queue) {
+  public static void flush(QueueInfo queue) {
     level_1.flush(queue);
   }
 
   @TestOnly
-  static Gauge<Object> l1_getSizeGauge(com.wavefront.agent.core.queues.QueueInfo handler) {
+  static Gauge<Object> l1_getSizeGauge(QueueInfo handler) {
     return level_1.getSizeGauge(handler);
   }
 
   @TestOnly
-  static Gauge<Object> l2_getSizeGauge(com.wavefront.agent.core.queues.QueueInfo handler) {
+  static Gauge<Object> l2_getSizeGauge(QueueInfo handler) {
     return level_2.getSizeGauge(handler);
   }
 

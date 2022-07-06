@@ -3,6 +3,7 @@ package com.wavefront.agent.core.handlers;
 import static com.wavefront.data.Validation.validateLog;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.dto.Log;
@@ -41,7 +42,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
    */
   public ReportLogHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
@@ -37,7 +38,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       new MessageDedupingLogger(
           Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
 
-  @JsonProperty protected com.wavefront.agent.core.queues.QueueInfo queue;
+  @JsonProperty protected QueueInfo queue;
   @JsonProperty protected Boolean limitRetries = null;
 
   protected transient Supplier<Long> timeProvider;
@@ -51,9 +52,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
    * @param timeProvider time provider (in millis)
    */
   AbstractDataSubmissionTask(
-      EntityProperties properties,
-      com.wavefront.agent.core.queues.QueueInfo queue,
-      @Nullable Supplier<Long> timeProvider) {
+      EntityProperties properties, QueueInfo queue, @Nullable Supplier<Long> timeProvider) {
     this.properties = properties;
     this.queue = queue;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);

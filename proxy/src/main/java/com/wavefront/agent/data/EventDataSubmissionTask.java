@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.api.EventAPI;
 import com.wavefront.dto.Event;
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       EventAPI api,
       UUID proxyId,
       EntityProperties properties,
-      com.wavefront.agent.core.queues.QueueInfo queue,
+      QueueInfo queue,
       @Nonnull List<Event> events,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, queue, timeProvider);

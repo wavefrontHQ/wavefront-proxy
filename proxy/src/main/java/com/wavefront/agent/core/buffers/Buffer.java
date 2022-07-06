@@ -1,17 +1,15 @@
 package com.wavefront.agent.core.buffers;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.core.queues.QueueInfo;
 
 public interface Buffer {
-  void registerNewQueueInfo(com.wavefront.agent.core.queues.QueueInfo key);
+  void registerNewQueueInfo(QueueInfo key);
 
-  void createBridge(String addr, com.wavefront.agent.core.queues.QueueInfo queue, int level);
+  void createBridge(String addr, QueueInfo queue, int level);
 
   void onMsgBatch(
-      com.wavefront.agent.core.queues.QueueInfo key,
-      int batchSize,
-      RecyclableRateLimiter rateLimiter,
-      OnMsgFunction func);
+      QueueInfo key, int idx, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func);
 
   void shutdown();
 }

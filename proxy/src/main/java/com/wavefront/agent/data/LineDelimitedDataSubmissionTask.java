@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.handlers.LineDelimitedUtils;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.api.ProxyV2API;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,7 @@ public class LineDelimitedDataSubmissionTask
       UUID proxyId,
       EntityProperties properties,
       String format,
-      com.wavefront.agent.core.queues.QueueInfo queue,
+      QueueInfo queue,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, queue, timeProvider);

@@ -115,7 +115,7 @@ public class PushAgentTest {
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
-    BuffersManager.init(cfg, null);
+    BuffersManager.init(cfg);
   }
 
   @Before
@@ -1840,6 +1840,7 @@ public class PushAgentTest {
     }
     BuffersManager.onMsgBatch(
         handlerKey,
+        1,
         5,
         new TestUtils.RateLimiter(),
         batch -> {
@@ -1878,6 +1879,7 @@ public class PushAgentTest {
 
     BuffersManager.onMsgBatch(
         handlerKey,
+        1,
         5,
         new TestUtils.RateLimiter(),
         batch -> {

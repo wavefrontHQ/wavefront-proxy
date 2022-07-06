@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
 import javax.annotation.Nonnull;
@@ -47,8 +48,7 @@ public class MockReportableEntityHandlerFactory {
     return new ReportableEntityHandlerFactory() {
       @SuppressWarnings("unchecked")
       @Override
-      public <T, U> ReportableEntityHandler<T, U> getHandler(
-          String handle, com.wavefront.agent.core.queues.QueueInfo handlerKey) {
+      public <T, U> ReportableEntityHandler<T, U> getHandler(String handle, QueueInfo handlerKey) {
         switch (handlerKey.getEntityType()) {
           case POINT:
             return (ReportableEntityHandler<T, U>) mockReportPointHandler;

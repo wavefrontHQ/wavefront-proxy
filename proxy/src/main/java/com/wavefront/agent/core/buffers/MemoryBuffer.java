@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.buffers;
 
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.NamedThreadFactory;
 import java.util.ArrayList;
 import java.util.Map;
@@ -23,21 +24,21 @@ public class MemoryBuffer extends ActiveMQBuffer {
             new NamedThreadFactory("memory-buffer-receiver"));
   }
 
-  public void sendMsg(com.wavefront.agent.core.queues.QueueInfo key, String strPoint) {
+  public void sendMsg(QueueInfo key, String strPoint) {
     LinkedTransferQueue<String> midBuffer =
         midBuffers.computeIfAbsent(key.getName(), s -> new LinkedTransferQueue<>());
     midBuffer.add(strPoint);
   }
 
   @Override
-  public void registerNewQueueInfo(com.wavefront.agent.core.queues.QueueInfo queue) {
+  public void registerNewQueueInfo(QueueInfo queue) {
     super.registerNewQueueInfo(queue);
-    for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+    for (int i = 0; i < queue.getNumberThreads(); i++) {
       executor.scheduleAtFixedRate(new sender(queue, nextBuffer), 1, 1, TimeUnit.SECONDS);
     }
   }
 
-  public void flush(com.wavefront.agent.core.queues.QueueInfo queue) {
+  public void flush(QueueInfo queue) {
     new sender(queue, nextBuffer).run();
   }
 
@@ -50,10 +51,10 @@ public class MemoryBuffer extends ActiveMQBuffer {
   }
 
   private class sender implements Runnable {
-    private final com.wavefront.agent.core.queues.QueueInfo queue;
+    private final QueueInfo queue;
     private BufferBatch nextBuffer;
 
-    private sender(com.wavefront.agent.core.queues.QueueInfo queue, BufferBatch nextBuffer) {
+    private sender(QueueInfo queue, BufferBatch nextBuffer) {
       this.queue = queue;
       this.nextBuffer = nextBuffer;
     }

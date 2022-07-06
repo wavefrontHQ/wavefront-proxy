@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.senders;
 
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.api.ProxyV2API;
@@ -16,7 +17,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
 
   private final ProxyV2API proxyAPI;
   private final UUID proxyId;
-  private final com.wavefront.agent.core.queues.QueueInfo queue;
+  private final QueueInfo queue;
   private final String pushFormat;
   private EntityProperties properties;
 
@@ -28,13 +29,14 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
    * @param properties container for mutable proxy settings.
    */
   LineDelimitedSenderTask(
-      com.wavefront.agent.core.queues.QueueInfo queue,
+      QueueInfo queue,
+      int idx,
       String pushFormat,
       ProxyV2API proxyAPI,
       UUID proxyId,
       final EntityProperties properties,
       Buffer buffer) {
-    super(queue, properties, buffer);
+    super(queue, idx, properties, buffer);
     this.queue = queue;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;

@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -25,7 +26,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
   private static final Logger logger =
       Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
-  final com.wavefront.agent.core.queues.QueueInfo handlerKey;
+  final QueueInfo handlerKey;
   final int port;
 
   @SuppressWarnings("UnstableApiUsage")
@@ -56,7 +57,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    */
   AbstractReportableEntityHandler(
       int port,
-      @NotNull com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      @NotNull QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       final Function<T, String> serializer,
       boolean reportReceivedStats,

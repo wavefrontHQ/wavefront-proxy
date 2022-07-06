@@ -2,6 +2,7 @@ package com.wavefront.agent.core.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import java.util.function.Function;
@@ -28,7 +29,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
    */
   public EventHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {

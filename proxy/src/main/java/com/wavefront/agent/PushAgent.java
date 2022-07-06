@@ -165,6 +165,7 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() throws Exception {
 
+    QueuesManager.init(entityPropertiesFactoryMap);
     SenderTasksManager.init(apiContainer, agentId, entityPropertiesFactoryMap);
 
     /***** PROXY NEW *****/
@@ -173,7 +174,8 @@ public class PushAgent extends AbstractAgent {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = proxyConfig.getBufferFile();
     cfg.l2 = !proxyConfig.getDisableBuffer();
-    BuffersManager.init(cfg, entityPropertiesFactoryMap);
+    cfg.msgExpirationTime = -1;
+    BuffersManager.init(cfg);
 
     /***** END PROXY NEW *****/
 
@@ -2032,18 +2034,19 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   public void stopListeners() {
-    listeners.values().forEach(Thread::interrupt);
-    listeners
-        .values()
-        .forEach(
-            thread -> {
-              try {
-                thread.join(TimeUnit.SECONDS.toMillis(10));
-              } catch (InterruptedException e) {
-                // ignore
-              }
-            });
-    SenderTasksManager.shutdown();
+    // TODO: review
+    //    listeners.values().forEach(Thread::interrupt);
+    //    listeners
+    //        .values()
+    //        .forEach(
+    //            thread -> {
+    //              try {
+    //                thread.join(TimeUnit.SECONDS.toMillis(10));
+    //              } catch (InterruptedException e) {
+    //                // ignore
+    //              }
+    //            });
+    //    SenderTasksManager.shutdown();
   }
 
   @Override

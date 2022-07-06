@@ -3,6 +3,7 @@ package com.wavefront.agent.core.handlers;
 import static com.wavefront.data.Validation.validatePoint;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -60,7 +61,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    */
   ReportPointHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,

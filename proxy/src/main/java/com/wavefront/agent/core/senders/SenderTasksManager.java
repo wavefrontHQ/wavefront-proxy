@@ -5,6 +5,7 @@ import static com.wavefront.api.agent.Constants.*;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.ProxyV2API;
@@ -57,8 +58,7 @@ public class SenderTasksManager {
     //        });
   }
 
-  public static void createSenderTasks(
-      @Nonnull com.wavefront.agent.core.queues.QueueInfo info, Buffer buffer, double factor) {
+  public static void createSenderTasks(@Nonnull QueueInfo info, Buffer buffer, double factor) {
     ReportableEntityType entityType = info.getEntityType();
     String tenantName = info.getTenant();
 
@@ -71,7 +71,7 @@ public class SenderTasksManager {
                     numThreads, new NamedThreadFactory("submitter-" + info.getName())));
 
     for (int i = 0; i < numThreads * factor; i++) {
-      SenderTask sender = generateSenderTaskList(info, buffer);
+      SenderTask sender = generateSenderTaskList(info, i, buffer);
       scheduler.scheduleAtFixedRate(sender, 1, 1, TimeUnit.SECONDS);
     }
   }
@@ -88,8 +88,7 @@ public class SenderTasksManager {
         });
   }
 
-  private static SenderTask generateSenderTaskList(
-      com.wavefront.agent.core.queues.QueueInfo queue, Buffer buffer) {
+  private static SenderTask generateSenderTaskList(QueueInfo queue, int idx, Buffer buffer) {
     String tenantName = queue.getTenant();
     if (tenantName == null) {
       tenantName = CENTRAL_TENANT_NAME;
@@ -103,41 +102,47 @@ public class SenderTasksManager {
       case DELTA_COUNTER:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, PUSH_FORMAT_WAVEFRONT, proxyV2API, proxyId, properties, buffer);
+                queue, idx, PUSH_FORMAT_WAVEFRONT, proxyV2API, proxyId, properties, buffer);
         break;
       case HISTOGRAM:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, PUSH_FORMAT_HISTOGRAM, proxyV2API, proxyId, properties, buffer);
+                queue, idx, PUSH_FORMAT_HISTOGRAM, proxyV2API, proxyId, properties, buffer);
         break;
       case SOURCE_TAG:
         // In MONIT-25479, SOURCE_TAG does not support tag based multicasting. But still
         // generated tasks for each tenant in case we have other multicasting mechanism
         senderTask =
             new SourceTagSenderTask(
-                queue, apiContainer.getSourceTagAPIForTenant(tenantName), properties, buffer);
+                queue, idx, apiContainer.getSourceTagAPIForTenant(tenantName), properties, buffer);
         break;
       case TRACE:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, PUSH_FORMAT_TRACING, proxyV2API, proxyId, properties, buffer);
+                queue, idx, PUSH_FORMAT_TRACING, proxyV2API, proxyId, properties, buffer);
         break;
       case TRACE_SPAN_LOGS:
         // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
         // generated tasks for each tenant in case we have other multicasting mechanism
         senderTask =
             new LineDelimitedSenderTask(
-                queue, PUSH_FORMAT_TRACING_SPAN_LOGS, proxyV2API, proxyId, properties, buffer);
+                queue, idx, PUSH_FORMAT_TRACING_SPAN_LOGS, proxyV2API, proxyId, properties, buffer);
         break;
       case EVENT:
         senderTask =
             new EventSenderTask(
-                queue, apiContainer.getEventAPIForTenant(tenantName), proxyId, properties, buffer);
+                queue,
+                idx,
+                apiContainer.getEventAPIForTenant(tenantName),
+                proxyId,
+                properties,
+                buffer);
         break;
       case LOGS:
         senderTask =
             new LogSenderTask(
                 queue,
+                idx,
                 apiContainer.getLogAPI(),
                 proxyId,
                 entityPropsFactoryMap.get(tenantName).get(entityType),

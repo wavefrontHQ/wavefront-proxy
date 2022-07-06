@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.common.Clock;
@@ -26,6 +27,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -74,6 +76,8 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndMetrics() throws Exception {
+    Path buffer = Files.createTempDirectory("wfproxy");
+
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     proxy = new PushAgent();
@@ -81,11 +85,9 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
-    proxy.proxyConfig.disableBuffer = true;
-    proxy.proxyConfig.allowRegex = "^.*$";
-    proxy.proxyConfig.blockRegex = "^.*blocklist.*$";
     proxy.proxyConfig.gzipCompression = false;
     proxy.proxyConfig.pushFlushMaxPoints = 1;
+    proxy.proxyConfig.bufferFile = buffer.toFile().getAbsolutePath();
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);
 
@@ -135,7 +137,8 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.severe("(" + testCounter.incrementAndGet() + ") Content received: " + content);
+          logger.info("testCounter=" + testCounter.incrementAndGet());
+          logger.fine("Content received: " + content);
           switch (testCounter.get()) {
             case 1:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
@@ -145,16 +148,16 @@ public class HttpEndToEndTest {
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
-            case 3:
+            case 10:
+              assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
+              successfulSteps.incrementAndGet();
+              OK.set(true);
+              return makeResponse(HttpResponseStatus.OK, "");
+            default:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.valueOf(407), "");
-            case 4:
-              assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
-              OK.set(true);
-              return makeResponse(HttpResponseStatus.OK, "");
           }
-          throw new IllegalStateException();
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     assertTrueWithTimeout(HTTP_timeout_tests * 10, OK::get);
@@ -234,18 +237,15 @@ public class HttpEndToEndTest {
               assertEquals("[" + expectedEvent1 + "," + expectedEvent2 + "]", content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.valueOf(407), "");
-            case 5:
+            default:
               assertEquals("[" + expectedEvent1 + "," + expectedEvent2 + "]", content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "");
-            case 6:
+            case 100:
               assertEquals("[" + expectedEvent1 + "," + expectedEvent2 + "]", content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.OK, "");
           }
-          logger.warning("Too many requests");
-          successfulSteps.incrementAndGet(); // this will force the assert to fail
-          return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
@@ -356,7 +356,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
-    com.wavefront.agent.core.queues.QueueInfo key =
+    QueueInfo key =
         QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
     assertEquals(10, successfulSteps.getAndSet(0));
   }

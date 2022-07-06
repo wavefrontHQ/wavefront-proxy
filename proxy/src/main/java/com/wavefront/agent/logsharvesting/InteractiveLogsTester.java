@@ -5,6 +5,7 @@ import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.ingester.ReportPointSerializer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -38,8 +39,7 @@ public class InteractiveLogsTester implements InteractiveTester {
         new ReportableEntityHandlerFactory() {
           @SuppressWarnings("unchecked")
           @Override
-          public <T, U> ReportableEntityHandler<T, U> getHandler(
-              String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
+          public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
             return (ReportableEntityHandler<T, U>)
                 new ReportableEntityHandler<ReportPoint, String>() {
                   @Override

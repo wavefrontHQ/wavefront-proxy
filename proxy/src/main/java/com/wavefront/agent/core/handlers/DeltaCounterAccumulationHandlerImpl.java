@@ -9,6 +9,7 @@ import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -60,7 +61,7 @@ public class DeltaCounterAccumulationHandlerImpl
    */
   public DeltaCounterAccumulationHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       long aggregationIntervalSeconds,

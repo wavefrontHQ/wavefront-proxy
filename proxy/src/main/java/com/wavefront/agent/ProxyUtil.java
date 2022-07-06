@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  */
-abstract class ProxyUtil {
+public abstract class ProxyUtil {
   protected static final Logger logger = Logger.getLogger("proxy");
 
   private ProxyUtil() {}

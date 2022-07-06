@@ -1,5 +1,8 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.data.ReportableEntityType.*;
+
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.agent.ValidationConfiguration;
@@ -46,21 +49,21 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           logger::info);
   private static final Logger VALID_SPAN_LOGS_LOGGER =
       new SamplingLogger(
-          ReportableEntityType.TRACE_SPAN_LOGS,
+          TRACE_SPAN_LOGS,
           Logger.getLogger("RawValidSpanLogs"),
           getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"),
           false,
           logger::info);
   private static final Logger VALID_EVENTS_LOGGER =
       new SamplingLogger(
-          ReportableEntityType.EVENT,
+          EVENT,
           Logger.getLogger("RawValidEvents"),
           getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"),
           false,
           logger::info);
   private static final Logger VALID_LOGS_LOGGER =
       new SamplingLogger(
-          ReportableEntityType.LOGS,
+          LOGS,
           Logger.getLogger("RawValidLogs"),
           getSystemPropertyAsDouble("wavefront.proxy.loglogs.sample-rate"),
           false,
@@ -112,8 +115,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   @SuppressWarnings("unchecked")
   // TODO: review all implementations of this method
   @Override
-  public <T, U> ReportableEntityHandler<T, U> getHandler(
-      String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
+  public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
     return (ReportableEntityHandler<T, U>)
         handlers
             .computeIfAbsent(handler + "." + queue.getName(), h -> new ConcurrentHashMap<>())

@@ -5,6 +5,7 @@ import static com.wavefront.data.Validation.validateSpan;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -50,7 +51,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    */
   SpanHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,

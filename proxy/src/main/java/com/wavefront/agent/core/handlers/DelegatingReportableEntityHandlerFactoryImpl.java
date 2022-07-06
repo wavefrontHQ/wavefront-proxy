@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
+import com.wavefront.agent.core.queues.QueueInfo;
 import javax.annotation.Nonnull;
 
 /**
@@ -15,8 +16,7 @@ public class DelegatingReportableEntityHandlerFactoryImpl
   }
 
   @Override
-  public <T, U> ReportableEntityHandler<T, U> getHandler(
-      String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
+  public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
     return delegate.getHandler(handler, queue);
   }
 

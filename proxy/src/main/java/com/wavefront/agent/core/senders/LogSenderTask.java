@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.senders;
 
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.api.LogAPI;
@@ -13,7 +14,7 @@ import java.util.UUID;
  * @author amitw@vmware.com
  */
 public class LogSenderTask extends AbstractSenderTask {
-  private final com.wavefront.agent.core.queues.QueueInfo queue;
+  private final QueueInfo queue;
   private final LogAPI logAPI;
   private final UUID proxyId;
   private final EntityProperties properties;
@@ -26,12 +27,13 @@ public class LogSenderTask extends AbstractSenderTask {
    * @param buffer
    */
   LogSenderTask(
-      com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      QueueInfo handlerKey,
+      int idx,
       LogAPI logAPI,
       UUID proxyId,
       EntityProperties properties,
       Buffer buffer) {
-    super(handlerKey, properties, buffer);
+    super(handlerKey, idx, properties, buffer);
     this.queue = handlerKey;
     this.logAPI = logAPI;
     this.proxyId = proxyId;

@@ -14,13 +14,15 @@ services:
     hostname: stress-test-wfproxy
     build: docker/proxy
     # build: docker/proxy-latest
+    storage_opt:
+      size: '2G'
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
       WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg
       JAVA_HEAP_USAGE: 2G
       JVM_USE_CONTAINER_OPTS: false
-      JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
+      JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=1098 -Dcom.sun.management.jmxremote.rmi.port=1098 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false "
       TLGF_WF_URL: https://${WF_URL}
     deploy:
       resources:
@@ -28,6 +30,7 @@ services:
           memory: 4G
     ports:
       - "2878:2878"
+      - "1098:1098"
     volumes:
       - ./resources/certs:/tmp/ca/
       - ./resources/proxy:/opt/proxy/

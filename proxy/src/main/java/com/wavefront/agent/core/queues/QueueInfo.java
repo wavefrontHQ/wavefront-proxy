@@ -8,4 +8,6 @@ public interface QueueInfo {
   public ReportableEntityType getEntityType();
 
   public String getName();
+
+  public int getNumberThreads();
 }

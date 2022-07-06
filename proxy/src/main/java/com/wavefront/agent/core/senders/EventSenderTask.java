@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.senders;
 
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.EventAPI;
 import java.util.List;
@@ -24,12 +25,13 @@ class EventSenderTask extends AbstractSenderTask {
    * @param properties container for mutable proxy settings.
    */
   EventSenderTask(
-      com.wavefront.agent.core.queues.QueueInfo queue,
+      QueueInfo queue,
+      int idx,
       EventAPI proxyAPI,
       UUID proxyId,
       EntityProperties properties,
       Buffer buffer) {
-    super(queue, properties, buffer);
+    super(queue, idx, properties, buffer);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
   }

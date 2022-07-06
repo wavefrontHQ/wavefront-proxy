@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
@@ -37,8 +38,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
       new ReportableEntityHandlerFactory() {
         @SuppressWarnings("unchecked")
         @Override
-        public <T, U> ReportableEntityHandler<T, U> getHandler(
-            String handler, com.wavefront.agent.core.queues.QueueInfo queue) {
+        public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
           if (queue.getEntityType() == ReportableEntityType.TRACE) {
             return (ReportableEntityHandler<T, U>)
                 new ReportableEntityHandler<Span, String>() {

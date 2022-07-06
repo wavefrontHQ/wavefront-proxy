@@ -4,6 +4,7 @@ import static com.wavefront.agent.histogram.HistogramUtils.granularityToString;
 import static com.wavefront.common.Utils.lazySupplier;
 import static com.wavefront.data.Validation.validatePoint;
 
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.histogram.Granularity;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.agent.histogram.HistogramUtils;
@@ -50,7 +51,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    */
   public HistogramAccumulationHandlerImpl(
       final int port,
-      final com.wavefront.agent.core.queues.QueueInfo handlerKey,
+      final QueueInfo handlerKey,
       final Accumulator digests,
       final int blockedItemsPerBatch,
       @Nullable Granularity granularity,
