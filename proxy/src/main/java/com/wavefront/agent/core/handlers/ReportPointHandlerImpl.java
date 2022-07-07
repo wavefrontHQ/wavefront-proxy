@@ -60,7 +60,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param recompressor histogram recompressor (optional)
    */
   ReportPointHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
@@ -69,7 +69,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       @Nullable final Logger validItemsLogger,
       @Nullable final Function<Histogram, Histogram> recompressor) {
     super(
-        port,
+        handler,
         handlerKey,
         blockedItemsPerBatch,
         new ReportPointSerializer(),

@@ -15,6 +15,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
@@ -370,17 +372,20 @@ public abstract class AbstractAgent {
   public void shutdown() {
     if (!shuttingDown.compareAndSet(false, true)) return;
     try {
-      try {
-        logger.info("Shutting down the proxy...");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      System.out.println("Shutting down the proxy...");
 
       System.out.println("Shutting down: Stopping listeners...");
       stopListeners();
 
+      System.out.println("Shutting down: Stopping Senders...");
+      SenderTasksManager.shutdown();
+
+      System.out.println("Shutting down: queues...");
+      BuffersManager.shutdown();
+
       System.out.println("Shutting down: Stopping schedulers...");
       if (proxyCheckinScheduler != null) proxyCheckinScheduler.shutdown();
+
       managedExecutors.forEach(ExecutorService::shutdownNow);
       // wait for up to request timeout
       managedExecutors.forEach(

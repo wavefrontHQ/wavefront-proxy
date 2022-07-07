@@ -48,7 +48,7 @@ public class ReportSourceTagHandlerTest {
             APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
 
     handlerKey = QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG);
-    sourceTagHandler = new ReportSourceTagHandlerImpl(4878, handlerKey, 10, blockedLogger);
+    sourceTagHandler = new ReportSourceTagHandlerImpl("4878", handlerKey, 10, blockedLogger);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.l2 = false;
@@ -170,7 +170,7 @@ public class ReportSourceTagHandlerTest {
         ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tasks);
     ReportSourceTagHandlerImpl sourceTagHandler =
         new ReportSourceTagHandlerImpl(
-            4878, QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG), 10, blockedLogger);
+            "4878", QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG), 10, blockedLogger);
     // todo: review
     //    task1.add(new SourceTag(sourceTag1));
     //    EasyMock.expectLastCall();

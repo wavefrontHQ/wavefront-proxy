@@ -15,7 +15,9 @@ public class SourceTagSenderTask extends AbstractSenderTask {
   private static final Logger logger =
       Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());
 
+  private final QueueInfo queue;
   private final SourceTagAPI proxyAPI;
+  private EntityProperties properties;
 
   /**
    * Create new instance
@@ -28,7 +30,20 @@ public class SourceTagSenderTask extends AbstractSenderTask {
   SourceTagSenderTask(
       QueueInfo queue, int idx, SourceTagAPI proxyAPI, EntityProperties properties, Buffer buffer) {
     super(queue, idx, properties, buffer);
+    this.queue = queue;
     this.proxyAPI = proxyAPI;
+    this.properties = properties;
+  }
+
+  @Override
+  public int processSingleBatch(List<String> batch) {
+    //    for (String tag : batch) {
+    //      SourceTagSubmissionTask task =
+    //          new SourceTagSubmissionTask(
+    //              proxyAPI, properties, queue, tag, null);
+    //      task.execute();
+    //    }
+    return 0;
   }
 
   // TODO: review
@@ -108,8 +123,4 @@ public class SourceTagSenderTask extends AbstractSenderTask {
   //    }
   //  }
 
-  @Override
-  public int processSingleBatch(List<String> batch) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
 }

@@ -17,11 +17,22 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   public MemoryBuffer(int level, String name, BufferConfig cfg) {
     super(level, name, false, cfg);
-
     executor =
         Executors.newScheduledThreadPool(
             Runtime.getRuntime().availableProcessors(),
             new NamedThreadFactory("memory-buffer-receiver"));
+  }
+
+  @Override
+  public void shutdown() {
+    executor.shutdown();
+    try {
+      executor.awaitTermination(1, TimeUnit.MINUTES);
+    } catch (InterruptedException e) {
+      logger.severe("Error during MemoryBuffer shutdown. " + e);
+    }
+    midBuffers.clear();
+    super.shutdown();
   }
 
   public void sendMsg(QueueInfo key, String strPoint) {
@@ -32,6 +43,10 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   @Override
   public void registerNewQueueInfo(QueueInfo queue) {
+    // TODO
+    //    int interval =
+    // entityPropsFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
+
     super.registerNewQueueInfo(queue);
     for (int i = 0; i < queue.getNumberThreads(); i++) {
       executor.scheduleAtFixedRate(new sender(queue, nextBuffer), 1, 1, TimeUnit.SECONDS);

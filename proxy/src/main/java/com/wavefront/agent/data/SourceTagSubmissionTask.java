@@ -12,11 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
-/**
- * A {@link DataSubmissionTask} that handles source tag payloads.
- *
- * @author vasily@wavefront.com
- */
+/** A {@link DataSubmissionTask} that handles source tag payloads. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
   private transient SourceTagAPI api;
@@ -105,11 +101,5 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   @Override
   public List<SourceTagSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
     return ImmutableList.of(this);
-  }
-
-  public void injectMembers(SourceTagAPI api, EntityProperties properties) {
-    this.api = api;
-    this.properties = properties;
-    this.timeProvider = System::currentTimeMillis;
   }
 }

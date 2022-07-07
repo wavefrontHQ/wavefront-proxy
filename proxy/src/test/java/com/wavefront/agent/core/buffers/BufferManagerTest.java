@@ -14,9 +14,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.activemq.artemis.api.core.client.*;
+import org.junit.Before;
 import org.junit.Test;
 
 public class BufferManagerTest {
+
+  @Before
+  public void shutdown() {
+    BuffersManager.shutdown();
+  }
 
   @Test
   public void counters() throws Exception {
@@ -48,7 +54,7 @@ public class BufferManagerTest {
       long start = System.currentTimeMillis();
       boolean done = false;
       while (!done) {
-        ClientMessage msg = client.receive(100);
+        ClientMessage msg = client.receive(1000); // give time to the msg to move to disk
         if (msg != null) {
           pointsCount += msg.getIntProperty("points");
         } else {
@@ -130,7 +136,7 @@ public class BufferManagerTest {
             throw new RuntimeException("error 500");
           });
     }
-    assertEquals("MessageCount", 0l, memory.value());
+    assertTrueWithTimeout(1000, () -> ((Long) memory.value()) == 0L);
     assertTrueWithTimeout(1000, () -> ((Long) disk.value()) != 0L);
 
     // the msg should not expire on disk queues

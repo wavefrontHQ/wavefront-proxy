@@ -74,7 +74,7 @@ public class PushAgentTest {
   private final long alignedStartTimeEpochSeconds = System.currentTimeMillis() / 1000 / 60 * 60;
   private PushAgent proxy;
   private int port;
-  private int tracePort;
+  //  private int tracePort;
   private int customTracePort;
   private int deltaPort;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
@@ -1214,7 +1214,7 @@ public class PushAgentTest {
 
   @Test
   public void testTraceUnifiedPortHandlerPlaintextDebugSampling() throws Exception {
-    tracePort = findAvailablePort(3888);
+    int tracePort = findAvailablePort(3888);
     proxy.startTraceListener(
         port, mockHandlerFactory, new SpanSampler(new RateSampler(0.0D), () -> null));
     waitUntilListenerIsOnline(tracePort);
@@ -1312,7 +1312,7 @@ public class PushAgentTest {
 
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
-    tracePort = findAvailablePort(3888);
+    int tracePort = findAvailablePort(3888);
     proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
     proxy.startTraceListener(
         Integer.parseInt(proxy.proxyConfig.getTraceListenerPorts()),
@@ -1812,45 +1812,10 @@ public class PushAgentTest {
     verify(mockPointHandler);
   }
 
-  @Test
-  public void testDeltaCounterHandlerMixedData() throws Exception {
-    deltaPort = findAvailablePort(5888);
-    QueueInfo handlerKey = QueuesManager.initQueue(ReportableEntityType.POINT);
-    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
-
-    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
-    proxy.proxyConfig.pushFlushInterval = 100;
-    proxy.startDeltaCounterListener(
-        deltaPort, null, new SpanSampler(new RateSampler(1.0D), () -> null));
-    waitUntilListenerIsOnline(deltaPort);
-
-    String payloadStr1 = "∆test.mixed1 1.0 source=test1\n";
-    String payloadStr2 = "∆test.mixed2 2.0 source=test1\n";
-    String payloadStr3 = "test.mixed3 3.0 source=test1\n";
-    String payloadStr4 = "∆test.mixed3 3.0 source=test1\n";
-    assertEquals(
-        202,
-        httpPost(
-            "http://localhost:" + deltaPort,
-            payloadStr1 + payloadStr2 + payloadStr2 + payloadStr3 + payloadStr4));
-    ReportableEntityHandler<?, ?> handler =
-        proxy.deltaCounterHandlerFactory.getHandler(deltaPort, handlerKey);
-    if (handler instanceof DeltaCounterAccumulationHandlerImpl) {
-      ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
-    }
-    BuffersManager.onMsgBatch(
-        handlerKey,
-        1,
-        5,
-        new TestUtils.RateLimiter(),
-        batch -> {
-          assertEquals(3, batch.size());
-          batch.forEach(
-              s -> {
-                assertTrue(s.trim().matches("(.*)test.mixed[123]\" [143].0(.*)"));
-              });
-        });
-  }
+  // @Test
+  // public void testDeltaCounterHandlerMixedData() throws Exception {
+  //  moved to HttpEndToEndTest.testEndToEndDelta
+  // }
 
   @Test
   public void testDeltaCounterHandlerDataStream() throws Exception {

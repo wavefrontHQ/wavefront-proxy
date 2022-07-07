@@ -27,13 +27,18 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * @param validItemsLogger logger for valid items.
    */
   SpanLogsHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
-        port, handlerKey, blockedItemsPerBatch, new SpanLogsSerializer(), true, blockedItemLogger);
+        handler,
+        handlerKey,
+        blockedItemsPerBatch,
+        new SpanLogsSerializer(),
+        true,
+        blockedItemLogger);
     this.validItemsLogger = validItemsLogger;
   }
 

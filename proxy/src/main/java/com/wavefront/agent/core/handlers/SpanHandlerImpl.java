@@ -50,7 +50,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    * @param spanLogsHandler spanLogs handler.
    */
   SpanHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
@@ -58,7 +58,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
       @Nonnull final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler) {
-    super(port, handlerKey, blockedItemsPerBatch, new SpanSerializer(), true, blockedItemLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, new SpanSerializer(), true, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;

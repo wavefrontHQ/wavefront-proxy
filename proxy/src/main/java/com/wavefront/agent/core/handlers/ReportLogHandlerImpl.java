@@ -41,14 +41,14 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
    * @param validLogsLogger logger for valid logs.
    */
   public ReportLogHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,
       @Nullable final Logger blockedLogsLogger,
       @Nullable final Logger validLogsLogger) {
-    super(port, handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, true, blockedLogsLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, true, blockedLogsLogger);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;

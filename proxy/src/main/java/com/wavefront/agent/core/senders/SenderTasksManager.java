@@ -26,7 +26,7 @@ public class SenderTasksManager {
   private static APIContainer apiContainer;
   private static UUID proxyId;
   private static Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
-  private final Logger log = Logger.getLogger(SenderTasksManager.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(SenderTasksManager.class.getCanonicalName());
 
   /**
    * @param apiContainer handles interaction with Wavefront servers as well as queueing.
@@ -63,6 +63,7 @@ public class SenderTasksManager {
     String tenantName = info.getTenant();
 
     int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
+    int interval = entityPropsFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
     ScheduledExecutorService scheduler =
         executors.computeIfAbsent(
             info.getName(),
@@ -71,8 +72,8 @@ public class SenderTasksManager {
                     numThreads, new NamedThreadFactory("submitter-" + info.getName())));
 
     for (int i = 0; i < numThreads * factor; i++) {
-      SenderTask sender = generateSenderTaskList(info, i, buffer);
-      scheduler.scheduleAtFixedRate(sender, 1, 1, TimeUnit.SECONDS);
+      SenderTask sender = generateSenderTask(info, i, buffer);
+      scheduler.scheduleAtFixedRate(sender, interval, interval, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -81,14 +82,17 @@ public class SenderTasksManager {
     executors.forEach(
         (s, scheduler) -> {
           try {
+            System.out.println("Stopping '" + s + "' threads");
+            scheduler.shutdown();
             scheduler.awaitTermination(1, TimeUnit.MINUTES);
           } catch (InterruptedException e) {
             throw new RuntimeException(e);
           }
         });
+    executors.clear();
   }
 
-  private static SenderTask generateSenderTaskList(QueueInfo queue, int idx, Buffer buffer) {
+  private static SenderTask generateSenderTask(QueueInfo queue, int idx, Buffer buffer) {
     String tenantName = queue.getTenant();
     if (tenantName == null) {
       tenantName = CENTRAL_TENANT_NAME;

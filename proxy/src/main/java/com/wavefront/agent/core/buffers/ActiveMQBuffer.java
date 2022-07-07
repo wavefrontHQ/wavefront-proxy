@@ -236,13 +236,6 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             }));
   }
 
-  private ClientSession getClientSession() throws Exception {
-    ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
-    ClientSessionFactory factory = serverLocator.createSessionFactory();
-    ClientSession session = factory.createSession();
-    return session;
-  }
-
   @VisibleForTesting
   protected Gauge<Object> getSizeGauge(QueueInfo q) {
     return sizeMetrics.get(q.getName());
@@ -255,6 +248,14 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   @Override
   public void shutdown() {
     try {
+      for (Map.Entry<String, Pair<ClientSession, ClientProducer>> entry : producers.entrySet()) {
+        entry.getValue()._1.close(); // session
+        entry.getValue()._2.close(); // producer
+      }
+      for (Map.Entry<String, Pair<ClientSession, ClientConsumer>> entry : consumers.entrySet()) {
+        entry.getValue()._1.close(); // session
+        entry.getValue()._2.close(); // consumer
+      }
       amq.stop();
     } catch (Exception e) {
       e.printStackTrace();
@@ -270,7 +271,9 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             sessionKey,
             s -> {
               try {
-                ClientSession session = getClientSession();
+                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+                ClientSessionFactory factory = serverLocator.createSessionFactory();
+                ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue.getName());
                 return new Pair<>(session, producer);
               } catch (Exception e) {
@@ -313,7 +316,9 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             sessionKey,
             s -> {
               try {
-                ClientSession session = getClientSession();
+                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+                ClientSessionFactory factory = serverLocator.createSessionFactory();
+                ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
                 return new Pair<>(session, consumer);
               } catch (Exception e) {
@@ -329,11 +334,13 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
       List<ClientMessage> toACK = new ArrayList<>();
+      List<ClientMessage> allMsgs = new ArrayList<>();
       boolean done = false;
       boolean needRollBack = false;
       while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = consumer.receive(100);
         if (msg != null) {
+          allMsgs.add(msg);
           List msgs = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
           boolean ok = rateLimiter.tryAcquire(msgs.size());
           if (ok) {
@@ -372,7 +379,15 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
         if (log.isLoggable(Level.FINER)) {
           log.log(Level.SEVERE, "error", e);
         }
-        // rollback all messages (even the ones ACKed)
+        // ACK all messages and then rollback so fail count go up
+        toACK.forEach(
+            msg -> {
+              try {
+                msg.individualAcknowledge();
+              } catch (ActiveMQException ex) {
+                throw new RuntimeException(ex);
+              }
+            });
         session.rollback();
       }
     } catch (ActiveMQException e) {

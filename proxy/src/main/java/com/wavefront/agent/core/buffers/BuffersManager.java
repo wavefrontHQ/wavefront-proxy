@@ -8,31 +8,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.jetbrains.annotations.TestOnly;
 
 public class BuffersManager {
   private static final Logger logger = Logger.getLogger(BuffersManager.class.getCanonicalName());
+
   private static final Map<String, Boolean> registeredQueues = new HashMap<>();
   private static MemoryBuffer level_1;
   private static DiskBuffer level_2;
   //  private static Buffer level_3;
-  private static ActiveMQAddressFullException ex;
-  private static BuffersManagerConfig cfg;
 
   public static void init(BuffersManagerConfig cfg) {
-    BuffersManager.cfg = cfg;
-
-    registeredQueues.clear();
-
-    if (level_1 != null) {
-      level_1.shutdown();
-      level_1 = null;
-    }
-    if (level_2 != null) {
-      level_2.shutdown();
-      level_2 = null;
-    }
+    shutdown();
 
     BufferConfig memCfg = new BufferConfig();
     memCfg.buffer = cfg.buffer + "/memory";
@@ -48,6 +35,19 @@ public class BuffersManager {
     }
   }
 
+  public static void shutdown() {
+    registeredQueues.clear();
+
+    if (level_1 != null) {
+      level_1.shutdown();
+      level_1 = null;
+    }
+    if (level_2 != null) {
+      level_2.shutdown();
+      level_2 = null;
+    }
+  }
+
   public static List<Buffer> registerNewQueueIfNeedIt(QueueInfo handler) {
     List<Buffer> buffers = new ArrayList<>();
     Boolean registered = registeredQueues.computeIfAbsent(handler.getName(), s -> false);
@@ -59,14 +59,6 @@ public class BuffersManager {
         level_2.registerNewQueueInfo(handler);
         buffers.add(level_2);
         level_1.createBridge("disk", handler, 1);
-        //        RatedBridge.createNewBridge(
-        //            level_2,
-        //            level_1,
-        //            handler,
-        //            entityPropertiesFactoryMap
-        //                .get(CENTRAL_TENANT_NAME)
-        //                .get(handler.getEntityType())
-        //                .getRateLimit());
       }
 
       // TODO: move this to handler/queueInfo creation

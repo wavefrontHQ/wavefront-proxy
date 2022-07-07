@@ -122,11 +122,10 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
             .computeIfAbsent(
                 queue.getEntityType(),
                 k -> {
-                  int port = Integer.parseInt(handler);
                   switch (queue.getEntityType()) {
                     case POINT:
                       return new ReportPointHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
@@ -136,7 +135,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           null);
                     case HISTOGRAM:
                       return new ReportPointHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
@@ -146,10 +145,10 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           histogramRecompressor);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(
-                          port, queue, blockedItemsPerBatch, blockedPointsLogger);
+                          handler, queue, blockedItemsPerBatch, blockedPointsLogger);
                     case TRACE:
                       return new SpanHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
@@ -168,21 +167,21 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                                           queue.getEntityType(), queue.getTenant()))));
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           blockedSpansLogger,
                           VALID_SPAN_LOGS_LOGGER);
                     case EVENT:
                       return new EventHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           blockedPointsLogger,
                           VALID_EVENTS_LOGGER);
                     case LOGS:
                       return new ReportLogHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,

@@ -22,11 +22,12 @@ class ReportSourceTagHandlerImpl
       value -> new SourceTag(value).toString();
 
   public ReportSourceTagHandlerImpl(
-      int port,
+      String handler,
       QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       final Logger blockedItemLogger) {
-    super(port, handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, true, blockedItemLogger);
+    super(
+        handler, handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, true, blockedItemLogger);
   }
 
   @VisibleForTesting

@@ -3,6 +3,7 @@ package com.wavefront.agent.core.senders;
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
+import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.api.EventAPI;
 import java.util.List;
 import java.util.UUID;
@@ -15,8 +16,12 @@ import java.util.UUID;
  */
 class EventSenderTask extends AbstractSenderTask {
 
+  private final QueueInfo queue;
+  private final int idx;
   private final EventAPI proxyAPI;
   private final UUID proxyId;
+  private final EntityProperties properties;
+  private final Buffer buffer;
 
   /**
    * @param queue handler key, that serves as an identifier of the metrics pipeline.
@@ -32,8 +37,12 @@ class EventSenderTask extends AbstractSenderTask {
       EntityProperties properties,
       Buffer buffer) {
     super(queue, idx, properties, buffer);
+    this.queue = queue;
+    this.idx = idx;
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
+    this.properties = properties;
+    this.buffer = buffer;
   }
 
   // TODO: review
@@ -54,6 +63,8 @@ class EventSenderTask extends AbstractSenderTask {
 
   @Override
   public int processSingleBatch(List<String> batch) {
-    throw new UnsupportedOperationException("Not implemented");
+    EventDataSubmissionTask task =
+        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null);
+    return task.execute();
   }
 }

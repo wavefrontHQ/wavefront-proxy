@@ -60,7 +60,7 @@ public class DeltaCounterAccumulationHandlerImpl
    * @param validItemsLogger logger for valid items.
    */
   public DeltaCounterAccumulationHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
@@ -68,7 +68,7 @@ public class DeltaCounterAccumulationHandlerImpl
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
-        port,
+        handler,
         handlerKey,
         blockedItemsPerBatch,
         new ReportPointSerializer(),

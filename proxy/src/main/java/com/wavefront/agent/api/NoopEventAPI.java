@@ -16,4 +16,9 @@ public class NoopEventAPI implements EventAPI {
   public Response proxyEvents(UUID uuid, List<Event> list) {
     return Response.ok().build();
   }
+
+  @Override
+  public Response proxyEventsString(UUID uuid, List<String> list) {
+    return Response.ok().build();
+  }
 }

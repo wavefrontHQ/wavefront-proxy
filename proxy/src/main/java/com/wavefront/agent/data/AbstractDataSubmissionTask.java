@@ -147,6 +147,12 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       //                    + " settings!");
       //          }
       //        case 413:
+      //      splitTask(1, properties.getDataPerBatch())
+      //              .forEach(
+      //                      x ->
+      //                              x.enqueue(
+      //                                      enqueuedTimeMillis == Long.MAX_VALUE ?
+      // QueueingReason.SPLIT : null));
       //        default:
       //      }
 

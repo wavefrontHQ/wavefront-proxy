@@ -50,7 +50,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    * @param isHistogramInput Whether expected input data for this handler is histograms.
    */
   public HistogramAccumulationHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final Accumulator digests,
       final int blockedItemsPerBatch,
@@ -60,7 +60,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
-        port,
+        handler,
         handlerKey,
         blockedItemsPerBatch,
         validationConfig,

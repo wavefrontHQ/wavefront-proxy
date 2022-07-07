@@ -28,12 +28,12 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
    * @param validEventsLogger logger for valid events.
    */
   public EventHandlerImpl(
-      final int port,
+      final String handler,
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {
-    super(port, handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, true, blockedEventsLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, true, blockedEventsLogger);
     this.validItemsLogger = validEventsLogger;
   }
 

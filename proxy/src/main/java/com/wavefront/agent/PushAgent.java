@@ -110,6 +110,7 @@ import wavefront.report.ReportPoint;
 public class PushAgent extends AbstractAgent {
 
   protected final Map<Integer, Thread> listeners = new HashMap<>();
+
   protected final IdentityHashMap<ChannelOption<?>, Object> childChannelOptions =
       new IdentityHashMap<>();
   protected final Counter bindErrors =
@@ -215,8 +216,6 @@ public class PushAgent extends AbstractAgent {
             blockedLogsLogger);
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
-
-    shutdownTasks.add(() -> SenderTasksManager.shutdown());
 
     SpanSampler spanSampler = createSpanSampler();
 
@@ -1270,7 +1269,7 @@ public class PushAgent extends AbstractAgent {
                       handler,
                       k ->
                           new DeltaCounterAccumulationHandlerImpl(
-                              Integer.parseInt(handler),
+                              handler,
                               queue,
                               proxyConfig.getPushBlockedSamples(),
                               validationConfiguration,
@@ -1368,7 +1367,7 @@ public class PushAgent extends AbstractAgent {
                   //noinspection unchecked
                   return (ReportableEntityHandler<T, U>)
                       new HistogramAccumulationHandlerImpl(
-                          port,
+                          handler,
                           queue,
                           cachedAccumulator,
                           proxyConfig.getPushBlockedSamples(),
@@ -1700,7 +1699,7 @@ public class PushAgent extends AbstractAgent {
                     queue,
                     k ->
                         new HistogramAccumulationHandlerImpl(
-                            Integer.parseInt(handler),
+                            handler,
                             queue,
                             cachedAccumulator,
                             proxyConfig.getPushBlockedSamples(),
@@ -2035,18 +2034,17 @@ public class PushAgent extends AbstractAgent {
   @Override
   public void stopListeners() {
     // TODO: review
-    //    listeners.values().forEach(Thread::interrupt);
-    //    listeners
-    //        .values()
-    //        .forEach(
-    //            thread -> {
-    //              try {
-    //                thread.join(TimeUnit.SECONDS.toMillis(10));
-    //              } catch (InterruptedException e) {
-    //                // ignore
-    //              }
-    //            });
-    //    SenderTasksManager.shutdown();
+    listeners.values().forEach(Thread::interrupt);
+    listeners
+        .values()
+        .forEach(
+            thread -> {
+              try {
+                thread.join(TimeUnit.SECONDS.toMillis(10));
+              } catch (InterruptedException e) {
+                // ignore
+              }
+            });
   }
 
   @Override

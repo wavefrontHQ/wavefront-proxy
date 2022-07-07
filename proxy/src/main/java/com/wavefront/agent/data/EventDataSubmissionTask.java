@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.api.EventAPI;
-import com.wavefront.dto.Event;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +25,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   private transient EventAPI api;
   private transient UUID proxyId;
 
-  @JsonProperty private List<Event> events;
+  @JsonProperty private List<String> events;
 
   @SuppressWarnings("unused")
   EventDataSubmissionTask() {}
@@ -44,17 +43,17 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       UUID proxyId,
       EntityProperties properties,
       QueueInfo queue,
-      @Nonnull List<Event> events,
+      @Nonnull List<String> events,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, queue, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
-    this.events = new ArrayList<>(events);
+    this.events = events;
   }
 
   @Override
   public Response doExecute() {
-    return api.proxyEvents(proxyId, events);
+    return api.proxyEventsString(proxyId, "[" + String.join(",", events) + "]");
   }
 
   public List<EventDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
@@ -78,7 +77,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     return ImmutableList.of(this);
   }
 
-  public List<Event> payload() {
+  public List<String> payload() {
     return events;
   }
 

@@ -27,7 +27,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   private static final Logger logger =
       Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   final QueueInfo handlerKey;
-  final int port;
+  final String handler;
 
   @SuppressWarnings("UnstableApiUsage")
   final RateLimiter blockedItemsLimiter;
@@ -56,13 +56,13 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    * @param blockedItemsLogger a {@link Logger} instance for blocked items
    */
   AbstractReportableEntityHandler(
-      int port,
+      String handler,
       @NotNull QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       final Function<T, String> serializer,
       boolean reportReceivedStats,
       @Nullable final Logger blockedItemsLogger) {
-    this.port = port;
+    this.handler = handler;
     this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
     this.blockedItemsLimiter =
@@ -73,7 +73,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.blockedItemsLogger = blockedItemsLogger;
 
     MetricsRegistry registry = reportReceivedStats ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    String metricPrefix = this.port + "." + handlerKey.getName();
+    String metricPrefix = this.handler + "." + handlerKey.getName();
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     this.receivedCounter = registry.newCounter(receivedMetricName);
     this.attemptedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "sent"));
@@ -92,7 +92,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
             return receivedStats.getMaxBurstRateAndClear();
           }
         });
-    timer = new Timer("stats-output-" + handlerKey.getName() + "." + this.port);
+
+    timer = new Timer("stats-output-" + handlerKey.getName() + "." + this.handler);
     timer.scheduleAtFixedRate(
         new TimerTask() {
           @Override
@@ -124,7 +125,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     }
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + this.port + "] blocked input: [" + message + "]");
+      logger.info("[" + this.handler + "] blocked input: [" + message + "]");
     }
   }
 
@@ -135,7 +136,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + this.port + "] blocked input: [" + message + "]");
+      logger.info("[" + this.handler + "] blocked input: [" + message + "]");
     }
   }
 
@@ -190,7 +191,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (reportReceivedStats) {
       logger.info(
           "["
-              + this.port
+              + this.handler
               + "] "
               + handlerKey.getEntityType().toCapitalizedString()
               + " received rate: "
@@ -229,7 +230,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   protected void printTotal() {
     logger.info(
         "["
-            + this.port
+            + this.handler
             + "] "
             + handlerKey.getEntityType().toCapitalizedString()
             + " processed since start: "
