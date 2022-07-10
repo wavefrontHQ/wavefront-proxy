@@ -38,9 +38,9 @@ public class OtlpGrpcMetricsHandlerTest {
         public void onCompleted() {}
       };
 
-  private final ReportableEntityHandler<ReportPoint, String> mockReportPointHandler =
+  private final ReportableEntityHandler<ReportPoint> mockReportPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
-  private final ReportableEntityHandler<ReportPoint, String> mockHistogramHandler =
+  private final ReportableEntityHandler<ReportPoint> mockHistogramHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier =
       ReportableEntityPreprocessor::new;

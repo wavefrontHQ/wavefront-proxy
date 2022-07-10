@@ -49,7 +49,7 @@ public class PointHandlerDispatcherTest {
     subject =
         new PointHandlerDispatcher(
             in,
-            new ReportableEntityHandler<ReportPoint, String>() {
+            new ReportableEntityHandler<ReportPoint>() {
 
               @Override
               public void report(ReportPoint reportPoint) {

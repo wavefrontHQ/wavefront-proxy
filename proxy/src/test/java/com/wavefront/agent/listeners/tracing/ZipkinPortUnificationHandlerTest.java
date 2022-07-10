@@ -42,9 +42,9 @@ public class ZipkinPortUnificationHandlerTest {
   private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
   private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private long startTime = System.currentTimeMillis();
@@ -308,8 +308,8 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   private void doMockLifecycle(
-      ReportableEntityHandler<Span, String> mockTraceHandler,
-      ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler) {
+      ReportableEntityHandler<Span> mockTraceHandler,
+      ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
     // Reset mock
     reset(mockTraceHandler, mockTraceSpanLogsHandler);
 

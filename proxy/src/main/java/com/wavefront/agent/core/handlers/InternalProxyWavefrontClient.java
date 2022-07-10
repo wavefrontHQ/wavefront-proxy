@@ -1,8 +1,8 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.common.Utils.lazySupplier;
 
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.Pair;
@@ -22,8 +22,8 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 public class InternalProxyWavefrontClient implements WavefrontSender {
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final String clientId;
 
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory, int port) {
@@ -31,12 +31,12 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    port, QueuesManager.initQueue(ReportableEntityType.POINT)));
+                    port, queuesManager.initQueue(ReportableEntityType.POINT)));
     this.histogramHandlerSupplier =
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
+                    port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.clientId = String.valueOf(port);
   }
 

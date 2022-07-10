@@ -1,9 +1,9 @@
 package com.wavefront.agent.data;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
 import org.junit.Test;
@@ -18,7 +18,7 @@ public class LineDelimitedDataSubmissionTaskTest {
             null,
             null,
             "graphite_v2",
-            QueuesManager.initQueue(ReportableEntityType.POINT),
+            queuesManager.initQueue(ReportableEntityType.POINT),
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
             null);
 

@@ -16,7 +16,7 @@ public class DelegatingReportableEntityHandlerFactoryImpl
   }
 
   @Override
-  public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
+  public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
     return delegate.getHandler(handler, queue);
   }
 

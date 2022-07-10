@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
@@ -10,7 +11,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.GraphiteDecoder;
@@ -43,7 +43,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   private final String defaultHost;
 
@@ -72,7 +72,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
         port,
         authenticator,
         healthCheckManager,
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT)),
         defaultHost,
         preprocessor);
   }
@@ -82,7 +82,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
       final int port,
       final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler,
+      final ReportableEntityHandler<ReportPoint> pointHandler,
       final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, healthCheckManager, port);

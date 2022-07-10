@@ -37,7 +37,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   private final Function<String, Integer> dropSpansDelayedMinutes;
   private final com.yammer.metrics.core.Histogram receivedTagCount;
   private final com.yammer.metrics.core.Counter policySampledSpanCounter;
-  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler;
+  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandler;
 
   /**
    * @param handlerKey pipeline hanler key.
@@ -57,7 +57,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
-      @Nonnull final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler) {
+      @Nonnull final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandler) {
     super(handler, handlerKey, blockedItemsPerBatch, new SpanSerializer(), true, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
@@ -111,7 +111,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     final String strSpan = serializer.apply(span);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, strSpan);
+    BuffersManager.sendMsg(queue, strSpan);
 
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }

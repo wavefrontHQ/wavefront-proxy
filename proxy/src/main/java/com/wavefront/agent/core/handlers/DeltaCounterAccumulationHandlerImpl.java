@@ -147,7 +147,7 @@ public class DeltaCounterAccumulationHandlerImpl
             "wavefront-proxy");
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, strPoint);
+    BuffersManager.sendMsg(queue, strPoint);
   }
 
   @Override

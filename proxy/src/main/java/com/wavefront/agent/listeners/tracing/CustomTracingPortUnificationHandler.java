@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.*;
@@ -12,7 +13,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.data.ReportableEntityType;
@@ -88,9 +88,9 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
         handlerFactory.getHandler(
-            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         sampler,
         traceDisabled,
         spanLogsDisabled,
@@ -109,8 +109,8 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       ReportableEntityDecoder<String, Span> traceDecoder,
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      final ReportableEntityHandler<Span> handler,
+      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
       SpanSampler sampler,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,

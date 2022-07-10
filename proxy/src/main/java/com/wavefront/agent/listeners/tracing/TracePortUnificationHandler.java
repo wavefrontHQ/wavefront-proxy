@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
@@ -10,7 +11,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -44,10 +44,10 @@ import wavefront.report.SpanLogs;
 @ChannelHandler.Sharable
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
 
-  protected final ReportableEntityHandler<Span, String> handler;
+  protected final ReportableEntityHandler<Span> handler;
   protected final Counter discardedSpans;
   protected final Counter discardedSpanLogs;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -76,9 +76,9 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
         handlerFactory.getHandler(
-            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         sampler,
         traceDisabled,
         spanLogsDisabled);
@@ -92,8 +92,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      final ReportableEntityHandler<Span> handler,
+      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
       final SpanSampler sampler,
       final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {

@@ -41,9 +41,9 @@ import wavefront.report.SpanLogs;
  */
 public class JaegerGrpcCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
-  private final ReportableEntityHandler<Span, String> mockTraceHandler =
+  private final ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private final ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
+  private final ReportableEntityHandler<SpanLogs> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private final long startTime = System.currentTimeMillis();

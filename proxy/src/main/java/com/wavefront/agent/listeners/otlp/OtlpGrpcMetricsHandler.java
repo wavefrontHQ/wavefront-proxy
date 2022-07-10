@@ -1,8 +1,9 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
+
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import io.grpc.stub.StreamObserver;
@@ -15,8 +16,8 @@ import wavefront.report.ReportPoint;
 
 public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImplBase {
 
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
-  private final ReportableEntityHandler<ReportPoint, String> histogramHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> histogramHandler;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final String defaultSource;
   private final boolean includeResourceAttrsForMetrics;
@@ -31,8 +32,8 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
    * @param includeResourceAttrsForMetrics
    */
   public OtlpGrpcMetricsHandler(
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
-      ReportableEntityHandler<ReportPoint, String> histogramHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
+      ReportableEntityHandler<ReportPoint> histogramHandler,
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics) {
@@ -52,9 +53,9 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
       boolean includeResourceAttrsForMetrics) {
     this(
         handlerFactory.getHandler(
-            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.POINT)),
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.POINT)),
         handlerFactory.getHandler(
-            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)),
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.HISTOGRAM)),
         preprocessorSupplier,
         defaultSource,
         includeResourceAttrsForMetrics);

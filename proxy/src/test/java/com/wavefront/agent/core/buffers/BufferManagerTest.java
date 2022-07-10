@@ -1,28 +1,25 @@
 package com.wavefront.agent.core.buffers;
 
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
-import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-import static com.wavefront.data.ReportableEntityType.POINT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.wavefront.agent.TestQueue;
 import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.core.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.activemq.artemis.api.core.client.*;
-import org.junit.Before;
 import org.junit.Test;
 
 public class BufferManagerTest {
 
-  @Before
-  public void shutdown() {
-    BuffersManager.shutdown();
-  }
+  //  @After
+  //  public void shutdown() {
+  //    BuffersManager.shutdown();
+  //  }
 
   @Test
   public void counters() throws Exception {
@@ -35,7 +32,7 @@ public class BufferManagerTest {
     cfg.l2 = true;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new testQueue();
+    QueueInfo points = new TestQueue();
     BuffersManager.registerNewQueueIfNeedIt(points);
 
     for (int i = 0; i < 1_000_000; i++) {
@@ -83,7 +80,7 @@ public class BufferManagerTest {
     cfg.msgRetry = -1;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new testQueue();
+    QueueInfo points = new TestQueue();
     BuffersManager.registerNewQueueIfNeedIt(points);
 
     Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
@@ -107,7 +104,7 @@ public class BufferManagerTest {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
-    QueueInfo points = new testQueue();
+    QueueInfo points = new TestQueue();
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = buffer.toFile().getAbsolutePath();
@@ -154,7 +151,7 @@ public class BufferManagerTest {
     cfg.buffer = buffer.toFile().getAbsolutePath();
     BuffersManager.init(cfg);
 
-    QueueInfo points = new testQueue();
+    QueueInfo points = new TestQueue();
     BuffersManager.registerNewQueueIfNeedIt(points);
     // setting queue max size to 500 bytes
     BuffersManager.getLeve1().setQueueSize(points, 500);
@@ -185,27 +182,5 @@ public class BufferManagerTest {
 
     assertNotEquals("MessageCount", 0l, size_memory.value());
     assertNotEquals("MessageCount", 0l, size_disk.value());
-  }
-
-  private class testQueue implements QueueInfo {
-    @Override
-    public String getTenant() {
-      return CENTRAL_TENANT_NAME;
-    }
-
-    @Override
-    public ReportableEntityType getEntityType() {
-      return POINT;
-    }
-
-    @Override
-    public String getName() {
-      return POINT.name();
-    }
-
-    @Override
-    public int getNumberThreads() {
-      return 1;
-    }
   }
 }

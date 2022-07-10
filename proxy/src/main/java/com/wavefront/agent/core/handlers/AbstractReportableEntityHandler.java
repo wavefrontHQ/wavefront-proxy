@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
+import wavefront.report.ReportPoint;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -21,12 +22,12 @@ import org.jetbrains.annotations.NotNull;
  * @param <T> the type of input objects handled
  * @param <U> the type of the output object as handled by {@link SenderTask}
  */
-abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T, U> {
+abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T> {
   protected static final MetricsRegistry LOCAL_REGISTRY = new MetricsRegistry();
   protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
   private static final Logger logger =
       Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
-  final QueueInfo handlerKey;
+  final QueueInfo queue;
   final String handler;
 
   @SuppressWarnings("UnstableApiUsage")
@@ -63,7 +64,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       boolean reportReceivedStats,
       @Nullable final Logger blockedItemsLogger) {
     this.handler = handler;
-    this.handlerKey = handlerKey;
+    this.queue = handlerKey;
     //noinspection UnstableApiUsage
     this.blockedItemsLimiter =
         blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
@@ -180,6 +181,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   abstract void reportInternal(T item);
 
+  final void reportToTenants(ReportPoint point) {}
+
   protected Counter getReceivedCounter() {
     return receivedCounter;
   }
@@ -193,7 +196,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
           "["
               + this.handler
               + "] "
-              + handlerKey.getEntityType().toCapitalizedString()
+              + queue.getEntityType().toCapitalizedString()
               + " received rate: "
               + receivedStats.getOneMinutePrintableRate()
               + " "
@@ -232,7 +235,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
         "["
             + this.handler
             + "] "
-            + handlerKey.getEntityType().toCapitalizedString()
+            + queue.getEntityType().toCapitalizedString()
             + " processed since start: "
             + this.attemptedCounter.count()
             + "; blocked: "

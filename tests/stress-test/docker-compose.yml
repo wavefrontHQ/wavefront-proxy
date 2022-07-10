@@ -47,6 +47,7 @@ services:
       ]
 
   loadgen:
+    profiles: [ "loadgen" ]
     build: docker/loadgen
     volumes:
       - ./resources/others:/opt/others/
@@ -59,4 +60,26 @@ services:
         "--timeout=30",
         "--",
         "/opt/loadgen/run.sh"
+      ]
+
+  jmeter:
+    profiles: [ "jmeter" ]
+    build: docker/jmeter
+    volumes:
+      - ./resources/jmeter:/opt/jmeter/
+      - ./resources/others:/opt/others/
+    depends_on:
+      - "wf-proxy"
+    command:
+      [
+        "/opt/others/wait-for-it.sh",
+        "wf-proxy:2878",
+        "--timeout=30",
+        "--",
+        "jmeter",
+        "-n",
+        "-t",
+        "/opt/jmeter/stress.jmx",
+        "-p",
+        "/opt/jmeter/stress.properties"
       ]

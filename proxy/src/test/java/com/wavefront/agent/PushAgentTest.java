@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.TestUtils.*;
 import static com.wavefront.sdk.common.Constants.*;
 import static org.easymock.EasyMock.*;
@@ -16,7 +17,6 @@ import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.agent.listeners.otlp.OtlpTestHelpers;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -27,8 +27,6 @@ import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.tls.NaiveTrustManager;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.dto.Event;
-import com.wavefront.dto.SourceTag;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
@@ -77,17 +75,17 @@ public class PushAgentTest {
   //  private int tracePort;
   private int customTracePort;
   private int deltaPort;
-  private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
+  private ReportableEntityHandler<ReportPoint> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
-  private ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler =
+  private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
       MockReportableEntityHandlerFactory.getMockSourceTagHandler();
-  private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler =
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler =
       MockReportableEntityHandlerFactory.getMockHistogramHandler();
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
-  private ReportableEntityHandler<ReportEvent, Event> mockEventHandler =
+  private ReportableEntityHandler<ReportEvent> mockEventHandler =
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
@@ -122,6 +120,7 @@ public class PushAgentTest {
   public void setup() throws Exception {
     proxy = new PushAgent();
     proxy.proxyConfig.flushThreads = 2;
+    proxy.proxyConfig.disableBuffer = true;
     proxy.proxyConfig.dataBackfillCutoffHours = 100000000;
     proxy.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
@@ -1823,7 +1822,7 @@ public class PushAgentTest {
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
     proxy.proxyConfig.disableBuffer = true;
 
-    QueueInfo handlerKey = QueuesManager.initQueue(ReportableEntityType.POINT);
+    QueueInfo handlerKey = queuesManager.initQueue(ReportableEntityType.POINT);
     BuffersManager.registerNewQueueIfNeedIt(handlerKey);
 
     proxy.startDeltaCounterListener(
@@ -1832,7 +1831,7 @@ public class PushAgentTest {
 
     String payloadStr = "∆test.mixed 1.0 " + alignedStartTimeEpochSeconds + " source=test1\n";
     assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
-    ReportableEntityHandler<?, ?> handler =
+    ReportableEntityHandler<?> handler =
         proxy.deltaCounterHandlerFactory.getHandler(deltaPort, handlerKey);
     if (!(handler instanceof DeltaCounterAccumulationHandlerImpl)) fail();
     ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();

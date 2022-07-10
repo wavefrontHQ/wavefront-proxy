@@ -47,7 +47,7 @@ public final class SpanUtils {
   public static void preprocessAndHandleSpan(
       String message,
       ReportableEntityDecoder<String, Span> decoder,
-      ReportableEntityHandler<Span, String> handler,
+      ReportableEntityHandler<Span> handler,
       Consumer<Span> spanReporter,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx,
@@ -110,7 +110,7 @@ public final class SpanUtils {
       String message,
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       ReportableEntityDecoder<String, Span> spanDecoder,
-      ReportableEntityHandler<SpanLogs, String> handler,
+      ReportableEntityHandler<SpanLogs> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx,
       Function<Span, Boolean> samplerFunc) {

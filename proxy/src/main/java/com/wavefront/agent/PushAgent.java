@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.agent.core.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
@@ -29,7 +30,7 @@ import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.buffers.BuffersManagerConfig;
 import com.wavefront.agent.core.handlers.*;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.queues.QueuesManager;
+import com.wavefront.agent.core.queues.QueuesManagerDefault;
 import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -102,12 +103,10 @@ import org.logstash.beats.Server;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/**
- * Push-only Agent.
- *
- * @author Clement Pang (clement@wavefront.com)
- */
+/** Push-only Agent. */
 public class PushAgent extends AbstractAgent {
+
+  public static boolean isMulticastingActive;
 
   protected final Map<Integer, Thread> listeners = new HashMap<>();
 
@@ -166,7 +165,8 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() throws Exception {
 
-    QueuesManager.init(entityPropertiesFactoryMap);
+    isMulticastingActive = proxyConfig.getMulticastingTenants() > 0;
+    ProxyContext.queuesManager = new QueuesManagerDefault(entityPropertiesFactoryMap, proxyConfig);
     SenderTasksManager.init(apiContainer, agentId, entityPropertiesFactoryMap);
 
     /***** PROXY NEW *****/
@@ -520,9 +520,9 @@ public class PushAgent extends AbstractAgent {
       File baseDirectory = new File(proxyConfig.getHistogramStateDirectory());
 
       // Central dispatch
-      ReportableEntityHandler<ReportPoint, String> pointHandler =
+      ReportableEntityHandler<ReportPoint> pointHandler =
           handlerFactory.getHandler(
-              "histogram_ports", QueuesManager.initQueue(ReportableEntityType.HISTOGRAM));
+              "histogram_ports", queuesManager.initQueue(ReportableEntityType.HISTOGRAM));
 
       startHistogramListeners(
           histMinPorts,
@@ -768,7 +768,7 @@ public class PushAgent extends AbstractAgent {
         new ChannelByteArrayHandler(
             new PickleProtocolDecoder(
                 "unknown", proxyConfig.getCustomSourceTags(), formatter.getMetricMangler(), port),
-            handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT)),
+            handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT)),
             preprocessors.get(port),
             blockedPointsLogger);
 
@@ -1258,13 +1258,12 @@ public class PushAgent extends AbstractAgent {
     if (this.deltaCounterHandlerFactory == null) {
       this.deltaCounterHandlerFactory =
           new ReportableEntityHandlerFactory() {
-            private final Map<String, ReportableEntityHandler<?, ?>> handlers =
+            private final Map<String, ReportableEntityHandler<?>> handlers =
                 new ConcurrentHashMap<>();
 
             @Override
-            public <T, U> ReportableEntityHandler<T, U> getHandler(
-                String handler, QueueInfo queue) {
-              return (ReportableEntityHandler<T, U>)
+            public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+              return (ReportableEntityHandler<T>)
                   handlers.computeIfAbsent(
                       handler,
                       k ->
@@ -1332,8 +1331,7 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.isPushRelayHistogramAggregator()
             ? new DelegatingReportableEntityHandlerFactoryImpl(handlerFactory) {
               @Override
-              public <T, U> ReportableEntityHandler<T, U> getHandler(
-                  String handler, QueueInfo queue) {
+              public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
                 if (queue.getEntityType() == ReportableEntityType.HISTOGRAM) {
                   ChronicleMap<HistogramKey, AgentDigest> accumulator =
                       ChronicleMap.of(HistogramKey.class, AgentDigest.class)
@@ -1365,7 +1363,7 @@ public class PushAgent extends AbstractAgent {
                           "histogram.accumulator.distributionRelay",
                           null);
                   //noinspection unchecked
-                  return (ReportableEntityHandler<T, U>)
+                  return (ReportableEntityHandler<T>)
                       new HistogramAccumulationHandlerImpl(
                           handler,
                           queue,
@@ -1550,7 +1548,7 @@ public class PushAgent extends AbstractAgent {
 
   protected void startHistogramListeners(
       List<Integer> ports,
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
       SharedGraphiteHostAnnotator hostAnnotator,
       @Nullable Granularity granularity,
       int flushSecs,
@@ -1688,13 +1686,13 @@ public class PushAgent extends AbstractAgent {
 
     ReportableEntityHandlerFactory histogramHandlerFactory =
         new ReportableEntityHandlerFactory() {
-          private final Map<QueueInfo, ReportableEntityHandler<?, ?>> handlers =
+          private final Map<QueueInfo, ReportableEntityHandler<?>> handlers =
               new ConcurrentHashMap<>();
 
           @SuppressWarnings("unchecked")
           @Override
-          public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
-            return (ReportableEntityHandler<T, U>)
+          public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+            return (ReportableEntityHandler<T>)
                 handlers.computeIfAbsent(
                     queue,
                     k ->

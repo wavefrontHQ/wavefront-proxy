@@ -1,9 +1,9 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.data.ReportableEntityType.*;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
@@ -69,7 +69,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           false,
           logger::info);
 
-  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
+  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?>>> handlers =
       new ConcurrentHashMap<>();
 
   private final int blockedItemsPerBatch;
@@ -115,8 +115,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   @SuppressWarnings("unchecked")
   // TODO: review all implementations of this method
   @Override
-  public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
-    return (ReportableEntityHandler<T, U>)
+  public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+    return (ReportableEntityHandler<T>)
         handlers
             .computeIfAbsent(handler + "." + queue.getName(), h -> new ConcurrentHashMap<>())
             .computeIfAbsent(
@@ -162,9 +162,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           Utils.lazySupplier(
                               () ->
                                   getHandler(
-                                      handler,
-                                      QueuesManager.initQueue(
-                                          queue.getEntityType(), queue.getTenant()))));
+                                      handler, queuesManager.initQueue(queue.getEntityType()))));
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
                           handler,

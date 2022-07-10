@@ -1,12 +1,13 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.buffers.BuffersManagerConfig;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.core.senders.SourceTagSenderTask;
@@ -47,7 +48,7 @@ public class ReportSourceTagHandlerTest {
         Collections.singletonMap(
             APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
 
-    handlerKey = QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG);
+    handlerKey = queuesManager.initQueue(ReportableEntityType.SOURCE_TAG);
     sourceTagHandler = new ReportSourceTagHandlerImpl("4878", handlerKey, 10, blockedLogger);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
@@ -170,7 +171,7 @@ public class ReportSourceTagHandlerTest {
         ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tasks);
     ReportSourceTagHandlerImpl sourceTagHandler =
         new ReportSourceTagHandlerImpl(
-            "4878", QueuesManager.initQueue(ReportableEntityType.SOURCE_TAG), 10, blockedLogger);
+            "4878", queuesManager.initQueue(ReportableEntityType.SOURCE_TAG), 10, blockedLogger);
     // todo: review
     //    task1.add(new SourceTag(sourceTag1));
     //    EasyMock.expectLastCall();

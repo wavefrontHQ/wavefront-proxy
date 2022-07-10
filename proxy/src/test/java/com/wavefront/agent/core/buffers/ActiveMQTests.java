@@ -78,5 +78,7 @@ public class ActiveMQTests {
     session.commit();
     session.close();
     assertEquals("", 0, queueControl.countMessages());
+
+    amq.stop();
   }
 }

@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.PushAgent.isMulticastingActive;
 import static com.wavefront.data.Validation.validatePoint;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
@@ -30,8 +31,6 @@ import wavefront.report.ReportPoint;
 /**
  * Handler that processes incoming ReportPoint objects, validates them and hands them over to one of
  * the {@link SenderTask} threads.
- *
- * @author vasily@wavefront.com
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
   private static final Logger logger =
@@ -106,7 +105,23 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     final String strPoint = serializer.apply(point);
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, strPoint);
+    BuffersManager.sendMsg(queue, strPoint);
+
+    if (isMulticastingActive
+        && point.getAnnotations() != null
+        && point.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          point.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      point.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String tenant : multicastingTenantNames) {
+        QueueInfo tenantQueue = queue.getTenantQueue(tenant);
+        if (tenantQueue != null) {
+          BuffersManager.sendMsg(tenantQueue, strPoint);
+        } else {
+          logger.fine("Tenant '" + tenant + "' invalid");
+        }
+      }
+    }
 
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
   }

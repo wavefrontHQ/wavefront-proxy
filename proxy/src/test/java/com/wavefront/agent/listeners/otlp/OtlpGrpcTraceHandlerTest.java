@@ -24,9 +24,9 @@ import wavefront.report.Annotation;
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpGrpcTraceHandlerTest {
-  private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
+  private final ReportableEntityHandler<wavefront.report.Span> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private final ReportableEntityHandler<wavefront.report.SpanLogs, String> mockSpanLogsHandler =
+  private final ReportableEntityHandler<wavefront.report.SpanLogs> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);

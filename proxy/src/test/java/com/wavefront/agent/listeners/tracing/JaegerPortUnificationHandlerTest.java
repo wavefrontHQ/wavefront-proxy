@@ -47,9 +47,9 @@ public class JaegerPortUnificationHandlerTest {
   private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
   private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private ChannelHandlerContext mockCtx = createNiceMock(ChannelHandlerContext.class);

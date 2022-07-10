@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -10,7 +11,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
@@ -43,7 +43,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   /** OpenTSDB decoder object */
   private final ReportableEntityDecoder<String, ReportPoint> decoder;
@@ -64,7 +64,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
     this.decoder = decoder;
     this.pointHandler =
         handlerFactory.getHandler(
-            String.valueOf(this.port), QueuesManager.initQueue(ReportableEntityType.POINT));
+            String.valueOf(this.port), queuesManager.initQueue(ReportableEntityType.POINT));
     this.preprocessorSupplier = preprocessor;
     this.resolver = resolver;
   }

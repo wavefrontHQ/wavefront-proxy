@@ -32,8 +32,8 @@ public class OtlpMetricsUtils {
 
   public static void exportToWavefront(
       ExportMetricsServiceRequest request,
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
-      ReportableEntityHandler<ReportPoint, String> histogramHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
+      ReportableEntityHandler<ReportPoint> histogramHandler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics) {
@@ -91,7 +91,7 @@ public class OtlpMetricsUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       ReportPoint wfReportPoint,
-      ReportableEntityHandler<ReportPoint, String> spanHandler,
+      ReportableEntityHandler<ReportPoint> spanHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;

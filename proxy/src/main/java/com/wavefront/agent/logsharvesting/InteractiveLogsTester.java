@@ -39,9 +39,9 @@ public class InteractiveLogsTester implements InteractiveTester {
         new ReportableEntityHandlerFactory() {
           @SuppressWarnings("unchecked")
           @Override
-          public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
-            return (ReportableEntityHandler<T, U>)
-                new ReportableEntityHandler<ReportPoint, String>() {
+          public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+            return (ReportableEntityHandler<T>)
+                new ReportableEntityHandler<ReportPoint>() {
                   @Override
                   public void report(ReportPoint reportPoint) {
                     reported.set(true);

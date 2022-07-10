@@ -26,7 +26,7 @@ public class CustomTracingPortUnificationHandlerTest {
     Capture<Long> duration = newCapture();
     histogram.update(captureLong(duration));
     expectLastCall();
-    ReportableEntityHandler<Span, String> handler =
+    ReportableEntityHandler<Span> handler =
         MockReportableEntityHandlerFactory.getMockTraceHandler();
     CustomTracingPortUnificationHandler subject =
         new CustomTracingPortUnificationHandler(

@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
@@ -13,7 +14,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -56,12 +56,12 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final ScheduledExecutorService scheduledExecutorService;
-  private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<Span> spanHandler;
   @Nullable private final WavefrontSender sender;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final Set<String> traceDerivedCustomTagKeys;
-  private final ReportableEntityHandler<ReportPoint, String> metricsHandler;
-  private final ReportableEntityHandler<ReportPoint, String> histogramHandler;
+  private final ReportableEntityHandler<ReportPoint> metricsHandler;
+  private final ReportableEntityHandler<ReportPoint> histogramHandler;
   private final Counter receivedSpans;
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
@@ -83,14 +83,14 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     super(tokenAuthenticator, healthCheckManager, port);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
     this.spanHandler =
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE));
     this.spanLogsHandler =
         handlerFactory.getHandler(
-            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
     this.metricsHandler =
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandler =
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;

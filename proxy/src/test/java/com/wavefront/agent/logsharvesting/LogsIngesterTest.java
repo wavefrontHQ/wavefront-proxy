@@ -1,5 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static org.easymock.EasyMock.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -12,6 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.PointMatchers;
+import com.wavefront.agent.TestQueue;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.config.ConfigurationException;
@@ -19,6 +21,7 @@ import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
@@ -39,23 +42,36 @@ import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.After;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.logstash.beats.Message;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class LogsIngesterTest {
   private LogsIngestionConfig logsIngestionConfig;
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
   private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
   private ReportableEntityHandlerFactory mockFactory;
-  private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
-  private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
+  private ReportableEntityHandler<ReportPoint> mockPointHandler;
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
   private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
   private AtomicLong nanos = new AtomicLong(System.nanoTime());
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+
+  @BeforeClass
+  public static void init() {
+    queuesManager =
+        new QueuesManager() {
+          Map<String, TestQueue> queues = new HashMap<>();
+
+          @Override
+          public QueueInfo initQueue(ReportableEntityType entityType) {
+            return queues.computeIfAbsent(entityType.toString(), s -> new TestQueue());
+          }
+        };
+  }
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
     File configFile =
@@ -71,19 +87,21 @@ public class LogsIngesterTest {
     mockPointHandler = createMock(ReportableEntityHandler.class);
     mockHistogramHandler = createMock(ReportableEntityHandler.class);
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
+
     expect(
             (ReportableEntityHandler)
                 mockFactory.getHandler(
-                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.POINT)))
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.POINT)))
         .andReturn(mockPointHandler)
         .anyTimes();
     expect(
             (ReportableEntityHandler)
                 mockFactory.getHandler(
-                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)))
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.HISTOGRAM)))
         .andReturn(mockHistogramHandler)
         .anyTimes();
     replay(mockFactory);
+
     logsIngesterUnderTest =
         new LogsIngester(mockFactory, () -> logsIngestionConfig, null, now::get, nanos::get);
     logsIngesterUnderTest.start();
@@ -146,7 +164,7 @@ public class LogsIngesterTest {
   }
 
   private List<ReportPoint> getPoints(
-      ReportableEntityHandler<ReportPoint, String> handler,
+      ReportableEntityHandler<ReportPoint> handler,
       int numPoints,
       int lagPerLogLine,
       Consumer<String> consumer,

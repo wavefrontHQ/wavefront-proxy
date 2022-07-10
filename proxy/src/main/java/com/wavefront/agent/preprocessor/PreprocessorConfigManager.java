@@ -209,7 +209,12 @@ public class PreprocessorConfigManager {
         // Handle comma separated ports and global ports.
         // Note: Global ports need to be specified at the end of the file, inorder to be
         // applicable to all the explicitly specified ports in preprocessor_rules.yaml file.
-        List<Integer> ports = csvToList(strPortKey);
+
+        List<Integer> ports =
+            strPortKey.equalsIgnoreCase(GLOBAL_PORT_KEY)
+                ? new ArrayList<>(portMap.keySet())
+                : csvToList(strPortKey);
+
         for (int port : ports) {
           portMap.putIfAbsent(port, new ReportableEntityPreprocessor());
           int validRules = 0;

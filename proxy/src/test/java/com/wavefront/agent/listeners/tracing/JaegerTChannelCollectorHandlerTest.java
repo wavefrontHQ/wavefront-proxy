@@ -21,9 +21,9 @@ import wavefront.report.SpanLogs;
 
 public class JaegerTChannelCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 

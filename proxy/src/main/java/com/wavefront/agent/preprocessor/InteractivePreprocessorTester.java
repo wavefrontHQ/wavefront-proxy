@@ -1,10 +1,11 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
+
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
@@ -38,10 +39,10 @@ public class InteractivePreprocessorTester implements InteractiveTester {
       new ReportableEntityHandlerFactory() {
         @SuppressWarnings("unchecked")
         @Override
-        public <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue) {
+        public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
           if (queue.getEntityType() == ReportableEntityType.TRACE) {
-            return (ReportableEntityHandler<T, U>)
-                new ReportableEntityHandler<Span, String>() {
+            return (ReportableEntityHandler<T>)
+                new ReportableEntityHandler<Span>() {
                   @Override
                   public void report(Span reportSpan) {
                     System.out.println(SPAN_SERIALIZER.apply(reportSpan));
@@ -71,8 +72,8 @@ public class InteractivePreprocessorTester implements InteractiveTester {
                   public void shutdown() {}
                 };
           }
-          return (ReportableEntityHandler<T, U>)
-              new ReportableEntityHandler<ReportPoint, String>() {
+          return (ReportableEntityHandler<T>)
+              new ReportableEntityHandler<ReportPoint>() {
                 @Override
                 public void report(ReportPoint reportPoint) {
                   System.out.println(ReportPointSerializer.pointToString(reportPoint));
@@ -131,13 +132,13 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   public boolean interactiveTest() {
     String line = stdin.nextLine();
     if (entityType == ReportableEntityType.TRACE) {
-      ReportableEntityHandler<Span, String> handler =
-          factory.getHandler(port, QueuesManager.initQueue(entityType));
+      ReportableEntityHandler<Span> handler =
+          factory.getHandler(port, queuesManager.initQueue(entityType));
       SpanUtils.preprocessAndHandleSpan(
           line, SPAN_DECODER, handler, handler::report, preprocessorSupplier, null, x -> true);
     } else {
-      ReportableEntityHandler<ReportPoint, String> handler =
-          factory.getHandler(port, QueuesManager.initQueue(entityType));
+      ReportableEntityHandler<ReportPoint> handler =
+          factory.getHandler(port, queuesManager.initQueue(entityType));
       ReportableEntityDecoder<String, ReportPoint> decoder;
       if (DataFormat.autodetect(line) == DataFormat.HISTOGRAM) {
         decoder = new ReportPointDecoderWrapper(new HistogramDecoder());

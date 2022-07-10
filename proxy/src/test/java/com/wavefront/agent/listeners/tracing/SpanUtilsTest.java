@@ -32,9 +32,9 @@ public class SpanUtilsTest {
   private ReportableEntityDecoder<String, Span> spanDecoder = new SpanDecoder("localdev");
   private ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDocoder = new SpanLogsDecoder();
 
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private ValidationConfiguration validationConfiguration = new ValidationConfiguration();
   private long startTime = System.currentTimeMillis();

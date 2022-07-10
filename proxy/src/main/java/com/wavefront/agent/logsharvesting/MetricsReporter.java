@@ -1,10 +1,10 @@
 package com.wavefront.agent.logsharvesting;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.common.Utils.lazySupplier;
 
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
@@ -22,8 +22,8 @@ public class MetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(MetricsReporter.class.getCanonicalName());
   private final FlushProcessor flushProcessor;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final String prefix;
 
   public MetricsReporter(
@@ -38,12 +38,12 @@ public class MetricsReporter extends AbstractPollingReporter {
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.POINT)));
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.POINT)));
     this.histogramHandlerSupplier =
         lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    "logs-ingester", QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.prefix = prefix;
   }
 

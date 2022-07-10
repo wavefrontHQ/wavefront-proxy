@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  * @param <T> the type of input objects handled.
  */
-public interface ReportableEntityHandler<T, U> {
+public interface ReportableEntityHandler<T> {
 
   /**
    * Validate and accept the input object.

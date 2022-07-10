@@ -68,8 +68,8 @@ public class OtlpTraceUtils {
 
   public static void exportToWavefront(
       ExportTraceServiceRequest request,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       Pair<Supplier<Boolean>, Counter> spanLogsDisabled,
       Pair<SpanSampler, Counter> samplerAndCounter,
@@ -135,7 +135,7 @@ public class OtlpTraceUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       Span wfSpan,
-      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<Span> spanHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;

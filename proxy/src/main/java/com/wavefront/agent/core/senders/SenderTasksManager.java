@@ -1,6 +1,5 @@
 package com.wavefront.agent.core.senders;
 
-import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.api.agent.Constants.*;
 
 import com.wavefront.agent.api.APIContainer;
@@ -94,9 +93,6 @@ public class SenderTasksManager {
 
   private static SenderTask generateSenderTask(QueueInfo queue, int idx, Buffer buffer) {
     String tenantName = queue.getTenant();
-    if (tenantName == null) {
-      tenantName = CENTRAL_TENANT_NAME;
-    }
     ReportableEntityType entityType = queue.getEntityType();
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);

@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
@@ -17,7 +18,6 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -69,10 +69,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
+  private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SharedGraphiteHostAnnotator annotator;
   private final Supplier<Boolean> histogramDisabled;
@@ -122,22 +122,22 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.proxyConfig = proxyConfig;
     this.wavefrontHandler =
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    port, QueuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
+                    port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    port, QueuesManager.initQueue(ReportableEntityType.TRACE)));
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
     this.receivedSpansTotal =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
@@ -330,7 +330,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         //noinspection unchecked
         ReportableEntityDecoder<String, Span> spanDecoder =
             (ReportableEntityDecoder<String, Span>) decoders.get(ReportableEntityType.TRACE);
-        ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
+        ReportableEntityHandler<Span> spanHandler = spanHandlerSupplier.get();
         Splitter.on('\n')
             .trimResults()
             .omitEmptyStrings()
@@ -358,7 +358,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder =
             (ReportableEntityDecoder<JsonNode, SpanLogs>)
                 decoders.get(ReportableEntityType.TRACE_SPAN_LOGS);
-        ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
+        ReportableEntityHandler<SpanLogs> spanLogsHandler = spanLogsHandlerSupplier.get();
         Splitter.on('\n')
             .trimResults()
             .omitEmptyStrings()

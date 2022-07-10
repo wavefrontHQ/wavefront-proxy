@@ -13,9 +13,9 @@ public interface ReportableEntityHandlerFactory {
    * @param queue unique identifier for the handler.
    * @return new or existing handler.
    */
-  <T, U> ReportableEntityHandler<T, U> getHandler(String handler, QueueInfo queue);
+  <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue);
 
-  default <T, U> ReportableEntityHandler<T, U> getHandler(int port, QueueInfo queue) {
+  default <T> ReportableEntityHandler<T> getHandler(int port, QueueInfo queue) {
     return getHandler(String.valueOf(port), queue);
   }
 

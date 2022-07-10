@@ -1,8 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.dto.Event;
-import com.wavefront.dto.SourceTag;
 import javax.annotation.Nonnull;
 import org.easymock.EasyMock;
 import wavefront.report.*;
@@ -39,29 +37,29 @@ public class MockReportableEntityHandlerFactory {
   }
 
   public static ReportableEntityHandlerFactory createMockHandlerFactory(
-      ReportableEntityHandler<ReportPoint, String> mockReportPointHandler,
-      ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler,
-      ReportableEntityHandler<ReportPoint, String> mockHistogramHandler,
-      ReportableEntityHandler<Span, String> mockTraceHandler,
-      ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler,
-      ReportableEntityHandler<ReportEvent, Event> mockEventHandler) {
+      ReportableEntityHandler<ReportPoint> mockReportPointHandler,
+      ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler,
+      ReportableEntityHandler<ReportPoint> mockHistogramHandler,
+      ReportableEntityHandler<Span> mockTraceHandler,
+      ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler,
+      ReportableEntityHandler<ReportEvent> mockEventHandler) {
     return new ReportableEntityHandlerFactory() {
       @SuppressWarnings("unchecked")
       @Override
-      public <T, U> ReportableEntityHandler<T, U> getHandler(String handle, QueueInfo handlerKey) {
+      public <T> ReportableEntityHandler<T> getHandler(String handle, QueueInfo handlerKey) {
         switch (handlerKey.getEntityType()) {
           case POINT:
-            return (ReportableEntityHandler<T, U>) mockReportPointHandler;
+            return (ReportableEntityHandler<T>) mockReportPointHandler;
           case SOURCE_TAG:
-            return (ReportableEntityHandler<T, U>) mockSourceTagHandler;
+            return (ReportableEntityHandler<T>) mockSourceTagHandler;
           case HISTOGRAM:
-            return (ReportableEntityHandler<T, U>) mockHistogramHandler;
+            return (ReportableEntityHandler<T>) mockHistogramHandler;
           case TRACE:
-            return (ReportableEntityHandler<T, U>) mockTraceHandler;
+            return (ReportableEntityHandler<T>) mockTraceHandler;
           case TRACE_SPAN_LOGS:
-            return (ReportableEntityHandler<T, U>) mockTraceSpanLogsHandler;
+            return (ReportableEntityHandler<T>) mockTraceSpanLogsHandler;
           case EVENT:
-            return (ReportableEntityHandler<T, U>) mockEventHandler;
+            return (ReportableEntityHandler<T>) mockEventHandler;
           default:
             throw new IllegalArgumentException("Unknown entity type");
         }

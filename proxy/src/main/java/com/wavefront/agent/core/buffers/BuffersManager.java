@@ -48,22 +48,24 @@ public class BuffersManager {
     }
   }
 
-  public static List<Buffer> registerNewQueueIfNeedIt(QueueInfo handler) {
+  public static List<Buffer> registerNewQueueIfNeedIt(QueueInfo queue) {
     List<Buffer> buffers = new ArrayList<>();
-    Boolean registered = registeredQueues.computeIfAbsent(handler.getName(), s -> false);
+    Boolean registered = registeredQueues.computeIfAbsent(queue.getName(), s -> false);
     if (!registered) { // is controlled by queue manager, but we do  it also here just in case.
 
-      level_1.registerNewQueueInfo(handler);
+      level_1.registerNewQueueInfo(queue);
       buffers.add(level_1);
       if (level_2 != null) {
-        level_2.registerNewQueueInfo(handler);
+        level_2.registerNewQueueInfo(queue);
         buffers.add(level_2);
-        level_1.createBridge("disk", handler, 1);
+        level_1.createBridge("disk", queue, 1);
       }
 
-      // TODO: move this to handler/queueInfo creation
-      registeredQueues.put(handler.getName(), true);
+      // TODO: move this to queue/queueInfo creation
+      registeredQueues.put(queue.getName(), true);
     }
+
+    queue.getTenants().values().forEach(BuffersManager::registerNewQueueIfNeedIt);
     return buffers;
   }
 

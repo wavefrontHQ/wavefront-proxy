@@ -28,7 +28,6 @@ import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
 import wavefront.report.Span;
 
-/** @author vasily@wavefront.com */
 public class TestUtils {
   private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
 

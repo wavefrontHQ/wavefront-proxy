@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
@@ -8,7 +9,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
@@ -41,8 +41,8 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
     implements Closeable, Runnable {
   protected static final Logger logger =
       Logger.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
-  private final ReportableEntityHandler<Span, String> spanHandler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
   @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
@@ -58,8 +58,8 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
   @VisibleForTesting
   public OtlpGrpcTraceHandler(
       int port,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       SpanSampler sampler,
@@ -108,9 +108,9 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
     this(
         port,
         handlerFactory.getHandler(
-            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.TRACE)),
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.TRACE)),
         handlerFactory.getHandler(
-            String.valueOf(port), QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         preprocessorSupplier,
         sampler,

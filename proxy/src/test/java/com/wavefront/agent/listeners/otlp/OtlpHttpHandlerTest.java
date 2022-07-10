@@ -28,9 +28,9 @@ import wavefront.report.SpanLogs;
  * @author Glenn Oppegard (goppegard@vmware.com)
  */
 public class OtlpHttpHandlerTest {
-  private final ReportableEntityHandler<Span, String> mockTraceHandler =
+  private final ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private final ReportableEntityHandler<SpanLogs, String> mockSpanLogsHandler =
+  private final ReportableEntityHandler<SpanLogs> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);

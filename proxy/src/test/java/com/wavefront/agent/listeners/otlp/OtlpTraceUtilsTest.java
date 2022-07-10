@@ -59,7 +59,7 @@ public class OtlpTraceUtilsTest {
   public static final String SERVICE_NAME = "service.name";
   private static final List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
-  private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
+  private final ReportableEntityHandler<wavefront.report.Span> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private final wavefront.report.Span wfMinimalSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
   private wavefront.report.Span actualSpan;

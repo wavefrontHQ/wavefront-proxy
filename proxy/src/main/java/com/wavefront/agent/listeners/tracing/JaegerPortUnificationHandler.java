@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
@@ -13,7 +14,6 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -61,8 +61,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
   private static final String DEFAULT_SOURCE = "jaeger";
   private static final String JAEGER_VALID_PATH = "/api/traces/";
   private static final String JAEGER_VALID_HTTP_METHOD = "POST";
-  private final ReportableEntityHandler<Span, String> spanHandler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
   @Nullable private final WavefrontInternalReporter wfInternalReporter;
   private final Supplier<Boolean> traceDisabled;
@@ -96,9 +96,9 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
         port,
         tokenAuthenticator,
         healthCheckManager,
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
         handlerFactory.getHandler(
-            port, QueuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,
@@ -113,8 +113,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
       int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,

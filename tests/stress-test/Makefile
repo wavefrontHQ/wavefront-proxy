@@ -6,9 +6,14 @@ ifndef WF_TOKEN
 	$(error WF_TOKEN is undefined)
 endif
 
-stress-local: .check-env
+.setup: .check-env
 	cd resources/metrics_filter && npm install
 	cp ../../docker/wavefront-proxy.jar docker/proxy/
-	WF_URL=${WF_URL} WF_TOKEN=${WF_TOKEN} docker compose up --build --remove-orphans --force-recreate
+
+stress-local-loadgen: .setup
+	WF_URL=${WF_URL} WF_TOKEN=${WF_TOKEN} docker compose --profile loadgen up --build --remove-orphans --force-recreate
+
+stress-local-jmeter: .setup
+	WF_URL=${WF_URL} WF_TOKEN=${WF_TOKEN} docker compose --profile jmeter up --build --remove-orphans --force-recreate
 
 

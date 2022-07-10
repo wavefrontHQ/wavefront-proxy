@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static io.netty.handler.codec.http.HttpMethod.POST;
@@ -15,7 +16,6 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.core.queues.QueuesManager;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
@@ -96,7 +96,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   private final boolean synchronousMode;
   private final boolean processSystemMetrics;
@@ -127,7 +127,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     this(
         port,
         healthCheckManager,
-        handlerFactory.getHandler(port, QueuesManager.initQueue(ReportableEntityType.POINT)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT)),
         fanout,
         synchronousMode,
         processSystemMetrics,
@@ -141,7 +141,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   protected DataDogPortUnificationHandler(
       final int port,
       final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler,
+      final ReportableEntityHandler<ReportPoint> pointHandler,
       final int fanout,
       final boolean synchronousMode,
       final boolean processSystemMetrics,

@@ -33,14 +33,14 @@ public class PointHandlerDispatcher implements Runnable {
 
   private final Accumulator digests;
   private final AtomicLong digestsSize = new AtomicLong(0);
-  private final ReportableEntityHandler<ReportPoint, String> output;
+  private final ReportableEntityHandler<ReportPoint> output;
   private final TimeProvider clock;
   private final Supplier<Boolean> histogramDisabled;
   private final Integer dispatchLimit;
 
   public PointHandlerDispatcher(
       Accumulator digests,
-      ReportableEntityHandler<ReportPoint, String> output,
+      ReportableEntityHandler<ReportPoint> output,
       TimeProvider clock,
       Supplier<Boolean> histogramDisabled,
       @Nullable Integer dispatchLimit,

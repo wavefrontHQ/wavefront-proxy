@@ -56,7 +56,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     }
 
     getReceivedCounter().inc();
-    BuffersManager.sendMsg(handlerKey, event.toString());
+    BuffersManager.sendMsg(queue, event.toString());
 
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));
