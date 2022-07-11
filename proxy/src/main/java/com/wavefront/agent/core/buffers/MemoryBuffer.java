@@ -8,6 +8,7 @@ import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.apache.activemq.artemis.api.core.management.QueueControl;
 
 public class MemoryBuffer extends ActiveMQBuffer {
   private static final Logger logger = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
@@ -31,7 +32,26 @@ public class MemoryBuffer extends ActiveMQBuffer {
     } catch (InterruptedException e) {
       logger.severe("Error during MemoryBuffer shutdown. " + e);
     }
-    midBuffers.clear();
+
+    // TODO: implement dump to external queue
+    int counter = 0;
+    try {
+      Object[] queues =
+          amq.getActiveMQServer().getManagementService().getResources(QueueControl.class);
+      for (Object obj : queues) {
+        QueueControl queue = (QueueControl) obj;
+        int c = queue.expireMessages("");
+        System.out.println("-> queue: " + queue.getName() + " - " + c);
+        counter += c;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    if (counter != 0) {
+      logger.info("'" + counter + "' points sent to the buffer disk");
+    }
+
     super.shutdown();
   }
 
@@ -55,10 +75,6 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   public void flush(QueueInfo queue) {
     new sender(queue, nextBuffer).run();
-  }
-
-  public BufferBatch getNextBuffer() {
-    return nextBuffer;
   }
 
   public void setNextBuffer(BufferBatch nextBuffer) {

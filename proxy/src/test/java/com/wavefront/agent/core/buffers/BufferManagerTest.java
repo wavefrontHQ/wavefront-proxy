@@ -16,10 +16,39 @@ import org.junit.Test;
 
 public class BufferManagerTest {
 
-  //  @After
-  //  public void shutdown() {
-  //    BuffersManager.shutdown();
-  //  }
+  @Test
+  public void shutdown() throws Exception {
+    Path buffer = Files.createTempDirectory("wfproxy");
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.buffer = buffer.toFile().getAbsolutePath();
+    cfg.msgExpirationTime = -1;
+    cfg.l2 = true;
+    BuffersManager.init(cfg);
+
+    QueueInfo points = new TestQueue();
+    BuffersManager.registerNewQueueIfNeedIt(points);
+
+    for (int i = 0; i < 1_000_000; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
+    BuffersManager.flush(points);
+
+    Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
+    Gauge<Object> disk = BuffersManager.l2_getSizeGauge(points);
+
+    assertNotEquals("MessageCount", 0l, memory.value());
+    assertEquals("MessageCount", 0l, disk.value());
+
+    BuffersManager.shutdown();
+    BuffersManager.init(cfg);
+    BuffersManager.registerNewQueueIfNeedIt(points);
+
+    memory = BuffersManager.l1_getSizeGauge(points);
+    disk = BuffersManager.l2_getSizeGauge(points);
+
+    assertEquals("MessageCount", 0l, memory.value());
+    assertNotEquals("MessageCount", 0l, disk.value());
+  }
 
   @Test
   public void counters() throws Exception {

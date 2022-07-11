@@ -32,7 +32,7 @@ import org.jetbrains.annotations.TestOnly;
 public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
-  private final EmbeddedActiveMQ amq;
+  final EmbeddedActiveMQ amq;
 
   private final Map<String, Pair<ClientSession, ClientProducer>> producers =
       new ConcurrentHashMap<>();
@@ -43,7 +43,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
   private final Map<String, Histogram> msMetrics = new HashMap<>();
 
-  private final String name;
+  final String name;
   @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
   private final int level;
   private final MBeanServer mbServer;
