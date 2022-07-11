@@ -4,6 +4,7 @@ import static com.wavefront.agent.ProxyContext.queuesManager;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.wavefront.agent.ProxyContext;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.buffers.BuffersManagerConfig;
@@ -42,11 +43,11 @@ public class ReportSourceTagHandlerTest {
   public void setup() {
     mockAgentAPI = EasyMock.createMock(SourceTagAPI.class);
     newAgentId = UUID.randomUUID();
-    SenderTasksManager.init(
-        new APIContainer(null, mockAgentAPI, null, null),
-        newAgentId,
+    ProxyContext.entityPropertiesFactoryMap =
         Collections.singletonMap(
-            APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
+            APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting());
+
+    SenderTasksManager.init(new APIContainer(null, mockAgentAPI, null, null), newAgentId);
 
     handlerKey = queuesManager.initQueue(ReportableEntityType.SOURCE_TAG);
     sourceTagHandler = new ReportSourceTagHandlerImpl("4878", handlerKey, 10, blockedLogger);

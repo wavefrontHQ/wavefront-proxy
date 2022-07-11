@@ -1,12 +1,12 @@
 package com.wavefront.agent.core.senders;
 
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.api.agent.Constants.*;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
@@ -24,22 +24,15 @@ public class SenderTasksManager {
   private static final Map<String, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
   private static APIContainer apiContainer;
   private static UUID proxyId;
-  private static Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
   private static final Logger log = Logger.getLogger(SenderTasksManager.class.getCanonicalName());
 
   /**
    * @param apiContainer handles interaction with Wavefront servers as well as queueing.
    * @param proxyId proxy ID.
-   * @param entityPropsFactoryMap map of factory for entity-specific wrappers for multiple
-   *     multicasting mutable proxy settings.
    */
-  public static void init(
-      final APIContainer apiContainer,
-      final UUID proxyId,
-      final Map<String, EntityPropertiesFactory> entityPropsFactoryMap) {
+  public static void init(final APIContainer apiContainer, final UUID proxyId) {
     SenderTasksManager.apiContainer = apiContainer;
     SenderTasksManager.proxyId = proxyId;
-    SenderTasksManager.entityPropsFactoryMap = entityPropsFactoryMap;
     // global `~proxy.buffer.fill-rate` metric aggregated from all task size estimators
     // TODO: create this metric
     //    Metrics.newGauge(
@@ -61,8 +54,9 @@ public class SenderTasksManager {
     ReportableEntityType entityType = info.getEntityType();
     String tenantName = info.getTenant();
 
-    int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
-    int interval = entityPropsFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
+    int numThreads = entityPropertiesFactoryMap.get(tenantName).get(entityType).getFlushThreads();
+    int interval =
+        entityPropertiesFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
     ScheduledExecutorService scheduler =
         executors.computeIfAbsent(
             info.getName(),
@@ -95,7 +89,7 @@ public class SenderTasksManager {
     String tenantName = queue.getTenant();
     ReportableEntityType entityType = queue.getEntityType();
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
-    EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
+    EntityProperties properties = entityPropertiesFactoryMap.get(tenantName).get(entityType);
     SenderTask senderTask;
     switch (entityType) {
       case POINT:
@@ -145,7 +139,7 @@ public class SenderTasksManager {
                 idx,
                 apiContainer.getLogAPI(),
                 proxyId,
-                entityPropsFactoryMap.get(tenantName).get(entityType),
+                entityPropertiesFactoryMap.get(tenantName).get(entityType),
                 buffer);
         break;
       default:

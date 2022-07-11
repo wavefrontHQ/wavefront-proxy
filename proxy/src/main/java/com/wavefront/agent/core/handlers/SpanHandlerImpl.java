@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.PushAgent.isMulticastingActive;
 import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.data.Validation.validateSpan;
 
@@ -31,6 +32,7 @@ import wavefront.report.SpanLogs;
  * @author vasily@wavefront.com
  */
 public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, String> {
+  private static final Logger log = Logger.getLogger(SpanHandlerImpl.class.getCanonicalName());
 
   private final ValidationConfiguration validationConfig;
   private final Logger validItemsLogger;
@@ -112,6 +114,25 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
 
     getReceivedCounter().inc();
     BuffersManager.sendMsg(queue, strSpan);
+
+    if (isMulticastingActive
+        && span.getAnnotations() != null
+        && AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY) != null) {
+      String[] multicastingTenantNames =
+          AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY)
+              .trim()
+              .split(",");
+      removeSpanAnnotation(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY);
+      for (String tenant : multicastingTenantNames) {
+        QueueInfo tenantQueue = queue.getTenantQueue(tenant);
+        if (tenantQueue != null) {
+          BuffersManager.sendMsg(tenantQueue, strSpan);
+        } else {
+          // TODO: rate
+          log.fine("Tenant '" + tenant + "' invalid");
+        }
+      }
+    }
 
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 abstract class AbstractSenderTask implements SenderTask, Runnable {
-  private static final Logger logg = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
   private QueueInfo queue;
   private int idx;
   private EntityProperties properties;

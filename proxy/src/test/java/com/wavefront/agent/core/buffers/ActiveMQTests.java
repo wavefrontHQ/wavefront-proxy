@@ -70,7 +70,6 @@ public class ActiveMQTests {
 
     session.start();
     for (int i = 0; i < MENSAGES / 2; i++) {
-      System.out.println("->" + i);
       ClientMessage msg = consumer.receive(100);
       if (msg == null) break;
       msg.individualAcknowledge();

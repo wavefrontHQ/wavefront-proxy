@@ -258,13 +258,6 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
         entry.getValue()._2.close(); // consumer
       }
 
-      amq.getActiveMQServer()
-          .getRemotingService()
-          .getAcceptors()
-          .forEach(
-              (s, acceptor) -> {
-                System.out.println("-> " + s + " - " + acceptor);
-              });
       amq.stop();
     } catch (Exception e) {
       e.printStackTrace();

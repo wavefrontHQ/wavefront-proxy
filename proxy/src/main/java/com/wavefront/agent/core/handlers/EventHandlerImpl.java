@@ -1,5 +1,7 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.PushAgent.isMulticastingActive;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
@@ -57,6 +59,22 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
 
     getReceivedCounter().inc();
     BuffersManager.sendMsg(queue, event.toString());
+
+    if (isMulticastingActive
+        && event.getAnnotations() != null
+        && event.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          event.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      event.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String tenant : multicastingTenantNames) {
+        QueueInfo tenantQueue = queue.getTenantQueue(tenant);
+        if (tenantQueue != null) {
+          BuffersManager.sendMsg(tenantQueue, event.toString());
+        } else {
+          logger.fine("Tenant '" + tenant + "' invalid");
+        }
+      }
+    }
 
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));

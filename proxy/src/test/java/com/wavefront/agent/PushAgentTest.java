@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.TestUtils.*;
 import static com.wavefront.sdk.common.Constants.*;
@@ -1104,22 +1105,20 @@ public class PushAgentTest {
         mockSourceTagHandler,
         mockEventHandler);
 
-    proxy
-        .entityPropertiesFactoryMap
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.HISTOGRAM)
         .setFeatureDisabled(true);
     assertEquals(
         403, gzippedHttpPost("http://localhost:" + port + "/report?format=histogram", histoData));
-    proxy
-        .entityPropertiesFactoryMap
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.TRACE)
         .setFeatureDisabled(true);
     assertEquals(
         403, gzippedHttpPost("http://localhost:" + port + "/report?format=trace", spanData));
-    proxy
-        .entityPropertiesFactoryMap
+
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.TRACE_SPAN_LOGS)
         .setFeatureDisabled(true);
@@ -2423,8 +2422,7 @@ public class PushAgentTest {
         gzippedHttpPost(
             "http://localhost:" + port + "/api/v2/wfproxy/report?format=spanLogs",
             spanLogDataWithSpanField));
-    proxy
-        .entityPropertiesFactoryMap
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.HISTOGRAM)
         .setFeatureDisabled(true);
@@ -2432,8 +2430,8 @@ public class PushAgentTest {
         403,
         gzippedHttpPost(
             "http://localhost:" + port + "/api/v2/wfproxy/report?format=histogram", histoData));
-    proxy
-        .entityPropertiesFactoryMap
+
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.TRACE)
         .setFeatureDisabled(true);
@@ -2441,8 +2439,8 @@ public class PushAgentTest {
         403,
         gzippedHttpPost(
             "http://localhost:" + port + "/api/v2/wfproxy/report?format=trace", spanData));
-    proxy
-        .entityPropertiesFactoryMap
+
+    entityPropertiesFactoryMap
         .get("central")
         .get(ReportableEntityType.TRACE_SPAN_LOGS)
         .setFeatureDisabled(true);
@@ -2604,22 +2602,14 @@ public class PushAgentTest {
     proxy.processConfiguration("cetnral", agentConfiguration);
     assertEquals(
         1.0,
-        proxy
-            .entityPropertiesFactoryMap
-            .get("central")
-            .getGlobalProperties()
-            .getTraceSamplingRate(),
+        entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(),
         1e-3);
 
     proxy.proxyConfig.backendSpanHeadSamplingPercentIgnored = false;
     proxy.processConfiguration("central", agentConfiguration);
     assertEquals(
         0.5,
-        proxy
-            .entityPropertiesFactoryMap
-            .get("central")
-            .getGlobalProperties()
-            .getTraceSamplingRate(),
+        entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(),
         1e-3);
   }
 }

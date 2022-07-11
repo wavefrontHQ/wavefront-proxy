@@ -306,7 +306,6 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(HTTP_timeout_tests * 10, ok::get);
   }
 
-  @Ignore
   @Test
   public void testEndToEndSourceTags() throws Exception {
     AtomicInteger successfulSteps = new AtomicInteger(0);
@@ -331,7 +330,8 @@ public class HttpEndToEndTest {
           }
           String path = uri.getPath();
           logger.fine("Content received: " + content);
-          switch (testCounter.incrementAndGet()) {
+          logger.info("testCounter: " + testCounter.incrementAndGet() + " - path: " + path);
+          switch (testCounter.get()) {
             case 1:
               assertEquals(HttpMethod.PUT, req.method());
               assertEquals("/api/v2/source/testSource/tag/addTag1", path);
@@ -355,7 +355,7 @@ public class HttpEndToEndTest {
               assertEquals("/api/v2/source/testSource/tag", path);
               assertEquals("[\"newtag1\",\"newtag2\"]", content);
               successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
+              return makeResponse(HttpResponseStatus.OK, "");
             case 5:
               assertEquals(HttpMethod.DELETE, req.method());
               assertEquals("/api/v2/source/testSource/tag/deleteTag", path);
@@ -373,7 +373,7 @@ public class HttpEndToEndTest {
               assertEquals("/api/v2/source/testSource/description", path);
               assertEquals("", content);
               successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.valueOf(407), "");
+              return makeResponse(HttpResponseStatus.OK, "");
             case 8:
               assertEquals(HttpMethod.POST, req.method());
               assertEquals("/api/v2/source/testSource/tag", path);
@@ -398,8 +398,7 @@ public class HttpEndToEndTest {
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + pushPort + "/", payloadSourceTags);
-    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 2 == successfulSteps.get());
-    assertEquals(10, successfulSteps.getAndSet(0));
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, () -> 10 == successfulSteps.get());
   }
 
   @Test

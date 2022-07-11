@@ -1,12 +1,12 @@
 package com.wavefront.agent.core.queues;
 
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.senders.SenderTasksManager;
-import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
 import java.util.Map;
@@ -14,12 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class QueuesManagerDefault implements QueuesManager {
   private Map<String, QueueInfo> queues = new ConcurrentHashMap<>();
-  private Map<String, EntityPropertiesFactory> entityProperties;
   private ProxyConfig cfg;
 
-  public QueuesManagerDefault(
-      Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap, ProxyConfig cfg) {
-    this.entityProperties = entityPropertiesFactoryMap;
+  public QueuesManagerDefault(ProxyConfig cfg) {
     this.cfg = cfg;
   }
 
@@ -37,7 +34,9 @@ public class QueuesManagerDefault implements QueuesManager {
   private Queue initQueue(ReportableEntityType entityType, String tenant) {
     Queue queue =
         new Queue(
-            entityType, tenant, entityProperties.get(tenant).get(entityType).getFlushThreads());
+            entityType,
+            tenant,
+            entityPropertiesFactoryMap.get(tenant).get(entityType).getFlushThreads());
     queues.computeIfAbsent(
         queue.getName(),
         s -> {

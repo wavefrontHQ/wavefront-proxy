@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
@@ -166,8 +167,8 @@ public class PushAgent extends AbstractAgent {
   protected void startListeners() throws Exception {
 
     isMulticastingActive = proxyConfig.getMulticastingTenants() > 0;
-    ProxyContext.queuesManager = new QueuesManagerDefault(entityPropertiesFactoryMap, proxyConfig);
-    SenderTasksManager.init(apiContainer, agentId, entityPropertiesFactoryMap);
+    ProxyContext.queuesManager = new QueuesManagerDefault(proxyConfig);
+    SenderTasksManager.init(apiContainer, agentId);
 
     /***** PROXY NEW *****/
 
@@ -212,7 +213,6 @@ public class PushAgent extends AbstractAgent {
             blockedHistogramsLogger,
             blockedSpansLogger,
             histogramRecompressor,
-            entityPropertiesFactoryMap,
             blockedLogsLogger);
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();

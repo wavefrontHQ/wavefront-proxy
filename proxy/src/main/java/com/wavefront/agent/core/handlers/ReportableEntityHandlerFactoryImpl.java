@@ -1,10 +1,10 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.data.ReportableEntityType.*;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
 import com.wavefront.common.logger.SamplingLogger;
@@ -79,7 +79,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedSpansLogger;
   private final Logger blockedLogsLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
-  private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
 
   /**
    * Create new instance.
@@ -95,7 +94,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       final Logger blockedHistogramsLogger,
       final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
-      final Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
       final Logger blockedLogsLogger) {
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -104,7 +102,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
     this.blockedLogsLogger = blockedLogsLogger;
-    this.entityPropsFactoryMap = entityPropsFactoryMap;
   }
 
   private static double getSystemPropertyAsDouble(String propertyName) {
@@ -155,7 +152,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           blockedSpansLogger,
                           VALID_SPANS_LOGGER,
                           (tenantName) ->
-                              entityPropsFactoryMap
+                              entityPropertiesFactoryMap
                                   .get(tenantName)
                                   .getGlobalProperties()
                                   .getDropSpansDelayedMinutes(),

@@ -1,5 +1,8 @@
 package com.wavefront.agent.core.handlers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
@@ -10,12 +13,7 @@ import java.util.logging.Logger;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 
-/**
- * This class will validate parsed source tags and distribute them among SenderTask threads.
- *
- * @author Suranjan Pramanik (suranjan@wavefront.com).
- * @author vasily@wavefront.com
- */
+/** This class will validate parsed source tags and distribute them among SenderTask threads. */
 class ReportSourceTagHandlerImpl
     extends AbstractReportableEntityHandler<ReportSourceTag, SourceTag> {
   private static final Function<ReportSourceTag, String> SOURCE_TAG_SERIALIZER =
@@ -43,10 +41,15 @@ class ReportSourceTagHandlerImpl
           "WF-401: SourceTag annotation key has illegal characters.");
     }
 
-    getReceivedCounter().inc();
-    BuffersManager.sendMsg(queue, sourceTag.toString());
+    try {
+      ObjectWriter ow = new ObjectMapper().writer();
+      String json = ow.writeValueAsString(new SourceTag(sourceTag));
+      getReceivedCounter().inc();
+      BuffersManager.sendMsg(queue, json);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
 
-    getReceivedCounter().inc();
     // tagK=tagV based multicasting is not support
   }
 }

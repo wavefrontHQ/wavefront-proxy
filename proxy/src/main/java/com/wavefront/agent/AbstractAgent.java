@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
 import static com.wavefront.common.Utils.*;
 import static java.util.Collections.EMPTY_LIST;
@@ -12,12 +13,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.senders.SenderTasksManager;
-import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.*;
@@ -60,8 +59,6 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
-  protected final Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap =
-      Maps.newHashMap();
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected final AtomicBoolean truncate = new AtomicBoolean(false);
   final Counter activeListeners =

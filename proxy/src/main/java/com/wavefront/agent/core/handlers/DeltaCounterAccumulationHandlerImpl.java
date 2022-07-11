@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
+import static com.wavefront.agent.PushAgent.isMulticastingActive;
 import static com.wavefront.data.Validation.validatePoint;
 import static com.wavefront.sdk.common.Utils.metricToLineData;
 
@@ -40,6 +41,9 @@ import wavefront.report.ReportPoint;
  */
 public class DeltaCounterAccumulationHandlerImpl
     extends AbstractReportableEntityHandler<ReportPoint, String> {
+
+  private static final Logger log =
+      Logger.getLogger(DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
 
   final Histogram receivedPointLag;
   private final ValidationConfiguration validationConfig;
@@ -148,6 +152,22 @@ public class DeltaCounterAccumulationHandlerImpl
 
     getReceivedCounter().inc();
     BuffersManager.sendMsg(queue, strPoint);
+
+    if (isMulticastingActive
+        && hostMetricTagsPair.getTags() != null
+        && hostMetricTagsPair.getTags().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          hostMetricTagsPair.getTags().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      hostMetricTagsPair.getTags().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String tenant : multicastingTenantNames) {
+        QueueInfo tenantQueue = queue.getTenantQueue(tenant);
+        if (tenantQueue != null) {
+          BuffersManager.sendMsg(tenantQueue, strPoint);
+        } else {
+          log.fine("Tenant '" + tenant + "' invalid");
+        }
+      }
+    }
   }
 
   @Override
