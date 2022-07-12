@@ -30,7 +30,7 @@ import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.jetbrains.annotations.TestOnly;
 
 public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
-  private static final Logger log = Logger.getLogger(BuffersManager.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
 
   final EmbeddedActiveMQ amq;
 
@@ -55,8 +55,6 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
     this.name = name;
     this.persistenceEnabled = persistenceEnabled;
     this.cfg = cfg;
-
-    log.info("-> buffer:'" + cfg.buffer + "'");
 
     Configuration config = new ConfigurationImpl();
     config.setName(name);

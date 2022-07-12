@@ -72,7 +72,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     getReceivedCounter().inc();
     BuffersManager.sendMsg(queue, logObj.toString());
 
-    getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));
     }

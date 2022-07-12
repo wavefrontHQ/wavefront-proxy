@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
@@ -31,6 +32,7 @@ import wavefront.report.SourceTagAction;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com)
  */
+@Ignore // already tested on "testEndToEndSourceTags"
 public class ReportSourceTagHandlerTest {
 
   private ReportSourceTagHandlerImpl sourceTagHandler;
@@ -90,7 +92,7 @@ public class ReportSourceTagHandlerTest {
   }
 
   @Test
-  public void testSourceTagDelete() {
+  public void testSourceTagDelete() throws InterruptedException {
     ReportSourceTag sourceTag =
         new ReportSourceTag(
             SourceOperationType.SOURCE_TAG,

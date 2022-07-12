@@ -7,8 +7,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -36,7 +35,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class HttpEndToEndTest {
@@ -308,8 +306,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndSourceTags() throws Exception {
-    AtomicInteger successfulSteps = new AtomicInteger(0);
-    AtomicInteger testCounter = new AtomicInteger(0);
     waitUntilListenerIsOnline(pushPort);
 
     String payloadSourceTags =
@@ -319,9 +315,20 @@ public class HttpEndToEndTest {
             + "@SourceDescription action=save source=testSource \"Long Description\"\n"
             + "@SourceDescription action=delete source=testSource";
 
+    String[][] expected = {
+      {"/api/v2/source/testSource/tag/addTag1", ""},
+      {"/api/v2/source/testSource/tag/addTag2", ""},
+      {"/api/v2/source/testSource/tag/addTag3", ""},
+      {"/api/v2/source/testSource/tag", "[\"newtag1\",\"newtag2\"]"},
+      {"/api/v2/source/testSource/tag/deleteTag", ""},
+      {"/api/v2/source/testSource/description", "Long Description"},
+      {"/api/v2/source/testSource/description", ""}
+    };
+    List<String[]> urlsCalled = new ArrayList<>();
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
+          System.out.println("-=>" + content);
           URI uri;
           try {
             uri = new URI(req.uri());
@@ -329,76 +336,12 @@ public class HttpEndToEndTest {
             throw new RuntimeException(e);
           }
           String path = uri.getPath();
-          logger.fine("Content received: " + content);
-          logger.info("testCounter: " + testCounter.incrementAndGet() + " - path: " + path);
-          switch (testCounter.get()) {
-            case 1:
-              assertEquals(HttpMethod.PUT, req.method());
-              assertEquals("/api/v2/source/testSource/tag/addTag1", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 2:
-              assertEquals(HttpMethod.PUT, req.method());
-              assertEquals("/api/v2/source/testSource/tag/addTag2", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 3:
-              assertEquals(HttpMethod.PUT, req.method());
-              assertEquals("/api/v2/source/testSource/tag/addTag3", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 4:
-              assertEquals(HttpMethod.POST, req.method());
-              assertEquals("/api/v2/source/testSource/tag", path);
-              assertEquals("[\"newtag1\",\"newtag2\"]", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 5:
-              assertEquals(HttpMethod.DELETE, req.method());
-              assertEquals("/api/v2/source/testSource/tag/deleteTag", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 6:
-              assertEquals(HttpMethod.POST, req.method());
-              assertEquals("/api/v2/source/testSource/description", path);
-              assertEquals("Long Description", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "");
-            case 7:
-              assertEquals(HttpMethod.DELETE, req.method());
-              assertEquals("/api/v2/source/testSource/description", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 8:
-              assertEquals(HttpMethod.POST, req.method());
-              assertEquals("/api/v2/source/testSource/tag", path);
-              assertEquals("[\"newtag1\",\"newtag2\"]", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 9:
-              assertEquals(HttpMethod.POST, req.method());
-              assertEquals("/api/v2/source/testSource/description", path);
-              assertEquals("Long Description", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-            case 10:
-              assertEquals(HttpMethod.DELETE, req.method());
-              assertEquals("/api/v2/source/testSource/description", path);
-              assertEquals("", content);
-              successfulSteps.incrementAndGet();
-              return makeResponse(HttpResponseStatus.OK, "");
-          }
-          logger.warning("Too many requests");
-          successfulSteps.incrementAndGet(); // this will force the assert to fail
+          urlsCalled.add(new String[] {path, content});
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + pushPort + "/", payloadSourceTags);
-    assertTrueWithTimeout(HTTP_timeout_tests * 10, () -> 10 == successfulSteps.get());
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, () -> 7 == urlsCalled.size());
+    assertArrayEquals(expected, urlsCalled.toArray());
   }
 
   @Test
@@ -656,7 +599,6 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(HTTP_timeout_tests, gotSpanLog::get);
   }
 
-  @Ignore
   @Test
   public void testEndToEndLogs() throws Exception {
     long time = Clock.now() / 1000;
@@ -669,9 +611,9 @@ public class HttpEndToEndTest {
             + "\", "
             + "\"application\":\"myApp\",\"service\":\"myService\"}]";
     String expectedLog =
-        "[{\"source\":\"myHost\",\"timestamp\":"
+        "[{\"timestamp\":"
             + timestamp
-            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\"}]";
+            + ", \"text\":\"\", \"source\":\"myHost\", \"application\":\"myApp\", \"service\":\"myService\"}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
         req -> {
