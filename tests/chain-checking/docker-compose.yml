@@ -2,47 +2,46 @@ services:
 
   proxy-edge:
     hostname: proxy-edge
-    # build: ../../docker
-    image: wavefronthq/proxy:11.3
+    build: ../../docker
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
-      WAVEFRONT_PROXY_ARGS: "--pushRelayListenerPorts 2879"
+      WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id --pushRelayListenerPorts 2879
     ports:
+      - "2878:2878"
       - "2879:2879"
+    user: root
+    command:
+      [
+        "/bin/bash",
+        "-c",
+        "echo ${UUID_E} > /var/spool/wavefront-proxy/id && bash /opt/wavefront/wavefront-proxy/run.sh"
+      ]
     healthcheck:
       test: curl http://localhost:2879
       interval: 3s
       retries: 5
 
-  proxy-chained-1:
-    hostname: proxy-chained-1
+  proxy-chained:
+    hostname: proxy-chained
     build: ../../docker
     environment:
       WAVEFRONT_URL: http://proxy-edge:2879
       WAVEFRONT_TOKEN: XXXX
+      WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id
     ports:
       - "2978:2878"
+    user: root
+    command:
+      [
+        "/bin/bash",
+        "-c",
+        "echo ${UUID_C} > /var/spool/wavefront-proxy/id && bash /opt/wavefront/wavefront-proxy/run.sh"
+      ]
     depends_on:
       proxy-edge:
         condition: service_healthy
     healthcheck:
-      test: curl http://localhost:2878
-      interval: 3s
-      retries: 5
-
-  proxy-chained-2:
-    hostname: proxy-chained-2
-    build: ../../docker
-    environment:
-      WAVEFRONT_URL: http://proxy-edge:2879
-      WAVEFRONT_TOKEN: XXXX
-    ports:
-      - "2979:2878"
-    depends_on:
-      proxy-edge:
-        condition: service_healthy
-    healthcheck:
-      test: curl http://localhost:2878
+      test: curl http://localhost:2879
       interval: 3s
       retries: 5
