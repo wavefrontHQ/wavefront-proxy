@@ -15,4 +15,9 @@ public class NoopLogAPI implements LogAPI {
   public Response proxyLogs(String agentProxyId, List<Log> logs) {
     return Response.ok().build();
   }
+
+  @Override
+  public Response proxyLogsStr(String agentProxyId, String logs) {
+    return Response.ok().build();
+  }
 }
