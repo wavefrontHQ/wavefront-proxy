@@ -70,7 +70,7 @@ tests: .info .cp-docker
 	$(MAKE) -C tests/chain-checking all
 
 stress-test: .info build-jar .cp-docker
-	cd tests/stress-test && $(MAKE) stress-local
+	cd tests/stress-test && $(MAKE) stress-local-loadgen
 
 .prepare-builder:
 	docker build -t proxy-linux-builder pkg/

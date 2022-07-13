@@ -45,13 +45,13 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
 
   final String name;
   @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
-  private final int level;
+  private final int serverID;
   private final MBeanServer mbServer;
   AtomicInteger qIdxs2 = new AtomicInteger(0);
   private boolean persistenceEnabled;
 
-  public ActiveMQBuffer(int level, String name, boolean persistenceEnabled, BufferConfig cfg) {
-    this.level = level;
+  public ActiveMQBuffer(int serverID, String name, boolean persistenceEnabled, BufferConfig cfg) {
+    this.serverID = serverID;
     this.name = name;
     this.persistenceEnabled = persistenceEnabled;
     this.cfg = cfg;
@@ -79,7 +79,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
 
     try {
       TransportConfiguration trans = new TransportConfiguration();
-      config.addAcceptorConfiguration("in-vm", "vm://" + level);
+      config.addAcceptorConfiguration("in-vm", "vm://" + serverID);
       amq.setConfiguration(config);
       amq.start();
     } catch (Exception e) {
@@ -161,12 +161,6 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   }
 
   void registerQueueMetrics(QueueInfo queue) throws MalformedObjectNameException {
-    //    ObjectName queueObjectName =
-    //        new ObjectName(
-    //            String.format(
-    //
-    // "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\",subcomponent=queues,routing-type=\"anycast\",queue=\"%s\"",
-    //                name, queue.getName(), queue.getName()));
     ObjectName addressObjectName =
         new ObjectName(
             String.format(
@@ -183,56 +177,17 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
         new MetricName("buffer." + name + "." + queue.getName(), "", "usage"),
         new JmxGauge(addressObjectName, "AddressLimitPercent"));
 
-    //    Metrics.newGauge(
-    //        new TaggedMetricName(queue.getName(), "queued", "reason", "expired"),
-    //        new JmxGauge(addressObjectName, "MessagesExpired"));
-    //
-    //    Metrics.newGauge(
-    //        new TaggedMetricName(queue.getName(), "queued", "reason", "failed"),
-    //        new JmxGauge(addressObjectName, "MessagesKilled"));
-
+    // TODO
     //    Histogram ms =
     //        Metrics.newHistogram(
     //            new MetricName("buffer." + name + "." + queue.getName(), "", "MessageSize"));
     //    msMetrics.put(queue.getName(), ms);
 
-    // TODO: put this on a thread and run it every 1 minute
     countMetrics.put(
         queue.getName(),
         Metrics.newGauge(
             new MetricName("buffer." + name + "." + queue.getName(), "", "count"),
-            new Gauge<Long>() {
-              @Override
-              public Long value() {
-                Long pointsCount = 0L;
-                try {
-                  for (int q_idx = 0; q_idx < queue.getNumberThreads(); q_idx++) {
-
-                    ServerLocator serverLocator =
-                        ActiveMQClient.createServerLocator("vm://" + level);
-                    ClientSessionFactory factory = serverLocator.createSessionFactory();
-                    ClientSession session = factory.createSession(true, true);
-                    ClientConsumer client =
-                        session.createConsumer(queue.getName() + "." + q_idx, true);
-
-                    long start = System.currentTimeMillis();
-                    boolean done = false;
-                    while (!done) {
-                      ClientMessage msg = client.receive(100);
-                      if (msg != null) {
-                        pointsCount += msg.getIntProperty("points");
-                      } else {
-                        done = true;
-                      }
-                    }
-                    long time = System.currentTimeMillis() - start;
-                  }
-                } catch (Throwable e) {
-                  log.severe("Error counting disk queue messages." + e.getMessage());
-                }
-                return pointsCount;
-              }
-            }));
+            new PointsGauge(queue, serverID)));
   }
 
   @VisibleForTesting
@@ -271,7 +226,8 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             sessionKey,
             s -> {
               try {
-                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+                ServerLocator serverLocator =
+                    ActiveMQClient.createServerLocator("vm://" + serverID);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue.getName());
@@ -316,7 +272,8 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             sessionKey,
             s -> {
               try {
-                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+                ServerLocator serverLocator =
+                    ActiveMQClient.createServerLocator("vm://" + serverID);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
@@ -412,7 +369,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
               .setAddress(queueName)
               .setRoutingType(RoutingType.ANYCAST);
 
-      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
+      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + serverID);
       ClientSessionFactory factory = serverLocator.createSessionFactory();
       ClientSession session = factory.createSession();
       ClientSession.QueueQuery q = session.queueQuery(queue.getName());

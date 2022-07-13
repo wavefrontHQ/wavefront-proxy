@@ -1,3 +1,11 @@
+volumes:
+  buffer:
+    driver: local
+    driver_opts:
+      o: "size=2g"
+      device: tmpfs
+      type: tmpfs
+
 services:
 
   http-proxy:
@@ -14,12 +22,10 @@ services:
     hostname: stress-test-wfproxy
     build: docker/proxy
     # build: docker/proxy-latest
-    storage_opt:
-      size: '2G'
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
-      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg
+      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg --buffer /buffer
       JAVA_HEAP_USAGE: 2G
       JVM_USE_CONTAINER_OPTS: false
       JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=1098 -Dcom.sun.management.jmxremote.rmi.port=1098 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false "
@@ -35,6 +41,7 @@ services:
       - ./resources/certs:/tmp/ca/
       - ./resources/proxy:/opt/proxy/
       - ./resources/others:/opt/others/
+      - buffer:/buffer
     depends_on:
       - "http-proxy"
     command:
