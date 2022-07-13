@@ -24,6 +24,7 @@ public class SourceTagSenderTask extends AbstractSenderTask {
   private final QueueInfo queue;
   private final SourceTagAPI proxyAPI;
   private EntityProperties properties;
+  private SenderStats senderStats;
 
   /**
    * Create new instance
@@ -32,13 +33,20 @@ public class SourceTagSenderTask extends AbstractSenderTask {
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param properties container for mutable proxy settings.
    * @param buffer
+   * @param senderStats
    */
   SourceTagSenderTask(
-      QueueInfo queue, int idx, SourceTagAPI proxyAPI, EntityProperties properties, Buffer buffer) {
+      QueueInfo queue,
+      int idx,
+      SourceTagAPI proxyAPI,
+      EntityProperties properties,
+      Buffer buffer,
+      SenderStats senderStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
     this.proxyAPI = proxyAPI;
     this.properties = properties;
+    this.senderStats = senderStats;
   }
 
   @Override
@@ -52,7 +60,7 @@ public class SourceTagSenderTask extends AbstractSenderTask {
       try {
         SourceTag tag = objectMapper.readValue(sourceTagStr, SourceTag.class);
         SourceTagSubmissionTask task =
-            new SourceTagSubmissionTask(proxyAPI, properties, queue, tag, null);
+            new SourceTagSubmissionTask(proxyAPI, properties, queue, tag, null, senderStats);
         int res = task.execute();
         if (res != 0) {
           // if there is a communication problem, we send back the point to the buffer

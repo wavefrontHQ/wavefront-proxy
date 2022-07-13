@@ -20,7 +20,7 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    * @return task weight
    */
   // TODO: review this, not need it
-  int weight();
+  int size();
 
   /**
    * Returns task enqueue time in milliseconds.

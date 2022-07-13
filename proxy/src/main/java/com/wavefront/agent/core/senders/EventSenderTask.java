@@ -22,12 +22,14 @@ class EventSenderTask extends AbstractSenderTask {
   private final UUID proxyId;
   private final EntityProperties properties;
   private final Buffer buffer;
+  private SenderStats senderStats;
 
   /**
    * @param queue handler key, that serves as an identifier of the metrics pipeline.
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId id of the proxy.
    * @param properties container for mutable proxy settings.
+   * @param senderStats
    */
   EventSenderTask(
       QueueInfo queue,
@@ -35,7 +37,8 @@ class EventSenderTask extends AbstractSenderTask {
       EventAPI proxyAPI,
       UUID proxyId,
       EntityProperties properties,
-      Buffer buffer) {
+      Buffer buffer,
+      SenderStats senderStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
     this.idx = idx;
@@ -43,6 +46,7 @@ class EventSenderTask extends AbstractSenderTask {
     this.proxyId = proxyId;
     this.properties = properties;
     this.buffer = buffer;
+    this.senderStats = senderStats;
   }
 
   // TODO: review
@@ -64,7 +68,7 @@ class EventSenderTask extends AbstractSenderTask {
   @Override
   public int processSingleBatch(List<String> batch) {
     EventDataSubmissionTask task =
-        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null);
+        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null, senderStats);
     return task.execute();
   }
 }

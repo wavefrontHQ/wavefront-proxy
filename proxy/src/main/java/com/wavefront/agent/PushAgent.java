@@ -1371,7 +1371,6 @@ public class PushAgent extends AbstractAgent {
                           proxyConfig.getPushBlockedSamples(),
                           null,
                           validationConfiguration,
-                          true,
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER);
                 }
@@ -1703,7 +1702,6 @@ public class PushAgent extends AbstractAgent {
                             proxyConfig.getPushBlockedSamples(),
                             granularity,
                             validationConfiguration,
-                            granularity == null,
                             blockedHistogramsLogger,
                             VALID_HISTOGRAMS_LOGGER));
           }

@@ -126,7 +126,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
-                          true,
                           blockedPointsLogger,
                           VALID_POINTS_LOGGER,
                           null);
@@ -136,7 +135,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
-                          true,
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER,
                           histogramRecompressor);
@@ -180,7 +178,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           blockedItemsPerBatch,
                           validationConfig,
-                          true,
                           blockedLogsLogger,
                           VALID_LOGS_LOGGER);
                     default:

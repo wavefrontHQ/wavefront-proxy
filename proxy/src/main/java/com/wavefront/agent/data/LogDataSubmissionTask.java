@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.api.LogAPI;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +29,6 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   @JsonProperty private List<String> logs;
   private int weight;
 
-  @SuppressWarnings("unused")
-  LogDataSubmissionTask() {}
-
   /**
    * @param api API endpoint.
    * @param proxyId Proxy identifier
@@ -45,8 +43,9 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       EntityProperties properties,
       QueueInfo handle,
       @Nonnull List<String> logs,
-      @Nullable Supplier<Long> timeProvider) {
-    super(properties, handle, timeProvider);
+      @Nullable Supplier<Long> timeProvider,
+      SenderStats senderStats) {
+    super(properties, handle, timeProvider, senderStats);
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs); // TODO: review why?
@@ -61,7 +60,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   }
 
   @Override
-  public int weight() {
+  public int size() {
     return weight;
   }
 

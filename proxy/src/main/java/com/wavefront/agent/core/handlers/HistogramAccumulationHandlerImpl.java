@@ -56,7 +56,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       final int blockedItemsPerBatch,
       @Nullable Granularity granularity,
       @Nonnull final ValidationConfiguration validationConfig,
-      boolean isHistogramInput,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
@@ -64,7 +63,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
         handlerKey,
         blockedItemsPerBatch,
         validationConfig,
-        !isHistogramInput,
         blockedItemLogger,
         validItemsLogger,
         null);

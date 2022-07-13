@@ -50,22 +50,24 @@ public class SenderTasksManager {
     //        });
   }
 
-  public static void createSenderTasks(@Nonnull QueueInfo info, Buffer buffer, double factor) {
-    ReportableEntityType entityType = info.getEntityType();
-    String tenantName = info.getTenant();
+  public static void createSenderTasks(@Nonnull QueueInfo queue, Buffer buffer, double factor) {
+    ReportableEntityType entityType = queue.getEntityType();
+    String tenantName = queue.getTenant();
 
     int numThreads = entityPropertiesFactoryMap.get(tenantName).get(entityType).getFlushThreads();
     int interval =
         entityPropertiesFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
     ScheduledExecutorService scheduler =
         executors.computeIfAbsent(
-            info.getName(),
+            queue.getName(),
             x ->
                 Executors.newScheduledThreadPool(
-                    numThreads, new NamedThreadFactory("submitter-" + info.getName())));
+                    numThreads, new NamedThreadFactory("submitter-" + queue.getName())));
+
+    SenderStats senderStats = SenderStats.create(queue, scheduler);
 
     for (int i = 0; i < numThreads * factor; i++) {
-      SenderTask sender = generateSenderTask(info, i, buffer);
+      SenderTask sender = generateSenderTask(queue, i, buffer, senderStats);
       scheduler.scheduleAtFixedRate(sender, interval, interval, TimeUnit.MILLISECONDS);
     }
   }
@@ -85,7 +87,8 @@ public class SenderTasksManager {
     executors.clear();
   }
 
-  private static SenderTask generateSenderTask(QueueInfo queue, int idx, Buffer buffer) {
+  private static SenderTask generateSenderTask(
+      QueueInfo queue, int idx, Buffer buffer, SenderStats senderStats) {
     String tenantName = queue.getTenant();
     ReportableEntityType entityType = queue.getEntityType();
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
@@ -96,31 +99,64 @@ public class SenderTasksManager {
       case DELTA_COUNTER:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, idx, PUSH_FORMAT_WAVEFRONT, proxyV2API, proxyId, properties, buffer);
+                queue,
+                idx,
+                PUSH_FORMAT_WAVEFRONT,
+                proxyV2API,
+                proxyId,
+                properties,
+                buffer,
+                senderStats);
         break;
       case HISTOGRAM:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, idx, PUSH_FORMAT_HISTOGRAM, proxyV2API, proxyId, properties, buffer);
+                queue,
+                idx,
+                PUSH_FORMAT_HISTOGRAM,
+                proxyV2API,
+                proxyId,
+                properties,
+                buffer,
+                senderStats);
         break;
       case SOURCE_TAG:
         // In MONIT-25479, SOURCE_TAG does not support tag based multicasting. But still
         // generated tasks for each tenant in case we have other multicasting mechanism
         senderTask =
             new SourceTagSenderTask(
-                queue, idx, apiContainer.getSourceTagAPIForTenant(tenantName), properties, buffer);
+                queue,
+                idx,
+                apiContainer.getSourceTagAPIForTenant(tenantName),
+                properties,
+                buffer,
+                senderStats);
         break;
       case TRACE:
         senderTask =
             new LineDelimitedSenderTask(
-                queue, idx, PUSH_FORMAT_TRACING, proxyV2API, proxyId, properties, buffer);
+                queue,
+                idx,
+                PUSH_FORMAT_TRACING,
+                proxyV2API,
+                proxyId,
+                properties,
+                buffer,
+                senderStats);
         break;
       case TRACE_SPAN_LOGS:
         // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
         // generated tasks for each tenant in case we have other multicasting mechanism
         senderTask =
             new LineDelimitedSenderTask(
-                queue, idx, PUSH_FORMAT_TRACING_SPAN_LOGS, proxyV2API, proxyId, properties, buffer);
+                queue,
+                idx,
+                PUSH_FORMAT_TRACING_SPAN_LOGS,
+                proxyV2API,
+                proxyId,
+                properties,
+                buffer,
+                senderStats);
         break;
       case EVENT:
         senderTask =
@@ -130,7 +166,8 @@ public class SenderTasksManager {
                 apiContainer.getEventAPIForTenant(tenantName),
                 proxyId,
                 properties,
-                buffer);
+                buffer,
+                senderStats);
         break;
       case LOGS:
         senderTask =
@@ -140,7 +177,8 @@ public class SenderTasksManager {
                 apiContainer.getLogAPI(),
                 proxyId,
                 entityPropertiesFactoryMap.get(tenantName).get(entityType),
-                buffer);
+                buffer,
+                senderStats);
         break;
       default:
         throw new IllegalArgumentException(

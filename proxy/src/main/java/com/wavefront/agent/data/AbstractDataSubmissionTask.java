@@ -1,11 +1,9 @@
 package com.wavefront.agent.data;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
@@ -29,22 +27,21 @@ import javax.ws.rs.core.Response;
  *
  * @param <T> task type
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
   private static final int MAX_RETRIES = 15;
-  private static final Logger log =
+  private static final Logger debug =
       new MessageDedupingLogger(
           Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
+  private static final Logger log =
+      Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName());
 
-  @JsonProperty protected QueueInfo queue;
-  @JsonProperty protected Boolean limitRetries = null;
+  protected QueueInfo queue;
+  protected Boolean limitRetries = null;
 
   protected transient Supplier<Long> timeProvider;
+  private SenderStats senderStats;
   protected transient EntityProperties properties;
-
-  AbstractDataSubmissionTask() {}
 
   /**
    * @param properties entity-specific wrapper for runtime properties.
@@ -52,10 +49,14 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
    * @param timeProvider time provider (in millis)
    */
   AbstractDataSubmissionTask(
-      EntityProperties properties, QueueInfo queue, @Nullable Supplier<Long> timeProvider) {
+      EntityProperties properties,
+      QueueInfo queue,
+      @Nullable Supplier<Long> timeProvider,
+      SenderStats senderStats) {
     this.properties = properties;
     this.queue = queue;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
+    this.senderStats = senderStats;
   }
 
   @Override
@@ -94,11 +95,12 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                   "push", queue.getName() + ".http." + response.getStatus() + ".count"))
           .inc();
 
+      senderStats.sent.inc(this.size());
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
-        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered")).inc(this.weight());
+        senderStats.delivered.inc(this.size());
         return 0;
       } else {
-        Metrics.newCounter(new MetricName(queue.getName(), "", "failed")).inc(this.weight());
+        senderStats.failed.inc(this.size());
         return response.getStatus();
       }
 
@@ -160,13 +162,13 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     } catch (DataSubmissionException ex) {
       if (ex instanceof IgnoreStatusCodeException) {
         Metrics.newCounter(new TaggedMetricName("push", queue.getName() + ".http.404.count")).inc();
-        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered")).inc(this.weight());
+        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered")).inc(this.size());
       }
       throw new RuntimeException("Unhandled DataSubmissionException", ex);
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        log.warning(
+        debug.warning(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: Unknown host "
@@ -174,33 +176,33 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                 + ", please check your network!");
       } else if (rootCause instanceof ConnectException
           || rootCause instanceof SocketTimeoutException) {
-        log.warning(
+        debug.warning(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + rootCause.getMessage()
                 + ", please verify your network/HTTP proxy settings!");
       } else if (ex.getCause() instanceof SSLHandshakeException) {
-        log.warning(
+        debug.warning(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + ex.getCause()
                 + ", please verify that your environment has up-to-date root certificates!");
       } else {
-        log.warning("[" + queue.getName() + "] Error sending data to Wavefront: " + rootCause);
+        debug.warning("[" + queue.getName() + "] Error sending data to Wavefront: " + rootCause);
       }
-      if (log.isLoggable(Level.FINE)) {
-        log.log(Level.FINE, "Full stacktrace: ", ex);
+      if (debug.isLoggable(Level.FINE)) {
+        debug.log(Level.FINE, "Full stacktrace: ", ex);
       }
     } catch (Exception ex) {
-      log.warning(
+      debug.warning(
           "["
               + queue.getName()
               + "] Error sending data to Wavefront: "
               + Throwables.getRootCause(ex));
-      if (log.isLoggable(Level.FINE)) {
-        log.log(Level.FINE, "Full stacktrace: ", ex);
+      if (debug.isLoggable(Level.FINE)) {
+        debug.log(Level.FINE, "Full stacktrace: ", ex);
       }
     } finally {
       timer.stop();

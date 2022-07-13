@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.api.EventAPI;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +27,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   private transient UUID proxyId;
 
   @JsonProperty private List<String> events;
-
-  @SuppressWarnings("unused")
-  EventDataSubmissionTask() {}
+  private SenderStats senderStats;
 
   /**
    * @param api API endpoint.
@@ -44,11 +43,13 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       EntityProperties properties,
       QueueInfo queue,
       @Nonnull List<String> events,
-      @Nullable Supplier<Long> timeProvider) {
-    super(properties, queue, timeProvider);
+      @Nullable Supplier<Long> timeProvider,
+      SenderStats senderStats) {
+    super(properties, queue, timeProvider, senderStats);
     this.api = api;
     this.proxyId = proxyId;
     this.events = events;
+    this.senderStats = senderStats;
   }
 
   @Override
@@ -70,26 +71,16 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
                 properties,
                 queue,
                 events.subList(startingIndex, endingIndex + 1),
-                timeProvider));
+                timeProvider,
+                senderStats));
       }
       return result;
     }
     return ImmutableList.of(this);
   }
 
-  public List<String> payload() {
-    return events;
-  }
-
   @Override
-  public int weight() {
+  public int size() {
     return events.size();
-  }
-
-  public void injectMembers(EventAPI api, UUID proxyId, EntityProperties properties) {
-    this.api = api;
-    this.proxyId = proxyId;
-    this.properties = properties;
-    this.timeProvider = System::currentTimeMillis;
   }
 }

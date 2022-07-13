@@ -72,12 +72,7 @@ public class DeltaCounterAccumulationHandlerImpl
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
-        handler,
-        handlerKey,
-        blockedItemsPerBatch,
-        new ReportPointSerializer(),
-        true,
-        blockedItemLogger);
+        handler, handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
 

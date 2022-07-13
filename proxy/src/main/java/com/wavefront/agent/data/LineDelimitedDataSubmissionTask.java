@@ -1,12 +1,11 @@
 package com.wavefront.agent.data;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.handlers.LineDelimitedUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.api.ProxyV2API;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,23 +15,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
-/**
- * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.
- *
- * @author vasily@wavefront.com
- */
-@JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
+/** A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format. */
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
 
   @VisibleForTesting @JsonProperty protected List<String> payload;
+  private SenderStats senderStats;
   private transient ProxyV2API api;
   private transient UUID proxyId;
   @JsonProperty private String format;
-
-  @SuppressWarnings("unused")
-  LineDelimitedDataSubmissionTask() {}
 
   /**
    * @param api API endpoint
@@ -50,12 +41,14 @@ public class LineDelimitedDataSubmissionTask
       String format,
       QueueInfo queue,
       @Nonnull List<String> payload,
-      @Nullable Supplier<Long> timeProvider) {
-    super(properties, queue, timeProvider);
+      @Nullable Supplier<Long> timeProvider,
+      SenderStats senderStats) {
+    super(properties, queue, timeProvider, senderStats);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
     this.payload = new ArrayList<>(payload);
+    this.senderStats = senderStats;
   }
 
   @Override
@@ -64,10 +57,11 @@ public class LineDelimitedDataSubmissionTask
   }
 
   @Override
-  public int weight() {
+  public int size() {
     return this.payload.size();
   }
 
+  // TODO: do we need this ?
   @Override
   public List<LineDelimitedDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
     if (payload.size() > Math.max(1, minSplitSize)) {
@@ -84,21 +78,11 @@ public class LineDelimitedDataSubmissionTask
                 format,
                 queue,
                 payload.subList(startingIndex, endingIndex + 1),
-                timeProvider));
+                timeProvider,
+                senderStats));
       }
       return result;
     }
     return ImmutableList.of(this);
-  }
-
-  public List<String> payload() {
-    return payload;
-  }
-
-  public void injectMembers(ProxyV2API api, UUID proxyId, EntityProperties properties) {
-    this.api = api;
-    this.proxyId = proxyId;
-    this.properties = properties;
-    this.timeProvider = System::currentTimeMillis;
   }
 }

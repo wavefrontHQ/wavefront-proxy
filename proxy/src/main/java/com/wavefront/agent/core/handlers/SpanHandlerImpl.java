@@ -60,7 +60,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
       @Nonnull final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandler) {
-    super(handler, handlerKey, blockedItemsPerBatch, new SpanSerializer(), true, blockedItemLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, new SpanSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;

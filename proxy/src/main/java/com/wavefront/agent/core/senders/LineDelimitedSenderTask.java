@@ -20,6 +20,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   private final QueueInfo queue;
   private final String pushFormat;
   private EntityProperties properties;
+  private SenderStats senderStats;
 
   /**
    * @param queue pipeline handler key
@@ -27,6 +28,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId proxy ID.
    * @param properties container for mutable proxy settings.
+   * @param senderStats
    */
   LineDelimitedSenderTask(
       QueueInfo queue,
@@ -35,13 +37,15 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
       ProxyV2API proxyAPI,
       UUID proxyId,
       final EntityProperties properties,
-      Buffer buffer) {
+      Buffer buffer,
+      SenderStats senderStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
     this.properties = properties;
+    this.senderStats = senderStats;
   }
 
   // TODO: review
@@ -49,7 +53,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   public int processSingleBatch(List<String> batch) {
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
-            proxyAPI, proxyId, properties, pushFormat, queue, batch, null);
+            proxyAPI, proxyId, properties, pushFormat, queue, batch, null, senderStats);
     return task.execute();
   }
 }

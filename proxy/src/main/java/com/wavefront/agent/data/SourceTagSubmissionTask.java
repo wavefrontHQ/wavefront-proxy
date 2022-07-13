@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
 import java.util.List;
@@ -19,9 +20,6 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
 
   @JsonProperty private SourceTag sourceTag;
 
-  @SuppressWarnings("unused")
-  SourceTagSubmissionTask() {}
-
   /**
    * @param api API endpoint.
    * @param properties container for mutable proxy settings.
@@ -34,8 +32,9 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
       EntityProperties properties,
       QueueInfo handle,
       @Nonnull SourceTag sourceTag,
-      @Nullable Supplier<Long> timeProvider) {
-    super(properties, handle, timeProvider);
+      @Nullable Supplier<Long> timeProvider,
+      SenderStats senderStats) {
+    super(properties, handle, timeProvider, senderStats);
     this.api = api;
     this.sourceTag = sourceTag;
     this.limitRetries = true;
@@ -94,7 +93,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   }
 
   @Override
-  public int weight() {
+  public int size() {
     return 1;
   }
 

@@ -4,23 +4,29 @@ import static com.wavefront.agent.ProxyContext.queuesManager;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.senders.SenderStats;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
 public class LineDelimitedDataSubmissionTaskTest {
   @Test
   public void testSplitTask() {
+    QueueInfo queue = queuesManager.initQueue(ReportableEntityType.POINT);
+    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
             null,
             null,
             null,
             "graphite_v2",
-            queuesManager.initQueue(ReportableEntityType.POINT),
+            queue,
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
-            null);
+            null,
+            stats);
 
     List<LineDelimitedDataSubmissionTask> split;
 

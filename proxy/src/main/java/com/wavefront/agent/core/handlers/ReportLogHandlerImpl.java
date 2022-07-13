@@ -36,7 +36,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
    *     main log.
    * @param validationConfig validation configuration.
-   * @param setupMetrics Whether we should report counter metrics.
    * @param blockedLogsLogger logger for blocked logs.
    * @param validLogsLogger logger for valid logs.
    */
@@ -45,13 +44,12 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
-      final boolean setupMetrics,
       @Nullable final Logger blockedLogsLogger,
       @Nullable final Logger validLogsLogger) {
-    super(handler, handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, true, blockedLogsLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, blockedLogsLogger);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
-    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
+    MetricsRegistry registry = Metrics.defaultRegistry();
     this.receivedLogLag =
         registry.newHistogram(new MetricName(handlerKey.getName() + ".received", "", "lag"), false);
     this.receivedTagCount =

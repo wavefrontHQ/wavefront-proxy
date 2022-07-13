@@ -35,7 +35,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       final int blockedItemsPerBatch,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {
-    super(handler, handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, true, blockedEventsLogger);
+    super(handler, handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, blockedEventsLogger);
     this.validItemsLogger = validEventsLogger;
   }
 

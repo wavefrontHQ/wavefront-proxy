@@ -53,7 +53,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
    * @param validationConfig validation configuration.
-   * @param setupMetrics Whether we should report counter metrics.
    * @param blockedItemLogger logger for blocked items (optional).
    * @param validItemsLogger sampling logger for valid items (optional).
    * @param recompressor histogram recompressor (optional)
@@ -63,21 +62,15 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       final QueueInfo handlerKey,
       final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
-      final boolean setupMetrics,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
       @Nullable final Function<Histogram, Histogram> recompressor) {
     super(
-        handler,
-        handlerKey,
-        blockedItemsPerBatch,
-        new ReportPointSerializer(),
-        setupMetrics,
-        blockedItemLogger);
+        handler, handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;
-    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
+    MetricsRegistry registry = Metrics.defaultRegistry();
     this.receivedPointLag =
         registry.newHistogram(new MetricName(handlerKey.getName() + ".received", "", "lag"), false);
     this.receivedTagCount =
