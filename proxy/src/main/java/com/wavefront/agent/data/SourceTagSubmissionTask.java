@@ -64,7 +64,17 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
       case SOURCE_TAG:
         switch (sourceTag.getAction()) {
           case ADD:
-            return api.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
+            String addTag = sourceTag.getAnnotations().get(0);
+            Response re = api.appendTag(sourceTag.getSource(), addTag);
+            if (re.getStatus() == 404) {
+              throw new IgnoreStatusCodeException(
+                  "Failed to add tag "
+                      + addTag
+                      + " for source "
+                      + sourceTag.getSource()
+                      + ", ignoring");
+            }
+            return re;
           case DELETE:
             String tag = sourceTag.getAnnotations().get(0);
             Response resp = api.removeTag(sourceTag.getSource(), tag);
