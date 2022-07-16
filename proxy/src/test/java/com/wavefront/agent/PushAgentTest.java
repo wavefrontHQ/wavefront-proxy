@@ -2161,6 +2161,24 @@ public class PushAgentTest {
   }
 
   @Test
+  public void testOtlpGrpcHandlerCanListen() throws Exception {
+    port = findAvailablePort(4317);
+    SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
+    proxy.startOtlpGrpcListener(
+        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler);
+    waitUntilListenerIsOnline(port);
+  }
+
+  @Test
+  public void testJaegerGrpcHandlerCanListen() throws Exception {
+    port = findAvailablePort(14250);
+    SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
+    proxy.startTraceJaegerGrpcListener(
+        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler);
+    waitUntilListenerIsOnline(port);
+  }
+
+  @Test
   public void testWriteHttpJsonMetricsPortHandler() throws Exception {
     port = findAvailablePort(4878);
     proxy.proxyConfig.writeHttpJsonListenerPorts = String.valueOf(port);

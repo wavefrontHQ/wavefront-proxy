@@ -621,8 +621,8 @@ public class OtlpGrpcMetricsHandlerTest {
             .setName("test-exp-delta-histogram")
             .build();
 
-    List<Double> bins = new ArrayList<>(Arrays.asList(-4.0, 0.0, 6.0, 8.0));
-    List<Integer> counts = new ArrayList<>(Arrays.asList(3, 2, 1, 0));
+    List<Double> bins = new ArrayList<>(Arrays.asList(-6.0, 0.0, 6.0));
+    List<Integer> counts = new ArrayList<>(Arrays.asList(3, 2, 1));
 
     wavefront.report.Histogram minHistogram =
         wavefront.report.Histogram.newBuilder()

@@ -24,6 +24,7 @@ jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 build-jar: .info
 	mvn -f proxy --batch-mode clean package ${MVN_ARGS}
 	cp proxy/target/${ARTIFACT_ID}-${VERSION}-spring-boot.jar ${out}
+	cp proxy/target/${ARTIFACT_ID}-${VERSION}-jar-with-dependencies.jar ${out}
 
 #####
 # Build single docker image
@@ -80,8 +81,8 @@ stress-test: .info build-jar .cp-docker
 	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=docker
 
 .cp-linux:
-	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar pkg/wavefront-proxy.jar
-	${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-jar-with-dependencies.jar pkg/wavefront-proxy.jar
+	# ${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
 	docker buildx prune -a -f	
