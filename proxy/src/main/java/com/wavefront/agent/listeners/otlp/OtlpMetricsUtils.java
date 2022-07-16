@@ -91,7 +91,7 @@ public class OtlpMetricsUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       ReportPoint wfReportPoint,
-      ReportableEntityHandler<ReportPoint> spanHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;

@@ -7,6 +7,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.Pair;
+import com.wavefront.common.TaggedMetricName;
+import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -22,6 +24,7 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.apache.activemq.artemis.api.core.*;
 import org.apache.activemq.artemis.api.core.client.*;
+import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.config.BridgeConfiguration;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
@@ -31,6 +34,8 @@ import org.jetbrains.annotations.TestOnly;
 
 public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
   private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
+  private static final Logger slowLog =
+      new MessageDedupingLogger(Logger.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000, 1);
 
   final EmbeddedActiveMQ amq;
 
@@ -158,6 +163,14 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
       log.log(Level.SEVERE, "error", e);
       System.exit(-1);
     }
+
+    Metrics.newGauge(
+        new TaggedMetricName(queue, "queued", "reason", "failed", "route", bridge.getName()),
+        new MultiQueueGauge(queue, amq, QueueControl::getMessagesKilled));
+
+    Metrics.newGauge(
+        new TaggedMetricName(queue, "queued", "reason", "expired", "route", bridge.getName()),
+        new MultiQueueGauge(queue, amq, QueueControl::getMessagesExpired));
   }
 
   void registerQueueMetrics(QueueInfo queue) throws MalformedObjectNameException {
@@ -304,7 +317,7 @@ public abstract class ActiveMQBuffer implements Buffer, BufferBatch {
             toACK.add(msg);
             batch.addAll(msgs);
           } else {
-            log.info("rate limit reached on queue '" + queue.getName() + "'");
+            slowLog.info("rate limit reached on queue '" + queue.getName() + "'");
             done = true;
             needRollBack = true;
           }

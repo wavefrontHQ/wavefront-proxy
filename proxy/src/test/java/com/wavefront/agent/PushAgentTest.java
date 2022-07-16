@@ -2164,8 +2164,7 @@ public class PushAgentTest {
   public void testOtlpGrpcHandlerCanListen() throws Exception {
     port = findAvailablePort(4317);
     SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
-    proxy.startOtlpGrpcListener(
-        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler);
+    proxy.startOtlpGrpcListener(port, mockHandlerFactory, mockWavefrontSender, mockSampler);
     waitUntilListenerIsOnline(port);
   }
 
@@ -2173,8 +2172,7 @@ public class PushAgentTest {
   public void testJaegerGrpcHandlerCanListen() throws Exception {
     port = findAvailablePort(14250);
     SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
-    proxy.startTraceJaegerGrpcListener(
-        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler);
+    proxy.startTraceJaegerGrpcListener(port, mockHandlerFactory, mockWavefrontSender, mockSampler);
     waitUntilListenerIsOnline(port);
   }
 

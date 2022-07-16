@@ -2,6 +2,7 @@ package com.wavefront.agent.core.buffers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.common.logger.MessageDedupingLogger;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -12,6 +13,9 @@ import org.apache.activemq.artemis.api.core.management.QueueControl;
 
 public class MemoryBuffer extends ActiveMQBuffer {
   private static final Logger logger = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
+  private static final Logger slowLog =
+      new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
+
   private static Map<String, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap();
   private final ScheduledExecutorService executor;
   private BufferBatch nextBuffer;
@@ -101,17 +105,17 @@ public class MemoryBuffer extends ActiveMQBuffer {
             try {
               sendMsgs(queue, metrics);
             } catch (ActiveMQAddressFullException e) {
-              logger.log(Level.SEVERE, "Memory Queue full");
-              if (logger.isLoggable(Level.FINER)) {
-                logger.log(Level.SEVERE, "", e);
+              slowLog.log(Level.SEVERE, "Memory Queue full");
+              if (slowLog.isLoggable(Level.FINER)) {
+                slowLog.log(Level.SEVERE, "", e);
               }
               try {
                 nextBuffer.sendMsgs(queue, metrics);
               } catch (ActiveMQAddressFullException ex) {
-                logger.log(
+                slowLog.log(
                     Level.SEVERE, "All Queues full, dropping " + metrics.size() + " points.");
-                if (logger.isLoggable(Level.FINER)) {
-                  logger.log(Level.SEVERE, "", e);
+                if (slowLog.isLoggable(Level.FINER)) {
+                  slowLog.log(Level.SEVERE, "", e);
                 }
               }
             }
