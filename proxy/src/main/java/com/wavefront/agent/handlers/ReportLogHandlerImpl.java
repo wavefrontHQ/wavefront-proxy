@@ -41,15 +41,15 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final com.yammer.metrics.core.Counter receivedByteCount;
 
   /**
-   * @param senderTaskMap sender tasks.
-   * @param handlerKey pipeline key.
+   * @param senderTaskMap        sender tasks.
+   * @param handlerKey           pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
-   *     main log.
-   * @param validationConfig validation configuration.
-   * @param setupMetrics Whether we should report counter metrics.
-   * @param receivedRateSink where to report received rate.
-   * @param blockedLogsLogger logger for blocked logs.
-   * @param validLogsLogger logger for valid logs.
+   *                             main log.
+   * @param validationConfig     validation configuration.
+   * @param setupMetrics         Whether we should report counter metrics.
+   * @param receivedRateSink     where to report received rate.
+   * @param blockedLogsLogger    logger for blocked logs.
+   * @param validLogsLogger      logger for valid logs.
    */
   public ReportLogHandlerImpl(
       final HandlerKey handlerKey,
