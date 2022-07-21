@@ -2,19 +2,28 @@ package com.wavefront.agent.core.buffers;
 
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 
-import com.wavefront.agent.TestQueue;
 import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.yammer.metrics.core.Gauge;
+import com.wavefront.agent.core.queues.QueueStats;
+import com.wavefront.agent.core.queues.TestQueue;
+import com.yammer.metrics.Metrics;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.apache.activemq.artemis.api.core.client.*;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.junit.After;
 import org.junit.Test;
 
 public class BufferManagerTest {
+
+  @After
+  public void teardown() {
+    System.out.println("Test done");
+    BuffersManager.shutdown();
+  }
 
   @Test
   public void shutdown() throws Exception {
@@ -26,79 +35,101 @@ public class BufferManagerTest {
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
-    BuffersManager.registerNewQueueIfNeedIt(points);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    for (int i = 0; i < 1_000_000; i++) {
+    for (int i = 0; i < 10_000; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
-    BuffersManager.flush(points);
+    memory.flush(points);
 
-    Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
-    Gauge<Object> disk = BuffersManager.l2_getSizeGauge(points);
-
-    assertNotEquals("MessageCount", 0l, memory.value());
-    assertEquals("MessageCount", 0l, disk.value());
+    assertEquals("MessageCount", 10_000, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
     BuffersManager.shutdown();
+
+    // we need to delete all metrics so counters gets regenerated.
+    Metrics.defaultRegistry()
+        .allMetrics()
+        .keySet()
+        .forEach(metricName -> Metrics.defaultRegistry().removeMetric(metricName));
+
     BuffersManager.init(cfg);
-    BuffersManager.registerNewQueueIfNeedIt(points);
+    buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    memory = (MemoryBuffer) buffers.get(0);
+    disk = (DiskBuffer) buffers.get(1);
 
-    memory = BuffersManager.l1_getSizeGauge(points);
-    disk = BuffersManager.l2_getSizeGauge(points);
-
-    assertEquals("MessageCount", 0l, memory.value());
-    assertNotEquals("MessageCount", 0l, disk.value());
+    assertEquals("MessageCount", 10_000, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
   }
 
   @Test
-  public void counters() throws Exception {
-    Path buffer = Files.createTempDirectory("wfproxy");
-    System.out.println("buffer: " + buffer);
+  public void counters() {
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.l2 = false;
+    BuffersManager.init(cfg);
 
+    QueueInfo points = new TestQueue(8);
+    MemoryBuffer memory = (MemoryBuffer) BuffersManager.registerNewQueueIfNeedIt(points).get(0);
+
+    for (int i = 0; i < 1_654_321; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
+    memory.flush(points);
+    assertEquals("gauge.doCount", 1_654_321, memory.countMetrics.get(points.getName()).doCount());
+  }
+
+  @Test
+  public void bridgeControl() throws IOException, InterruptedException {
+    Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.msgExpirationTime = 10;
     cfg.l2 = true;
+    cfg.msgExpirationTime = -1;
+    cfg.msgRetry = 1;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
-    BuffersManager.registerNewQueueIfNeedIt(points);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    for (int i = 0; i < 1_000_000; i++) {
+    send100pointsAndFail(points, memory);
+
+    assertEquals("failed", 100, QueueStats.get(points.getName()).queuedFailed.count());
+    assertEquals("failed", 0, QueueStats.get(points.getName()).queuedExpired.count());
+    assertEquals("failed", 100, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("failed", 0, memory.countMetrics.get(points.getName()).doCount());
+
+    memory.disableBridge();
+
+    send100pointsAndFail(points, memory);
+
+    assertEquals("failed", 100, QueueStats.get(points.getName()).queuedFailed.count());
+    assertEquals("failed", 0, QueueStats.get(points.getName()).queuedExpired.count());
+    assertEquals("failed", 100, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("failed", 100, memory.countMetrics.get(points.getName()).doCount());
+  }
+
+  private void send100pointsAndFail(QueueInfo points, MemoryBuffer memory) {
+    for (int i = 0; i < 100; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
-    BuffersManager.flush(points);
+    memory.flush(points);
 
-    for (int i = 0; i < 3; i++) {
-      int pointsCount = 0;
-
-      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + 1);
-      ClientSessionFactory factory = serverLocator.createSessionFactory();
-      ClientSession session = factory.createSession(true, true);
-      ClientConsumer client = session.createConsumer(points.getName() + ".0", true);
-
-      long start = System.currentTimeMillis();
-      boolean done = false;
-      while (!done) {
-        ClientMessage msg = client.receive(1000); // give time to the msg to move to disk
-        if (msg != null) {
-          pointsCount += msg.getIntProperty("points");
-        } else {
-          done = true;
-        }
-      }
-      long time = System.currentTimeMillis() - start;
-      assertEquals(1_000_000, pointsCount);
-
-      System.out.println("-> pointsCount=" + pointsCount + " time:" + time);
-
-      BuffersManager.init(cfg);
-      BuffersManager.registerNewQueueIfNeedIt(points);
-    }
+    memory.onMsgBatch(
+        points,
+        0,
+        1000,
+        new TestUtils.RateLimiter(),
+        batch -> {
+          throw new RuntimeException("force fail");
+        });
   }
 
   @Test
-  public void expiration() throws IOException, InterruptedException {
+  public void expiration() throws IOException, InterruptedException, ActiveMQAddressFullException {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
@@ -110,22 +141,37 @@ public class BufferManagerTest {
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
-    BuffersManager.registerNewQueueIfNeedIt(points);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
-    Gauge<Object> disk = BuffersManager.l2_getSizeGauge(points);
-
-    assertEquals("MessageCount", 0l, memory.value());
+    assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
     BuffersManager.sendMsg(points, "tururu");
-    BuffersManager.flush(points);
-    assertNotEquals("MessageCount", 0l, memory.value());
+    memory.flush(points);
+    assertEquals("MessageCount", 1, memory.countMetrics.get(points.getName()).doCount());
 
-    assertTrueWithTimeout(1000, () -> ((Long) memory.value()) != 0L);
-    assertTrueWithTimeout(1000, () -> ((Long) disk.value()) != 0L);
+    assertTrueWithTimeout(1000, () -> memory.countMetrics.get(points.getName()).doCount() == 0);
+    assertTrueWithTimeout(1000, () -> disk.countMetrics.get(points.getName()).doCount() == 1);
 
     // the msg should not expire on disk queues
     Thread.sleep(1_000);
-    assertNotEquals("MessageCount", 0l, disk.value());
+    assertEquals("MessageCount", 1, disk.countMetrics.get(points.getName()).doCount());
+
+    AtomicBoolean ok = new AtomicBoolean(false);
+    buffers
+        .get(1)
+        .onMsgBatch(
+            points,
+            0,
+            1000,
+            new TestUtils.RateLimiter(),
+            batch -> {
+              ok.set(batch.get(0).equals("tururu"));
+            });
+    assertTrueWithTimeout(3000, () -> ok.get());
+
+    assertEquals("queuedFailed", 0, QueueStats.get(points.getName()).queuedFailed.count());
+    assertEquals("queuedExpired", 1, QueueStats.get(points.getName()).queuedExpired.count());
   }
 
   @Test
@@ -142,15 +188,17 @@ public class BufferManagerTest {
     cfg.msgRetry = 2;
     BuffersManager.init(cfg);
 
-    BuffersManager.registerNewQueueIfNeedIt(points);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    Gauge<Object> memory = BuffersManager.l1_getSizeGauge(points);
-    Gauge<Object> disk = BuffersManager.l2_getSizeGauge(points);
+    assertEquals("queuedFailed", 0, QueueStats.get(points.getName()).queuedFailed.count());
+    assertEquals("queuedExpired", 0, QueueStats.get(points.getName()).queuedExpired.count());
 
-    assertEquals("MessageCount", 0l, memory.value());
+    assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
     BuffersManager.sendMsg(points, "tururu");
-    BuffersManager.flush(points);
-    assertNotEquals("MessageCount", 0l, memory.value());
+    memory.flush(points);
+    assertEquals("MessageCount", 1, memory.countMetrics.get(points.getName()).doCount());
 
     for (int i = 0; i < 4; i++) {
       BuffersManager.onMsgBatch(
@@ -162,12 +210,15 @@ public class BufferManagerTest {
             throw new RuntimeException("error 500");
           });
     }
-    assertTrueWithTimeout(1000, () -> ((Long) memory.value()) == 0L);
-    assertTrueWithTimeout(1000, () -> ((Long) disk.value()) != 0L);
+    assertTrueWithTimeout(1000, () -> memory.countMetrics.get(points.getName()).doCount() == 0);
+    assertTrueWithTimeout(1000, () -> disk.countMetrics.get(points.getName()).doCount() == 1);
 
     // the msg should not expire on disk queues
     Thread.sleep(1_000);
-    assertNotEquals("MessageCount", 0l, disk.value());
+    assertEquals("MessageCount", 1, disk.countMetrics.get(points.getName()).doCount());
+
+    assertEquals("queuedFailed", 1, QueueStats.get(points.getName()).queuedFailed.count());
+    assertEquals("queuedExpired", 0, QueueStats.get(points.getName()).queuedExpired.count());
   }
 
   @Test
@@ -178,18 +229,16 @@ public class BufferManagerTest {
     cfg.msgRetry = -1;
     cfg.msgExpirationTime = -1;
     cfg.buffer = buffer.toFile().getAbsolutePath();
+    cfg.memoryMaxMemory = 500;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
-    BuffersManager.registerNewQueueIfNeedIt(points);
-    // setting queue max size to 500 bytes
-    BuffersManager.getLeve1().setQueueSize(points, 500);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    Gauge size_memory = BuffersManager.l1_getSizeGauge(points);
-    Gauge size_disk = BuffersManager.l2_getSizeGauge(points);
-
-    assertEquals("MessageCount", 0l, size_memory.value());
-    assertEquals("MessageCount", 0l, size_disk.value());
+    assertEquals("MessageCount", 0l, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0l, disk.countMetrics.get(points.getName()).doCount());
 
     // 20 messages are around 619 bytes, that should go in the queue
     // and then mark the queue as full
@@ -197,19 +246,19 @@ public class BufferManagerTest {
       BuffersManager.sendMsg(points, "tururu");
     }
 
-    BuffersManager.flush(points);
+    memory.flush(points);
 
-    assertNotEquals("MessageCount", 0l, size_memory.value());
-    assertEquals("MessageCount", 0l, size_disk.value());
+    assertEquals("MessageCount", 20l, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0l, disk.countMetrics.get(points.getName()).doCount());
 
     // the queue is already full, so this ones go directly to disk
     for (int i = 0; i < 20; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
 
-    BuffersManager.flush(points);
+    memory.flush(points);
 
-    assertNotEquals("MessageCount", 0l, size_memory.value());
-    assertNotEquals("MessageCount", 0l, size_disk.value());
+    assertEquals("MessageCount", 20l, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 20l, disk.countMetrics.get(points.getName()).doCount());
   }
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
 import java.util.List;
@@ -33,8 +33,8 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
       QueueInfo handle,
       @Nonnull SourceTag sourceTag,
       @Nullable Supplier<Long> timeProvider,
-      SenderStats senderStats) {
-    super(properties, handle, timeProvider, senderStats);
+      QueueStats queueStats) {
+    super(properties, handle, timeProvider, queueStats);
     this.api = api;
     this.sourceTag = sourceTag;
     this.limitRetries = true;

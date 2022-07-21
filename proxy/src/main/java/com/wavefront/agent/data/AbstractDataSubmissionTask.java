@@ -3,7 +3,7 @@ package com.wavefront.agent.data;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
@@ -40,7 +40,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   protected Boolean limitRetries = null;
 
   protected transient Supplier<Long> timeProvider;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
   protected transient EntityProperties properties;
 
   /**
@@ -52,11 +52,11 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       EntityProperties properties,
       QueueInfo queue,
       @Nullable Supplier<Long> timeProvider,
-      SenderStats senderStats) {
+      QueueStats queueStats) {
     this.properties = properties;
     this.queue = queue;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   @Override
@@ -68,21 +68,6 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
 
   // TODO: review returns
   public int execute() {
-    // TODO: enqueuedTimeMillis can be extracted on getBatchMgs
-    //    if (enqueuedTimeMillis < Long.MAX_VALUE) {
-    //      if (timeSpentInQueue == null) {
-    //        timeSpentInQueue =
-    //            Metrics.newHistogram(
-    //                new TaggedMetricName(
-    //                    "buffer",
-    //                    "queue-time",
-    //                    "port",
-    //                    handle.getPort(),
-    //                    "content",
-    //                    handle.getEntityType().toString()));
-    //      }
-    //      timeSpentInQueue.update(timeProvider.get() - enqueuedTimeMillis);
-    //    }
     TimerContext timer =
         Metrics.newTimer(
                 new MetricName("push." + queue.getName(), "", "duration"),
@@ -95,12 +80,12 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                   "push", queue.getName() + ".http." + response.getStatus() + ".count"))
           .inc();
 
-      senderStats.sent.inc(this.size());
+      queueStats.sent.inc(this.size());
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
-        senderStats.delivered.inc(this.size());
+        queueStats.delivered.inc(this.size());
         return 0;
       } else {
-        senderStats.failed.inc(this.size());
+        queueStats.failed.inc(this.size());
         return response.getStatus();
       }
 

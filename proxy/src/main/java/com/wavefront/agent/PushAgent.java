@@ -176,7 +176,9 @@ public class PushAgent extends AbstractAgent {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.buffer = proxyConfig.getBufferFile();
     cfg.l2 = !proxyConfig.getDisableBuffer();
-    cfg.msgExpirationTime = -1;
+    cfg.msgExpirationTime = 10_000;
+    cfg.diskMaxMemory = 256_000_000;
+    cfg.memoryMaxMemory = 768_000_000;
     BuffersManager.init(cfg);
 
     /***** END PROXY NEW *****/

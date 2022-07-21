@@ -2,6 +2,7 @@ package com.wavefront.agent.core.senders;
 
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.api.EventAPI;
@@ -22,14 +23,14 @@ class EventSenderTask extends AbstractSenderTask {
   private final UUID proxyId;
   private final EntityProperties properties;
   private final Buffer buffer;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
 
   /**
    * @param queue handler key, that serves as an identifier of the metrics pipeline.
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId id of the proxy.
    * @param properties container for mutable proxy settings.
-   * @param senderStats
+   * @param queueStats
    */
   EventSenderTask(
       QueueInfo queue,
@@ -38,7 +39,7 @@ class EventSenderTask extends AbstractSenderTask {
       UUID proxyId,
       EntityProperties properties,
       Buffer buffer,
-      SenderStats senderStats) {
+      QueueStats queueStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
     this.idx = idx;
@@ -46,7 +47,7 @@ class EventSenderTask extends AbstractSenderTask {
     this.proxyId = proxyId;
     this.properties = properties;
     this.buffer = buffer;
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   // TODO: review
@@ -68,7 +69,7 @@ class EventSenderTask extends AbstractSenderTask {
   @Override
   public int processSingleBatch(List<String> batch) {
     EventDataSubmissionTask task =
-        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null, senderStats);
+        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null, queueStats);
     return task.execute();
   }
 }

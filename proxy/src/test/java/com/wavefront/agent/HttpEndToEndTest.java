@@ -469,13 +469,13 @@ public class HttpEndToEndTest {
     gzippedHttpPost("http://localhost:" + histDayPort + "/", payloadHistograms);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", payloadHistograms); // should reject
     digestTime.set(System.currentTimeMillis());
-    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 1 == successfulSteps.get());
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, () -> 1 == successfulSteps.get());
 
     digestTime.set(System.currentTimeMillis() - 1001);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", distPayload);
     digestTime.set(System.currentTimeMillis());
     proxy.histogramFlushRunnables.forEach(Runnable::run);
-    assertTrueWithTimeout(HTTP_timeout_tests * 200, () -> 2 == successfulSteps.get());
+    assertTrueWithTimeout(HTTP_timeout_tests * 10, () -> 2 == successfulSteps.get());
   }
 
   @Test

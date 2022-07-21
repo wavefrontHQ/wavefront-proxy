@@ -5,7 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.handlers.LineDelimitedUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.ProxyV2API;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
 
   @VisibleForTesting @JsonProperty protected List<String> payload;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
   private transient ProxyV2API api;
   private transient UUID proxyId;
   @JsonProperty private String format;
@@ -42,13 +42,13 @@ public class LineDelimitedDataSubmissionTask
       QueueInfo queue,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider,
-      SenderStats senderStats) {
-    super(properties, queue, timeProvider, senderStats);
+      QueueStats queueStats) {
+    super(properties, queue, timeProvider, queueStats);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
     this.payload = new ArrayList<>(payload);
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   @Override
@@ -79,7 +79,7 @@ public class LineDelimitedDataSubmissionTask
                 queue,
                 payload.subList(startingIndex, endingIndex + 1),
                 timeProvider,
-                senderStats));
+                queueStats));
       }
       return result;
     }

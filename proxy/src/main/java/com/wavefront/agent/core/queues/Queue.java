@@ -18,6 +18,7 @@ class Queue implements QueueInfo {
     this.entityType = entityType;
     this.tenant = tenant;
     this.threads = threads;
+    QueueStats.register(this);
   }
 
   public String getTenant() {

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.LogAPI;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +44,8 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       QueueInfo handle,
       @Nonnull List<String> logs,
       @Nullable Supplier<Long> timeProvider,
-      SenderStats senderStats) {
-    super(properties, handle, timeProvider, senderStats);
+      QueueStats queueStats) {
+    super(properties, handle, timeProvider, queueStats);
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs); // TODO: review why?

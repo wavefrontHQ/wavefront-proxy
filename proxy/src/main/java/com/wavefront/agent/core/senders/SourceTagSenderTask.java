@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.api.SourceTagAPI;
@@ -24,7 +25,7 @@ public class SourceTagSenderTask extends AbstractSenderTask {
   private final QueueInfo queue;
   private final SourceTagAPI proxyAPI;
   private EntityProperties properties;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
 
   /**
    * Create new instance
@@ -33,7 +34,7 @@ public class SourceTagSenderTask extends AbstractSenderTask {
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param properties container for mutable proxy settings.
    * @param buffer
-   * @param senderStats
+   * @param queueStats
    */
   SourceTagSenderTask(
       QueueInfo queue,
@@ -41,12 +42,12 @@ public class SourceTagSenderTask extends AbstractSenderTask {
       SourceTagAPI proxyAPI,
       EntityProperties properties,
       Buffer buffer,
-      SenderStats senderStats) {
+      QueueStats queueStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
     this.proxyAPI = proxyAPI;
     this.properties = properties;
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   @Override
@@ -60,7 +61,7 @@ public class SourceTagSenderTask extends AbstractSenderTask {
       try {
         SourceTag tag = objectMapper.readValue(sourceTagStr, SourceTag.class);
         SourceTagSubmissionTask task =
-            new SourceTagSubmissionTask(proxyAPI, properties, queue, tag, null, senderStats);
+            new SourceTagSubmissionTask(proxyAPI, properties, queue, tag, null, queueStats);
         int res = task.execute();
         if (res != 0) {
           // if there is a communication problem, we send back the point to the buffer

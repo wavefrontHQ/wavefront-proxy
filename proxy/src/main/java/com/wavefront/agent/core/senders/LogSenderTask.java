@@ -2,6 +2,7 @@ package com.wavefront.agent.core.senders;
 
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.api.LogAPI;
@@ -18,7 +19,7 @@ public class LogSenderTask extends AbstractSenderTask {
   private final LogAPI logAPI;
   private final UUID proxyId;
   private final EntityProperties properties;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
 
   /**
    * @param handlerKey handler key, that serves as an identifier of the log pipeline.
@@ -26,7 +27,7 @@ public class LogSenderTask extends AbstractSenderTask {
    * @param proxyId id of the proxy.
    * @param properties container for mutable proxy settings.
    * @param buffer
-   * @param senderStats
+   * @param queueStats
    */
   LogSenderTask(
       QueueInfo handlerKey,
@@ -35,20 +36,20 @@ public class LogSenderTask extends AbstractSenderTask {
       UUID proxyId,
       EntityProperties properties,
       Buffer buffer,
-      SenderStats senderStats) {
+      QueueStats queueStats) {
     super(handlerKey, idx, properties, buffer);
     this.queue = handlerKey;
     this.logAPI = logAPI;
     this.proxyId = proxyId;
     this.properties = properties;
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   // TODO: review
   @Override
   public int processSingleBatch(List<String> batch) {
     LogDataSubmissionTask task =
-        new LogDataSubmissionTask(logAPI, proxyId, properties, queue, batch, null, senderStats);
+        new LogDataSubmissionTask(logAPI, proxyId, properties, queue, batch, null, queueStats);
     return task.execute();
   }
 }

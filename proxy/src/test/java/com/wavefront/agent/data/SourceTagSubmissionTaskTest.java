@@ -7,11 +7,10 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
 import org.junit.Ignore;
@@ -47,7 +46,7 @@ public class SourceTagSubmissionTaskTest {
     expect(queue.getName()).andReturn("").anyTimes();
     expect(queue.getEntityType()).andReturn(ReportableEntityType.SOURCE_TAG).anyTimes();
     replay(queue);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     SourceTagSubmissionTask task =
         new SourceTagSubmissionTask(
             sourceTagAPI,
@@ -95,7 +94,7 @@ public class SourceTagSubmissionTaskTest {
     expect(queue.getName()).andReturn("").anyTimes();
     expect(queue.getEntityType()).andReturn(ReportableEntityType.SOURCE_TAG).anyTimes();
     replay(queue);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     SourceTagSubmissionTask task =
         new SourceTagSubmissionTask(
             sourceTagAPI,
@@ -121,7 +120,7 @@ public class SourceTagSubmissionTaskTest {
     expect(queue.getName()).andReturn("").anyTimes();
     expect(queue.getEntityType()).andReturn(ReportableEntityType.SOURCE_TAG).anyTimes();
     replay(queue);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     SourceTagSubmissionTask task2 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
@@ -147,7 +146,7 @@ public class SourceTagSubmissionTaskTest {
     expect(queue.getName()).andReturn("").anyTimes();
     expect(queue.getEntityType()).andReturn(ReportableEntityType.SOURCE_TAG).anyTimes();
     replay(queue);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     SourceTagSubmissionTask task3 =
         new SourceTagSubmissionTask(
             sourceTagAPI,
@@ -181,7 +180,7 @@ public class SourceTagSubmissionTaskTest {
     expect(queue.getName()).andReturn("").anyTimes();
     expect(queue.getEntityType()).andReturn(ReportableEntityType.SOURCE_TAG).anyTimes();
     replay(queue);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     SourceTagSubmissionTask task =
         new SourceTagSubmissionTask(
             sourceTagAPI,

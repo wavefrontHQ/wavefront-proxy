@@ -3,11 +3,15 @@ package com.wavefront.agent.core.buffers;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.core.Gauge;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.apache.activemq.artemis.api.core.client.*;
+import org.apache.activemq.artemis.api.core.management.AddressControl;
+import org.apache.activemq.artemis.api.core.management.QueueControl;
+import org.apache.activemq.artemis.api.core.management.ResourceNames;
+import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 
 public class PointsGauge extends Gauge<Long> {
   private static final Logger log = Logger.getLogger(PointsGauge.class.getCanonicalName());
@@ -16,10 +20,12 @@ public class PointsGauge extends Gauge<Long> {
   private Long pointsCount = 0L;
   private final QueueInfo queue;
   private final int serverID;
+  private EmbeddedActiveMQ amq;
 
-  public PointsGauge(QueueInfo queue, int serverID) {
+  public PointsGauge(QueueInfo queue, int serverID, EmbeddedActiveMQ amq) {
     this.queue = queue;
     this.serverID = serverID;
+    this.amq = amq;
     excutor.scheduleAtFixedRate(() -> doCount(), 1, 1, TimeUnit.MINUTES);
   }
 
@@ -28,29 +34,31 @@ public class PointsGauge extends Gauge<Long> {
     return pointsCount;
   }
 
-  private void doCount() {
+  long doCount() {
     long count = 0;
+
+    AddressControl address =
+        (AddressControl)
+            amq.getActiveMQServer()
+                .getManagementService()
+                .getResource(ResourceNames.ADDRESS + queue.getName());
+
     try {
-      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + serverID);
-      ClientSessionFactory factory = serverLocator.createSessionFactory();
-      for (int q_idx = 0; q_idx < queue.getNumberThreads(); q_idx++) {
-        ClientSession session = factory.createSession(true, true);
-        ClientConsumer client = session.createConsumer(queue.getName() + "." + q_idx, true);
-        boolean done = false;
-        while (!done) {
-          ClientMessage msg = client.receive(100);
-          if (msg != null) {
-            count += msg.getIntProperty("points");
-          } else {
-            done = true;
-          }
+      for (String queueName : address.getQueueNames()) {
+        QueueControl queueControl =
+            (QueueControl)
+                amq.getActiveMQServer()
+                    .getManagementService()
+                    .getResource(ResourceNames.QUEUE + queueName);
+        Map<String, Object>[] messages = queueControl.listMessages("");
+        for (Map<String, Object> message : messages) {
+          int p = (int) message.get("points");
+          count += p;
         }
-        client.close();
-        session.close();
       }
-    } catch (Throwable e) {
-      log.severe("Error counting disk queue messages." + e.getMessage());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
-    pointsCount = count;
+    return pointsCount = count;
   }
 }

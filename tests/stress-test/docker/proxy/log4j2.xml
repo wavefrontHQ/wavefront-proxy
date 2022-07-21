@@ -13,6 +13,11 @@
     </Appenders>
 
     <Loggers>
+        <!-- Logger for storing Dropped points -->
+        <AsyncLogger name="RawDroppedPoints" level="ERROR" additivity="false">
+            <AppenderRef ref="Console" />
+        </AsyncLogger>
+
         <AsyncLogger name="org.apache.activemq.audit.base" level="ERROR" additivity="false">
             <AppenderRef ref="Console" />
         </AsyncLogger>

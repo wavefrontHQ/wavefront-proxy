@@ -1,27 +1,33 @@
 package com.wavefront.agent.core.buffers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
+import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 
 public class MemoryBuffer extends ActiveMQBuffer {
-  private static final Logger logger = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
   private static final Logger slowLog =
       new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
+  private static final Logger droppedPointsLogger = Logger.getLogger("RawDroppedPoints");
 
   private static Map<String, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap();
   private final ScheduledExecutorService executor;
-  private BufferBatch nextBuffer;
+  private BufferConfig cfg;
+  private List<QueueInfo> queues = new ArrayList<>();
 
   public MemoryBuffer(int level, String name, BufferConfig cfg) {
     super(level, name, false, cfg);
+    this.cfg = cfg;
     executor =
         Executors.newScheduledThreadPool(
             Runtime.getRuntime().availableProcessors(),
@@ -34,10 +40,16 @@ public class MemoryBuffer extends ActiveMQBuffer {
     try {
       executor.awaitTermination(1, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
-      logger.severe("Error during MemoryBuffer shutdown. " + e);
+      log.severe("Error during MemoryBuffer shutdown. " + e);
     }
 
     // TODO: implement dump to external queue
+    if (this.nextBuffer instanceof DiskBuffer) {
+      if (((DiskBuffer) nextBuffer).isFull()) {
+        return;
+      }
+    }
+
     int counter = 0;
     try {
       Object[] queues =
@@ -53,45 +65,64 @@ public class MemoryBuffer extends ActiveMQBuffer {
     }
 
     if (counter != 0) {
-      logger.info("'" + counter + "' points sent to the buffer disk");
+      log.info("'" + counter + "' points sent to the buffer disk");
     }
 
     super.shutdown();
   }
 
-  public void sendMsg(QueueInfo key, String strPoint) {
+  public void sendPoint(QueueInfo queue, String strPoint) {
+    QueueStats.get(queue.getName()).msgLength.update(strPoint.length());
     LinkedTransferQueue<String> midBuffer =
-        midBuffers.computeIfAbsent(key.getName(), s -> new LinkedTransferQueue<>());
+        midBuffers.computeIfAbsent(queue.getName(), s -> new LinkedTransferQueue<>());
     midBuffer.add(strPoint);
   }
 
   @Override
   public void registerNewQueueInfo(QueueInfo queue) {
-    // TODO
-    //    int interval =
+    // TODO:  int interval =
     // entityPropsFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
 
     super.registerNewQueueInfo(queue);
     for (int i = 0; i < queue.getNumberThreads(); i++) {
-      executor.scheduleAtFixedRate(new sender(queue, nextBuffer), 1, 1, TimeUnit.SECONDS);
+      executor.scheduleAtFixedRate(new sender(queue), 1, 1, TimeUnit.SECONDS);
     }
+    queues.add(queue);
   }
 
-  public void flush(QueueInfo queue) {
-    new sender(queue, nextBuffer).run();
+  protected void createBridge(DiskBuffer diskBuffer) {
+    setNextBuffer(diskBuffer);
+    amq.getActiveMQServer().registerBrokerPlugin(new Bridge(this, diskBuffer));
+    enableBridge();
   }
 
-  public void setNextBuffer(BufferBatch nextBuffer) {
-    this.nextBuffer = nextBuffer;
+  protected void enableBridge() {
+    log.info("bridge enabled");
+    AddressSettings addressSetting =
+        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    addressSetting.setMaxExpiryDelay(cfg.msgExpirationTime);
+    addressSetting.setMaxDeliveryAttempts(cfg.msgRetry);
+    amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
+  }
+
+  protected void disableBridge() {
+    log.info("bridge disabled");
+    AddressSettings addressSetting =
+        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    addressSetting.setMaxExpiryDelay(-1L);
+    addressSetting.setMaxDeliveryAttempts(-1);
+    amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
+  }
+
+  protected void flush(QueueInfo queue) {
+    new sender(queue).run();
   }
 
   private class sender implements Runnable {
     private final QueueInfo queue;
-    private BufferBatch nextBuffer;
 
-    private sender(QueueInfo queue, BufferBatch nextBuffer) {
+    private sender(QueueInfo queue) {
       this.queue = queue;
-      this.nextBuffer = nextBuffer;
     }
 
     @Override
@@ -103,21 +134,19 @@ public class MemoryBuffer extends ActiveMQBuffer {
           ArrayList<String> metrics = new ArrayList<>();
           if (midBuffer.drainTo(metrics, 100) != 0) {
             try {
-              sendMsgs(queue, metrics);
+              sendPoints(queue.getName(), metrics);
             } catch (ActiveMQAddressFullException e) {
-              slowLog.log(Level.SEVERE, "Memory Queue full");
+              slowLog.log(Level.SEVERE, "All Queues full, dropping " + metrics.size() + " points.");
               if (slowLog.isLoggable(Level.FINER)) {
                 slowLog.log(Level.SEVERE, "", e);
               }
-              try {
-                nextBuffer.sendMsgs(queue, metrics);
-              } catch (ActiveMQAddressFullException ex) {
-                slowLog.log(
-                    Level.SEVERE, "All Queues full, dropping " + metrics.size() + " points.");
-                if (slowLog.isLoggable(Level.FINER)) {
-                  slowLog.log(Level.SEVERE, "", e);
-                }
-              }
+              QueueStats.get(queue.getName()).dropped.inc(metrics.size());
+              // TODO: uncomment
+              //              if (droppedPointsLogger.isLoggable(Level.INFO)) {
+              //                metrics.forEach(
+              //                    point -> droppedPointsLogger.log(Level.INFO, point,
+              // queue.getEntityType()));
+              //              }
             }
           } else {
             done = true;

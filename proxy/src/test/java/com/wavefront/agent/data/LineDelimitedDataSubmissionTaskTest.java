@@ -5,10 +5,9 @@ import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.data.ReportableEntityType;
 import java.util.List;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -16,7 +15,7 @@ public class LineDelimitedDataSubmissionTaskTest {
   @Test
   public void testSplitTask() {
     QueueInfo queue = queuesManager.initQueue(ReportableEntityType.POINT);
-    SenderStats stats = SenderStats.create(queue, new ScheduledThreadPoolExecutor(0));
+    QueueStats stats = QueueStats.get(queue.getName());
     LineDelimitedDataSubmissionTask task =
         new LineDelimitedDataSubmissionTask(
             null,

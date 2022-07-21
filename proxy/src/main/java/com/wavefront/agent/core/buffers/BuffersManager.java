@@ -2,49 +2,47 @@ package com.wavefront.agent.core.buffers;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.yammer.metrics.core.Gauge;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.jetbrains.annotations.TestOnly;
 
 public class BuffersManager {
   private static final Logger logger = Logger.getLogger(BuffersManager.class.getCanonicalName());
 
   private static final Map<String, Boolean> registeredQueues = new HashMap<>();
-  private static MemoryBuffer level_1;
-  private static DiskBuffer level_2;
+  private static MemoryBuffer memoryBuffer;
+  private static DiskBuffer diskBuffer;
   //  private static Buffer level_3;
 
   public static void init(BuffersManagerConfig cfg) {
-    shutdown();
-
     BufferConfig memCfg = new BufferConfig();
     memCfg.buffer = cfg.buffer + "/memory";
     memCfg.msgExpirationTime = cfg.msgExpirationTime;
     memCfg.msgRetry = cfg.msgRetry;
-    level_1 = new MemoryBuffer(0, "memory", memCfg);
+    memCfg.maxMemory = cfg.memoryMaxMemory;
+    memoryBuffer = new MemoryBuffer(0, "memory", memCfg);
 
     if (cfg.l2) {
       BufferConfig dskCfg = new BufferConfig();
       dskCfg.buffer = cfg.buffer + "/disk";
-      level_2 = new DiskBuffer(1, "disk", dskCfg);
-      level_1.setNextBuffer(level_2);
+      dskCfg.maxMemory = cfg.diskMaxMemory;
+      diskBuffer = new DiskBuffer(1, "disk", dskCfg);
+      memoryBuffer.createBridge(diskBuffer);
     }
   }
 
   public static void shutdown() {
     registeredQueues.clear();
 
-    if (level_1 != null) {
-      level_1.shutdown();
-      level_1 = null;
+    if (memoryBuffer != null) {
+      memoryBuffer.shutdown();
+      memoryBuffer = null;
     }
-    if (level_2 != null) {
-      level_2.shutdown();
-      level_2 = null;
+    if (diskBuffer != null) {
+      diskBuffer.shutdown();
+      diskBuffer = null;
     }
   }
 
@@ -52,15 +50,12 @@ public class BuffersManager {
     List<Buffer> buffers = new ArrayList<>();
     Boolean registered = registeredQueues.computeIfAbsent(queue.getName(), s -> false);
     if (!registered) { // is controlled by queue manager, but we do  it also here just in case.
-
-      level_1.registerNewQueueInfo(queue);
-      buffers.add(level_1);
-      if (level_2 != null) {
-        level_2.registerNewQueueInfo(queue);
-        buffers.add(level_2);
-        level_1.createBridge("disk", queue, 1);
+      memoryBuffer.registerNewQueueInfo(queue);
+      buffers.add(memoryBuffer);
+      if (diskBuffer != null) {
+        diskBuffer.registerNewQueueInfo(queue);
+        buffers.add(diskBuffer);
       }
-
       // TODO: move this to queue/queueInfo creation
       registeredQueues.put(queue.getName(), true);
     }
@@ -69,8 +64,8 @@ public class BuffersManager {
     return buffers;
   }
 
-  public static void sendMsg(QueueInfo handler, String strPoint) {
-    level_1.sendMsg(handler, strPoint);
+  public static void sendMsg(QueueInfo queue, String strPoint) {
+    memoryBuffer.sendPoint(queue, strPoint);
   }
 
   public static void onMsgBatch(
@@ -79,30 +74,6 @@ public class BuffersManager {
       int batchSize,
       RecyclableRateLimiter rateLimiter,
       OnMsgFunction func) {
-    level_1.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
-  }
-
-  public static void flush(QueueInfo queue) {
-    level_1.flush(queue);
-  }
-
-  @TestOnly
-  static Gauge<Object> l1_getSizeGauge(QueueInfo handler) {
-    return level_1.getSizeGauge(handler);
-  }
-
-  @TestOnly
-  static Gauge<Object> l2_getSizeGauge(QueueInfo handler) {
-    return level_2.getSizeGauge(handler);
-  }
-
-  @TestOnly
-  static ActiveMQBuffer getLeve1() {
-    return level_1;
-  }
-
-  @TestOnly
-  static Buffer getLeve2() {
-    return level_2;
+    memoryBuffer.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
   }
 }

@@ -6,6 +6,7 @@ import static com.wavefront.api.agent.Constants.*;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.common.NamedThreadFactory;
@@ -64,10 +65,10 @@ public class SenderTasksManager {
                 Executors.newScheduledThreadPool(
                     numThreads, new NamedThreadFactory("submitter-" + queue.getName())));
 
-    SenderStats senderStats = SenderStats.create(queue, scheduler);
+    QueueStats queueStats = QueueStats.get(queue.getName());
 
     for (int i = 0; i < numThreads * factor; i++) {
-      SenderTask sender = generateSenderTask(queue, i, buffer, senderStats);
+      SenderTask sender = generateSenderTask(queue, i, buffer, queueStats);
       scheduler.scheduleAtFixedRate(sender, interval, interval, TimeUnit.MILLISECONDS);
     }
   }
@@ -88,7 +89,7 @@ public class SenderTasksManager {
   }
 
   private static SenderTask generateSenderTask(
-      QueueInfo queue, int idx, Buffer buffer, SenderStats senderStats) {
+      QueueInfo queue, int idx, Buffer buffer, QueueStats queueStats) {
     String tenantName = queue.getTenant();
     ReportableEntityType entityType = queue.getEntityType();
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
@@ -106,7 +107,7 @@ public class SenderTasksManager {
                 proxyId,
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case HISTOGRAM:
         senderTask =
@@ -118,7 +119,7 @@ public class SenderTasksManager {
                 proxyId,
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case SOURCE_TAG:
         // In MONIT-25479, SOURCE_TAG does not support tag based multicasting. But still
@@ -130,7 +131,7 @@ public class SenderTasksManager {
                 apiContainer.getSourceTagAPIForTenant(tenantName),
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case TRACE:
         senderTask =
@@ -142,7 +143,7 @@ public class SenderTasksManager {
                 proxyId,
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case TRACE_SPAN_LOGS:
         // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
@@ -156,7 +157,7 @@ public class SenderTasksManager {
                 proxyId,
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case EVENT:
         senderTask =
@@ -167,7 +168,7 @@ public class SenderTasksManager {
                 proxyId,
                 properties,
                 buffer,
-                senderStats);
+                queueStats);
         break;
       case LOGS:
         senderTask =
@@ -178,7 +179,7 @@ public class SenderTasksManager {
                 proxyId,
                 entityPropertiesFactoryMap.get(tenantName).get(entityType),
                 buffer,
-                senderStats);
+                queueStats);
         break;
       default:
         throw new IllegalArgumentException(

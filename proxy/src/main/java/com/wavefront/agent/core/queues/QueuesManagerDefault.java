@@ -28,6 +28,7 @@ public class QueuesManagerDefault implements QueuesManager {
             tenat -> {
               queue.addTenant(tenat, initQueue(entityType, tenat));
             });
+    QueueStats.register(queue);
     return queue;
   }
 

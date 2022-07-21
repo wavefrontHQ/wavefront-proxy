@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderStats;
+import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.EventAPI;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   private transient UUID proxyId;
 
   @JsonProperty private List<String> events;
-  private SenderStats senderStats;
+  private QueueStats queueStats;
 
   /**
    * @param api API endpoint.
@@ -44,12 +44,12 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       QueueInfo queue,
       @Nonnull List<String> events,
       @Nullable Supplier<Long> timeProvider,
-      SenderStats senderStats) {
-    super(properties, queue, timeProvider, senderStats);
+      QueueStats queueStats) {
+    super(properties, queue, timeProvider, queueStats);
     this.api = api;
     this.proxyId = proxyId;
     this.events = events;
-    this.senderStats = senderStats;
+    this.queueStats = queueStats;
   }
 
   @Override
@@ -72,7 +72,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
                 queue,
                 events.subList(startingIndex, endingIndex + 1),
                 timeProvider,
-                senderStats));
+                queueStats));
       }
       return result;
     }

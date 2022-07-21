@@ -34,7 +34,6 @@ public class MultiQueueGauge extends Gauge<Long> {
                 amq.getActiveMQServer()
                     .getManagementService()
                     .getResource(ResourceNames.QUEUE + queueName);
-        //        res += queueControl.getMessagesKilled();
         res += func.apply(queueControl);
       }
     } catch (Exception e) {
