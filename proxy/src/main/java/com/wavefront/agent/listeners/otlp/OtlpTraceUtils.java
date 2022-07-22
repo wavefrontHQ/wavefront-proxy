@@ -497,8 +497,8 @@ public class OtlpTraceUtils {
   }
 
   static class WavefrontSpanAndLogs {
-    Span span;
-    SpanLogs spanLogs;
+    final Span span;
+    final SpanLogs spanLogs;
 
     public WavefrontSpanAndLogs(Span span, SpanLogs spanLogs) {
       this.span = span;

@@ -192,8 +192,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
 
   @Override
   public void shutdown(@Nonnull int handle) {
-    if (handlers.containsKey(handle)) {
-      handlers.get(handle).values().forEach(ReportableEntityHandler::shutdown);
+    if (handlers.containsKey(String.valueOf(handle))) {
+      handlers.get(String.valueOf(handle)).values().forEach(ReportableEntityHandler::shutdown);
     }
   }
 }

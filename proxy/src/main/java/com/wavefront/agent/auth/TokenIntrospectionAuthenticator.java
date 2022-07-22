@@ -89,7 +89,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
       return false;
     }
     Boolean tokenResult = tokenValidityCache.get(token);
-    return tokenResult == null ? false : tokenResult;
+    return tokenResult != null && tokenResult;
   }
 
   @Override

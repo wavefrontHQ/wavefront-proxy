@@ -20,8 +20,8 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
   private final UUID proxyId;
   private final QueueInfo queue;
   private final String pushFormat;
-  private EntityProperties properties;
-  private QueueStats queueStats;
+  private final EntityProperties properties;
+  private final QueueStats queueStats;
 
   /**
    * @param queue pipeline handler key
@@ -29,7 +29,6 @@ class LineDelimitedSenderTask extends AbstractSenderTask {
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId proxy ID.
    * @param properties container for mutable proxy settings.
-   * @param queueStats
    */
   LineDelimitedSenderTask(
       QueueInfo queue,

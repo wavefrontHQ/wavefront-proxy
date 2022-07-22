@@ -47,7 +47,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    *     the main log file.
    * @param granularity granularity level
    * @param validationConfig Supplier for the ValidationConfiguration
-   * @param isHistogramInput Whether expected input data for this handler is histograms.
    */
   public HistogramAccumulationHandlerImpl(
       final String handler,

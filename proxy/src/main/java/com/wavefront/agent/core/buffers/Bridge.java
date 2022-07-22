@@ -26,7 +26,7 @@ public class Bridge implements ActiveMQServerMessagePlugin {
   public Bridge(MemoryBuffer memoryBuffer, DiskBuffer diskBuffer) {
     this.memoryBuffer = memoryBuffer;
     this.diskBuffer = diskBuffer;
-    checkDiskFull = new Timer();
+    checkDiskFull = new Timer(); // TODO stop the timer on shutdown ?
     checkDiskFull.scheduleAtFixedRate(
         new TimerTask() {
           @Override

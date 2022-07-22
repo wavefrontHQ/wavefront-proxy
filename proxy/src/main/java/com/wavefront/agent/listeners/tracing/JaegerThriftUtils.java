@@ -255,7 +255,7 @@ public abstract class JaegerThriftUtils {
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
     if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
-      JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span.toString());
+      JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span);
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 

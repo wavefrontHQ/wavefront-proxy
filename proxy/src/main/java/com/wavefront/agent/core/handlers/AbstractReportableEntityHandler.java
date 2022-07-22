@@ -13,7 +13,6 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
-import wavefront.report.ReportPoint;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -166,8 +165,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   abstract void reportInternal(T item);
-
-  final void reportToTenants(ReportPoint point) {}
 
   protected Counter getReceivedCounter() {
     return receivedCounter;

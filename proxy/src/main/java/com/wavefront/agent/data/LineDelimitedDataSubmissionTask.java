@@ -2,7 +2,6 @@ package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.handlers.LineDelimitedUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
@@ -20,9 +19,9 @@ public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
 
   @VisibleForTesting @JsonProperty protected List<String> payload;
-  private QueueStats queueStats;
-  private transient ProxyV2API api;
-  private transient UUID proxyId;
+  private final QueueStats queueStats;
+  private final transient ProxyV2API api;
+  private final transient UUID proxyId;
   @JsonProperty private String format;
 
   /**
@@ -59,30 +58,5 @@ public class LineDelimitedDataSubmissionTask
   @Override
   public int size() {
     return this.payload.size();
-  }
-
-  // TODO: do we need this ?
-  @Override
-  public List<LineDelimitedDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
-    if (payload.size() > Math.max(1, minSplitSize)) {
-      List<LineDelimitedDataSubmissionTask> result = new ArrayList<>();
-      int stride = Math.min(maxSplitSize, (int) Math.ceil((float) payload.size() / 2.0));
-      int endingIndex = 0;
-      for (int startingIndex = 0; endingIndex < payload.size() - 1; startingIndex += stride) {
-        endingIndex = Math.min(payload.size(), startingIndex + stride) - 1;
-        result.add(
-            new LineDelimitedDataSubmissionTask(
-                api,
-                proxyId,
-                properties,
-                format,
-                queue,
-                payload.subList(startingIndex, endingIndex + 1),
-                timeProvider,
-                queueStats));
-      }
-      return result;
-    }
-    return ImmutableList.of(this);
   }
 }

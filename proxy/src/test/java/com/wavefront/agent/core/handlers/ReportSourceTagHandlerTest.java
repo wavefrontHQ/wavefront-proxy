@@ -55,7 +55,7 @@ public class ReportSourceTagHandlerTest {
     sourceTagHandler = new ReportSourceTagHandlerImpl("4878", handlerKey, 10, blockedLogger);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.l2 = false;
+    cfg.disk = false;
     BuffersManager.init(cfg);
     BuffersManager.registerNewQueueIfNeedIt(handlerKey);
   }

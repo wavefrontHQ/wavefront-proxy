@@ -56,7 +56,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         registry.newHistogram(
             new MetricName(handlerKey.getName() + ".received", "", "tagCount"), false);
     this.receivedByteCount =
-        registry.newCounter(new MetricName(handlerKey.toString() + ".received", "", "bytes"));
+        registry.newCounter(new MetricName(handlerKey + ".received", "", "bytes"));
   }
 
   @Override

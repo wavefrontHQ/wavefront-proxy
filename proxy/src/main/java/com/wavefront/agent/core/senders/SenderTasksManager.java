@@ -189,5 +189,7 @@ public class SenderTasksManager {
   }
 
   // TODO: review and move to BuffersManager
-  public static void truncateBuffers() {}
+  public static void truncateBuffers() {
+    throw new RuntimeException("needs implementation !!!!");
+  }
 }

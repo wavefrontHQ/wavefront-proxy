@@ -4,8 +4,9 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -25,7 +26,7 @@ public class ReportableConfig {
   private final Properties prop = new Properties();
 
   public ReportableConfig(String fileName) throws IOException {
-    prop.load(new FileInputStream(fileName));
+    prop.load(Files.newInputStream(Paths.get(fileName)));
   }
 
   public ReportableConfig() {}

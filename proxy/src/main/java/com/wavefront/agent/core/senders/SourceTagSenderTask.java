@@ -10,7 +10,6 @@ import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -24,8 +23,8 @@ public class SourceTagSenderTask extends AbstractSenderTask {
 
   private final QueueInfo queue;
   private final SourceTagAPI proxyAPI;
-  private EntityProperties properties;
-  private QueueStats queueStats;
+  private final EntityProperties properties;
+  private final QueueStats queueStats;
 
   /**
    * Create new instance
@@ -65,8 +64,6 @@ public class SourceTagSenderTask extends AbstractSenderTask {
         int res = task.execute();
         if (res != 0) {
           // if there is a communication problem, we send back the point to the buffer
-          final List<String> remainingItems = new ArrayList<>();
-          remainingItems.add(sourceTagStr);
           BuffersManager.sendMsg(queue, sourceTagStr);
           iterator.forEachRemaining(s -> BuffersManager.sendMsg(queue, s));
         }

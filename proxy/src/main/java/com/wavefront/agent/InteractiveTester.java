@@ -13,7 +13,6 @@ public interface InteractiveTester {
    * Read line from stdin and process it.
    *
    * @return true if there's more input to process
-   * @throws ConfigurationException
    */
   boolean interactiveTest() throws ConfigurationException;
 }

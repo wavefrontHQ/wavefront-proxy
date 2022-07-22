@@ -19,15 +19,13 @@ public class LogSenderTask extends AbstractSenderTask {
   private final LogAPI logAPI;
   private final UUID proxyId;
   private final EntityProperties properties;
-  private QueueStats queueStats;
+  private final QueueStats queueStats;
 
   /**
    * @param handlerKey handler key, that serves as an identifier of the log pipeline.
    * @param logAPI handles interaction with log systems as well as queueing.
    * @param proxyId id of the proxy.
    * @param properties container for mutable proxy settings.
-   * @param buffer
-   * @param queueStats
    */
   LogSenderTask(
       QueueInfo handlerKey,

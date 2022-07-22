@@ -16,9 +16,6 @@ public class MessageListener implements IMessageListener {
   /**
    * This is triggered on every new message parsed by the beats handler and should be executed in
    * the ruby world.
-   *
-   * @param ctx
-   * @param message
    */
   public void onNewMessage(ChannelHandlerContext ctx, Message message) {
     logger.debug("onNewMessage");
@@ -27,8 +24,6 @@ public class MessageListener implements IMessageListener {
   /**
    * Triggered when a new client connect to the input, this is used to link a connection to a codec
    * in the ruby world.
-   *
-   * @param ctx
    */
   public void onNewConnection(ChannelHandlerContext ctx) {
     logger.debug("onNewConnection");
@@ -37,8 +32,6 @@ public class MessageListener implements IMessageListener {
   /**
    * Triggered when a connection is close on the remote end and we need to flush buffered events to
    * the queue.
-   *
-   * @param ctx
    */
   public void onConnectionClose(ChannelHandlerContext ctx) {
     logger.debug("onConnectionClose");
@@ -47,20 +40,12 @@ public class MessageListener implements IMessageListener {
   /**
    * Called went something bad occur in the pipeline, allow to clear buffered codec went somethign
    * goes wrong.
-   *
-   * @param ctx
-   * @param cause
    */
   public void onException(ChannelHandlerContext ctx, Throwable cause) {
     logger.debug("onException");
   }
 
-  /**
-   * Called when a error occur in the channel initialize, usually ssl handshake error.
-   *
-   * @param ctx
-   * @param cause
-   */
+  /** Called when a error occur in the channel initialize, usually ssl handshake error. */
   public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
     logger.debug("onException");
   }

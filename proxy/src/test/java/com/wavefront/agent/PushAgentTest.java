@@ -116,7 +116,7 @@ public class PushAgentTest {
     HttpsURLConnection.setDefaultHostnameVerifier((h, s) -> h.equals("localhost"));
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.l2 = false;
+    cfg.disk = false;
     BuffersManager.init(cfg);
 
     queuesManager =

@@ -27,10 +27,6 @@ public class FlushProcessorContext {
     timestamp = System.currentTimeMillis();
   }
 
-  String getMetricName() {
-    return timeSeries.getMetric();
-  }
-
   private ReportPoint.Builder reportPointBuilder(long timestamp) {
     String newName = timeSeries.getMetric();
     // if prefix is provided then add the delta before the prefix

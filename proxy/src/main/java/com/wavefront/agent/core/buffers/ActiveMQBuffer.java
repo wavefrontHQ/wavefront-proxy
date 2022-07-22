@@ -3,18 +3,17 @@ package com.wavefront.agent.core.buffers;
 import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.FAIL;
 import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.PAGE;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.Pair;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -28,6 +27,7 @@ import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 
+@SuppressWarnings("ALL")
 public abstract class ActiveMQBuffer implements Buffer {
   private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
   private static final Logger slowLog =
@@ -43,21 +43,15 @@ public abstract class ActiveMQBuffer implements Buffer {
   protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
   private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
   private final Map<String, Histogram> timeMetrics = new HashMap<>();
-  private final Map<String, Counter> fullMetrics = new HashMap<>();
 
   final String name;
-  @org.jetbrains.annotations.NotNull private final BufferConfig cfg;
   private final int serverID;
-  private final long maxMemory;
-  private boolean persistenceEnabled;
-  protected ActiveMQBuffer nextBuffer;
+  protected Buffer nextBuffer;
 
-  public ActiveMQBuffer(int serverID, String name, boolean persistenceEnabled, BufferConfig cfg) {
+  public ActiveMQBuffer(
+      int serverID, String name, boolean persistenceEnabled, File buffer, long maxMemory) {
     this.serverID = serverID;
     this.name = name;
-    this.persistenceEnabled = persistenceEnabled;
-    this.cfg = cfg;
-    maxMemory = cfg.maxMemory;
 
     Configuration config = new ConfigurationImpl();
     config.setName(name);
@@ -68,10 +62,10 @@ public abstract class ActiveMQBuffer implements Buffer {
 
     if (persistenceEnabled) {
       config.setMaxDiskUsage(70);
-      config.setJournalDirectory(cfg.buffer + "/journal");
-      config.setBindingsDirectory(cfg.buffer + "/bindings");
-      config.setLargeMessagesDirectory(cfg.buffer + "/largemessages");
-      config.setPagingDirectory(cfg.buffer + "/paging");
+      config.setJournalDirectory(new File(buffer, "journal").getAbsolutePath());
+      config.setBindingsDirectory(new File(buffer, "bindings").getAbsolutePath());
+      config.setLargeMessagesDirectory(new File(buffer, "largemessages").getAbsolutePath());
+      config.setPagingDirectory(new File(buffer, "paging").getAbsolutePath());
       config.setCreateBindingsDir(true);
       config.setCreateJournalDir(true);
     }
@@ -79,7 +73,6 @@ public abstract class ActiveMQBuffer implements Buffer {
     amq = new EmbeddedActiveMQ();
 
     try {
-      TransportConfiguration trans = new TransportConfiguration();
       config.addAcceptorConfiguration("in-vm", "vm://" + serverID);
       amq.setConfiguration(config);
       amq.start();
@@ -99,16 +92,11 @@ public abstract class ActiveMQBuffer implements Buffer {
       addressSetting.setMaxSizeBytes(-1);
       addressSetting.setAddressFullMessagePolicy(PAGE);
     } else {
-      addressSetting.setMaxSizeBytes(cfg.maxMemory);
+      addressSetting.setMaxSizeBytes(maxMemory);
       addressSetting.setAddressFullMessagePolicy(FAIL);
     }
 
     amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
-  }
-
-  @Override
-  public String getName() {
-    return name;
   }
 
   @Override
@@ -147,7 +135,7 @@ public abstract class ActiveMQBuffer implements Buffer {
         (PointsGauge)
             Metrics.newGauge(
                 new MetricName("buffer." + name + "." + queue.getName(), "", "points"),
-                new PointsGauge(queue, serverID, amq)));
+                new PointsGauge(queue, amq)));
 
     timeMetrics.put(
         queue.getName(),
@@ -155,12 +143,6 @@ public abstract class ActiveMQBuffer implements Buffer {
             new MetricName("buffer." + name + "." + queue.getName(), "", "queue-time")));
   }
 
-  @VisibleForTesting
-  protected Gauge<Object> getSizeGauge(QueueInfo q) {
-    return sizeMetrics.get(q.getName());
-  }
-
-  @Override
   public void shutdown() {
     try {
       for (Map.Entry<String, Pair<ClientSession, ClientProducer>> entry : producers.entrySet()) {
@@ -237,39 +219,6 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
   }
 
-  void sendMessage(String queue, Message msg) throws ActiveMQAddressFullException {
-    String sessionKey = "sendMsg." + queue + "." + Thread.currentThread().getName();
-    Pair<ClientSession, ClientProducer> mqCtx =
-        producers.computeIfAbsent(
-            sessionKey,
-            s -> {
-              try {
-                ServerLocator serverLocator =
-                    ActiveMQClient.createServerLocator("vm://" + serverID);
-                ClientSessionFactory factory = serverLocator.createSessionFactory();
-                ClientSession session = factory.createSession();
-                ClientProducer producer = session.createProducer(queue);
-                return new Pair<>(session, producer);
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-              return null;
-            });
-
-    ClientProducer producer = mqCtx._2;
-    try {
-      producer.send(msg);
-    } catch (ActiveMQAddressFullException e) {
-      log.log(Level.FINE, "queue full: " + e.getMessage());
-      throw e;
-    } catch (ActiveMQObjectClosedException e) {
-      log.log(Level.FINE, "connection close: " + e.getMessage());
-      producers.remove(queue);
-    } catch (Exception e) {
-      log.log(Level.SEVERE, "error", e);
-    }
-  }
-
   @Override
   public void onMsgBatch(
       QueueInfo queue,
@@ -302,14 +251,12 @@ public abstract class ActiveMQBuffer implements Buffer {
       session.start();
       List<String> batch = new ArrayList<>(batchSize);
       List<ClientMessage> toACK = new ArrayList<>();
-      List<ClientMessage> allMsgs = new ArrayList<>();
       boolean done = false;
       boolean needRollBack = false;
       while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = consumer.receive(100);
         if (msg != null) {
-          allMsgs.add(msg);
-          List points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
+          List<String> points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
           boolean ok = rateLimiter.tryAcquire(points.size());
           if (ok) {
             toACK.add(msg);
@@ -394,7 +341,7 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
   }
 
-  public void setNextBuffer(ActiveMQBuffer nextBuffer) {
+  public void setNextBuffer(Buffer nextBuffer) {
     this.nextBuffer = nextBuffer;
   }
 }

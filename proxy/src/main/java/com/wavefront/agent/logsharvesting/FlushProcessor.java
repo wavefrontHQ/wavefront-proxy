@@ -26,7 +26,6 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
   private final Counter histogramCounter =
       Metrics.newCounter(new MetricName("logsharvesting", "", "histograms-sent"));
-  private final Supplier<Long> currentMillis;
   private final boolean useWavefrontHistograms;
   private final boolean reportEmptyHistogramStats;
 
@@ -43,7 +42,6 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       Supplier<Long> currentMillis,
       boolean useWavefrontHistograms,
       boolean reportEmptyHistogramStats) {
-    this.currentMillis = currentMillis;
     this.useWavefrontHistograms = useWavefrontHistograms;
     this.reportEmptyHistogramStats = reportEmptyHistogramStats;
   }

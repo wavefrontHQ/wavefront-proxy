@@ -2,12 +2,10 @@ package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
-import java.util.List;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,7 +14,7 @@ import javax.ws.rs.core.Response;
 /** A {@link DataSubmissionTask} that handles source tag payloads. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
-  private transient SourceTagAPI api;
+  private final transient SourceTagAPI api;
 
   @JsonProperty private SourceTag sourceTag;
 
@@ -37,7 +35,6 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
     super(properties, handle, timeProvider, queueStats);
     this.api = api;
     this.sourceTag = sourceTag;
-    this.limitRetries = true;
   }
 
   @Nullable
@@ -98,17 +95,8 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
     }
   }
 
-  public SourceTag payload() {
-    return sourceTag;
-  }
-
   @Override
   public int size() {
     return 1;
-  }
-
-  @Override
-  public List<SourceTagSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
-    return ImmutableList.of(this);
   }
 }

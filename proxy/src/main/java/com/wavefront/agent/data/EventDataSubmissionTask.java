@@ -3,11 +3,9 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.api.EventAPI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -23,11 +21,11 @@ import javax.ws.rs.core.Response;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDataSubmissionTask> {
-  private transient EventAPI api;
-  private transient UUID proxyId;
+  private final transient EventAPI api;
+  private final transient UUID proxyId;
 
   @JsonProperty private List<String> events;
-  private QueueStats queueStats;
+  private final QueueStats queueStats;
 
   /**
    * @param api API endpoint.
@@ -55,28 +53,6 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   @Override
   public Response doExecute() {
     return api.proxyEventsString(proxyId, "[" + String.join(",", events) + "]");
-  }
-
-  public List<EventDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
-    if (events.size() > Math.max(1, minSplitSize)) {
-      List<EventDataSubmissionTask> result = new ArrayList<>();
-      int stride = Math.min(maxSplitSize, (int) Math.ceil((float) events.size() / 2.0));
-      int endingIndex = 0;
-      for (int startingIndex = 0; endingIndex < events.size() - 1; startingIndex += stride) {
-        endingIndex = Math.min(events.size(), startingIndex + stride) - 1;
-        result.add(
-            new EventDataSubmissionTask(
-                api,
-                proxyId,
-                properties,
-                queue,
-                events.subList(startingIndex, endingIndex + 1),
-                timeProvider,
-                queueStats));
-      }
-      return result;
-    }
-    return ImmutableList.of(this);
   }
 
   @Override

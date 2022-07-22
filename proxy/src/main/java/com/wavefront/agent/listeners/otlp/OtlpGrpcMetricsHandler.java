@@ -22,15 +22,7 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
   private final String defaultSource;
   private final boolean includeResourceAttrsForMetrics;
 
-  /**
-   * Create new instance.
-   *
-   * @param pointHandler
-   * @param histogramHandler
-   * @param preprocessorSupplier
-   * @param defaultSource
-   * @param includeResourceAttrsForMetrics
-   */
+  /** Create new instance. */
   public OtlpGrpcMetricsHandler(
       ReportableEntityHandler<ReportPoint> pointHandler,
       ReportableEntityHandler<ReportPoint> histogramHandler,

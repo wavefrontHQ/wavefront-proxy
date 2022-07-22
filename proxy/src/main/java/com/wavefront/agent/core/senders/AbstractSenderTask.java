@@ -8,10 +8,10 @@ import java.util.logging.Logger;
 
 abstract class AbstractSenderTask implements SenderTask, Runnable {
   private static final Logger log = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
-  private QueueInfo queue;
-  private int idx;
-  private EntityProperties properties;
-  private Buffer buffer;
+  private final QueueInfo queue;
+  private final int idx;
+  private final EntityProperties properties;
+  private final Buffer buffer;
 
   AbstractSenderTask(QueueInfo queue, int idx, EntityProperties properties, Buffer buffer) {
     this.queue = queue;

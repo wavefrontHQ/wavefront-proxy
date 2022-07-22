@@ -517,7 +517,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       // cache even if map is empty so we know how many unique hosts report metrics.
       tagsCache.put(hostName, systemTags);
       if (logger.isLoggable(Level.FINE)) {
-        logger.fine("Cached system tags for " + hostName + ": " + systemTags.toString());
+        logger.fine("Cached system tags for " + hostName + ": " + systemTags);
       }
     } else {
       Map<String, String> cachedTags = tagsCache.getIfPresent(hostName);
@@ -685,7 +685,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     int tagKvIndex = input.indexOf(':');
     if (tagKvIndex > 0) { // first character can't be ':' either
       String tagK = input.substring(0, tagKvIndex);
-      if (tagK.toLowerCase().equals("source")) {
+      if (tagK.equalsIgnoreCase("source")) {
         tags.put("_source", input.substring(tagKvIndex + 1));
       } else {
         tags.put(

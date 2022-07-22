@@ -32,7 +32,6 @@ public class LogsIngester {
   @VisibleForTesting final LogsIngestionConfigManager logsIngestionConfigManager;
   private final FlushProcessor flushProcessor;
   private final Counter unparsed, parsed;
-  private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
   private EvictingMetricsRegistry evictingMetricsRegistry;
 
@@ -95,7 +94,6 @@ public class LogsIngester {
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
-    this.currentMillis = currentMillis;
     this.flushProcessor =
         new FlushProcessor(
             currentMillis,
@@ -167,7 +165,7 @@ public class LogsIngester {
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(output[0]));
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Could not process metric " + metricName.toString(), e);
+      logger.log(Level.SEVERE, "Could not process metric " + metricName, e);
     }
     return true;
   }

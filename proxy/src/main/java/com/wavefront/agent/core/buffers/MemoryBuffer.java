@@ -5,7 +5,6 @@ import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
@@ -20,13 +19,13 @@ public class MemoryBuffer extends ActiveMQBuffer {
       new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
   private static final Logger droppedPointsLogger = Logger.getLogger("RawDroppedPoints");
 
-  private static Map<String, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap();
+  private static final Map<String, LinkedTransferQueue<String>> midBuffers =
+      new ConcurrentHashMap<>();
   private final ScheduledExecutorService executor;
-  private BufferConfig cfg;
-  private List<QueueInfo> queues = new ArrayList<>();
+  private final MemoryBufferConfig cfg;
 
-  public MemoryBuffer(int level, String name, BufferConfig cfg) {
-    super(level, name, false, cfg);
+  public MemoryBuffer(int level, String name, MemoryBufferConfig cfg) {
+    super(level, name, false, null, cfg.maxMemory);
     this.cfg = cfg;
     executor =
         Executors.newScheduledThreadPool(
@@ -34,7 +33,6 @@ public class MemoryBuffer extends ActiveMQBuffer {
             new NamedThreadFactory("memory-buffer-receiver"));
   }
 
-  @Override
   public void shutdown() {
     executor.shutdown();
     try {
@@ -87,7 +85,6 @@ public class MemoryBuffer extends ActiveMQBuffer {
     for (int i = 0; i < queue.getNumberThreads(); i++) {
       executor.scheduleAtFixedRate(new sender(queue), 1, 1, TimeUnit.SECONDS);
     }
-    queues.add(queue);
   }
 
   protected void createBridge(DiskBuffer diskBuffer) {
@@ -141,12 +138,10 @@ public class MemoryBuffer extends ActiveMQBuffer {
                 slowLog.log(Level.SEVERE, "", e);
               }
               QueueStats.get(queue.getName()).dropped.inc(metrics.size());
-              // TODO: uncomment
-              //              if (droppedPointsLogger.isLoggable(Level.INFO)) {
-              //                metrics.forEach(
-              //                    point -> droppedPointsLogger.log(Level.INFO, point,
-              // queue.getEntityType()));
-              //              }
+              if (droppedPointsLogger.isLoggable(Level.INFO)) {
+                metrics.forEach(
+                    point -> droppedPointsLogger.log(Level.INFO, point, queue.getEntityType()));
+              }
             }
           } else {
             done = true;

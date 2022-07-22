@@ -41,13 +41,6 @@ public interface EntityProperties {
   int getDataPerBatchOriginal();
 
   /**
-   * Whether we should split batches into smaller ones after getting HTTP 406 response from server.
-   *
-   * @return true if we should split on pushback
-   */
-  boolean isSplitPushWhenRateLimited();
-
-  /**
    * Get initially configured rate limit (per second).
    *
    * @return rate limit
@@ -97,32 +90,6 @@ public interface EntityProperties {
   void setDataPerBatch(@Nullable Integer dataPerBatch);
 
   /**
-   * Do not split the batch if its size is less than this value. Only applicable when {@link
-   * #isSplitPushWhenRateLimited()} is true.
-   *
-   * @return smallest allowed batch size
-   */
-  int getMinBatchSplitSize();
-
-  /**
-   * Max number of items that can stay in memory buffers before spooling to disk. Defaults to 16 *
-   * {@link #getDataPerBatch()}, minimum size: {@link #getDataPerBatch()}. Setting this value lower
-   * than default reduces memory usage, but will force the proxy to spool to disk more frequently if
-   * you have points arriving at the proxy in short bursts, and/or your network latency is on the
-   * higher side.
-   *
-   * @return memory buffer limit
-   */
-  int getMemoryBufferLimit();
-
-  /**
-   * Get current queueing behavior - defines conditions that trigger queueing.
-   *
-   * @return queueing behavior level
-   */
-  TaskQueueLevel getTaskQueueLevel();
-
-  /**
    * Checks whether data flow for this entity type is disabled.
    *
    * @return true if data flow is disabled
@@ -135,23 +102,4 @@ public interface EntityProperties {
    * @param featureDisabled if "true", data flow for this entity type is disabled.
    */
   void setFeatureDisabled(boolean featureDisabled);
-
-  /**
-   * Get aggregated backlog size across all ports for this entity type.
-   *
-   * @return backlog size
-   */
-  int getTotalBacklogSize();
-
-  /** Updates backlog size for specific port. */
-  void reportBacklogSize(String handle, int backlogSize);
-
-  /**
-   * Get aggregated received rate across all ports for this entity type.
-   *
-   * @return received rate
-   */
-  long getTotalReceivedRate();
-
-  void reportReceivedRate(String handle, long receivedRate);
 }

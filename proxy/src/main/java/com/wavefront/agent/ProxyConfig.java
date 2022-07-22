@@ -27,7 +27,7 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
 
 /**
- * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
+ * Proxy configuration (refactored from {@link AbstractAgent}).
  *
  * @author vasily@wavefront.com
  */
@@ -142,12 +142,6 @@ public class ProxyConfig extends Configuration {
               + "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.",
       order = 7)
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
-
-  @Parameter( // TODO: docs
-      names = {"--disable_buffer"},
-      description = "",
-      order = 7)
-  boolean disableBuffer = false;
 
   @Parameter(
       names = {"--bufferShardSize"},
@@ -1315,10 +1309,6 @@ public class ProxyConfig extends Configuration {
 
   public String getBufferFile() {
     return bufferFile;
-  }
-
-  public boolean getDisableBuffer() {
-    return disableBuffer;
   }
 
   public int getBufferShardSize() {
@@ -2610,7 +2600,7 @@ public class ProxyConfig extends Configuration {
       long calculatedMemoryBufferLimit =
           Math.max(
               Math.min(
-                  16 * pushFlushMaxPoints,
+                  16L * pushFlushMaxPoints,
                   Runtime.getRuntime().maxMemory()
                       / Math.max(0, listeningPorts)
                       / 4
@@ -2669,6 +2659,40 @@ public class ProxyConfig extends Configuration {
       return false;
     }
     return true;
+  }
+
+  @Parameter(
+      names = {"--memoryBufferRetryLimit"},
+      description =
+          "Number of times that the memory buffer will try to send a item to the WF Server before sending"
+              + " the item to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 3 (-1 to disable)")
+  int memoryBufferRetryLimit = 3;
+
+  public int getMemoryBufferRetryLimit() {
+    return memoryBufferRetryLimit;
+  }
+
+  @Parameter(
+      names = {"--memoryBufferExpirationTime"},
+      description =
+          "Number of seconds that item will live on the memory buffer will before sending"
+              + " it to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 600 (10 minutes) (-1 to disable)")
+  long memoryBufferExpirationTime = 600;
+
+  public long getMemoryBufferExpirationTime() {
+    return memoryBufferExpirationTime;
+  }
+
+  @Parameter(
+      names = {"--disable_buffer"},
+      description = "Disable disk buffer",
+      order = 7)
+  boolean disableBuffer = false;
+
+  public boolean getDisableBuffer() {
+    return disableBuffer;
   }
 
   public static class TokenValidationMethodConverter

@@ -11,10 +11,6 @@ public class Protocol {
   public static final byte CODE_FRAME = 'D';
 
   public static boolean isVersion2(byte versionRead) {
-    if (Protocol.VERSION_2 == versionRead) {
-      return true;
-    } else {
-      return false;
-    }
+    return Protocol.VERSION_2 == versionRead;
   }
 }

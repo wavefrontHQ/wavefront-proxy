@@ -13,11 +13,6 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public boolean isSplitPushWhenRateLimited() {
-    return DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-  }
-
-  @Override
   public double getRateLimit() {
     return NO_RATE_LIMIT;
   }
@@ -51,41 +46,10 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   public void setDataPerBatch(@Nullable Integer dataPerBatch) {}
 
   @Override
-  public int getMinBatchSplitSize() {
-    return DEFAULT_MIN_SPLIT_BATCH_SIZE;
-  }
-
-  @Override
-  public int getMemoryBufferLimit() {
-    return DEFAULT_MIN_SPLIT_BATCH_SIZE;
-  }
-
-  @Override
-  public TaskQueueLevel getTaskQueueLevel() {
-    return TaskQueueLevel.ANY_ERROR;
-  }
-
-  @Override
   public boolean isFeatureDisabled() {
     return false;
   }
 
   @Override
   public void setFeatureDisabled(boolean featureDisabled) {}
-
-  @Override
-  public int getTotalBacklogSize() {
-    return 0;
-  }
-
-  @Override
-  public void reportBacklogSize(String handle, int backlogSize) {}
-
-  @Override
-  public long getTotalReceivedRate() {
-    return 0;
-  }
-
-  @Override
-  public void reportReceivedRate(String handle, long receivedRate) {}
 }

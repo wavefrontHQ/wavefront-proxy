@@ -89,11 +89,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public boolean isSplitPushWhenRateLimited() {
-      return wrapped.isSplitPushWhenRateLimited();
-    }
-
-    @Override
     public int getRateLimitMaxBurstSeconds() {
       return wrapped.getPushRateLimitMaxBurstSeconds();
     }
@@ -115,40 +110,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       return wrapped.getPushFlushInterval();
     }
 
-    @Override
-    public int getMinBatchSplitSize() {
-      return DEFAULT_MIN_SPLIT_BATCH_SIZE;
-    }
-
-    @Override
     public int getMemoryBufferLimit() {
       return wrapped.getPushMemoryBufferLimit();
-    }
-
-    @Override
-    public TaskQueueLevel getTaskQueueLevel() {
-      return wrapped.getTaskQueueLevel();
-    }
-
-    @Override
-    public int getTotalBacklogSize() {
-      return backlogSizeCache.asMap().values().stream().mapToInt(AtomicInteger::get).sum();
-    }
-
-    @Override
-    public void reportBacklogSize(String handle, int backlogSize) {
-      backlogSizeCache.get(handle).set(backlogSize);
-    }
-
-    @Override
-    public long getTotalReceivedRate() {
-      return receivedRateCache.asMap().values().stream().mapToLong(AtomicLong::get).sum();
-    }
-
-    // TODO: review
-    @Override
-    public void reportReceivedRate(String handle, long receivedRate) {
-      receivedRateCache.get(handle).set(receivedRate);
     }
   }
 

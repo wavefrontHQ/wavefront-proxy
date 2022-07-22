@@ -14,22 +14,23 @@ public class BuffersManager {
   private static final Map<String, Boolean> registeredQueues = new HashMap<>();
   private static MemoryBuffer memoryBuffer;
   private static DiskBuffer diskBuffer;
-  //  private static Buffer level_3;
+  private static Buffer external;
 
   public static void init(BuffersManagerConfig cfg) {
-    BufferConfig memCfg = new BufferConfig();
-    memCfg.buffer = cfg.buffer + "/memory";
-    memCfg.msgExpirationTime = cfg.msgExpirationTime;
-    memCfg.msgRetry = cfg.msgRetry;
-    memCfg.maxMemory = cfg.memoryMaxMemory;
-    memoryBuffer = new MemoryBuffer(0, "memory", memCfg);
+    memoryBuffer = new MemoryBuffer(0, "memory", cfg.memoryCfg);
 
-    if (cfg.l2) {
-      BufferConfig dskCfg = new BufferConfig();
-      dskCfg.buffer = cfg.buffer + "/disk";
-      dskCfg.maxMemory = cfg.diskMaxMemory;
-      diskBuffer = new DiskBuffer(1, "disk", dskCfg);
+    if (cfg.disk) {
+      diskBuffer = new DiskBuffer(1, "disk", cfg.diskCfg);
       memoryBuffer.createBridge(diskBuffer);
+    }
+
+    if (cfg.external) {
+      external = new SQSBuffer(cfg.sqsCfg);
+      if (cfg.disk) {
+        diskBuffer.setNextBuffer(external);
+      } else {
+        memoryBuffer.setNextBuffer(external);
+      }
     }
   }
 
@@ -52,10 +53,17 @@ public class BuffersManager {
     if (!registered) { // is controlled by queue manager, but we do  it also here just in case.
       memoryBuffer.registerNewQueueInfo(queue);
       buffers.add(memoryBuffer);
+
       if (diskBuffer != null) {
         diskBuffer.registerNewQueueInfo(queue);
         buffers.add(diskBuffer);
       }
+
+      if (external != null) {
+        external.registerNewQueueInfo(queue);
+        buffers.add(external);
+      }
+
       // TODO: move this to queue/queueInfo creation
       registeredQueues.put(queue.getName(), true);
     }

@@ -23,8 +23,8 @@ import javax.ws.rs.core.Response;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSubmissionTask> {
   public static final String AGENT_PREFIX = "WF-PROXY-AGENT-";
-  private transient LogAPI api;
-  private transient UUID proxyId;
+  private final transient LogAPI api;
+  private final transient UUID proxyId;
 
   @JsonProperty private List<String> logs;
   private int weight;
@@ -62,10 +62,5 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   @Override
   public int size() {
     return weight;
-  }
-
-  @Override
-  public List<LogDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
-    return null;
   }
 }

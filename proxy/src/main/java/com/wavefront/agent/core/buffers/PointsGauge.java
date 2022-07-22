@@ -19,12 +19,10 @@ public class PointsGauge extends Gauge<Long> {
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("PointsGauge"));
   private Long pointsCount = 0L;
   private final QueueInfo queue;
-  private final int serverID;
-  private EmbeddedActiveMQ amq;
+  private final EmbeddedActiveMQ amq;
 
-  public PointsGauge(QueueInfo queue, int serverID, EmbeddedActiveMQ amq) {
+  public PointsGauge(QueueInfo queue, EmbeddedActiveMQ amq) {
     this.queue = queue;
-    this.serverID = serverID;
     this.amq = amq;
     excutor.scheduleAtFixedRate(() -> doCount(), 1, 1, TimeUnit.MINUTES);
   }

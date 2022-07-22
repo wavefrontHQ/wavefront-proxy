@@ -13,7 +13,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.jetbrains.annotations.TestOnly;
 
 public class QueueStats {
   public final Counter dropped;
@@ -25,9 +24,9 @@ public class QueueStats {
   public final Histogram msgLength;
   public final Counter queuedFull;
 
-  private BurstRateTrackingCounter deliveredStats;
-  private QueueInfo queue;
-  private static Logger log = Logger.getLogger(QueueStats.class.getCanonicalName());
+  private final BurstRateTrackingCounter deliveredStats;
+  private final QueueInfo queue;
+  private static final Logger log = Logger.getLogger(QueueStats.class.getCanonicalName());
 
   private static final Map<String, QueueStats> stats = new HashMap<>();
   private static final ScheduledExecutorService executor =
@@ -65,11 +64,6 @@ public class QueueStats {
 
     scheduler.scheduleAtFixedRate(() -> printStats(), 10, 10, TimeUnit.SECONDS);
     scheduler.scheduleAtFixedRate(() -> printTotal(), 1, 1, TimeUnit.MINUTES);
-  }
-
-  @TestOnly
-  public static void clear() {
-    stats.clear();
   }
 
   protected void printStats() {

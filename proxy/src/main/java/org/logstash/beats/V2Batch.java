@@ -10,7 +10,7 @@ import java.util.Iterator;
  */
 public class V2Batch implements Batch {
   private static final int SIZE_OF_INT = 4;
-  private ByteBuf internalBuffer = PooledByteBufAllocator.DEFAULT.buffer();
+  private final ByteBuf internalBuffer = PooledByteBufAllocator.DEFAULT.buffer();
   private int written = 0;
   private int read = 0;
   private int batchSize;

@@ -145,7 +145,7 @@ public class PushAgent extends AbstractAgent {
   protected final RateSampler rateSampler = new RateSampler(1.0d);
   protected ScheduledExecutorService histogramExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
-  @VisibleForTesting protected List<Runnable> histogramFlushRunnables = new ArrayList<>();
+  @VisibleForTesting protected final List<Runnable> histogramFlushRunnables = new ArrayList<>();
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
   protected Function<Histogram, Histogram> histogramRecompressor = null;
@@ -174,11 +174,33 @@ public class PushAgent extends AbstractAgent {
 
     logger.info("--> " + Runtime.getRuntime().availableProcessors() + " cpu");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = proxyConfig.getBufferFile();
-    cfg.l2 = !proxyConfig.getDisableBuffer();
-    cfg.msgExpirationTime = 10_000;
-    cfg.diskMaxMemory = 256_000_000;
-    cfg.memoryMaxMemory = 768_000_000;
+
+    double maxMemory = Runtime.getRuntime().maxMemory();
+    double buffersMaxMemory = maxMemory / 2;
+    if (maxMemory > 2_000_000_000) {
+      buffersMaxMemory = maxMemory - 1_000_000_000;
+    }
+
+    cfg.memoryCfg.msgExpirationTime = proxyConfig.getMemoryBufferExpirationTime();
+    cfg.memoryCfg.msgRetry = proxyConfig.getMemoryBufferRetryLimit();
+    cfg.memoryCfg.maxMemory = (long) buffersMaxMemory;
+
+    cfg.disk = !proxyConfig.getDisableBuffer();
+    if (cfg.disk) {
+      cfg.diskCfg.buffer = new File(proxyConfig.getBufferFile());
+      cfg.memoryCfg.maxMemory = (long) (buffersMaxMemory * 0.75);
+      cfg.diskCfg.maxMemory = (long) (buffersMaxMemory * 0.25);
+      cfg.diskCfg.validate();
+    }
+
+    cfg.external = proxyConfig.isSqsQueueBuffer();
+    if (cfg.external) {
+      cfg.sqsCfg.template = proxyConfig.getSqsQueueNameTemplate();
+      cfg.sqsCfg.region = proxyConfig.getSqsQueueRegion();
+      cfg.sqsCfg.id = proxyConfig.getSqsQueueIdentifier();
+      cfg.sqsCfg.validate();
+    }
+
     BuffersManager.init(cfg);
 
     /***** END PROXY NEW *****/
@@ -485,15 +507,13 @@ public class PushAgent extends AbstractAgent {
     Sampler durationSampler =
         SpanSamplerUtils.getDurationSampler(proxyConfig.getTraceSamplingDuration());
     List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
-    SpanSampler spanSampler =
-        new SpanSampler(
-            new CompositeSampler(samplers),
-            () ->
-                entityPropertiesFactoryMap
-                    .get(CENTRAL_TENANT_NAME)
-                    .getGlobalProperties()
-                    .getActiveSpanSamplingPolicies());
-    return spanSampler;
+    return new SpanSampler(
+        new CompositeSampler(samplers),
+        () ->
+            entityPropertiesFactoryMap
+                .get(CENTRAL_TENANT_NAME)
+                .getGlobalProperties()
+                .getActiveSpanSamplingPolicies());
   }
 
   private void bootstrapHistograms(SpanSampler spanSampler) throws Exception {
@@ -594,7 +614,7 @@ public class PushAgent extends AbstractAgent {
   protected CorsConfig getCorsConfig(int port) {
     List<String> ports = proxyConfig.getCorsEnabledPorts();
     List<String> corsOrigin = proxyConfig.getCorsOrigin();
-    if (ports.equals(ImmutableList.of("*")) || ports.contains(port)) {
+    if (ports.equals(ImmutableList.of("*")) || ports.contains(String.valueOf(port))) {
       CorsConfigBuilder builder;
       if (corsOrigin.equals(ImmutableList.of("*"))) {
         builder = CorsConfigBuilder.forOrigin(corsOrigin.get(0));
@@ -1281,7 +1301,7 @@ public class PushAgent extends AbstractAgent {
 
             @Override
             public void shutdown(@Nonnull int handle) {
-              if (handlers.containsKey(handle)) {
+              if (handlers.containsKey(String.valueOf(handle))) {
                 handlers.values().forEach(ReportableEntityHandler::shutdown);
               }
             }

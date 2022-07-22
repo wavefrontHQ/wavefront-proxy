@@ -3,7 +3,6 @@ package com.wavefront.agent;
 import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
 import static com.wavefront.common.Utils.*;
-import static java.util.Collections.EMPTY_LIST;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import com.beust.jcommander.ParameterException;
@@ -67,7 +66,7 @@ public abstract class AbstractAgent {
   protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
   protected SslContext sslContext;
-  protected List<Integer> tlsPorts = EMPTY_LIST;
+  protected List<Integer> tlsPorts = new ArrayList<>();
   protected boolean secureAllPorts = false;
 
   @Deprecated

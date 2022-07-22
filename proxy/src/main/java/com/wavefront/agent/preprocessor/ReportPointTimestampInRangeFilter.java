@@ -54,8 +54,7 @@ public class ReportPointTimestampInRangeFilter implements AnnotatedPredicate<Rep
     } else {
       outOfRangePointTimes.inc();
       if (messageHolder != null && messageHolder.length > 0) {
-        messageHolder[0] =
-            "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
+        messageHolder[0] = "WF-402: Point outside of reasonable timeframe (" + point + ")";
       }
       return false;
     }

@@ -34,7 +34,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +86,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Counter> discardedLogs;
   private final Supplier<Counter> receivedLogsTotal;
   private final APIContainer apiContainer;
-  private ProxyConfig proxyConfig;
+  private final ProxyConfig proxyConfig;
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -175,7 +175,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
       Map<String, String> query =
-          URLEncodedUtils.parse(uri, Charset.forName("UTF-8")).stream()
+          URLEncodedUtils.parse(uri, StandardCharsets.UTF_8).stream()
               .collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
 
       String agentMetricsStr = request.content().toString(CharsetUtil.UTF_8);

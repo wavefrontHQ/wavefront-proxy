@@ -13,8 +13,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class QueuesManagerDefault implements QueuesManager {
-  private Map<String, QueueInfo> queues = new ConcurrentHashMap<>();
-  private ProxyConfig cfg;
+  private final Map<String, QueueInfo> queues = new ConcurrentHashMap<>();
+  private final ProxyConfig cfg;
 
   public QueuesManagerDefault(ProxyConfig cfg) {
     this.cfg = cfg;

@@ -18,19 +18,16 @@ import java.util.UUID;
 class EventSenderTask extends AbstractSenderTask {
 
   private final QueueInfo queue;
-  private final int idx;
   private final EventAPI proxyAPI;
   private final UUID proxyId;
   private final EntityProperties properties;
-  private final Buffer buffer;
-  private QueueStats queueStats;
+  private final QueueStats queueStats;
 
   /**
    * @param queue handler key, that serves as an identifier of the metrics pipeline.
    * @param proxyAPI handles interaction with Wavefront servers as well as queueing.
    * @param proxyId id of the proxy.
    * @param properties container for mutable proxy settings.
-   * @param queueStats
    */
   EventSenderTask(
       QueueInfo queue,
@@ -42,11 +39,9 @@ class EventSenderTask extends AbstractSenderTask {
       QueueStats queueStats) {
     super(queue, idx, properties, buffer);
     this.queue = queue;
-    this.idx = idx;
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
     this.properties = properties;
-    this.buffer = buffer;
     this.queueStats = queueStats;
   }
 

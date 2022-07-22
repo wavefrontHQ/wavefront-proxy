@@ -23,11 +23,7 @@ public interface Batch extends Iterable<Message> {
    */
   void setBatchSize(int batchSize);
 
-  /**
-   * Returns the highest sequence number of the batch.
-   *
-   * @return
-   */
+  /** Returns the highest sequence number of the batch. */
   int getHighestSequence();
   /**
    * Current number of messages in the batch

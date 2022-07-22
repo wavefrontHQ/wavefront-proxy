@@ -11,9 +11,5 @@ public interface Buffer {
   void onMsgBatch(
       QueueInfo key, int idx, int batchSize, RecyclableRateLimiter rateLimiter, OnMsgFunction func);
 
-  void shutdown();
-
-  String getName();
-
   void sendPoints(String queue, List<String> strPoint) throws ActiveMQAddressFullException;
 }

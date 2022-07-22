@@ -6,7 +6,6 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.logger.MessageDedupingLogger;
-import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.TimerContext;
@@ -29,19 +28,17 @@ import javax.ws.rs.core.Response;
  */
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
-  private static final int MAX_RETRIES = 15;
   private static final Logger debug =
       new MessageDedupingLogger(
           Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
   private static final Logger log =
       Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName());
 
-  protected QueueInfo queue;
-  protected Boolean limitRetries = null;
+  protected final QueueInfo queue;
 
-  protected transient Supplier<Long> timeProvider;
-  private QueueStats queueStats;
-  protected transient EntityProperties properties;
+  protected final transient Supplier<Long> timeProvider;
+  private final QueueStats queueStats;
+  protected final transient EntityProperties properties;
 
   /**
    * @param properties entity-specific wrapper for runtime properties.
@@ -57,11 +54,6 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     this.queue = queue;
     this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
     this.queueStats = queueStats;
-  }
-
-  @Override
-  public ReportableEntityType getEntityType() {
-    return queue.getEntityType();
   }
 
   abstract Response doExecute() throws DataSubmissionException;

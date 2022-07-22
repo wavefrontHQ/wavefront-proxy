@@ -11,9 +11,9 @@ import com.yammer.metrics.Metrics;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.junit.After;
 import org.junit.Test;
 
@@ -26,12 +26,61 @@ public class BufferManagerTest {
   }
 
   @Test
+  public void external() throws Exception {
+    SQSBufferConfig sqsCfg = new SQSBufferConfig();
+    sqsCfg.template = "wf-proxy-{{id}}-{{entity}}-{{port}}";
+    sqsCfg.region = "us-west-2";
+    sqsCfg.vto = 1;
+
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.disk = false;
+    cfg.external = true;
+    cfg.sqsCfg = sqsCfg;
+    BuffersManager.init(cfg);
+
+    QueueInfo points = new TestQueue();
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    SQSBuffer sqs = (SQSBuffer) buffers.get(1);
+
+    // just in case
+    sqs.truncateQueue(points.getName());
+
+    sqs.sendPoints(points.getName(), Collections.singletonList("tururu"));
+
+    sqs.onMsgBatch(
+        points,
+        0,
+        100,
+        new TestUtils.RateLimiter(),
+        batch -> {
+          throw new RuntimeException("force fail");
+        });
+
+    sqs.sendPoints(points.getName(), Collections.singletonList("tururu"));
+
+    Thread.sleep(2000); // wait until the failed message get visible again
+
+    AtomicBoolean done = new AtomicBoolean(true);
+    sqs.onMsgBatch(
+        points,
+        0,
+        100,
+        new TestUtils.RateLimiter(),
+        batch -> {
+          assertEquals(1, batch.size());
+          assertEquals("tururu", batch.get(0));
+          done.set(true);
+        });
+    assertTrueWithTimeout(10000, done::get);
+  }
+
+  @Test
   public void shutdown() throws Exception {
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.msgExpirationTime = -1;
-    cfg.l2 = true;
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    cfg.memoryCfg.msgExpirationTime = -1;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
@@ -67,7 +116,7 @@ public class BufferManagerTest {
   @Test
   public void counters() {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.l2 = false;
+    cfg.disk = false;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue(8);
@@ -81,13 +130,13 @@ public class BufferManagerTest {
   }
 
   @Test
-  public void bridgeControl() throws IOException, InterruptedException {
+  public void bridgeControl() throws IOException {
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.l2 = true;
-    cfg.msgExpirationTime = -1;
-    cfg.msgRetry = 1;
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    cfg.memoryCfg.msgExpirationTime = -1;
+    cfg.memoryCfg.msgRetry = 1;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
@@ -129,15 +178,15 @@ public class BufferManagerTest {
   }
 
   @Test
-  public void expiration() throws IOException, InterruptedException, ActiveMQAddressFullException {
+  public void expiration() throws IOException, InterruptedException {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.l2 = true;
-    cfg.msgExpirationTime = 100;
-    cfg.msgRetry = -1;
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    cfg.memoryCfg.msgExpirationTime = 100;
+    cfg.memoryCfg.msgRetry = -1;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
@@ -165,10 +214,8 @@ public class BufferManagerTest {
             0,
             1000,
             new TestUtils.RateLimiter(),
-            batch -> {
-              ok.set(batch.get(0).equals("tururu"));
-            });
-    assertTrueWithTimeout(3000, () -> ok.get());
+            batch -> ok.set(batch.get(0).equals("tururu")));
+    assertTrueWithTimeout(3000, ok::get);
 
     assertEquals("queuedFailed", 0, QueueStats.get(points.getName()).queuedFailed.count());
     assertEquals("queuedExpired", 1, QueueStats.get(points.getName()).queuedExpired.count());
@@ -182,10 +229,10 @@ public class BufferManagerTest {
     QueueInfo points = new TestQueue();
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.l2 = true;
-    cfg.msgExpirationTime = -1;
-    cfg.msgRetry = 2;
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    cfg.memoryCfg.msgExpirationTime = -1;
+    cfg.memoryCfg.msgRetry = 2;
     BuffersManager.init(cfg);
 
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
@@ -222,14 +269,14 @@ public class BufferManagerTest {
   }
 
   @Test
-  public void memoryQueueFull() throws IOException, InterruptedException {
+  public void memoryQueueFull() throws IOException {
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.l2 = true;
-    cfg.msgRetry = -1;
-    cfg.msgExpirationTime = -1;
-    cfg.buffer = buffer.toFile().getAbsolutePath();
-    cfg.memoryMaxMemory = 500;
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    cfg.memoryCfg.msgRetry = -1;
+    cfg.memoryCfg.msgExpirationTime = -1;
+    cfg.memoryCfg.maxMemory = 500;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue();
@@ -237,8 +284,8 @@ public class BufferManagerTest {
     MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
     DiskBuffer disk = (DiskBuffer) buffers.get(1);
 
-    assertEquals("MessageCount", 0l, memory.countMetrics.get(points.getName()).doCount());
-    assertEquals("MessageCount", 0l, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
     // 20 messages are around 619 bytes, that should go in the queue
     // and then mark the queue as full
@@ -248,8 +295,8 @@ public class BufferManagerTest {
 
     memory.flush(points);
 
-    assertEquals("MessageCount", 20l, memory.countMetrics.get(points.getName()).doCount());
-    assertEquals("MessageCount", 0l, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
     // the queue is already full, so this ones go directly to disk
     for (int i = 0; i < 20; i++) {
@@ -258,7 +305,7 @@ public class BufferManagerTest {
 
     memory.flush(points);
 
-    assertEquals("MessageCount", 20l, memory.countMetrics.get(points.getName()).doCount());
-    assertEquals("MessageCount", 20l, disk.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 20, disk.countMetrics.get(points.getName()).doCount());
   }
 }

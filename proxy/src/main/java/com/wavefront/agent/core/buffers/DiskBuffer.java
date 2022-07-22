@@ -16,8 +16,8 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
   private static final Logger slowLog =
       new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
 
-  public DiskBuffer(int level, String name, BufferConfig cfg) {
-    super(level, name, true, cfg);
+  public DiskBuffer(int level, String name, DiskBufferConfig cfg) {
+    super(level, name, true, cfg.buffer, cfg.maxMemory);
 
     try {
       ObjectName addressObjectName =
