@@ -799,14 +799,14 @@ public class PreprocessorRulesTest {
     ReportPoint pointTagKeyMatchPoint = parsePointLine(tagKeyMatchString);
     String pointTagKeyUpdated = tagKeyMatchString + preprocessorTag;
     new ReportPointExtractTagTransformer(
-        "newExtractTag",
-        "pointLine",
-        ".*extractTag.*",
-        "newExtractTagValue",
-        null,
-        null,
-        null,
-        metrics)
+            "newExtractTag",
+            "pointLine",
+            ".*extractTag.*",
+            "newExtractTagValue",
+            null,
+            null,
+            null,
+            metrics)
         .apply(pointTagKeyMatchPoint);
     assertEquals(pointTagKeyUpdated, referencePointToStringImpl(pointTagKeyMatchPoint));
 

@@ -4,7 +4,6 @@ import static com.wavefront.predicates.Util.expandPlaceholders;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -110,8 +109,9 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   public void applyPointLineTag(ReportPoint reportPoint) {
     if (reportPoint.getAnnotations() != null) {
       for (Map.Entry<String, String> pointTag : reportPoint.getAnnotations().entrySet()) {
-        if ((extractTag(reportPoint,pointTag.getKey()) ||
-            extractTag(reportPoint, pointTag.getValue())) && patternReplaceSource != null) {
+        if ((extractTag(reportPoint, pointTag.getKey())
+                || extractTag(reportPoint, pointTag.getValue()))
+            && patternReplaceSource != null) {
           reportPoint
               .getAnnotations()
               .put(
