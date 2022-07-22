@@ -21,7 +21,7 @@ EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
 
-USER wavefront:wavefront
+USER 1000:2000
 
 ADD wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
 ADD run.sh /opt/wavefront/wavefront-proxy/run.sh
