@@ -242,6 +242,11 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   @Override
   protected void processLine(
       final ChannelHandlerContext ctx, @Nonnull String message, @Nullable DataFormat format) {
+
+    if (message.contains("\04")) {
+      wavefrontHandler.reject(message, "'EOT' character is not allowed!");
+    }
+
     DataFormat dataFormat = format == null ? DataFormat.autodetect(message) : format;
     switch (dataFormat) {
       case SOURCE_TAG:
