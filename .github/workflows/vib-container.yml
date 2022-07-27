@@ -34,7 +34,7 @@ jobs:
         with:
           pipeline: vib-container.json
         env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_USER }}
   vib-verify:
     runs-on: ubuntu-latest
     needs: vib-container
