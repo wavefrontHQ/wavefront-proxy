@@ -12,7 +12,7 @@
       "context": {
         "resources": {
           "url": "{SHA_ARCHIVE}",
-          "path": "tests/chain-checking"
+          "path": "tests/chain-checking/helm"
         }
       }
     },
