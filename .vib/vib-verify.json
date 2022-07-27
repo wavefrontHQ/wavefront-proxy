@@ -11,8 +11,7 @@
        ],
        "context": {
          "resources": {
-           "url": "https://github.com/bitnami/charts/tarball/772f855cfa770670e67297fddf7bf0be03e1a731",
-           "path": "bitnami/wavefront"
+           "path": "tests/chain-checking"
          }
        }
      },
