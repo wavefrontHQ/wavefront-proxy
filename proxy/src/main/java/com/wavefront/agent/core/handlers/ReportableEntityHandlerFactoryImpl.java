@@ -155,9 +155,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                                   .getGlobalProperties()
                                   .getDropSpansDelayedMinutes(),
                           Utils.lazySupplier(
-                              () ->
-                                  getHandler(
-                                      handler, queuesManager.initQueue(queue.getEntityType()))));
+                              () -> getHandler(handler, queuesManager.initQueue(TRACE_SPAN_LOGS))));
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
                           handler,
