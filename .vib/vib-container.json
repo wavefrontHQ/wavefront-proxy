@@ -18,6 +18,7 @@
             "application": {
               "kind": "CONTAINER_IMAGE",
               "details": {
+                "repository": "runner",
                 "name": "proxy-dev",
                 "tag": "gh-build"
               }
