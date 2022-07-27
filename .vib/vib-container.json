@@ -6,16 +6,6 @@
      }
    },
    "phases": {
-     "package": {
-       "actions": [
-         {
-           "action_id": "container-image-lint",
-           "params": {
-             "threshold": "error"
-           }
-         }
-       ]
-     },
      "verify": {
        "actions": [
          {
@@ -27,21 +17,6 @@
              ],
              "application": {
                "kind": "CONTAINER_IMAGE"
-             }
-           }
-         }
-       ]
-     },
-     "publish": {
-       "actions": [
-         {
-           "action_id": "container-image-publish",
-           "params": {
-             "repository": {
-               "kind": "OCI",
-               "url": "oci://docker.io/beltrantest",
-               "username": "beltrantest",
-               "password": "{VIB_ENV_DOCKER_REGISTRY_PASSWORD}"
              }
            }
          }
