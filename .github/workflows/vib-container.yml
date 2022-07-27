@@ -35,7 +35,7 @@ jobs:
           pipeline: vib-container.json
         env:
           VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_USER }}
-  vib-verify:
+  tests-chain-checking:
     runs-on: ubuntu-latest
     needs: vib-container
     steps:
@@ -47,4 +47,17 @@ jobs:
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
-          pipeline: vib-verify.json
+          pipeline: vib-chain-checking.json
+  tests-buffer-lock:
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront container
+        with:
+          pipeline: vib-buffer-lock.json

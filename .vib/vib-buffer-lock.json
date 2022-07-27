@@ -1,0 +1,51 @@
+{
+   "phases": {
+     "package": {
+       "actions": [
+         {
+           "action_id": "helm-package"
+         },
+         {
+           "action_id": "helm-lint"
+         }
+       ],
+       "context": {
+         "resources": {
+           "path": "tests/buffer-lock"
+         }
+       }
+     },
+     "verify": {
+       "context": {
+         "runtime_parameters": "ImNsdXN0ZXJOYW1lIjogInRlc3Qtd2F2ZWZyb250IgoicG9kU2VjdXJpdHlQb2xpY3kiOgogICJjcmVhdGUiOiAidHJ1ZSIKIndhdmVmcm9udCI6CiAgInRva2VuIjogImU1ZDc2YzE1LWY3ZjktNGRiZS1iNTNkLTBlNjcyMjc4NzdiMSIKICAidXJsIjogImh0dHBzOi8vbmltYmEud2F2ZWZyb250LmNvbSIKInByb3h5IjoKICAiY29udGFpbmVyU2VjdXJpdHlDb250ZXh0IjoKICAgICJyZWFkT25seVJvb3RGaWxlc3lzdGVtIjogZmFsc2UKICAiaW1hZ2UiOgogICAgInJlZ2lzdHJ5IjogImRvY2tlci5pby9iZWx0cmFudGVzdCIKICAgICJyZXBvc2l0b3J5IjogIndhdmVmcm9udC1wcm94eSIKICAgICJ0YWciOiAibGF0ZXN0Ig==",
+         "target_platform": {
+           "target_platform_id": "7ddab896-2e4e-4d58-a501-f79897eba3a0"
+         },
+         "resources": {
+           "url": "https://api.github.com/repos/beltran-rubo/wavefront-proxy/tarball/vib-poc"
+         }
+       },
+       "actions": [
+         {
+           "action_id": "trivy",
+           "params": {
+             "threshold": "CRITICAL",
+             "vuln_type": ["OS"]
+           }
+         },
+         {
+           "action_id": "goss",
+           "params": {
+             "resources": {
+               "path": "/.vib/goss"
+             },
+             "remote": {
+               "workload": "deploy-wavefront-proxy"
+             }
+           }
+         }
+       ]
+     }
+   }
+ }
+
