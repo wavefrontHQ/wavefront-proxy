@@ -1,12 +1,18 @@
 {
-  "context": {
-    "resources": {
-      "url": "{SHA_ARCHIVE}",
-      "path": "docker"
-    }
-  },
   "phases": {
     "verify": {
+      "context": {
+        "application": {
+          "kind": "CONTAINER_IMAGE",
+          "details": {
+            "repository": {
+              "url": "oci://runner"
+            },
+            "name": "proxy-dev",
+            "tag": "gh-build"
+          }
+        }
+      }, 
       "actions": [
         {
           "action_id": "container-image-lint",
@@ -20,15 +26,7 @@
             "threshold": "CRITICAL",
             "vuln_type": [
               "OS"
-            ],
-            "application": {
-              "kind": "CONTAINER_IMAGE",
-              "details": {
-                "repository": "runner",
-                "name": "proxy-dev",
-                "tag": "gh-build"
-              }
-            }
+            ]
           }
         }
       ]
