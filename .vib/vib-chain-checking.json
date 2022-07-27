@@ -12,7 +12,7 @@
       "context": {
         "resources": {
           "url": "{SHA_ARCHIVE}",
-          "path": "bitnami/wavefront"
+          "path": "tests/chain-checking"
         }
       }
     },
