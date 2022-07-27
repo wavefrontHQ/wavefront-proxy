@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: wf-proxy-edge
+spec: 
+  hostname: wf-proxy-edge
+  subdomain: test
+  containers: 
+    - name: wf-proxy-edge
+      image: {{ .Values.image }}
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: WAVEFRONT_URL
+          value: {{ .Values.wavefront.url }}
+        - name: WAVEFRONT_TOKEN
+          value: {{ .Values.wavefront.token }}
+        - name: WAVEFRONT_PROXY_ARGS
+          value: "--pushRelayListenerPorts 2879"
+      ports: 
+        - name: http
+          containerPort: 2879
+          protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: wf-proxy-chained
+spec: 
+  hostname: wf-proxy-chained
+  subdomain: test
+  containers: 
+    - name: wf-proxy-chained
+      image: {{ .Values.image }}
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: WAVEFRONT_URL
+          value: http://wf-proxy-edge.test.default.svc.cluster.local:2879
+        - name: WAVEFRONT_TOKEN
+          value: XXXXXX
+        - name: WAVEFRONT_PROXY_ARGS
+          value: "--pushListenerPorts 2878"
+      ports: 
+        - name: http
+          containerPort: 2878
+          protocol: TCP
