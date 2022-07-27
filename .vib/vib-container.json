@@ -6,7 +6,7 @@
           "kind": "CONTAINER_IMAGE",
           "details": {
             "repository": {
-              "url": "docker.io/{VIB_ENV_DOCKER_USER}"
+              "url": "oci://docker.io/{VIB_ENV_DOCKER_USER}"
             },
             "name": "proxy-dev",
             "tag": "gh-build"
