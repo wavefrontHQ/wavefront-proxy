@@ -24,7 +24,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: build application
-        run: REVISION=gh-build MVN_ARGS=-DskipTests make build-jar docker
+        run: DOCKER_TAG=gh-build MVN_ARGS=-DskipTests make build-jar docker
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
