@@ -1,32 +1,44 @@
 {
+  "context": {
+    "resources": {
+      "url": "{SHA_ARCHIVE}",
+      "path": "docker"
+    }
+  },
   "phases": {
-    "verify": {
-      "context": {
-        "application": {
-          "kind": "CONTAINER_IMAGE",
-          "details": {
-            "repository": {
-              "url": "oci://runner"
-            },
-            "name": "proxy-dev",
-            "tag": "gh-build"
-          }
-        }
-      }, 
+    "package": {
       "actions": [
+        {
+          "action_id": "container-image-package",
+          "params": {
+            "application": {
+              "details": {
+                "name": "wavefront-proxy",
+                "tag": "latest"
+              }
+            }
+          }
+        },
         {
           "action_id": "container-image-lint",
           "params": {
             "threshold": "error"
           }
-        },
+        }
+      ]
+    },
+    "verify": {
+      "actions": [
         {
           "action_id": "trivy",
           "params": {
             "threshold": "CRITICAL",
             "vuln_type": [
               "OS"
-            ]
+            ],
+            "application": {
+              "kind": "CONTAINER_IMAGE"
+            }
           }
         }
       ]
