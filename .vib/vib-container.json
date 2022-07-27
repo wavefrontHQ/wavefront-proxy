@@ -1,0 +1,73 @@
+{
+   "context": {
+     "resources": {
+       "url": "{SHA_ARCHIVE}",
+       "path": "docker"
+     }
+   },
+   "phases": {
+     "package": {
+       "actions": [
+         {
+           "action_id": "container-image-package",
+           "params": {
+             "application": {
+               "details": {
+                 "name": "wavefront-proxy",
+                 "tag": "latest"
+               }
+             }
+           }
+         },
+         {
+           "action_id": "container-image-lint",
+           "params": {
+             "threshold": "error"
+           }
+         }
+       ]
+     },
+     "verify": {
+       "actions": [
+         {
+           "action_id": "trivy",
+           "params": {
+             "threshold": "CRITICAL",
+             "vuln_type": [
+               "OS"
+             ],
+             "application": {
+               "kind": "CONTAINER_IMAGE"
+             }
+           }
+         }
+       ]
+     },
+     "publish": {
+       "actions": [
+         {
+           "action_id": "container-image-publish",
+           "params": {
+             "repository": {
+               "kind": "OCI",
+               "url": "oci://harbor-repo.vmware.com/vib-crontab",
+               "username": "robot$vib-crontab+crontab-pipelines-rw",
+               "password": "{VIB_ENV_HARBOR_REGISTRY_PASSWORD}"
+             }
+           }
+         },
+         {
+           "action_id": "container-image-publish",
+           "params": {
+             "repository": {
+               "kind": "OCI",
+               "url": "oci://docker.io/beltrantest",
+               "username": "beltrantest",
+               "password": "{VIB_ENV_DOCKER_REGISTRY_PASSWORD}"
+             }
+           }
+         }
+       ]
+     }
+   }
+ }

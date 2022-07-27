@@ -23,8 +23,8 @@ EXPOSE 4242
 
 USER wavefront:wavefront
 
-ADD wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
-ADD run.sh /opt/wavefront/wavefront-proxy/run.sh
-ADD log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
+COPY wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
+COPY run.sh /opt/wavefront/wavefront-proxy/run.sh
+COPY log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
 
 CMD ["/bin/bash", "/opt/wavefront/wavefront-proxy/run.sh"]
