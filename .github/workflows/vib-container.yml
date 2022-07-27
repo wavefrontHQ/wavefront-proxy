@@ -12,20 +12,6 @@ env:
   CSP_API_TOKEN: ${{ secrets.CSP_API_TOKEN }}
   VIB_PUBLIC_URL: https://cp.bromelia.vmware.com
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java: ["11"]
-        # java: ["11", "16", "17"]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK
-        uses: actions/setup-java@v2
-        with:
-          java-version: ${{ matrix.java }}
-          distribution: "temurin"
-          cache: maven
   vib-container:
     runs-on: ubuntu-latest
     name: Package Container
