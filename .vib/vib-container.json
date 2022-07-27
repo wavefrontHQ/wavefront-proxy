@@ -9,6 +9,12 @@
     "verify": {
       "actions": [
         {
+          "action_id": "container-image-lint",
+          "params": {
+            "threshold": "error"
+          }
+        },
+        {
           "action_id": "trivy",
           "params": {
             "threshold": "CRITICAL",
