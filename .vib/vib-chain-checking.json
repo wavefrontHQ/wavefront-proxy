@@ -41,7 +41,7 @@
               "path": "/.vib/goss"
             },
             "remote": {
-              "workload": "wfproxy-deployment"
+              "workload": "wf-proxy-chained"
             }
           }
         }

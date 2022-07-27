@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wfproxy-deployment
+  name: edge-deployment
   labels:
     app: wf-proxy-edge
 spec:
@@ -29,6 +29,24 @@ spec:
             - name: pushrelay
               containerPort: 2879
               protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chained-deployment
+  labels:
+    app: wf-proxy-chained
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wf-proxy-chained
+  template:
+    metadata:
+      labels:
+        app: wf-proxy-chained
+    spec:
+      containers:
         - name: wf-proxy-chained
           image: {{ .Values.image }}
           imagePullPolicy: IfNotPresent
