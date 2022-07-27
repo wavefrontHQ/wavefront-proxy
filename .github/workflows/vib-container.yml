@@ -14,17 +14,17 @@ env:
   CSP_API_TOKEN: ${{ secrets.CSP_API_TOKEN }}
   VIB_PUBLIC_URL: https://cp.bromelia.vmware.com
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout repo
-        uses: actions/checkout@v2
-      - name: build application
-        run: make build-jar docker
   vib-container:
     runs-on: ubuntu-latest
     name: Package Container
     steps:
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: build application
+        run: MVN_ARGS=-DskipTests make build-jar docker
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
