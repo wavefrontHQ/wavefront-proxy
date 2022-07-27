@@ -33,6 +33,8 @@ jobs:
         name: Package Wavefront container
         with:
           pipeline: vib-container.json
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
   vib-verify:
     runs-on: ubuntu-latest
     needs: vib-container
