@@ -9,7 +9,7 @@ command:
     exec: id -u
     exit-status: 0
     stdout:
-      - "1001"
+      - "1000"
     stderr: []
   java-test:
     exec: java -version
