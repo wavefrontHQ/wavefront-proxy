@@ -2,7 +2,7 @@ file:
   /opt/wavefront/wavefront-proxy/wavefront-proxy.jar:
     exists: true
     filetype: file
-    mode: "0664"
+    mode: "0644"
     owner: root
 command:
   user-id:
