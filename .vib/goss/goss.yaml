@@ -1,20 +1,19 @@
 file:
- /opt/wavefront/wavefront-proxy/wavefront-proxy.jar:
-   exists: true
-   filetype: file
-   mode: "0664"
-   owner: root
- command:
-   user-id:
-     exec: id -u
-     exit-status: 0
-     stdout:
-       - '1001'
-     stderr: [ ]
-   java-test:
-     exec: java -version
-     exit-status: 0
-     stdout: [ ]
-     stderr:
-       - 'OpenJDK 64-Bit Server VM Temurin' 
-
+  /opt/wavefront/wavefront-proxy/wavefront-proxy.jar:
+    exists: true
+    filetype: file
+    mode: "0664"
+    owner: root
+command:
+  user-id:
+    exec: id -u
+    exit-status: 0
+    stdout:
+      - "1001"
+    stderr: []
+  java-test:
+    exec: java -version
+    exit-status: 0
+    stdout: []
+    stderr:
+      - "OpenJDK 64-Bit Server VM Temurin"
