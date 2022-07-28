@@ -1,10 +1,6 @@
 command:
   install-proxy:
-    exec: >
-      sudo bash -c "$(curl -sL https://wavefronthq.github.io/wavefront-cli/install.sh)" -- install
-      --proxy
-      --wavefront-url https://nimba.wavefront.com
-      --api-token e5d76c15-f7f9-4dbe-b53d-0e67227877b1
+    exec: sudo ls -las
     exit-status: 0
     stdout:
       - "1001"
