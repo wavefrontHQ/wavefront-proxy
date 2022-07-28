@@ -41,7 +41,7 @@
               "path": "/.vib/goss"
             },
             "remote": {
-              "workload": "deploy-edge-deployment"
+              "workload": "deploy-wf-proxy-buffer-tests"
             }
           }
         }
