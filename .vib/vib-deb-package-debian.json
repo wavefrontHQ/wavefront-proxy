@@ -23,10 +23,7 @@
           "action_id": "goss",
           "params": {
             "resources": {
-              "path": "/.vib/goss"
-            },
-            "wait": {
-              "file": "install-proxy-linux.yaml"
+              "path": "/.vib/linux-install"
             }
           }
         }
