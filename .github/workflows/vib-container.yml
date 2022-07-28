@@ -1,7 +1,6 @@
 name: VIB
 on: # rebuild any PRs and main branch changes
   pull_request:
-  push:
   pull_request_target:
     types:
       - opened
@@ -61,3 +60,10 @@ jobs:
         name: Verify Wavefront container
         with:
           pipeline: vib-buffer-lock.json
+  tests-debian:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront container
+        with:
+          pipeline: vib-deb-package-debian.json
