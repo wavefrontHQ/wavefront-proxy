@@ -33,8 +33,7 @@
             "resources": {
               "path": "/.vib/chain-checking"
             }
-          },
-          "endpoint": "https://nimba.wavefront.com"
+          }
         },
         {
           "action_id": "trivy",
