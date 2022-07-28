@@ -8,3 +8,12 @@ command:
     exit-status: 0
     timeout: 120000
     stderr: []
+file:
+  /opt/wavefront/wavefront-proxy/bin/wavefront-proxy.jar:
+    exists: true
+    filetype: file
+    mode: "0644"
+    owner: root
+port:
+  tcp:2878:
+    listening: true
