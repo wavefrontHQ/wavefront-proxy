@@ -31,9 +31,10 @@
           "action_id": "cypress",
           "params": {
             "resources": {
-              "path": "/.vib/chain-checking/cypress"
+              "path": "/.vib/chain-checking.json/cypress"
             }
-          }
+          },
+          "endpoint": "https://nimba.wavefront.com"
         },
         {
           "action_id": "trivy",
