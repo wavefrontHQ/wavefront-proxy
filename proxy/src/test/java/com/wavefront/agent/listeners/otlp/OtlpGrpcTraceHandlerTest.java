@@ -78,7 +78,7 @@ public class OtlpGrpcTraceHandlerTest {
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true"))).build();
     wavefront.report.SpanLogs expectedLogs =
-        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0, "_sampledByPolicy=NONE").build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());
