@@ -2222,7 +2222,7 @@ public class PushAgentTest {
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
             .setSource("defaultLocalHost")
             .build();
-    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0, "_sampledByPolicy=NONE").build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());
