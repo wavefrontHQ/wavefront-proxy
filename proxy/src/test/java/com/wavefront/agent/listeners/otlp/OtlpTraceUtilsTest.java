@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandlerTest.emptyStreamObserver;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.hasKey;
@@ -19,6 +20,11 @@ import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.captureBoolean;
 import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.newCapture;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
@@ -41,6 +47,7 @@ import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.SpanDerivedMetricsUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.core.Counter;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
@@ -83,8 +90,13 @@ public class OtlpTraceUtilsTest {
   private static final List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
   public static final String SERVICE_NAME = "service.name";
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
+  private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
+
+
   private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
+      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final wavefront.report.Span wfMinimalSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
   private wavefront.report.Span actualSpan;
 
@@ -120,7 +132,7 @@ public class OtlpTraceUtilsTest {
                 eq(wfMinimalSpan), eq(mockSpanHandler), eq(mockPreprocessor)))
         .andReturn(true);
 
-    EasyMock.replay(mockPreprocessor, mockSpanHandler);
+    replay(mockPreprocessor, mockSpanHandler);
     PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
@@ -137,7 +149,7 @@ public class OtlpTraceUtilsTest {
         null);
 
     // Assert
-    EasyMock.verify(mockPreprocessor, mockSpanHandler);
+    verify(mockPreprocessor, mockSpanHandler);
     PowerMock.verify(OtlpTraceUtils.class);
   }
 
@@ -150,14 +162,14 @@ public class OtlpTraceUtilsTest {
 
     Capture<wavefront.report.Span> handlerCapture = EasyMock.newCapture();
     mockSpanHandler.report(capture(handlerCapture));
-    EasyMock.expectLastCall();
+    expectLastCall();
 
     PowerMock.mockStaticPartial(OtlpTraceUtils.class, "reportREDMetrics");
     Pair<Map<String, String>, String> heartbeat = Pair.of(ImmutableMap.of("foo", "bar"), "src");
     EasyMock.expect(OtlpTraceUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
         .andReturn(heartbeat);
 
-    EasyMock.replay(mockCounter, mockSampler, mockSpanHandler);
+    replay(mockCounter, mockSampler, mockSpanHandler);
     PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
@@ -178,7 +190,7 @@ public class OtlpTraceUtilsTest {
         null);
 
     // Assert
-    EasyMock.verify(mockCounter, mockSampler, mockSpanHandler);
+    verify(mockCounter, mockSampler, mockSpanHandler);
     PowerMock.verify(OtlpTraceUtils.class);
     assertEquals(samplerCapture.getValue(), handlerCapture.getValue());
     assertTrue(discoveredHeartbeats.contains(heartbeat));
@@ -194,7 +206,7 @@ public class OtlpTraceUtilsTest {
     EasyMock.expect(OtlpTraceUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
         .andReturn(heartbeat);
 
-    EasyMock.replay(mockSampler, mockSpanHandler);
+    replay(mockSampler, mockSpanHandler);
     PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
@@ -215,7 +227,7 @@ public class OtlpTraceUtilsTest {
         null);
 
     // Assert
-    EasyMock.verify(mockSampler, mockSpanHandler);
+    verify(mockSampler, mockSpanHandler);
     PowerMock.verify(OtlpTraceUtils.class);
     assertTrue(discoveredHeartbeats.contains(heartbeat));
   }
@@ -731,24 +743,24 @@ public class OtlpTraceUtilsTest {
   public void wasFilteredByPreprocessorCanReject() {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.rejectSpanPreprocessor();
     mockSpanHandler.reject(wfMinimalSpan, "span rejected for testing purpose");
-    EasyMock.expectLastCall();
-    EasyMock.replay(mockSpanHandler);
+    expectLastCall();
+    replay(mockSpanHandler);
 
     assertTrue(
         OtlpTraceUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
-    EasyMock.verify(mockSpanHandler);
+    verify(mockSpanHandler);
   }
 
   @Test
   public void wasFilteredByPreprocessorCanBlock() {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.blockSpanPreprocessor();
     mockSpanHandler.block(wfMinimalSpan);
-    EasyMock.expectLastCall();
-    EasyMock.replay(mockSpanHandler);
+    expectLastCall();
+    replay(mockSpanHandler);
 
     assertTrue(
         OtlpTraceUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
-    EasyMock.verify(mockSpanHandler);
+    verify(mockSpanHandler);
   }
 
   @Test
@@ -893,6 +905,43 @@ public class OtlpTraceUtilsTest {
     assertFalse(isError.getValue());
     assertEquals(NULL_TAG_VAL, componentTag.getValue());
     PowerMock.verify(SpanDerivedMetricsUtils.class);
+  }
+
+  @Test
+  public void exportToWavefrontWithSpanLine() {
+    // Arrange
+    Counter mockCounter = EasyMock.createMock(Counter.class);
+
+    expect(mockSampler.sample(anyObject(), anyObject())).andReturn(true);
+
+    Capture<wavefront.report.Span> spanCapture = newCapture();
+    mockSpanHandler.report(capture(spanCapture));
+    expectLastCall();
+
+    Capture<SpanLogs> spanLogsCapture = newCapture();
+    mockTraceLogsHandler.report(capture(spanLogsCapture));
+    expectLastCall();
+
+    replay(mockCounter, mockSampler, mockSpanHandler, mockTraceLogsHandler);
+    PowerMock.replay(OtlpTraceUtils.class);
+
+    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
+    ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
+
+    // Act
+    OtlpGrpcTraceHandler otlpGrpcTraceHandler = new OtlpGrpcTraceHandler("9876", mockSpanHandler,
+        mockTraceLogsHandler, mockSender, null, mockSampler, () -> false, () -> false, "test-source",
+        null);
+    otlpGrpcTraceHandler.export(otlpRequest, emptyStreamObserver);
+    otlpGrpcTraceHandler.run();
+    otlpGrpcTraceHandler.close();
+
+    // Assert
+    verify(mockCounter, mockSampler, mockSpanHandler);
+    PowerMock.verify(OtlpTraceUtils.class);
+    assertFalse(spanCapture.getValue().getAnnotations().contains("_sampledByPolicy"));
+    assertEquals("_sampledByPolicy=NONE", spanLogsCapture.getValue().getSpan());
   }
 
   @Test

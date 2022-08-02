@@ -93,7 +93,7 @@ public class OtlpGrpcTraceHandlerTest {
     assertEquals("none", actualHeartbeatTags.get("span.kind"));
   }
 
-  private final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
+  public static final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
       new StreamObserver<ExportTraceServiceResponse>() {
     @Override
     public void onNext(ExportTraceServiceResponse postSpansResponse) {

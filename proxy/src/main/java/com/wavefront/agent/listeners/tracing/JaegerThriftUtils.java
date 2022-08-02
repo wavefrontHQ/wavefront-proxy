@@ -6,6 +6,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
@@ -37,6 +38,7 @@ import wavefront.report.SpanLogs;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
@@ -277,10 +279,16 @@ public abstract class JaegerThriftUtils {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        String policyId = null;
+        if (wavefrontSpan.getAnnotations() != null) {
+          policyId = AnnotationUtils.getValue(wavefrontSpan.getAnnotations(),
+              SPAN_SAMPLING_POLICY_TAG);
+        }
         SpanLogs spanLogs = SpanLogs.newBuilder().
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
+            setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId)).
             setLogs(span.getLogs().stream().map(x -> {
               Map<String, String> fields = new HashMap<>(x.fields.size());
               x.fields.forEach(t -> {

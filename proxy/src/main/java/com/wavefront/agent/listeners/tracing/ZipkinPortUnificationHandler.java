@@ -17,6 +17,7 @@ import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.common.Utils;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
@@ -62,6 +63,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
@@ -396,12 +398,18 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        String policyId = null;
+        if (wavefrontSpan.getAnnotations() != null) {
+          policyId = AnnotationUtils.getValue(wavefrontSpan.getAnnotations(),
+              SPAN_SAMPLING_POLICY_TAG);
+        }
         SpanLogs spanLogs = SpanLogs.newBuilder().
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
             setSpanSecondaryId(zipkinSpan.kind() != null ?
                 zipkinSpan.kind().toString().toLowerCase() : null).
+            setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId)).
             setLogs(zipkinSpan.annotations().stream().map(
                 x -> SpanLog.newBuilder().
                     setTimestamp(x.timestamp()).

@@ -18,6 +18,8 @@ import io.jaegertracing.thriftjava.Log;
 import io.jaegertracing.thriftjava.Process;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
+
+import org.easymock.Capture;
 import org.junit.Test;
 
 import wavefront.report.Annotation;
@@ -25,10 +27,13 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
+import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.newCapture;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
 
 public class JaegerTChannelCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
@@ -66,6 +71,7 @@ public class JaegerTChannelCollectorHandlerTest {
         setCustomer("default").
         setSpanId("00000000-0000-0000-0000-00000012d687").
         setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -351,6 +357,7 @@ public class JaegerTChannelCollectorHandlerTest {
         setCustomer("default").
         setSpanId("00000000-0000-0000-0000-00000023cace").
         setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -430,6 +437,7 @@ public class JaegerTChannelCollectorHandlerTest {
         setCustomer("default").
         setSpanId("00000000-0000-0000-0000-00000023cace").
         setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -465,6 +473,8 @@ public class JaegerTChannelCollectorHandlerTest {
         setCustomer("default").
         setSpanId("00000000-0000-0000-0000-00000012d687").
         setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setSpan("_sampledByPolicy=test").
+
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -975,6 +985,64 @@ public class JaegerTChannelCollectorHandlerTest {
     handler.handleImpl(request);
 
 
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  @Test
+  public void testJaegerSamplerSync() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    Span expectedSpan = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource(DEFAULT_SOURCE)
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"),
+            new Annotation("_spanLogs", "true")))
+        .build();
+    mockTraceHandler.report(expectedSpan);
+    expectLastCall();
+
+    Capture<SpanLogs> spanLogsCapture = newCapture();
+    mockTraceLogsHandler.report(capture(spanLogsCapture));
+    expectLastCall();
+
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
+        mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new DurationSampler(5), () -> null), null, null);
+
+    io.jaegertracing.thriftjava.Span span = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
+        2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 9 * 1000);
+
+    Tag tag = new Tag("event", TagType.STRING);
+    tag.setVStr("error");
+
+    span.setLogs(ImmutableList.of(new Log(startTime * 1000, ImmutableList.of(tag))));
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+
+    testBatch.setSpans(ImmutableList.of(span));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    assertEquals("_sampledByPolicy=NONE", spanLogsCapture.getValue().getSpan());
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
 }

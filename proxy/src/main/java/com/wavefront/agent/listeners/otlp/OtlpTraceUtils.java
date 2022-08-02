@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners.otlp;
 
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
@@ -18,14 +19,17 @@ import static com.wavefront.sdk.common.Constants.SPAN_LOG_KEY;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
+
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.core.Counter;
+
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.InstrumentationScope;
@@ -35,6 +39,7 @@ import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span.SpanKind;
 import io.opentelemetry.proto.trace.v1.Status;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -51,7 +56,9 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 import javax.annotation.Nullable;
+
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -130,6 +137,7 @@ public class OtlpTraceUtils {
         spanHandler.report(span);
 
         if (shouldReportSpanLogs(spanLogs.getLogs().size(), spanLogsDisabled)) {
+          addSpanLine(span, spanLogs);
           spanLogsHandler.report(spanLogs);
         }
       }
@@ -138,6 +146,15 @@ public class OtlpTraceUtils {
       discoveredHeartbeatMetrics.add(
           reportREDMetrics(span, internalReporter, traceDerivedCustomTagKeys));
     }
+  }
+
+  private static void addSpanLine(Span span, SpanLogs spanLogs) {
+    String policyId = null;
+    if (span.getAnnotations() != null) {
+      policyId = AnnotationUtils.getValue(span.getAnnotations(),
+          SPAN_SAMPLING_POLICY_TAG);
+    }
+    spanLogs.setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId));
   }
 
   // TODO: consider transforming a single span and returning it for immedidate reporting in
@@ -248,7 +265,7 @@ public class OtlpTraceUtils {
         otlpSpan.getEndTimeUnixNano() == 0
             ? 0
             : TimeUnit.NANOSECONDS.toMillis(
-                otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
+            otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
 
     wavefront.report.Span toReturn =
         wavefront.report.Span.newBuilder()
@@ -436,7 +453,7 @@ public class OtlpTraceUtils {
       int logsCount, Pair<Supplier<Boolean>, Counter> spanLogsDisabled) {
     return logsCount > 0
         && !isFeatureDisabled(
-            spanLogsDisabled._1, SPANLOGS_DISABLED, spanLogsDisabled._2, logsCount);
+        spanLogsDisabled._1, SPANLOGS_DISABLED, spanLogsDisabled._2, logsCount);
   }
 
   @Nullable
@@ -502,12 +519,10 @@ public class OtlpTraceUtils {
 
   /**
    * Converts an OTLP AnyValue object to its equivalent String representation. The implementation
-   * mimics {@code AsString()} from the OpenTelemetry Collector:
-   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
+   * mimics {@code AsString()} from the OpenTelemetry Collector: https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
    *
    * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for Attributes
-   * does not include maps as an allowed type of value:
-   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
+   * does not include maps as an allowed type of value: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
    *
    * @param anyValue OTLP Attributes value in {@link AnyValue} format
    * @return String representation of the {@link AnyValue}
