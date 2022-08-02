@@ -338,6 +338,7 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
         setSpanSecondaryId("server").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -352,6 +353,7 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
         setSpanSecondaryId("client").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
                 SpanLog.newBuilder().
                         setTimestamp(startTime * 1000).
@@ -438,6 +440,7 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setSpanSecondaryId("server").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
@@ -575,6 +578,7 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setSpanSecondaryId("server").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(
             SpanLog.newBuilder().
                 setTimestamp(startTime * 1000).
