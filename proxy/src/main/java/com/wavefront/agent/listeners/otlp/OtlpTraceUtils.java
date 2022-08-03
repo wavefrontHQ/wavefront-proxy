@@ -2,7 +2,6 @@ package com.wavefront.agent.listeners.otlp;
 
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
@@ -24,7 +23,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
-import com.wavefront.data.AnnotationUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
@@ -137,7 +135,7 @@ public class OtlpTraceUtils {
         spanHandler.report(span);
 
         if (shouldReportSpanLogs(spanLogs.getLogs().size(), spanLogsDisabled)) {
-          addSpanLine(span, spanLogs);
+          SpanUtils.addSpanLine(span, spanLogs);
           spanLogsHandler.report(spanLogs);
         }
       }
@@ -146,15 +144,6 @@ public class OtlpTraceUtils {
       discoveredHeartbeatMetrics.add(
           reportREDMetrics(span, internalReporter, traceDerivedCustomTagKeys));
     }
-  }
-
-  private static void addSpanLine(Span span, SpanLogs spanLogs) {
-    String policyId = null;
-    if (span.getAnnotations() != null) {
-      policyId = AnnotationUtils.getValue(span.getAnnotations(),
-          SPAN_SAMPLING_POLICY_TAG);
-    }
-    spanLogs.setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId));
   }
 
   // TODO: consider transforming a single span and returning it for immedidate reporting in

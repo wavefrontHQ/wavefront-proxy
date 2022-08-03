@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
 import java.math.BigInteger;
@@ -25,6 +26,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 
 /**
  * Utility methods for handling Span and SpanLogs.
@@ -126,8 +128,8 @@ public final class SpanUtils {
     for (SpanLogs spanLogs : spanLogsOutput) {
       String spanMessage = spanLogs.getSpan();
       if (spanMessage == null) {
-        // For backwards compatibility, report the span logs if span line data is not
-        // included
+        // For backwards compatibility, report the span logs if span line data is not included
+        // DI side will do rate sampling
         handler.report(spanLogs);
       } else {
         ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
@@ -169,8 +171,8 @@ public final class SpanUtils {
             }
           }
           if (samplerFunc.apply(span)) {
-            // after sampling, span line data is no longer needed
-            spanLogs.setSpan(null);
+            // override spanLine to indicate it is already sampled
+            addSpanLine(span, spanLogs);
             handler.report(spanLogs);
           }
         }
@@ -184,5 +186,14 @@ public final class SpanUtils {
     long leastSigBits = new BigInteger(1, byteBuffer.array()).longValue();
     UUID uuid = new UUID(mostSigBits, leastSigBits);
     return uuid.toString();
+  }
+
+  public static void addSpanLine(Span span, SpanLogs spanLogs) {
+    String policyId = null;
+    if (span.getAnnotations() != null) {
+      policyId = AnnotationUtils.getValue(span.getAnnotations(),
+          SPAN_SAMPLING_POLICY_TAG);
+    }
+    spanLogs.setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId));
   }
 }

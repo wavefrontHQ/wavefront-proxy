@@ -238,6 +238,7 @@ public class SpanUtilsTest {
         setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0").
         setSpanId("4217104a-690d-4927-baff-d9aa779414c2").
         setCustomer("dummy").
+        setSpan("_sampledByPolicy=NONE").
         setLogs(ImmutableList.of(SpanLog.newBuilder().
             setFields(new HashMap<String, String>() {{
               put("error.kind",
