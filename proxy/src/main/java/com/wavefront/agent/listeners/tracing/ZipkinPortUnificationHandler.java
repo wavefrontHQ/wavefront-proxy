@@ -398,18 +398,12 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
-        String policyId = null;
-        if (wavefrontSpan.getAnnotations() != null) {
-          policyId = AnnotationUtils.getValue(wavefrontSpan.getAnnotations(),
-              SPAN_SAMPLING_POLICY_TAG);
-        }
         SpanLogs spanLogs = SpanLogs.newBuilder().
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
             setSpanSecondaryId(zipkinSpan.kind() != null ?
                 zipkinSpan.kind().toString().toLowerCase() : null).
-            setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId)).
             setLogs(zipkinSpan.annotations().stream().map(
                 x -> SpanLog.newBuilder().
                     setTimestamp(x.timestamp()).
@@ -417,6 +411,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                     build()).
                 collect(Collectors.toList())).
             build();
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }

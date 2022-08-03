@@ -279,16 +279,10 @@ public abstract class JaegerThriftUtils {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
-        String policyId = null;
-        if (wavefrontSpan.getAnnotations() != null) {
-          policyId = AnnotationUtils.getValue(wavefrontSpan.getAnnotations(),
-              SPAN_SAMPLING_POLICY_TAG);
-        }
         SpanLogs spanLogs = SpanLogs.newBuilder().
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
-            setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId)).
             setLogs(span.getLogs().stream().map(x -> {
               Map<String, String> fields = new HashMap<>(x.fields.size());
               x.fields.forEach(t -> {
@@ -310,12 +304,15 @@ public abstract class JaegerThriftUtils {
                   default:
                 }
               });
+
               return SpanLog.newBuilder().
                   setTimestamp(x.timestamp).
                   setFields(fields).
                   build();
             }).collect(Collectors.toList())).
             build();
+
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }
