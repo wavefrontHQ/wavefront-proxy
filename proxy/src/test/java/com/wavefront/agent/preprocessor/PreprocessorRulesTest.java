@@ -793,6 +793,23 @@ public class PreprocessorRulesTest {
         .apply(sourceNameMatchPoint);
     assertEquals(SourceNameUpdatedTag, referencePointToStringImpl(sourceNameMatchPoint));
 
+    // Point tag key matches in pointLine - newExtractTag=newExtractTagValue should be added
+    String tagKeyMatchString =
+        "\"testTagMetric\" 1.0 1459527231 source=\"testHost\" \"extractTagKey\"=\"value\"";
+    ReportPoint pointTagKeyMatchPoint = parsePointLine(tagKeyMatchString);
+    String pointTagKeyUpdated = tagKeyMatchString + preprocessorTag;
+    new ReportPointExtractTagTransformer(
+            "newExtractTag",
+            "pointLine",
+            ".*extractTag.*",
+            "newExtractTagValue",
+            null,
+            null,
+            null,
+            metrics)
+        .apply(pointTagKeyMatchPoint);
+    assertEquals(pointTagKeyUpdated, referencePointToStringImpl(pointTagKeyMatchPoint));
+
     // Point tag value matches in pointLine - newExtractTag=newExtractTagValue should be added
     String tagNameMatchString =
         "\"testTagMetric\" 1.0 1459527231 source=\"testHost\" \"aTag\"=\"extractTagTest\"";
