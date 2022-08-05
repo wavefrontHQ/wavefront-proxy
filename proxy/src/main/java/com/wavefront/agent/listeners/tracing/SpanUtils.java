@@ -1,14 +1,17 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.google.protobuf.ByteString;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.ReportableEntityDecoder;
+import io.netty.channel.ChannelHandlerContext;
+import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
+import javax.annotation.Nullable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -18,12 +21,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.Span;
-import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
@@ -129,8 +126,8 @@ public final class SpanUtils {
       String spanMessage = spanLogs.getSpan();
       if (spanMessage == null) {
         // For backwards compatibility, report the span logs if span line data is not included
-        // DI side will do rate sampling
-        handler.report(spanLogs);
+          addSpanLine(null, spanLogs);
+          handler.report(spanLogs);
       } else {
         ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
             null : preprocessorSupplier.get();
@@ -190,7 +187,7 @@ public final class SpanUtils {
 
   public static void addSpanLine(Span span, SpanLogs spanLogs) {
     String policyId = null;
-    if (span.getAnnotations() != null) {
+    if (span != null && span.getAnnotations() != null) {
       policyId = AnnotationUtils.getValue(span.getAnnotations(),
           SPAN_SAMPLING_POLICY_TAG);
     }
