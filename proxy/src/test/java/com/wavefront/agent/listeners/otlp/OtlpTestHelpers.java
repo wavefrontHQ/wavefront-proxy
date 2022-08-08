@@ -10,13 +10,11 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
-
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.SpanBlockFilter;
 import com.wavefront.sdk.common.Pair;
-
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
@@ -25,7 +23,6 @@ import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Status;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,12 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
-
 import org.apache.commons.compress.utils.Lists;
 import org.hamcrest.FeatureMatcher;
-
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.Span;
@@ -56,7 +50,7 @@ public class OtlpTestHelpers {
   private static final byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
   private static final byte[] parentSpanIdBytes = {0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6};
   private static final byte[] traceIdBytes = {
-      0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1
+    0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1
   };
 
   public static FeatureMatcher<List<Annotation>, Iterable<String>> hasKey(String key) {
@@ -107,8 +101,8 @@ public class OtlpTestHelpers {
     return wfSpanLogsGenerator(span, droppedAttrsCount, null);
   }
 
-  public static SpanLogs.Builder wfSpanLogsGenerator(Span span, int droppedAttrsCount,
-                                                     String spanLine) {
+  public static SpanLogs.Builder wfSpanLogsGenerator(
+      Span span, int droppedAttrsCount, String spanLine) {
 
     long logTimestamp =
         TimeUnit.MILLISECONDS.toMicros(span.getStartMillis() + (span.getDuration() / 2));

@@ -92,7 +92,6 @@ public class OtlpTraceUtilsTest {
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
 
-
   private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
@@ -930,9 +929,18 @@ public class OtlpTraceUtilsTest {
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
 
     // Act
-    OtlpGrpcTraceHandler otlpGrpcTraceHandler = new OtlpGrpcTraceHandler("9876", mockSpanHandler,
-        mockTraceLogsHandler, mockSender, null, mockSampler, () -> false, () -> false, "test-source",
-        null);
+    OtlpGrpcTraceHandler otlpGrpcTraceHandler =
+        new OtlpGrpcTraceHandler(
+            "9876",
+            mockSpanHandler,
+            mockTraceLogsHandler,
+            mockSender,
+            null,
+            mockSampler,
+            () -> false,
+            () -> false,
+            "test-source",
+            null);
     otlpGrpcTraceHandler.export(otlpRequest, emptyStreamObserver);
     otlpGrpcTraceHandler.run();
     otlpGrpcTraceHandler.close();

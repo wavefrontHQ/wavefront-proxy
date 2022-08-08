@@ -1,7 +1,7 @@
 package com.wavefront.agent.listeners.tracing;
 
-
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -128,8 +128,8 @@ public final class SpanUtils {
       String spanMessage = spanLogs.getSpan();
       if (spanMessage == null) {
         // For backwards compatibility, report the span logs if span line data is not included
-          addSpanLine(null, spanLogs);
-          handler.report(spanLogs);
+        addSpanLine(null, spanLogs);
+        handler.report(spanLogs);
       } else {
         ReportableEntityPreprocessor preprocessor =
             preprocessorSupplier == null ? null : preprocessorSupplier.get();
@@ -190,8 +190,7 @@ public final class SpanUtils {
   public static void addSpanLine(Span span, SpanLogs spanLogs) {
     String policyId = null;
     if (span != null && span.getAnnotations() != null) {
-      policyId = AnnotationUtils.getValue(span.getAnnotations(),
-          SPAN_SAMPLING_POLICY_TAG);
+      policyId = AnnotationUtils.getValue(span.getAnnotations(), SPAN_SAMPLING_POLICY_TAG);
     }
     spanLogs.setSpan(SPAN_SAMPLING_POLICY_TAG + "=" + (policyId == null ? "NONE" : policyId));
   }

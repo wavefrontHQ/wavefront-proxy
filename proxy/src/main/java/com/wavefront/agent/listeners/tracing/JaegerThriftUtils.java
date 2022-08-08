@@ -19,7 +19,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
-import com.wavefront.data.AnnotationUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
@@ -43,7 +42,6 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
-
 
 /**
  * Utility methods for processing Jaeger Thrift trace data.
@@ -330,6 +328,7 @@ public abstract class JaegerThriftUtils {
                             })
                         .collect(Collectors.toList()))
                 .build();
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }

@@ -37,7 +37,6 @@ import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.common.Utils;
-import com.wavefront.data.AnnotationUtils;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
@@ -434,6 +433,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                     .build())
                         .collect(Collectors.toList()))
                 .build();
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }
