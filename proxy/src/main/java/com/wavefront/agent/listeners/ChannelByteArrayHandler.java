@@ -1,13 +1,14 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
-
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.ingester.ReportableEntityDecoder;
-
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,34 +16,27 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import wavefront.report.ReportPoint;
 
 /**
  * Channel handler for byte array data.
+ *
  * @author Mike McLaughlin (mike@wavefront.com)
  */
 @ChannelHandler.Sharable
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
-  private static final Logger logger = Logger.getLogger(
-      ChannelByteArrayHandler.class.getCanonicalName());
+  private static final Logger logger =
+      Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
 
   private final ReportableEntityDecoder<byte[], ReportPoint> decoder;
   private final ReportableEntityHandler<ReportPoint, String> pointHandler;
 
-  @Nullable
-  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
+  @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Logger blockedItemsLogger;
   private final GraphiteDecoder recoder;
 
-  /**
-   * Constructor.
-   */
+  /** Constructor. */
   public ChannelByteArrayHandler(
       final ReportableEntityDecoder<byte[], ReportPoint> decoder,
       final ReportableEntityHandler<ReportPoint, String> pointHandler,
@@ -62,8 +56,8 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
       return;
     }
 
-    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
-        null : preprocessorSupplier.get();
+    ReportableEntityPreprocessor preprocessor =
+        preprocessorSupplier == null ? null : preprocessorSupplier.get();
 
     List<ReportPoint> points = new ArrayList<>(1);
     try {
@@ -81,8 +75,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
       }
     } catch (final Exception e) {
       final Throwable rootCause = Throwables.getRootCause(e);
-      String errMsg = "WF-300 Cannot parse: \"" +
-          "\", reason: \"" + e.getMessage() + "\"";
+      String errMsg = "WF-300 Cannot parse: \"" + "\", reason: \"" + e.getMessage() + "\"";
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
@@ -95,8 +88,8 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     }
   }
 
-  private void preprocessAndReportPoint(ReportPoint point,
-                                        ReportableEntityPreprocessor preprocessor) {
+  private void preprocessAndReportPoint(
+      ReportPoint point, ReportableEntityPreprocessor preprocessor) {
     String[] messageHolder = new String[1];
     if (preprocessor == null) {
       pointHandler.report(point);
@@ -132,8 +125,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
       return;
     }
     final Throwable rootCause = Throwables.getRootCause(cause);
-    String message = "WF-301 Error while receiving data, reason: \""
-        + cause.getMessage() + "\"";
+    String message = "WF-301 Error while receiving data, reason: \"" + cause.getMessage() + "\"";
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
     }

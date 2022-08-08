@@ -2,19 +2,17 @@ package com.wavefront.agent.queueing;
 
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.Utils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Implements proxy-specific {@link TaskQueue<T>} interface as a wrapper over {@link QueueFile}.
  *
  * @param <T> type of objects stored.
- *
  * @author vasily@wavefront.com
  */
 public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
@@ -29,20 +27,23 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
   private final TaskConverter<T> taskConverter;
 
   /**
-   * @param queueFile     file backing the queue
+   * @param queueFile file backing the queue
    * @param taskConverter task converter
    */
   public FileBasedTaskQueue(QueueFile queueFile, TaskConverter<T> taskConverter) {
     this.queueFile = queueFile;
     this.taskConverter = taskConverter;
     log.fine("Enumerating queue");
-    this.queueFile.iterator().forEachRemaining(task -> {
-      Integer weight = taskConverter.getWeight(task);
-      if (weight != null) {
-        currentWeight.addAndGet(weight);
-      }
-    });
-    log.fine("Enumerated: " + currentWeight.get() + " items in " +  queueFile.size() + " tasks");
+    this.queueFile
+        .iterator()
+        .forEachRemaining(
+            task -> {
+              Integer weight = taskConverter.getWeight(task);
+              if (weight != null) {
+                currentWeight.addAndGet(weight);
+              }
+            });
+    log.fine("Enumerated: " + currentWeight.get() + " items in " + queueFile.size() + " tasks");
   }
 
   @Override
@@ -83,7 +84,7 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
       this.head = taskConverter.fromBytes(task);
     }
     queueFile.remove();
-    if(this.head != null) {
+    if (this.head != null) {
       int weight = this.head.weight();
       currentWeight.getAndUpdate(x -> x > weight ? x - weight : 0);
       this.head = null;
@@ -108,7 +109,7 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
 
   @Nullable
   @Override
-  public Long getAvailableBytes()  {
+  public Long getAvailableBytes() {
     return queueFile.storageBytes() - queueFile.usedBytes();
   }
 

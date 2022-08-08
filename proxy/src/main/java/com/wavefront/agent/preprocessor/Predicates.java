@@ -1,12 +1,8 @@
 package com.wavefront.agent.preprocessor;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import static com.wavefront.predicates.PredicateEvalExpression.asDouble;
+import static com.wavefront.predicates.PredicateEvalExpression.isTrue;
+import static com.wavefront.predicates.Predicates.fromPredicateEvalExpression;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -14,9 +10,13 @@ import com.wavefront.predicates.ExpressionPredicate;
 import com.wavefront.predicates.PredicateEvalExpression;
 import com.wavefront.predicates.StringComparisonExpression;
 import com.wavefront.predicates.TemplateStringExpression;
-import static com.wavefront.predicates.PredicateEvalExpression.asDouble;
-import static com.wavefront.predicates.PredicateEvalExpression.isTrue;
-import static com.wavefront.predicates.Predicates.fromPredicateEvalExpression;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Collection of helper methods Base factory class for predicates; supports both text parsing as
@@ -25,11 +25,9 @@ import static com.wavefront.predicates.Predicates.fromPredicateEvalExpression;
  * @author vasily@wavefront.com.
  */
 public abstract class Predicates {
-  @VisibleForTesting
-  static final String[] LOGICAL_OPS = {"all", "any", "none", "ignore"};
+  @VisibleForTesting static final String[] LOGICAL_OPS = {"all", "any", "none", "ignore"};
 
-  private Predicates() {
-  }
+  private Predicates() {}
 
   @Nullable
   public static <T> Predicate<T> getPredicate(Map<String, Object> ruleMap) {
@@ -40,25 +38,28 @@ public abstract class Predicates {
     } else if (value instanceof Map) {
       //noinspection unchecked
       Map<String, Object> v2PredicateMap = (Map<String, Object>) value;
-      Preconditions.checkArgument(v2PredicateMap.size() == 1,
-          "Argument [if] can have only 1 top level predicate, but found :: " +
-              v2PredicateMap.size() + ".");
+      Preconditions.checkArgument(
+          v2PredicateMap.size() == 1,
+          "Argument [if] can have only 1 top level predicate, but found :: "
+              + v2PredicateMap.size()
+              + ".");
       return parsePredicate(v2PredicateMap);
     } else {
-      throw new IllegalArgumentException("Argument [if] value can only be String or Map, got " +
-          value.getClass().getCanonicalName());
+      throw new IllegalArgumentException(
+          "Argument [if] value can only be String or Map, got "
+              + value.getClass().getCanonicalName());
     }
   }
 
   /**
    * Parses the entire v2 Predicate tree into a Predicate.
    *
-   * @param v2Predicate      the predicate tree.
+   * @param v2Predicate the predicate tree.
    * @return parsed predicate
    */
   @VisibleForTesting
   static <T> Predicate<T> parsePredicate(Map<String, Object> v2Predicate) {
-    if(v2Predicate != null && !v2Predicate.isEmpty()) {
+    if (v2Predicate != null && !v2Predicate.isEmpty()) {
       return new ExpressionPredicate<>(processLogicalOp(v2Predicate));
     }
     return x -> true;
@@ -105,8 +106,13 @@ public abstract class Predicates {
   private static PredicateEvalExpression processComparisonOp(Map.Entry<String, Object> subElement) {
     Map<String, Object> svpair = (Map<String, Object>) subElement.getValue();
     if (svpair.size() != 2) {
-      throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
-          " 2 elements, but found :: " + svpair.size() + ".");
+      throw new IllegalArgumentException(
+          "Argument [ + "
+              + subElement.getKey()
+              + "] can have only"
+              + " 2 elements, but found :: "
+              + svpair.size()
+              + ".");
     }
     Object ruleVal = svpair.get("value");
     String scope = (String) svpair.get("scope");
@@ -116,16 +122,25 @@ public abstract class Predicates {
       throw new IllegalArgumentException("Argument [value] can't be null/blank.");
     }
     if (ruleVal instanceof List) {
-      List<PredicateEvalExpression> options = ((List<String>) ruleVal).stream().map(option ->
-          StringComparisonExpression.of(new TemplateStringExpression("{{" + scope + "}}"),
-              x -> option, subElement.getKey())).collect(Collectors.toList());
+      List<PredicateEvalExpression> options =
+          ((List<String>) ruleVal)
+              .stream()
+                  .map(
+                      option ->
+                          StringComparisonExpression.of(
+                              new TemplateStringExpression("{{" + scope + "}}"),
+                              x -> option,
+                              subElement.getKey()))
+                  .collect(Collectors.toList());
       return entity -> asDouble(options.stream().anyMatch(x -> isTrue(x.getValue(entity))));
     } else if (ruleVal instanceof String) {
-      return StringComparisonExpression.of(new TemplateStringExpression("{{" + scope + "}}"),
-          x -> (String) ruleVal, subElement.getKey());
+      return StringComparisonExpression.of(
+          new TemplateStringExpression("{{" + scope + "}}"),
+          x -> (String) ruleVal,
+          subElement.getKey());
     } else {
-      throw new IllegalArgumentException("[value] can only be String or List, got " +
-          ruleVal.getClass().getCanonicalName());
+      throw new IllegalArgumentException(
+          "[value] can only be String or List, got " + ruleVal.getClass().getCanonicalName());
     }
   }
 }

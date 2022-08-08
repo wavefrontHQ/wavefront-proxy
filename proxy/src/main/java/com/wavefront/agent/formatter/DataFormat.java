@@ -1,9 +1,8 @@
 package com.wavefront.agent.formatter;
 
-import javax.annotation.Nullable;
-
 import com.wavefront.api.agent.Constants;
 import com.wavefront.ingester.AbstractIngesterFormatter;
+import javax.annotation.Nullable;
 
 /**
  * Best-effort data format auto-detection.
@@ -11,15 +10,22 @@ import com.wavefront.ingester.AbstractIngesterFormatter;
  * @author vasily@wavefront.com
  */
 public enum DataFormat {
-  DEFAULT, WAVEFRONT, HISTOGRAM, SOURCE_TAG, EVENT, SPAN, SPAN_LOG, LOGS_JSON_ARR;
+  DEFAULT,
+  WAVEFRONT,
+  HISTOGRAM,
+  SOURCE_TAG,
+  EVENT,
+  SPAN,
+  SPAN_LOG,
+  LOGS_JSON_ARR;
 
   public static DataFormat autodetect(final String input) {
     if (input.length() < 2) return DEFAULT;
     char firstChar = input.charAt(0);
     switch (firstChar) {
       case '@':
-        if (input.startsWith(AbstractIngesterFormatter.SOURCE_TAG_LITERAL) ||
-            input.startsWith(AbstractIngesterFormatter.SOURCE_DESCRIPTION_LITERAL)) {
+        if (input.startsWith(AbstractIngesterFormatter.SOURCE_TAG_LITERAL)
+            || input.startsWith(AbstractIngesterFormatter.SOURCE_DESCRIPTION_LITERAL)) {
           return SOURCE_TAG;
         }
         if (input.startsWith(AbstractIngesterFormatter.EVENT_LITERAL)) return EVENT;

@@ -1,44 +1,38 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
-
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus;
-
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 
 /**
- * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's
- * IP address (must match provided allow list regex).
- * Exposed endpoints:
- *  - GET /status/{port}    check current status for {port}, returns 200 if enabled / 503 if not.
- *  - POST /enable/{port}   mark port {port} as healthy.
- *  - POST /disable/{port}  mark port {port} as unhealthy.
- *  - POST /enable          mark all healthcheck-enabled ports as healthy.
- *  - POST /disable         mark all healthcheck-enabled ports as unhealthy.
+ * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's IP address
+ * (must match provided allow list regex). Exposed endpoints: - GET /status/{port} check current
+ * status for {port}, returns 200 if enabled / 503 if not. - POST /enable/{port} mark port {port} as
+ * healthy. - POST /disable/{port} mark port {port} as unhealthy. - POST /enable mark all
+ * healthcheck-enabled ports as healthy. - POST /disable mark all healthcheck-enabled ports as
+ * unhealthy.
  *
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
-  private static final Logger logger = Logger.getLogger(
-      AdminPortUnificationHandler.class.getCanonicalName());
+  private static final Logger logger =
+      Logger.getLogger(AdminPortUnificationHandler.class.getCanonicalName());
 
   private static final Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
 
@@ -49,26 +43,26 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
    *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle             handle/port number.
+   * @param handle handle/port number.
    */
-  public AdminPortUnificationHandler(@Nullable TokenAuthenticator tokenAuthenticator,
-                                     @Nullable HealthCheckManager healthCheckManager,
-                                     @Nullable String handle,
-                                     @Nullable String remoteIpAllowRegex) {
+  public AdminPortUnificationHandler(
+      @Nullable TokenAuthenticator tokenAuthenticator,
+      @Nullable HealthCheckManager healthCheckManager,
+      @Nullable String handle,
+      @Nullable String remoteIpAllowRegex) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.remoteIpAllowRegex = remoteIpAllowRegex;
   }
 
   @Override
-  protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) throws URISyntaxException {
+  protected void handleHttpMessage(final ChannelHandlerContext ctx, final FullHttpRequest request)
+      throws URISyntaxException {
     StringBuilder output = new StringBuilder();
-    String remoteIp = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().
-        getHostAddress();
-    if (remoteIpAllowRegex != null && !Pattern.compile(remoteIpAllowRegex).
-        matcher(remoteIp).matches()) {
-      logger.warning("Incoming request from non-allowed remote address " + remoteIp +
-          " rejected!");
+    String remoteIp =
+        ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
+    if (remoteIpAllowRegex != null
+        && !Pattern.compile(remoteIpAllowRegex).matcher(remoteIp).matches()) {
+      logger.warning("Incoming request from non-allowed remote address " + remoteIp + " rejected!");
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;
     }
@@ -87,9 +81,10 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
                 status = HttpResponseStatus.BAD_REQUEST;
               } else {
                 // return 200 if status check ok, 503 if not
-                status = healthCheck.isHealthy(port) ?
-                    HttpResponseStatus.OK :
-                    HttpResponseStatus.SERVICE_UNAVAILABLE;
+                status =
+                    healthCheck.isHealthy(port)
+                        ? HttpResponseStatus.OK
+                        : HttpResponseStatus.SERVICE_UNAVAILABLE;
                 output.append(status.reasonPhrase());
               }
             } else {

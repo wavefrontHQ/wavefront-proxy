@@ -1,18 +1,19 @@
 package com.wavefront.agent;
 
+import static com.wavefront.common.Utils.getBuildVersion;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
-
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -25,19 +26,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
-
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ProcessingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ProcessingException;
-
-import static com.wavefront.common.Utils.getBuildVersion;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-
 /**
- * Registers the proxy with the back-end, sets up regular "check-ins" (every minute),
- * transmits proxy metrics to the back-end.
+ * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits
+ * proxy metrics to the back-end.
  *
  * @author vasily@wavefront.com
  */
@@ -46,9 +42,9 @@ public class ProxyCheckInScheduler {
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
-   * A unique value (a random hexadecimal string), assigned at proxy start-up, to be reported
-   * with all ~proxy metrics as a "processId" point tag to prevent potential ~proxy metrics
-   * collisions caused by users spinning up multiple proxies with duplicate names.
+   * A unique value (a random hexadecimal string), assigned at proxy start-up, to be reported with
+   * all ~proxy metrics as a "processId" point tag to prevent potential ~proxy metrics collisions
+   * caused by users spinning up multiple proxies with duplicate names.
    */
   private static final String ID = Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
 
@@ -65,27 +61,25 @@ public class ProxyCheckInScheduler {
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
   private boolean retryImmediately = false;
 
-  /**
-   * Executors for support tasks.
-   */
-  private final ScheduledExecutorService executor = Executors.
-      newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
+  /** Executors for support tasks. */
+  private final ScheduledExecutorService executor =
+      Executors.newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
 
   /**
-   * @param proxyId                    Proxy UUID.
-   * @param proxyConfig                Proxy settings.
-   * @param apiContainer               API container object.
-   * @param agentConfigurationConsumer Configuration processor, invoked after each
-   *                                   successful configuration fetch.
-   * @param shutdownHook               Invoked when proxy receives a shutdown directive
-   *                                   from the back-end.
+   * @param proxyId Proxy UUID.
+   * @param proxyConfig Proxy settings.
+   * @param apiContainer API container object.
+   * @param agentConfigurationConsumer Configuration processor, invoked after each successful
+   *     configuration fetch.
+   * @param shutdownHook Invoked when proxy receives a shutdown directive from the back-end.
    */
-  public ProxyCheckInScheduler(UUID proxyId,
-                               ProxyConfig proxyConfig,
-                               APIContainer apiContainer,
-                               BiConsumer<String, AgentConfiguration> agentConfigurationConsumer,
-                               Runnable shutdownHook,
-                               Runnable truncateBacklog) {
+  public ProxyCheckInScheduler(
+      UUID proxyId,
+      ProxyConfig proxyConfig,
+      APIContainer apiContainer,
+      BiConsumer<String, AgentConfiguration> agentConfigurationConsumer,
+      Runnable shutdownHook,
+      Runnable truncateBacklog) {
     this.proxyId = proxyId;
     this.proxyConfig = proxyConfig;
     this.apiContainer = apiContainer;
@@ -102,16 +96,14 @@ public class ProxyCheckInScheduler {
     }
     if (configList != null && !configList.isEmpty()) {
       logger.info("initial configuration is available, setting up proxy");
-      for (Map.Entry<String, AgentConfiguration> configEntry: configList.entrySet()) {
+      for (Map.Entry<String, AgentConfiguration> configEntry : configList.entrySet()) {
         agentConfigurationConsumer.accept(configEntry.getKey(), configEntry.getValue());
         successfulCheckIns.incrementAndGet();
       }
     }
   }
 
-  /**
-   * Set up and schedule regular check-ins.
-   */
+  /** Set up and schedule regular check-ins. */
   public void scheduleCheckins() {
     logger.info("scheduling regular check-ins");
     executor.scheduleAtFixedRate(this::updateProxyMetrics, 60, 60, TimeUnit.SECONDS);
@@ -127,9 +119,7 @@ public class ProxyCheckInScheduler {
     return successfulCheckIns.get();
   }
 
-  /**
-   * Stops regular check-ins.
-   */
+  /** Stops regular check-ins. */
   public void shutdown() {
     executor.shutdown();
   }
@@ -138,7 +128,7 @@ public class ProxyCheckInScheduler {
    * Perform agent check-in and fetch configuration of the daemon from remote server.
    *
    * @return Fetched configuration map {tenant_name: config instance}. {@code null} if the
-   * configuration is invalid.
+   *     configuration is invalid.
    */
   private Map<String, AgentConfiguration> checkin() {
     Map<String, AgentConfiguration> configurationList = Maps.newHashMap();
@@ -150,21 +140,33 @@ public class ProxyCheckInScheduler {
       if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
     // MONIT-25479: check-in for central and multicasting tenants / clusters
-    Map<String, Map<String, String>> multicastingTenantList = proxyConfig.getMulticastingTenantList();
+    Map<String, Map<String, String>> multicastingTenantList =
+        proxyConfig.getMulticastingTenantList();
     // Initialize tenantName and multicastingTenantProxyConfig here to track current checking
     // tenant for better exception handling message
     String tenantName = APIContainer.CENTRAL_TENANT_NAME;
-    Map<String, String> multicastingTenantProxyConfig = multicastingTenantList.get(APIContainer.CENTRAL_TENANT_NAME);
+    Map<String, String> multicastingTenantProxyConfig =
+        multicastingTenantList.get(APIContainer.CENTRAL_TENANT_NAME);
     try {
       AgentConfiguration multicastingConfig;
-      for (Map.Entry<String, Map<String, String>> multicastingTenantEntry : multicastingTenantList.entrySet()) {
+      for (Map.Entry<String, Map<String, String>> multicastingTenantEntry :
+          multicastingTenantList.entrySet()) {
         tenantName = multicastingTenantEntry.getKey();
         multicastingTenantProxyConfig = multicastingTenantEntry.getValue();
-        logger.info("Checking in tenants: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER));
-        multicastingConfig = apiContainer.getProxyV2APIForTenant(tenantName).proxyCheckin(proxyId,
-            "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
-            proxyConfig.getHostname() + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
-            getBuildVersion(), System.currentTimeMillis(), agentMetricsWorkingCopy, proxyConfig.isEphemeral());
+        logger.info(
+            "Checking in tenants: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER));
+        multicastingConfig =
+            apiContainer
+                .getProxyV2APIForTenant(tenantName)
+                .proxyCheckin(
+                    proxyId,
+                    "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
+                    proxyConfig.getHostname()
+                        + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
+                    getBuildVersion(),
+                    System.currentTimeMillis(),
+                    agentMetricsWorkingCopy,
+                    proxyConfig.isEphemeral());
         configurationList.put(tenantName, multicastingConfig);
       }
       agentMetricsWorkingCopy = null;
@@ -172,44 +174,54 @@ public class ProxyCheckInScheduler {
       agentMetricsWorkingCopy = null;
       switch (ex.getResponse().getStatus()) {
         case 401:
-          checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings" +
-              " are correct and that the token has Proxy Management permission!");
+          checkinError(
+              "HTTP 401 Unauthorized: Please verify that your server and token settings"
+                  + " are correct and that the token has Proxy Management permission!");
           if (successfulCheckIns.get() == 0) {
             throw new RuntimeException("Aborting start-up");
           }
           break;
         case 403:
-          checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management " +
-              "permission!");
+          checkinError(
+              "HTTP 403 Forbidden: Please verify that your token has Proxy Management "
+                  + "permission!");
           if (successfulCheckIns.get() == 0) {
             throw new RuntimeException("Aborting start-up");
           }
           break;
         case 404:
         case 405:
-          String serverUrl = multicastingTenantProxyConfig.get(APIContainer.API_SERVER).replaceAll("/$", "");
+          String serverUrl =
+              multicastingTenantProxyConfig.get(APIContainer.API_SERVER).replaceAll("/$", "");
           if (successfulCheckIns.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
-            checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
-                serverEndpointUrl);
+            checkinError(
+                "Possible server endpoint misconfiguration detected, attempting to use "
+                    + serverEndpointUrl);
             apiContainer.updateServerEndpointURL(tenantName, serverEndpointUrl);
             retryImmediately = true;
             return null;
           }
-          String secondaryMessage = serverUrl.endsWith("/api") ?
-              "Current setting: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) :
-              "Server endpoint URLs normally end with '/api/'. Current setting: " +
-                  multicastingTenantProxyConfig.get(APIContainer.API_SERVER);
-          checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
-              "please verify that your server setting is correct. " + secondaryMessage);
+          String secondaryMessage =
+              serverUrl.endsWith("/api")
+                  ? "Current setting: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                  : "Server endpoint URLs normally end with '/api/'. Current setting: "
+                      + multicastingTenantProxyConfig.get(APIContainer.API_SERVER);
+          checkinError(
+              "HTTP "
+                  + ex.getResponse().getStatus()
+                  + ": Misconfiguration detected, "
+                  + "please verify that your server setting is correct. "
+                  + secondaryMessage);
           if (successfulCheckIns.get() == 0) {
             throw new RuntimeException("Aborting start-up");
           }
           break;
         case 407:
-          checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
-              "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
-              " is not rate limiting!");
+          checkinError(
+              "HTTP 407 Proxy Authentication Required: Please verify that "
+                  + "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy"
+                  + " is not rate limiting!");
           if (successfulCheckIns.get() == 0) {
             throw new RuntimeException("Aborting start-up");
           }
@@ -218,34 +230,54 @@ public class ProxyCheckInScheduler {
           // 429s are retried silently.
           return null;
         default:
-          checkinError("HTTP " + ex.getResponse().getStatus() +
-              " error: Unable to check in with Wavefront! " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
-              + ": " + Throwables.getRootCause(ex).getMessage());
+          checkinError(
+              "HTTP "
+                  + ex.getResponse().getStatus()
+                  + " error: Unable to check in with Wavefront! "
+                  + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                  + ": "
+                  + Throwables.getRootCause(ex).getMessage());
       }
       return Maps.newHashMap(); // return empty configuration to prevent checking in every 1s
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        checkinError("Unknown host: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) +
-            ". Please verify your DNS and network settings!");
+        checkinError(
+            "Unknown host: "
+                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + ". Please verify your DNS and network settings!");
         return null;
       }
       if (rootCause instanceof ConnectException) {
-        checkinError("Unable to connect to " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " +
-            rootCause.getMessage() + " Please verify your network/firewall settings!");
+        checkinError(
+            "Unable to connect to "
+                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + ": "
+                + rootCause.getMessage()
+                + " Please verify your network/firewall settings!");
         return null;
       }
       if (rootCause instanceof SocketTimeoutException) {
-        checkinError("Unable to check in with " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " +
-            rootCause.getMessage() + " Please verify your network/firewall settings!");
+        checkinError(
+            "Unable to check in with "
+                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + ": "
+                + rootCause.getMessage()
+                + " Please verify your network/firewall settings!");
         return null;
       }
-      checkinError("Request processing error: Unable to retrieve proxy configuration! " +
-          multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " + rootCause);
+      checkinError(
+          "Request processing error: Unable to retrieve proxy configuration! "
+              + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+              + ": "
+              + rootCause);
       return null;
     } catch (Exception ex) {
-      checkinError("Unable to retrieve proxy configuration from remote server! " +
-          multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " + Throwables.getRootCause(ex));
+      checkinError(
+          "Unable to retrieve proxy configuration from remote server! "
+              + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+              + ": "
+              + Throwables.getRootCause(ex));
       return null;
     } finally {
       synchronized (executor) {
@@ -262,8 +294,8 @@ public class ProxyCheckInScheduler {
 
     // Always update the log server url / token in case they've changed
     apiContainer.updateLogServerEndpointURLandToken(
-            configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
-            configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
     return configurationList;
   }
 
@@ -285,8 +317,10 @@ public class ProxyCheckInScheduler {
               logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
             }
             if (config.getShutOffAgents()) {
-              logger.warn(firstNonNull(config.getShutOffMessage(),
-                  "Shutting down: Server side flag indicating proxy has to shut down."));
+              logger.warn(
+                  firstNonNull(
+                      config.getShutOffMessage(),
+                      "Shutting down: Server side flag indicating proxy has to shut down."));
               shutdownHook.run();
             } else if (config.isTruncateQueue()) {
               logger.warn(
@@ -308,8 +342,9 @@ public class ProxyCheckInScheduler {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", ID);
       synchronized (executor) {
-        agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
-            true, true, true, pointTags, null);
+        agentMetrics =
+            JsonMetricsGenerator.generateJsonMetrics(
+                Metrics.defaultRegistry(), true, true, true, pointTags, null);
         retries.set(0);
       }
     } catch (Exception ex) {

@@ -662,10 +662,11 @@ public class OtlpMetricsUtilsTest {
     Metric otlpMetric =
         OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
 
-    // Actual buckets: 2.8284, 4, 5.6569, 8, 11.3137, but we average the lower and upper bound of
+    // Actual buckets: -1, 2.8284, 4, 5.6569, 8, 11.3137, but we average the lower and upper
+    // bound of
     // each bucket when doing delta histogram centroids.
-    List<Double> bins = Arrays.asList(2.8284, 3.4142, 4.8284, 6.8284, 9.6569, 11.3137);
-    List<Integer> counts = Arrays.asList(5, 2, 1, 4, 3, 0);
+    List<Double> bins = Arrays.asList(0.9142, 3.4142, 4.8284, 6.8284, 9.6569);
+    List<Integer> counts = Arrays.asList(5, 2, 1, 4, 3);
 
     expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
 
@@ -702,11 +703,11 @@ public class OtlpMetricsUtilsTest {
     Metric otlpMetric =
         OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
 
-    // actual buckets: -1, -0,25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and upper
+    // actual buckets: -4, -1, -0.25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and upper
     // bound of
     // each bucket when doing delta histogram centroids.
-    List<Double> bins = Arrays.asList(-1.0, -0.625, 7.875, 40.0, 160.0, 640.0, 1024.0);
-    List<Integer> counts = Arrays.asList(4, 6, 1, 3, 2, 5, 0);
+    List<Double> bins = Arrays.asList(-2.5, -0.625, 7.875, 40.0, 160.0, 640.0);
+    List<Integer> counts = Arrays.asList(4, 6, 1, 3, 2, 5);
 
     expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
 

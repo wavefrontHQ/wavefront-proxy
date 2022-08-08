@@ -2,20 +2,17 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
-
+import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
 /**
- * "Allow list" regex filter. Rejects a point if a specified component (metric, source, or point
- * tag value, depending on the "scope" parameter) doesn't match the regex.
+ * "Allow list" regex filter. Rejects a point if a specified component (metric, source, or point tag
+ * value, depending on the "scope" parameter) doesn't match the regex.
  *
- * Created by Vasily on 9/13/16.
+ * <p>Created by Vasily on 9/13/16.
  */
 public class ReportPointAllowFilter implements AnnotatedPredicate<ReportPoint> {
 
@@ -25,10 +22,11 @@ public class ReportPointAllowFilter implements AnnotatedPredicate<ReportPoint> {
   private final Predicate<ReportPoint> v2Predicate;
   private boolean isV1PredicatePresent = false;
 
-  public ReportPointAllowFilter(final String scope,
-                                final String patternMatch,
-                                @Nullable final Predicate<ReportPoint> v2Predicate,
-                                final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportPointAllowFilter(
+      final String scope,
+      final String patternMatch,
+      @Nullable final Predicate<ReportPoint> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
     // If v2 predicate is null, v1 predicate becomes mandatory.
@@ -41,19 +39,21 @@ public class ReportPointAllowFilter implements AnnotatedPredicate<ReportPoint> {
       isV1PredicatePresent = true;
     } else {
       // If v2 predicate is present, verify all or none of v1 predicate parameters are present.
-      boolean bothV1PredicatesValid = !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
+      boolean bothV1PredicatesValid =
+          !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
       boolean bothV1PredicatesNull = scope == null && patternMatch == null;
 
       if (bothV1PredicatesValid) {
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
         // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
-        throw new IllegalArgumentException("[match], [scope] for rule should both be valid non " +
-            "null/blank values or both null.");
+        throw new IllegalArgumentException(
+            "[match], [scope] for rule should both be valid non "
+                + "null/blank values or both null.");
       }
     }
 
-    if(isV1PredicatePresent) {
+    if (isV1PredicatePresent) {
       this.compiledPattern = Pattern.compile(patternMatch);
       this.scope = scope;
     } else {

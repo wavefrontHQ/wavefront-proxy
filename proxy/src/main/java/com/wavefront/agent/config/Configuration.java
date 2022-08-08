@@ -3,9 +3,7 @@ package com.wavefront.agent.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/**
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** @author Mori Bellamy (mori@wavefront.com) */
 public abstract class Configuration {
   protected void ensure(boolean b, String message) throws ConfigurationException {
     if (!b) {

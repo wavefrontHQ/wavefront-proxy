@@ -1,33 +1,29 @@
 package com.wavefront.agent.api;
 
-import com.google.common.collect.ImmutableMap;
-
-import com.wavefront.agent.ProxyConfig;
-import com.wavefront.api.ProxyV2API;
-
-import org.checkerframework.checker.units.qual.A;
-import org.junit.Before;
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- */
+import com.google.common.collect.ImmutableMap;
+import com.wavefront.agent.ProxyConfig;
+import org.junit.Before;
+import org.junit.Test;
+
+/** @author Xiaochen Wang (xiaochenw@vmware.com). */
 public class APIContainerTest {
-    private final int NUM_TENANTS = 5;
+  private final int NUM_TENANTS = 5;
   private ProxyConfig proxyConfig;
 
   @Before
   public void setup() {
     this.proxyConfig = new ProxyConfig();
-    this.proxyConfig.getMulticastingTenantList().put("central",
-        ImmutableMap.of("token", "fake-token", "server", "fake-url"));
+    this.proxyConfig
+        .getMulticastingTenantList()
+        .put("central", ImmutableMap.of("token", "fake-token", "server", "fake-url"));
     for (int i = 0; i < NUM_TENANTS; i++) {
-      this.proxyConfig.getMulticastingTenantList().put("tenant-" + i,
-          ImmutableMap.of("token", "fake-token" + i, "server", "fake-url" + i));
+      this.proxyConfig
+          .getMulticastingTenantList()
+          .put("tenant-" + i, ImmutableMap.of("token", "fake-token" + i, "server", "fake-url" + i));
     }
   }
 

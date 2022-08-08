@@ -1,21 +1,18 @@
 package com.wavefront.agent.channel;
 
-import com.google.common.collect.ImmutableList;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import org.junit.Test;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.junit.Assert.assertEquals;
 
-/**
- * @author vasily@wavefront.com
- */
+import com.google.common.collect.ImmutableList;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import org.junit.Test;
+
+/** @author vasily@wavefront.com */
 public class SharedGraphiteHostAnnotatorTest {
 
   @Test
@@ -26,8 +23,8 @@ public class SharedGraphiteHostAnnotatorTest {
     expect(ctx.channel()).andReturn(channel).anyTimes();
     expect(channel.remoteAddress()).andReturn(remote).anyTimes();
     replay(channel, ctx);
-    SharedGraphiteHostAnnotator annotator = new SharedGraphiteHostAnnotator(
-        ImmutableList.of("tag1", "tag2", "tag3"), x -> "default");
+    SharedGraphiteHostAnnotator annotator =
+        new SharedGraphiteHostAnnotator(ImmutableList.of("tag1", "tag2", "tag3"), x -> "default");
 
     String point;
     point = "request.count 1 source=test.wavefront.com";
@@ -45,10 +42,11 @@ public class SharedGraphiteHostAnnotatorTest {
     point = "request.count 1 tag3=test.wavefront.com";
     assertEquals(point, annotator.apply(ctx, point));
     point = "request.count 1 tag4=test.wavefront.com";
-    assertEquals("request.count 1 tag4=test.wavefront.com source=\"default\"",
-        annotator.apply(ctx, point));
+    assertEquals(
+        "request.count 1 tag4=test.wavefront.com source=\"default\"", annotator.apply(ctx, point));
     String log = "{\"tag4\":\"test.wavefront.com\"}";
-    assertEquals("{\"source\":\"default\", \"tag4\":\"test.wavefront.com\"}",
+    assertEquals(
+        "{\"source\":\"default\", \"tag4\":\"test.wavefront.com\"}",
         annotator.apply(ctx, log, true));
   }
 }

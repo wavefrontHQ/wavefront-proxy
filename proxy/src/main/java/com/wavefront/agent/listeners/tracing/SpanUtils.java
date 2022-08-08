@@ -1,5 +1,8 @@
 package com.wavefront.agent.listeners.tracing;
 
+
+import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
@@ -8,10 +11,6 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.Span;
-import wavefront.report.SpanLogs;
-
-import javax.annotation.Nullable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -21,9 +20,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-
-import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
+import javax.annotation.Nullable;
+import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 /**
  * Utility methods for handling Span and SpanLogs.
@@ -31,31 +30,32 @@ import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
  * @author Shipeng Xie (xshipeng@vmware.com)
  */
 public final class SpanUtils {
-  private static final Logger logger = Logger.getLogger(
-      SpanUtils.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(SpanUtils.class.getCanonicalName());
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private SpanUtils() {
-  }
+  private SpanUtils() {}
 
   /**
    * Preprocess and handle span.
    *
-   * @param message              encoded span data.
-   * @param decoder              span decoder.
-   * @param handler              span handler.
-   * @param spanReporter         span reporter.
+   * @param message encoded span data.
+   * @param decoder span decoder.
+   * @param handler span handler.
+   * @param spanReporter span reporter.
    * @param preprocessorSupplier span preprocessor.
-   * @param ctx                  channel handler context.
-   * @param samplerFunc          span sampler.
+   * @param ctx channel handler context.
+   * @param samplerFunc span sampler.
    */
   public static void preprocessAndHandleSpan(
-      String message, ReportableEntityDecoder<String, Span> decoder,
-      ReportableEntityHandler<Span, String> handler, Consumer<Span> spanReporter,
+      String message,
+      ReportableEntityDecoder<String, Span> decoder,
+      ReportableEntityHandler<Span, String> handler,
+      Consumer<Span> spanReporter,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx, Function<Span, Boolean> samplerFunc) {
-    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
-        null : preprocessorSupplier.get();
+      @Nullable ChannelHandlerContext ctx,
+      Function<Span, Boolean> samplerFunc) {
+    ReportableEntityPreprocessor preprocessor =
+        preprocessorSupplier == null ? null : preprocessorSupplier.get();
     String[] messageHolder = new String[1];
 
     // transform the line if needed
@@ -100,20 +100,22 @@ public final class SpanUtils {
   /**
    * Handle spanLogs.
    *
-   * @param message              encoded spanLogs data.
-   * @param spanLogsDecoder      spanLogs decoder.
-   * @param spanDecoder          span decoder.
-   * @param handler              spanLogs handler.
+   * @param message encoded spanLogs data.
+   * @param spanLogsDecoder spanLogs decoder.
+   * @param spanDecoder span decoder.
+   * @param handler spanLogs handler.
    * @param preprocessorSupplier spanLogs preprocessor.
-   * @param ctx                  channel handler context.
-   * @param samplerFunc          span sampler.
+   * @param ctx channel handler context.
+   * @param samplerFunc span sampler.
    */
   public static void handleSpanLogs(
-      String message, ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
+      String message,
+      ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       ReportableEntityDecoder<String, Span> spanDecoder,
       ReportableEntityHandler<SpanLogs, String> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx, Function<Span, Boolean> samplerFunc) {
+      @Nullable ChannelHandlerContext ctx,
+      Function<Span, Boolean> samplerFunc) {
     List<SpanLogs> spanLogsOutput = new ArrayList<>(1);
     try {
       spanLogsDecoder.decode(JSON_PARSER.readTree(message), spanLogsOutput, "dummy");
@@ -129,8 +131,8 @@ public final class SpanUtils {
           addSpanLine(null, spanLogs);
           handler.report(spanLogs);
       } else {
-        ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
-            null : preprocessorSupplier.get();
+        ReportableEntityPreprocessor preprocessor =
+            preprocessorSupplier == null ? null : preprocessorSupplier.get();
         String[] spanMessageHolder = new String[1];
 
         // transform the line if needed
