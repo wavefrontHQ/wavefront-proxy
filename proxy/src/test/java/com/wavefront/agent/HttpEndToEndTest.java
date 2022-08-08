@@ -620,7 +620,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
@@ -700,7 +700,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
