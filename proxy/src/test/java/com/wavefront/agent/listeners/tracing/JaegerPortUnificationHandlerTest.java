@@ -269,6 +269,7 @@ public class JaegerPortUnificationHandlerTest {
             .setCustomer("default")
             .setSpanId("00000000-0000-0000-0000-00000012d687")
             .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()

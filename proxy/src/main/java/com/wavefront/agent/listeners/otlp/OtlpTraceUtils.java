@@ -130,6 +130,7 @@ public class OtlpTraceUtils {
         spanHandler.report(span);
 
         if (shouldReportSpanLogs(spanLogs.getLogs().size(), spanLogsDisabled)) {
+          SpanUtils.addSpanLine(span, spanLogs);
           spanLogsHandler.report(spanLogs);
         }
       }
