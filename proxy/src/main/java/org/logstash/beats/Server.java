@@ -67,8 +67,8 @@ public class Server {
           .childOption(
               ChannelOption.SO_LINGER,
               0) // Since the protocol doesn't support yet a remote close from the server and we
-                 // don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to
-                 // force the close of the socket.
+          // don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to
+          // force the close of the socket.
           .childHandler(beatsInitializer);
 
       Channel channel = server.bind(host, port).sync().channel();

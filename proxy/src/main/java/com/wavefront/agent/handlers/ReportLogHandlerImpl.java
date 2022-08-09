@@ -17,6 +17,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
 /**
@@ -32,6 +33,8 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final ValidationConfiguration validationConfig;
   final com.yammer.metrics.core.Histogram receivedLogLag;
   final com.yammer.metrics.core.Histogram receivedTagCount;
+  final com.yammer.metrics.core.Histogram receivedTagLength;
+  final com.yammer.metrics.core.Histogram receivedMessageLength;
   final com.yammer.metrics.core.Counter receivedByteCount;
 
   /**
@@ -71,6 +74,12 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     this.receivedTagCount =
         registry.newHistogram(
             new MetricName(handlerKey.toString() + ".received", "", "tagCount"), false);
+    this.receivedTagLength =
+        registry.newHistogram(
+            new MetricName(handlerKey.toString() + ".received", "", "tagLength"), false);
+    this.receivedMessageLength =
+        registry.newHistogram(
+            new MetricName(handlerKey.toString() + ".received", "", "messageLength"), false);
     this.receivedByteCount =
         registry.newCounter(new MetricName(handlerKey.toString() + ".received", "", "bytes"));
   }
@@ -78,6 +87,10 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   @Override
   protected void reportInternal(ReportLog log) {
     receivedTagCount.update(log.getAnnotations().size());
+    receivedMessageLength.update(log.getMessage().length());
+    for (Annotation a : log.getAnnotations()) {
+      receivedTagLength.update(a.getValue().length());
+    }
     validateLog(log, validationConfig);
     receivedLogLag.update(Clock.now() - log.getTimestamp());
     Log logObj = new Log(log);

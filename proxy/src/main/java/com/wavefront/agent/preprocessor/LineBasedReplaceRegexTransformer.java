@@ -50,7 +50,7 @@ public class LineBasedReplaceRegexTransformer implements Function<String, String
       }
       ruleMetrics
           .incrementRuleAppliedCounter(); // count the rule only once regardless of the number of
-                                          // iterations
+      // iterations
 
       int currentIteration = 0;
       while (true) {

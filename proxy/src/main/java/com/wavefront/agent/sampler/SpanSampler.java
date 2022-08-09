@@ -1,6 +1,5 @@
 package com.wavefront.agent.sampler;
 
-
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
 

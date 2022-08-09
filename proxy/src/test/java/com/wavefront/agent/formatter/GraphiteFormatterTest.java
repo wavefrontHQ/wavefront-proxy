@@ -17,7 +17,7 @@ public class GraphiteFormatterTest {
   public void testCollectdGraphiteParsing() {
     String format =
         "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that
-                 // order
+    // order
     String format2 = "2";
     String delimiter = "_";
 

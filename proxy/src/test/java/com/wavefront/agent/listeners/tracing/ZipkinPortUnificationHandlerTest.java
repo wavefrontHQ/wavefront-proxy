@@ -6,13 +6,7 @@ import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
@@ -195,7 +189,8 @@ public class ZipkinPortUnificationHandlerTest {
             .build());
     expectLastCall();
 
-    Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
+    Capture<HashMap<String, String>> tagsCapture = newCapture();
+
     mockWavefrontSender.sendMetric(
         eq(HEART_BEAT_METRIC),
         eq(1.0),
@@ -425,6 +420,7 @@ public class ZipkinPortUnificationHandlerTest {
             .setTraceId("00000000-0000-0000-2822-889fe47043bd")
             .setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8")
             .setSpanSecondaryId("server")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -440,6 +436,7 @@ public class ZipkinPortUnificationHandlerTest {
             .setTraceId("00000000-0000-0000-2822-889fe47043bd")
             .setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8")
             .setSpanSecondaryId("client")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -538,12 +535,14 @@ public class ZipkinPortUnificationHandlerTest {
             .build();
     mockTraceHandler.report(expectedSpan2);
     expectLastCall();
+
     mockTraceSpanLogsHandler.report(
         SpanLogs.newBuilder()
             .setCustomer("default")
             .setTraceId("00000000-0000-0000-3822-889fe47043bd")
             .setSpanId("00000000-0000-0000-3822-889fe47043bd")
             .setSpanSecondaryId("server")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -564,6 +563,94 @@ public class ZipkinPortUnificationHandlerTest {
             content,
             true);
     handler.handleHttpMessage(mockCtx, httpRequest);
+    verify(mockTraceHandler, mockTraceSpanLogsHandler);
+  }
+
+  @Test
+  public void testZipkinSamplerSync() throws Exception {
+    ZipkinPortUnificationHandler handler =
+        new ZipkinPortUnificationHandler(
+            "9411",
+            new NoopHealthCheckManager(),
+            mockTraceHandler,
+            mockTraceSpanLogsHandler,
+            null,
+            () -> false,
+            () -> false,
+            null,
+            new SpanSampler(new DurationSampler(5), () -> null),
+            null,
+            null);
+
+    Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
+
+    zipkin2.Span span =
+        zipkin2.Span.newBuilder()
+            .traceId("3822889fe47043bd")
+            .id("3822889fe47043bd")
+            .kind(zipkin2.Span.Kind.SERVER)
+            .name("getservice")
+            .timestamp(startTime * 1000)
+            .duration(9 * 1000)
+            .localEndpoint(localEndpoint1)
+            .putTag("http.method", "GET")
+            .putTag("http.url", "none+h1c://localhost:8881/")
+            .putTag("http.status_code", "200")
+            .addAnnotation(startTime * 1000, "start processing")
+            .build();
+
+    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(span);
+
+    SpanBytesEncoder encoder = SpanBytesEncoder.values()[1];
+    ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));
+
+    reset(mockTraceHandler, mockTraceSpanLogsHandler);
+
+    Span expectedSpan =
+        Span.newBuilder()
+            .setCustomer("dummy")
+            .setStartMillis(startTime)
+            .setDuration(9)
+            .setName("getservice")
+            .setSource(DEFAULT_SOURCE)
+            .setSpanId("00000000-0000-0000-3822-889fe47043bd")
+            .setTraceId("00000000-0000-0000-3822-889fe47043bd")
+            .
+            // Note: Order of annotations list matters for this unit test.
+            setAnnotations(
+                ImmutableList.of(
+                    new Annotation("zipkinSpanId", "3822889fe47043bd"),
+                    new Annotation("zipkinTraceId", "3822889fe47043bd"),
+                    new Annotation("span.kind", "server"),
+                    new Annotation("_spanSecondaryId", "server"),
+                    new Annotation("service", "frontend"),
+                    new Annotation("http.method", "GET"),
+                    new Annotation("http.status_code", "200"),
+                    new Annotation("http.url", "none+h1c://localhost:8881/"),
+                    new Annotation("application", "Zipkin"),
+                    new Annotation("cluster", "none"),
+                    new Annotation("shard", "none"),
+                    new Annotation("ipv4", "10.0.0.1"),
+                    new Annotation("_spanLogs", "true")))
+            .build();
+    mockTraceHandler.report(expectedSpan);
+    expectLastCall();
+    Capture<SpanLogs> capture = newCapture();
+    mockTraceSpanLogsHandler.report(capture(capture));
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceSpanLogsHandler);
+
+    ChannelHandlerContext mockCtx = createNiceMock(ChannelHandlerContext.class);
+    doMockLifecycle(mockCtx);
+    FullHttpRequest httpRequest =
+        new DefaultFullHttpRequest(
+            HttpVersion.HTTP_1_1,
+            HttpMethod.POST,
+            "http://localhost:9411/api/v1/spans",
+            content,
+            true);
+    handler.handleHttpMessage(mockCtx, httpRequest);
+    assertEquals("_sampledByPolicy=NONE", capture.getValue().getSpan());
     verify(mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
@@ -618,12 +705,14 @@ public class ZipkinPortUnificationHandlerTest {
             .build();
     mockTraceHandler.report(expectedSpan2);
     expectLastCall();
+
     mockTraceSpanLogsHandler.report(
         SpanLogs.newBuilder()
             .setCustomer("default")
             .setTraceId("00000000-0000-0000-3822-889fe47043bd")
             .setSpanId("00000000-0000-0000-3822-889fe47043bd")
             .setSpanSecondaryId("server")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()

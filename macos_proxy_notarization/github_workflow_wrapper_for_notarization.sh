@@ -89,7 +89,7 @@ debug=$5
 # constants
 github_repo='wavefront-proxy'
 github_notarization_workflow_yml='mac_tarball_notarization.yml'
-github_branch='dev'
+github_branch='master'
 
 if [[ -z $proxy_version ]]; then
     echo "proxy version is required as 1st cmd line argument. example: '11.1.0-proxy-snapshot'. Exiting!"
