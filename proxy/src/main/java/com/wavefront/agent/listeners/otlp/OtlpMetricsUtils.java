@@ -326,10 +326,15 @@ public class OtlpMetricsUtils {
   @NotNull
   private static ReportPoint transformNumberDataPoint(
       String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
-    return pointWithAnnotations(
-            name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
-        .setValue(point.getAsDouble())
-        .build();
+    ReportPoint.Builder rp =
+        pointWithAnnotations(
+            name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano());
+
+    if (point.hasAsInt()) {
+      return rp.setValue(point.getAsInt()).build();
+    } else {
+      return rp.setValue(point.getAsDouble()).build();
+    }
   }
 
   @NotNull
