@@ -1,4 +1,4 @@
-set -ev
+set -xev
 
 WFPROXY_TARBALL=$1
 echo "This is the tarball that was just uplaoded: $1"
@@ -73,7 +73,7 @@ repackage_proxy() {
   $COPY_FORM_TO_BE_NOTARIZED
   TARBALL="wfproxy-$VERSION.tar.gz"
   tar xvzf $TARBALL
-  zip -r wavefront-proxy-$VERSION.zip bin/ etc/ lib/
+  zip -r wavefront-proxy-$VERSION.zip log4j2.xml wavefront-proxy.jar wavefront.conf wfproxy
 }
 
 # Notarized the .zip and upload to Apply
