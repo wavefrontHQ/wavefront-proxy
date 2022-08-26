@@ -196,7 +196,9 @@ public class PushAgent extends AbstractAgent {
                               proxyConfig.getCustomTimestampTags(),
                               proxyConfig.getCustomMessageTags(),
                               proxyConfig.getCustomApplicationTags(),
-                              proxyConfig.getCustomServiceTags()))
+                              proxyConfig.getCustomServiceTags(),
+                              proxyConfig.getCustomLevelTags(),
+                              proxyConfig.getCustomExceptionTags()))
                       .build());
   // default rate sampler which always samples.
   protected final RateSampler rateSampler = new RateSampler(1.0d);
