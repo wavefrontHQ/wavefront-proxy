@@ -620,7 +620,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
@@ -700,7 +700,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
@@ -743,11 +743,15 @@ public class HttpEndToEndTest {
         "[{\"source\": \"myHost\",\n \"timestamp\": \""
             + timestamp
             + "\", "
-            + "\"application\":\"myApp\",\"service\":\"myService\"}]";
+            + "\"application\":\"myApp\",\"service\":\"myService\","
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "}]";
     String expectedLog =
         "[{\"source\":\"myHost\",\"timestamp\":"
             + timestamp
-            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\"}]";
+            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
         req -> {

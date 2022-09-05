@@ -328,6 +328,7 @@ public abstract class JaegerThriftUtils {
                             })
                         .collect(Collectors.toList()))
                 .build();
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }
