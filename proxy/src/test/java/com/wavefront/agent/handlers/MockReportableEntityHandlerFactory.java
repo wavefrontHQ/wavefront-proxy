@@ -2,15 +2,13 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
+import javax.annotation.Nonnull;
 import org.easymock.EasyMock;
-
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
-
-import javax.annotation.Nonnull;
 
 /**
  * Mock factory for testing
@@ -43,7 +41,6 @@ public class MockReportableEntityHandlerFactory {
     return EasyMock.createMock(EventHandlerImpl.class);
   }
 
-
   public static ReportableEntityHandlerFactory createMockHandlerFactory(
       ReportableEntityHandler<ReportPoint, String> mockReportPointHandler,
       ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler,
@@ -74,8 +71,7 @@ public class MockReportableEntityHandlerFactory {
       }
 
       @Override
-      public void shutdown(@Nonnull String handle) {
-      }
+      public void shutdown(@Nonnull String handle) {}
     };
   }
 }

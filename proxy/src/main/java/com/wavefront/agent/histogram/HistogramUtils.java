@@ -6,6 +6,12 @@ import com.tdunning.math.stats.TDigest;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
 import net.openhft.chronicle.core.util.ReadResolvable;
@@ -14,13 +20,6 @@ import net.openhft.chronicle.hash.serialization.BytesWriter;
 import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 import wavefront.report.ReportPoint;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Helpers around histograms
@@ -33,8 +32,8 @@ public final class HistogramUtils {
   }
 
   /**
-   * Generates a {@link HistogramKey} according a prototype {@link ReportPoint} and
-   * {@link Granularity}.
+   * Generates a {@link HistogramKey} according a prototype {@link ReportPoint} and {@link
+   * Granularity}.
    */
   public static HistogramKey makeKey(ReportPoint point, Granularity granularity) {
     Preconditions.checkNotNull(point);
@@ -42,8 +41,10 @@ public final class HistogramUtils {
 
     String[] annotations = null;
     if (point.getAnnotations() != null) {
-      List<Map.Entry<String, String>> keyOrderedTags = point.getAnnotations().entrySet()
-          .stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
+      List<Map.Entry<String, String>> keyOrderedTags =
+          point.getAnnotations().entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .collect(Collectors.toList());
       annotations = new String[keyOrderedTags.size() * 2];
       for (int i = 0; i < keyOrderedTags.size(); ++i) {
         annotations[2 * i] = keyOrderedTags.get(i).getKey();
@@ -56,19 +57,18 @@ public final class HistogramUtils {
         granularity.getBinId(point.getTimestamp()),
         point.getMetric(),
         point.getHost(),
-        annotations
-    );
+        annotations);
   }
 
   /**
    * Creates a {@link ReportPoint} from a {@link HistogramKey} - {@link AgentDigest} pair
    *
    * @param histogramKey the key, defining metric, source, annotations, duration and start-time
-   * @param agentDigest  the digest defining the centroids
+   * @param agentDigest the digest defining the centroids
    * @return the corresponding point
    */
-  public static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey,
-                                                  AgentDigest agentDigest) {
+  public static ReportPoint pointFromKeyAndDigest(
+      HistogramKey histogramKey, AgentDigest agentDigest) {
     return ReportPoint.newBuilder()
         .setTimestamp(histogramKey.getBinTimeMillis())
         .setMetric(histogramKey.getMetric())
@@ -80,8 +80,7 @@ public final class HistogramUtils {
   }
 
   /**
-   * Convert granularity to string. If null, we assume we are dealing with
-   * "distribution" port.
+   * Convert granularity to string. If null, we assume we are dealing with "distribution" port.
    *
    * @param granularity granularity
    * @return string representation
@@ -117,11 +116,13 @@ public final class HistogramUtils {
   /**
    * (For now, a rather trivial) encoding of {@link HistogramKey} the form short length and bytes
    *
-   * Consider using chronicle-values or making this stateful with a local
-   * byte[] / Stringbuffers to be a little more efficient about encodings.
+   * <p>Consider using chronicle-values or making this stateful with a local byte[] / Stringbuffers
+   * to be a little more efficient about encodings.
    */
-  public static class HistogramKeyMarshaller implements BytesReader<HistogramKey>,
-      BytesWriter<HistogramKey>, ReadResolvable<HistogramKeyMarshaller> {
+  public static class HistogramKeyMarshaller
+      implements BytesReader<HistogramKey>,
+          BytesWriter<HistogramKey>,
+          ReadResolvable<HistogramKeyMarshaller> {
     private static final HistogramKeyMarshaller INSTANCE = new HistogramKeyMarshaller();
 
     private static final Histogram accumulatorKeySizes =
@@ -142,8 +143,8 @@ public final class HistogramUtils {
     }
 
     private static void writeString(Bytes out, String s) {
-      Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE,
-          "String too long (more than 32K)");
+      Preconditions.checkArgument(
+          s == null || s.length() <= Short.MAX_VALUE, "String too long (more than 32K)");
       byte[] bytes = s == null ? new byte[0] : s.getBytes(StandardCharsets.UTF_8);
       out.writeShort((short) bytes.length);
       out.write(bytes);

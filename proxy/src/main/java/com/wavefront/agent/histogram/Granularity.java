@@ -2,11 +2,8 @@ package com.wavefront.agent.histogram;
 
 import org.apache.commons.lang.time.DateUtils;
 
-import javax.annotation.Nullable;
-
 /**
- * Standard supported aggregation Granularities.
- * Refactored from HistogramUtils.
+ * Standard supported aggregation Granularities. Refactored from HistogramUtils.
  *
  * @author Tim Schmidt (tim@wavefront.com)
  * @author vasily@wavefront.com
@@ -63,5 +60,4 @@ public enum Granularity {
       return DAY;
     }
   }
-
 }

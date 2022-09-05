@@ -9,9 +9,7 @@ import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
-/**
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** @author Mori Bellamy (mori@wavefront.com) */
 public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
   @Override
   public void processMeter(MetricName name, Metered meter, ReadProcessorContext context) {
@@ -39,7 +37,8 @@ public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public void processGauge(MetricName name, Gauge<?> gauge, ReadProcessorContext context) throws Exception {
+  public void processGauge(MetricName name, Gauge<?> gauge, ReadProcessorContext context)
+      throws Exception {
     if (context.getValue() == null) {
       throw new MalformedMessageException("Need an explicit value for updating a gauge.");
     }

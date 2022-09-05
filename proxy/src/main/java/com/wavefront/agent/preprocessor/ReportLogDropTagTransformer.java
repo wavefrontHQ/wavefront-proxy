@@ -2,17 +2,13 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
@@ -23,18 +19,18 @@ import wavefront.report.ReportLog;
  */
 public class ReportLogDropTagTransformer implements Function<ReportLog, ReportLog> {
 
-  @Nonnull
-  private final Pattern compiledTagPattern;
-  @Nullable
-  private final Pattern compiledValuePattern;
+  @Nonnull private final Pattern compiledTagPattern;
+  @Nullable private final Pattern compiledValuePattern;
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Predicate<ReportLog> v2Predicate;
 
-  public ReportLogDropTagTransformer(final String tag,
-                                     @Nullable final String patternMatch,
-                                     @Nullable final Predicate<ReportLog> v2Predicate,
-                                     final PreprocessorRuleMetrics ruleMetrics) {
-    this.compiledTagPattern = Pattern.compile(Preconditions.checkNotNull(tag, "[tag] can't be null"));
+  public ReportLogDropTagTransformer(
+      final String tag,
+      @Nullable final String patternMatch,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
+    this.compiledTagPattern =
+        Pattern.compile(Preconditions.checkNotNull(tag, "[tag] can't be null"));
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     this.compiledValuePattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
@@ -55,8 +51,9 @@ public class ReportLogDropTagTransformer implements Function<ReportLog, ReportLo
       boolean changed = false;
       while (iterator.hasNext()) {
         Annotation entry = iterator.next();
-        if (compiledTagPattern.matcher(entry.getKey()).matches() && (compiledValuePattern == null ||
-            compiledValuePattern.matcher(entry.getValue()).matches())) {
+        if (compiledTagPattern.matcher(entry.getKey()).matches()
+            && (compiledValuePattern == null
+                || compiledValuePattern.matcher(entry.getValue()).matches())) {
           changed = true;
           iterator.remove();
           ruleMetrics.incrementRuleAppliedCounter();

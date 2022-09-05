@@ -1,7 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
 import javax.annotation.Nonnull;
-
 import wavefront.report.ReportLog;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
@@ -9,7 +8,7 @@ import wavefront.report.Span;
 /**
  * A container class for multiple types of rules (point line-specific and parsed entity-specific)
  *
- * Created by Vasily on 9/15/16.
+ * <p>Created by Vasily on 9/15/16.
  */
 public class ReportableEntityPreprocessor {
 
@@ -22,10 +21,11 @@ public class ReportableEntityPreprocessor {
     this(new Preprocessor<>(), new Preprocessor<>(), new Preprocessor<>(), new Preprocessor<>());
   }
 
-  private ReportableEntityPreprocessor(@Nonnull Preprocessor<String> pointLinePreprocessor,
-                                       @Nonnull Preprocessor<ReportPoint> reportPointPreprocessor,
-                                       @Nonnull Preprocessor<Span> spanPreprocessor,
-                                       @Nonnull Preprocessor<ReportLog> reportLogPreprocessor) {
+  private ReportableEntityPreprocessor(
+      @Nonnull Preprocessor<String> pointLinePreprocessor,
+      @Nonnull Preprocessor<ReportPoint> reportPointPreprocessor,
+      @Nonnull Preprocessor<Span> spanPreprocessor,
+      @Nonnull Preprocessor<ReportLog> reportLogPreprocessor) {
     this.pointLinePreprocessor = pointLinePreprocessor;
     this.reportPointPreprocessor = reportPointPreprocessor;
     this.spanPreprocessor = spanPreprocessor;
@@ -46,10 +46,13 @@ public class ReportableEntityPreprocessor {
     return spanPreprocessor;
   }
 
-  public Preprocessor<ReportLog> forReportLog() { return reportLogPreprocessor;  }
+  public Preprocessor<ReportLog> forReportLog() {
+    return reportLogPreprocessor;
+  }
 
   public ReportableEntityPreprocessor merge(ReportableEntityPreprocessor other) {
-    return new ReportableEntityPreprocessor(this.pointLinePreprocessor.merge(other.forPointLine()),
+    return new ReportableEntityPreprocessor(
+        this.pointLinePreprocessor.merge(other.forPointLine()),
         this.reportPointPreprocessor.merge(other.forReportPoint()),
         this.spanPreprocessor.merge(other.forSpan()),
         this.reportLogPreprocessor.merge(other.forReportLog()));

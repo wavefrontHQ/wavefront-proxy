@@ -1,5 +1,19 @@
 package com.wavefront.agent;
 
+import static org.junit.Assert.assertTrue;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -15,23 +29,6 @@ import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
-import static org.junit.Assert.assertTrue;
-
 
 public final class HttpClientTest {
 
@@ -64,53 +61,65 @@ public final class HttpClientTest {
     }
   }
 
-  @Test(expected=ProcessingException.class)
+  @Test(expected = ProcessingException.class)
   public void httpClientTimeoutsWork() throws Exception {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJackson2Provider.class);
 
-    HttpClient httpClient = HttpClientBuilder.create().
-        useSystemProperties().
-        setMaxConnTotal(200).
-        setMaxConnPerRoute(100).
-        setConnectionTimeToLive(1, TimeUnit.MINUTES).
-        setDefaultSocketConfig(
-            SocketConfig.custom().
-                setSoTimeout(100).build()).
-        setDefaultRequestConfig(
-            RequestConfig.custom().
-                setContentCompressionEnabled(true).
-                setRedirectsEnabled(true).
-                setConnectTimeout(5000).
-                setConnectionRequestTimeout(5000).
-                setSocketTimeout(60000).build()).
-        setSSLSocketFactory(
-            new LayeredConnectionSocketFactory() {
-              @Override
-              public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context)
-                  throws IOException, UnknownHostException {
-                return SSLConnectionSocketFactory.getSystemSocketFactory()
-                    .createLayeredSocket(socket, target, port, context);
-              }
+    HttpClient httpClient =
+        HttpClientBuilder.create()
+            .useSystemProperties()
+            .setMaxConnTotal(200)
+            .setMaxConnPerRoute(100)
+            .setConnectionTimeToLive(1, TimeUnit.MINUTES)
+            .setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(100).build())
+            .setDefaultRequestConfig(
+                RequestConfig.custom()
+                    .setContentCompressionEnabled(true)
+                    .setRedirectsEnabled(true)
+                    .setConnectTimeout(5000)
+                    .setConnectionRequestTimeout(5000)
+                    .setSocketTimeout(60000)
+                    .build())
+            .setSSLSocketFactory(
+                new LayeredConnectionSocketFactory() {
+                  @Override
+                  public Socket createLayeredSocket(
+                      Socket socket, String target, int port, HttpContext context)
+                      throws IOException, UnknownHostException {
+                    return SSLConnectionSocketFactory.getSystemSocketFactory()
+                        .createLayeredSocket(socket, target, port, context);
+                  }
 
-              @Override
-              public Socket createSocket(HttpContext context) throws IOException {
-                return SSLConnectionSocketFactory.getSystemSocketFactory()
-                    .createSocket(context);
-              }
+                  @Override
+                  public Socket createSocket(HttpContext context) throws IOException {
+                    return SSLConnectionSocketFactory.getSystemSocketFactory()
+                        .createSocket(context);
+                  }
 
-              @Override
-              public Socket connectSocket(int connectTimeout, Socket sock, HttpHost host, InetSocketAddress remoteAddress, InetSocketAddress localAddress, HttpContext context) throws IOException {
-                assertTrue("Non-zero timeout passed to connect socket is expected", connectTimeout > 0);
-                throw new ProcessingException("OK");
-              }
-            }).build();
+                  @Override
+                  public Socket connectSocket(
+                      int connectTimeout,
+                      Socket sock,
+                      HttpHost host,
+                      InetSocketAddress remoteAddress,
+                      InetSocketAddress localAddress,
+                      HttpContext context)
+                      throws IOException {
+                    assertTrue(
+                        "Non-zero timeout passed to connect socket is expected",
+                        connectTimeout > 0);
+                    throw new ProcessingException("OK");
+                  }
+                })
+            .build();
 
-    ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(new ApacheHttpClient4Engine(httpClient, true)).
-        providerFactory(factory).
-        build();
+    ResteasyClient client =
+        new ResteasyClientBuilder()
+            .httpEngine(new ApacheHttpClient4Engine(httpClient, true))
+            .providerFactory(factory)
+            .build();
 
     SocketServerRunnable sr = new SocketServerRunnable();
     Thread serverThread = new Thread(sr);
@@ -119,7 +128,5 @@ public final class HttpClientTest {
     ResteasyWebTarget target = client.target("https://localhost:" + sr.getPort());
     SimpleRESTEasyAPI proxy = target.proxy(SimpleRESTEasyAPI.class);
     proxy.search("resteasy");
-
   }
-
 }

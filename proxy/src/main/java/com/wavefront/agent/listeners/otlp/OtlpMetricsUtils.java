@@ -108,7 +108,7 @@ public class OtlpMetricsUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       ReportPoint wfReportPoint,
-      ReportableEntityHandler<ReportPoint, String> spanHandler,
+      ReportableEntityHandler<ReportPoint, String> pointHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
@@ -117,9 +117,9 @@ public class OtlpMetricsUtils {
     String[] messageHolder = new String[1];
     if (!preprocessor.forReportPoint().filter(wfReportPoint, messageHolder)) {
       if (messageHolder[0] != null) {
-        spanHandler.reject(wfReportPoint, messageHolder[0]);
+        pointHandler.reject(wfReportPoint, messageHolder[0]);
       } else {
-        spanHandler.block(wfReportPoint);
+        pointHandler.block(wfReportPoint);
       }
       return true;
     }
@@ -144,7 +144,7 @@ public class OtlpMetricsUtils {
       points.addAll(
           transformHistogram(
               otlpMetric.getName(),
-              fromOtelHistogram(otlpMetric.getHistogram()),
+              fromOtelHistogram(otlpMetric.getName(), otlpMetric.getHistogram()),
               otlpMetric.getHistogram().getAggregationTemporality(),
               resourceAttrs));
     } else if (otlpMetric.hasExponentialHistogram()) {
@@ -246,28 +246,8 @@ public class OtlpMetricsUtils {
 
   private static List<ReportPoint> transformDeltaHistogramDataPoint(
       String name, BucketHistogramDataPoint point, List<KeyValue> resourceAttrs) {
-    List<Double> explicitBounds = point.getExplicitBounds();
-    List<Long> bucketCounts = point.getBucketCounts();
-    if (explicitBounds.size() != bucketCounts.size() - 1) {
-      throw new IllegalArgumentException(
-          "OTel: histogram "
-              + name
-              + ": Explicit bounds count "
-              + "should be one less than bucket count. ExplicitBounds: "
-              + explicitBounds.size()
-              + ", BucketCounts: "
-              + bucketCounts.size());
-    }
-
     List<ReportPoint> reportPoints = new ArrayList<>();
-
-    List<Double> bins = new ArrayList<>(bucketCounts.size());
-    List<Integer> counts = new ArrayList<>(bucketCounts.size());
-
-    for (int currentIndex = 0; currentIndex < bucketCounts.size(); currentIndex++) {
-      bins.add(getDeltaHistogramBound(explicitBounds, currentIndex));
-      counts.add(bucketCounts.get(currentIndex).intValue());
-    }
+    BinsAndCounts binsAndCounts = point.asDelta();
 
     for (HistogramGranularity granularity : HistogramGranularity.values()) {
       int duration;
@@ -288,8 +268,8 @@ public class OtlpMetricsUtils {
       wavefront.report.Histogram histogram =
           wavefront.report.Histogram.newBuilder()
               .setType(HistogramType.TDIGEST)
-              .setBins(bins)
-              .setCounts(counts)
+              .setBins(binsAndCounts.getBins())
+              .setCounts(binsAndCounts.getCounts())
               .setDuration(duration)
               .build();
 
@@ -303,61 +283,22 @@ public class OtlpMetricsUtils {
     return reportPoints;
   }
 
-  private static Double getDeltaHistogramBound(List<Double> explicitBounds, int currentIndex) {
-    if (explicitBounds.size() == 0) {
-      // As coded in the metric exporter(OpenTelemetry Collector)
-      return 0.0;
-    }
-    if (currentIndex == 0) {
-      return explicitBounds.get(0);
-    } else if (currentIndex == explicitBounds.size()) {
-      return explicitBounds.get(explicitBounds.size() - 1);
-    }
-    return (explicitBounds.get(currentIndex - 1) + explicitBounds.get(currentIndex)) / 2.0;
-  }
-
   private static List<ReportPoint> transformCumulativeHistogramDataPoint(
       String name, BucketHistogramDataPoint point, List<KeyValue> resourceAttrs) {
-    List<Long> bucketCounts = point.getBucketCounts();
-    List<Double> explicitBounds = point.getExplicitBounds();
-
-    if (explicitBounds.size() != bucketCounts.size() - 1) {
-      throw new IllegalArgumentException(
-          "OTel: histogram "
-              + name
-              + ": Explicit bounds count "
-              + "should be one less than bucket count. ExplicitBounds: "
-              + explicitBounds.size()
-              + ", BucketCounts: "
-              + bucketCounts.size());
-    }
-
-    List<ReportPoint> reportPoints = new ArrayList<>(bucketCounts.size());
-    int currentIndex = 0;
-    long cumulativeBucketCount = 0;
-    for (; currentIndex < explicitBounds.size(); currentIndex++) {
-      cumulativeBucketCount += bucketCounts.get(currentIndex);
+    List<CumulativeBucket> buckets = point.asCumulative();
+    List<ReportPoint> reportPoints = new ArrayList<>(buckets.size());
+    for (CumulativeBucket bucket : buckets) {
       // we have to create a new builder every time as the annotations are getting appended after
       // each iteration
       ReportPoint rp =
           pointWithAnnotations(
                   name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
-              .setValue(cumulativeBucketCount)
+              .setValue(bucket.getCount())
               .build();
       handleDupAnnotation(rp);
-      rp.getAnnotations().put("le", String.valueOf(explicitBounds.get(currentIndex)));
+      rp.getAnnotations().put("le", bucket.getTag());
       reportPoints.add(rp);
     }
-
-    ReportPoint rp =
-        pointWithAnnotations(
-                name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
-            .setValue(cumulativeBucketCount + bucketCounts.get(currentIndex))
-            .build();
-    handleDupAnnotation(rp);
-    rp.getAnnotations().put("le", "+Inf");
-    reportPoints.add(rp);
-
     return reportPoints;
   }
 
@@ -385,10 +326,15 @@ public class OtlpMetricsUtils {
   @NotNull
   private static ReportPoint transformNumberDataPoint(
       String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
-    return pointWithAnnotations(
-            name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
-        .setValue(point.getAsDouble())
-        .build();
+    ReportPoint.Builder rp =
+        pointWithAnnotations(
+            name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano());
+
+    if (point.hasAsInt()) {
+      return rp.setValue(point.getAsInt()).build();
+    } else {
+      return rp.setValue(point.getAsDouble()).build();
+    }
   }
 
   @NotNull
@@ -455,20 +401,32 @@ public class OtlpMetricsUtils {
     return builder;
   }
 
-  static List<BucketHistogramDataPoint> fromOtelHistogram(Histogram histogram) {
+  static List<BucketHistogramDataPoint> fromOtelHistogram(String name, Histogram histogram) {
     List<BucketHistogramDataPoint> result = new ArrayList<>(histogram.getDataPointsCount());
     for (HistogramDataPoint dataPoint : histogram.getDataPointsList()) {
-      result.add(fromOtelHistogramDataPoint(dataPoint));
+      result.add(fromOtelHistogramDataPoint(name, dataPoint));
     }
     return result;
   }
 
-  static BucketHistogramDataPoint fromOtelHistogramDataPoint(HistogramDataPoint dataPoint) {
+  static BucketHistogramDataPoint fromOtelHistogramDataPoint(
+      String name, HistogramDataPoint dataPoint) {
+    if (dataPoint.getExplicitBoundsCount() != dataPoint.getBucketCountsCount() - 1) {
+      throw new IllegalArgumentException(
+          "OTel: histogram "
+              + name
+              + ": Explicit bounds count "
+              + "should be one less than bucket count. ExplicitBounds: "
+              + dataPoint.getExplicitBoundsCount()
+              + ", BucketCounts: "
+              + dataPoint.getBucketCountsCount());
+    }
     return new BucketHistogramDataPoint(
         dataPoint.getBucketCountsList(),
         dataPoint.getExplicitBoundsList(),
         dataPoint.getAttributesList(),
-        dataPoint.getTimeUnixNano());
+        dataPoint.getTimeUnixNano(),
+        false);
   }
 
   static List<BucketHistogramDataPoint> fromOtelExponentialHistogram(
@@ -494,9 +452,9 @@ public class OtlpMetricsUtils {
     List<Long> positiveBucketCounts = dataPoint.getPositive().getBucketCountsList();
 
     // The total number of buckets is the number of negative buckets + the number of positive
-    // buckets + 1 for the zero bucket + 1 bucket for the largest positive explicit bound up to
-    // positive infinity.
-    int numBucketCounts = negativeBucketCounts.size() + 1 + positiveBucketCounts.size() + 1;
+    // buckets + 1 for the zero bucket + 1 bucket for negative infinity up to smallest negative
+    // explicit bound + 1 bucket for the largest positive explicit bound up to positive infinity.
+    int numBucketCounts = 1 + negativeBucketCounts.size() + 1 + positiveBucketCounts.size() + 1;
 
     List<Long> bucketCounts = new ArrayList<>(numBucketCounts);
 
@@ -525,7 +483,11 @@ public class OtlpMetricsUtils {
         bucketCounts,
         explicitBounds);
     return new BucketHistogramDataPoint(
-        bucketCounts, explicitBounds, dataPoint.getAttributesList(), dataPoint.getTimeUnixNano());
+        bucketCounts,
+        explicitBounds,
+        dataPoint.getAttributesList(),
+        dataPoint.getTimeUnixNano(),
+        true);
   }
 
   // appendNegativeBucketsAndExplicitBounds appends negative buckets and explicit bounds to
@@ -536,8 +498,12 @@ public class OtlpMetricsUtils {
       List<Long> negativeBucketCounts,
       List<Long> bucketCounts,
       List<Double> explicitBounds) {
+    // The count in the first bucket which includes negative infinity is always 0.
+    bucketCounts.add(0L);
+
     // The smallest negative explicit bound
     double le = -Math.pow(base, ((double) negativeOffset) + ((double) negativeBucketCounts.size()));
+    explicitBounds.add(le);
 
     // The first negativeBucketCount has a negative explicit bound with the smallest magnitude;
     // the last negativeBucketCount has a negative explicit bound with the largest magnitude.
@@ -585,29 +551,115 @@ public class OtlpMetricsUtils {
     bucketCounts.add(0L);
   }
 
-  private static class BucketHistogramDataPoint {
+  static class CumulativeBucket {
+    private final String tag;
+    private final long count;
+
+    CumulativeBucket(String tag, long count) {
+      this.tag = tag;
+      this.count = count;
+    }
+
+    String getTag() {
+      return tag;
+    }
+
+    long getCount() {
+      return count;
+    }
+  }
+
+  static class BinsAndCounts {
+    private final List<Double> bins;
+    private final List<Integer> counts;
+
+    BinsAndCounts(List<Double> bins, List<Integer> counts) {
+      this.bins = bins;
+      this.counts = counts;
+    }
+
+    List<Double> getBins() {
+      return bins;
+    }
+
+    List<Integer> getCounts() {
+      return counts;
+    }
+  }
+
+  static class BucketHistogramDataPoint {
     private final List<Long> bucketCounts;
     private final List<Double> explicitBounds;
     private final List<KeyValue> attributesList;
     private final long timeUnixNano;
+    private final boolean isExponential;
 
     private BucketHistogramDataPoint(
         List<Long> bucketCounts,
         List<Double> explicitBounds,
         List<KeyValue> attributesList,
-        long timeUnixNano) {
+        long timeUnixNano,
+        boolean isExponential) {
       this.bucketCounts = bucketCounts;
       this.explicitBounds = explicitBounds;
       this.attributesList = attributesList;
       this.timeUnixNano = timeUnixNano;
+      this.isExponential = isExponential;
     }
 
-    List<Long> getBucketCounts() {
-      return bucketCounts;
+    List<CumulativeBucket> asCumulative() {
+      if (isExponential) {
+        return asCumulative(1, bucketCounts.size());
+      }
+      return asCumulative(0, bucketCounts.size());
     }
 
-    List<Double> getExplicitBounds() {
-      return explicitBounds;
+    BinsAndCounts asDelta() {
+      if (isExponential) {
+        return asDelta(1, bucketCounts.size() - 1);
+      }
+      return asDelta(0, bucketCounts.size());
+    }
+
+    private List<CumulativeBucket> asCumulative(int startBucketIndex, int endBucketIndex) {
+      List<CumulativeBucket> result = new ArrayList<>(endBucketIndex - startBucketIndex);
+      long leCount = 0;
+      for (int i = startBucketIndex; i < endBucketIndex; i++) {
+        leCount += bucketCounts.get(i);
+        result.add(new CumulativeBucket(leTagValue(i), leCount));
+      }
+      return result;
+    }
+
+    private String leTagValue(int index) {
+      if (index == explicitBounds.size()) {
+        return "+Inf";
+      }
+      return String.valueOf(explicitBounds.get(index));
+    }
+
+    private BinsAndCounts asDelta(int startBucketIndex, int endBucketIndex) {
+      List<Double> bins = new ArrayList<>(endBucketIndex - startBucketIndex);
+      List<Integer> counts = new ArrayList<>(endBucketIndex - startBucketIndex);
+      for (int i = startBucketIndex; i < endBucketIndex; i++) {
+        bins.add(centroidValue(i));
+        counts.add(bucketCounts.get(i).intValue());
+      }
+      return new BinsAndCounts(bins, counts);
+    }
+
+    private double centroidValue(int index) {
+      int length = explicitBounds.size();
+      if (length == 0) {
+        return 0.0;
+      }
+      if (index == 0) {
+        return explicitBounds.get(0);
+      }
+      if (index == length) {
+        return explicitBounds.get(length - 1);
+      }
+      return (explicitBounds.get(index - 1) + explicitBounds.get(index)) / 2.0;
     }
 
     List<KeyValue> getAttributesList() {

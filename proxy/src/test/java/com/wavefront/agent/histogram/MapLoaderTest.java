@@ -1,26 +1,23 @@
 package com.wavefront.agent.histogram;
 
-import com.tdunning.math.stats.AgentDigest;
-import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
-import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
-
-import net.openhft.chronicle.hash.ChronicleHashRecoveryFailedException;
-import net.openhft.chronicle.map.ChronicleMap;
-import net.openhft.chronicle.map.VanillaChronicleMap;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.concurrent.ConcurrentMap;
-
 import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.TestUtils.makeKey;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import com.tdunning.math.stats.AgentDigest;
+import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
+import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.concurrent.ConcurrentMap;
+import net.openhft.chronicle.hash.ChronicleHashRecoveryFailedException;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.map.VanillaChronicleMap;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Unit tests around {@link MapLoader}.
@@ -28,12 +25,13 @@ import static org.junit.Assert.fail;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public class MapLoaderTest {
-  private final static short COMPRESSION = 100;
+  private static final short COMPRESSION = 100;
 
   private HistogramKey key = makeKey("mapLoaderTest");
   private AgentDigest digest = new AgentDigest(COMPRESSION, 100L);
   private File file;
-  private MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> loader;
+  private MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller>
+      loader;
 
   @Before
   public void setup() {
@@ -44,15 +42,16 @@ public class MapLoaderTest {
       e.printStackTrace();
     }
 
-    loader = new MapLoader<>(
-        HistogramKey.class,
-        AgentDigest.class,
-        100,
-        200,
-        1000,
-        HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get(),
-        true);
+    loader =
+        new MapLoader<>(
+            HistogramKey.class,
+            AgentDigest.class,
+            100,
+            200,
+            1000,
+            HistogramKeyMarshaller.get(),
+            AgentDigestMarshaller.get(),
+            true);
   }
 
   @After
@@ -73,8 +72,16 @@ public class MapLoaderTest {
     ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
     map.put(key, digest);
     map.close();
-    loader = new MapLoader<>(HistogramKey.class, AgentDigest.class, 50, 100, 500,
-        HistogramKeyMarshaller.get(), AgentDigestMarshaller.get(), true);
+    loader =
+        new MapLoader<>(
+            HistogramKey.class,
+            AgentDigest.class,
+            50,
+            100,
+            500,
+            HistogramKeyMarshaller.get(),
+            AgentDigestMarshaller.get(),
+            true);
     map = loader.get(file);
     assertThat(map).containsKey(key);
   }
@@ -84,8 +91,16 @@ public class MapLoaderTest {
     ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
     map.put(key, digest);
     map.close();
-    loader = new MapLoader<>(HistogramKey.class, AgentDigest.class, 100, 200, 1000,
-        HistogramKeyMarshaller.get(), AgentDigestMarshaller.get(), true);
+    loader =
+        new MapLoader<>(
+            HistogramKey.class,
+            AgentDigest.class,
+            100,
+            200,
+            1000,
+            HistogramKeyMarshaller.get(),
+            AgentDigestMarshaller.get(),
+            true);
     map = loader.get(file);
     assertThat(map).containsKey(key);
   }
@@ -94,24 +109,25 @@ public class MapLoaderTest {
   public void testFileDoesNotExist() throws Exception {
     file.delete();
     ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    assertThat(((VanillaChronicleMap)map).file()).isNotNull();
+    assertThat(((VanillaChronicleMap) map).file()).isNotNull();
     testPutRemove(map);
   }
 
   @Test
   public void testDoNotPersist() throws Exception {
-    loader = new MapLoader<>(
-        HistogramKey.class,
-        AgentDigest.class,
-        100,
-        200,
-        1000,
-        HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get(),
-        false);
+    loader =
+        new MapLoader<>(
+            HistogramKey.class,
+            AgentDigest.class,
+            100,
+            200,
+            1000,
+            HistogramKeyMarshaller.get(),
+            AgentDigestMarshaller.get(),
+            false);
 
     ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    assertThat(((VanillaChronicleMap)map).file()).isNull();
+    assertThat(((VanillaChronicleMap) map).file()).isNull();
     testPutRemove(map);
   }
 

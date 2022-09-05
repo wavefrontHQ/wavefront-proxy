@@ -7,8 +7,7 @@ package com.wavefront.agent.auth;
  */
 class DummyAuthenticator implements TokenAuthenticator {
 
-  DummyAuthenticator() {
-  }
+  DummyAuthenticator() {}
 
   @Override
   public boolean authorize(String token) {

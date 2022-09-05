@@ -1,10 +1,10 @@
 package com.wavefront.agent.auth;
 
-import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Test;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Test;
 
 public class StaticTokenAuthenticatorTest {
 

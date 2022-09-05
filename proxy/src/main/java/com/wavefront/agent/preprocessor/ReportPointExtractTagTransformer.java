@@ -4,6 +4,7 @@ import static com.wavefront.predicates.Util.expandPlaceholders;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -80,11 +81,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
       case "pointLine":
         applyMetricName(reportPoint);
         applySourceName(reportPoint);
-        if (reportPoint.getAnnotations() != null) {
-          for (String tagKey : reportPoint.getAnnotations().keySet()) {
-            applyPointTagKey(reportPoint, tagKey);
-          }
-        }
+        applyPointLineTag(reportPoint);
         break;
       default:
         applyPointTagKey(reportPoint, source);
@@ -106,6 +103,24 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
           compiledSearchPattern
               .matcher(reportPoint.getHost())
               .replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+    }
+  }
+
+  public void applyPointLineTag(ReportPoint reportPoint) {
+    if (reportPoint.getAnnotations() != null) {
+      for (Map.Entry<String, String> pointTag : reportPoint.getAnnotations().entrySet()) {
+        if ((extractTag(reportPoint, pointTag.getKey())
+                || extractTag(reportPoint, pointTag.getValue()))
+            && patternReplaceSource != null) {
+          reportPoint
+              .getAnnotations()
+              .put(
+                  pointTag.getKey(),
+                  compiledSearchPattern
+                      .matcher(reportPoint.getAnnotations().get(pointTag.getKey()))
+                      .replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+        }
+      }
     }
   }
 

@@ -1,35 +1,34 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Preconditions;
+import static com.wavefront.common.Utils.lazySupplier;
 
+import com.google.common.base.Preconditions;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryNotificationInfo;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryType;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-
 import javax.annotation.Nonnull;
 import javax.management.NotificationEmitter;
 
-import static com.wavefront.common.Utils.lazySupplier;
-
 /**
- * Logic around OoM protection logic that drains memory buffers on
- * MEMORY_THRESHOLD_EXCEEDED notifications, extracted from AbstractAgent.
+ * Logic around OoM protection logic that drains memory buffers on MEMORY_THRESHOLD_EXCEEDED
+ * notifications, extracted from AbstractAgent.
  *
  * @author vasily@wavefront.com
  */
 public class ProxyMemoryGuard {
   private static final Logger logger = Logger.getLogger(ProxyMemoryGuard.class.getCanonicalName());
 
-  private final Supplier<Counter> drainBuffersCount = lazySupplier(() ->
-      Metrics.newCounter(new TaggedMetricName("buffer", "flush-count",
-          "reason", "heapUsageThreshold")));
+  private final Supplier<Counter> drainBuffersCount =
+      lazySupplier(
+          () ->
+              Metrics.newCounter(
+                  new TaggedMetricName("buffer", "flush-count", "reason", "heapUsageThreshold")));
 
   /**
    * Set up the memory guard.
@@ -45,15 +44,17 @@ public class ProxyMemoryGuard {
     tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * threshold));
 
     NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
-    emitter.addNotificationListener((notification, obj) -> {
-      if (notification.getType().equals(MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
-        logger.warning("Heap usage threshold exceeded - draining buffers to disk!");
-        drainBuffersCount.get().inc();
-        flushTask.run();
-        logger.info("Draining buffers to disk: finished");
-      }
-    }, null, null);
-
+    emitter.addNotificationListener(
+        (notification, obj) -> {
+          if (notification.getType().equals(MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
+            logger.warning("Heap usage threshold exceeded - draining buffers to disk!");
+            drainBuffersCount.get().inc();
+            flushTask.run();
+            logger.info("Draining buffers to disk: finished");
+          }
+        },
+        null,
+        null);
   }
 
   private MemoryPoolMXBean getTenuredGenPool() {

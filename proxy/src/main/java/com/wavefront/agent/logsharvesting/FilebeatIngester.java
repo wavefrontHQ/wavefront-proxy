@@ -4,19 +4,14 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-
-import org.logstash.beats.IMessageListener;
-import org.logstash.beats.Message;
-
+import io.netty.channel.ChannelHandlerContext;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.logstash.beats.IMessageListener;
+import org.logstash.beats.Message;
 
-import io.netty.channel.ChannelHandlerContext;
-
-/**
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** @author Mori Bellamy (mori@wavefront.com) */
 public class FilebeatIngester implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
   private final LogsIngester logsIngester;
@@ -40,7 +35,8 @@ public class FilebeatIngester implements IMessageListener {
     try {
       filebeatMessage = new FilebeatMessage(message);
     } catch (MalformedMessageException exn) {
-      logger.severe("Malformed message received from filebeat, dropping (" + exn.getMessage() + ")");
+      logger.severe(
+          "Malformed message received from filebeat, dropping (" + exn.getMessage() + ")");
       malformed.inc();
       return;
     }
@@ -50,7 +46,6 @@ public class FilebeatIngester implements IMessageListener {
     }
 
     logsIngester.ingestLog(filebeatMessage);
-
   }
 
   @Override

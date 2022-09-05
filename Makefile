@@ -33,6 +33,12 @@ docker: .info .cp-docker
 	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/
 
 #####
+# Build single docker image
+#####
+docker-RHEL: .info .cp-docker
+	podman build -t $(USER)/$(REPO):$(DOCKER_TAG) -f ./docker/Dockerfile-rhel docker/
+
+#####
 # Build multi arch (amd64 & arm64) docker images
 #####
 docker-multi-arch: .info .cp-docker

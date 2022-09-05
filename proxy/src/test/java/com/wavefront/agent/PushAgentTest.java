@@ -90,10 +90,7 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -1059,6 +1056,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1076,6 +1074,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1311,6 +1310,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1328,6 +1328,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1412,6 +1413,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1429,6 +1431,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1626,6 +1629,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1643,6 +1647,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -2222,7 +2227,8 @@ public class PushAgentTest {
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
             .setSource("defaultLocalHost")
             .build();
-    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+    SpanLogs expectedLogs =
+        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0, "_sampledByPolicy=NONE").build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());

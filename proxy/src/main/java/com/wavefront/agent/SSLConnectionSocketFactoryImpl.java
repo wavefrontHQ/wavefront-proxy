@@ -1,13 +1,12 @@
 package com.wavefront.agent;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import org.apache.http.HttpHost;
 import org.apache.http.conn.socket.LayeredConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.protocol.HttpContext;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
 /**
  * Delegated SSLConnectionSocketFactory that sets SoTimeout explicitly (for Apache HttpClient).
@@ -31,15 +30,23 @@ public class SSLConnectionSocketFactoryImpl implements LayeredConnectionSocketFa
   }
 
   @Override
-  public Socket connectSocket(int connectTimeout, Socket sock, HttpHost host, InetSocketAddress remoteAddress,
-                              InetSocketAddress localAddress, HttpContext context) throws IOException {
-    Socket socket1 = delegate.connectSocket(soTimeout, sock, host, remoteAddress, localAddress, context);
+  public Socket connectSocket(
+      int connectTimeout,
+      Socket sock,
+      HttpHost host,
+      InetSocketAddress remoteAddress,
+      InetSocketAddress localAddress,
+      HttpContext context)
+      throws IOException {
+    Socket socket1 =
+        delegate.connectSocket(soTimeout, sock, host, remoteAddress, localAddress, context);
     socket1.setSoTimeout(soTimeout);
     return socket1;
   }
 
   @Override
-  public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context) throws IOException {
+  public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context)
+      throws IOException {
     Socket socket1 = delegate.createLayeredSocket(socket, target, port, context);
     socket1.setSoTimeout(soTimeout);
     return socket1;

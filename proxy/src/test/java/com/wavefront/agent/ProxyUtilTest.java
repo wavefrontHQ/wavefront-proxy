@@ -1,17 +1,14 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import org.junit.Test;
-
-import java.io.File;
-import java.util.UUID;
-
 import static org.junit.Assert.assertEquals;
 
-/**
- * @author vasily@wavefront.com
- */
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
+import java.io.File;
+import java.util.UUID;
+import org.junit.Test;
+
+/** @author vasily@wavefront.com */
 public class ProxyUtilTest {
 
   @Test

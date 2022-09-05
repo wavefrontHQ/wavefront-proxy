@@ -1,12 +1,5 @@
 package com.wavefront.agent.handlers;
 
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.logging.Logger;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
@@ -16,10 +9,16 @@ import com.wavefront.common.EvictingRingBuffer;
 import com.wavefront.common.Managed;
 import com.wavefront.common.SynchronizedEvictingRingBuffer;
 import com.wavefront.data.ReportableEntityType;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.logging.Logger;
 
 /**
- * Experimental: use automatic traffic shaping (set rate limiter based on recently received
- * per second rates, heavily biased towards last 5 minutes)
+ * Experimental: use automatic traffic shaping (set rate limiter based on recently received per
+ * second rates, heavily biased towards last 5 minutes)
  *
  * @author vasily@wavefront.com.
  */
@@ -37,12 +36,15 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   private final int windowSeconds;
 
   /**
-   * @param entityPropsFactoryMap  map of factory for entity properties factory (to control rate limiters)
-   * @param windowSeconds          size of the moving time window to average point rate
-   * @param headroom               headroom multiplier
+   * @param entityPropsFactoryMap map of factory for entity properties factory (to control rate
+   *     limiters)
+   * @param windowSeconds size of the moving time window to average point rate
+   * @param headroom headroom multiplier
    */
-  public TrafficShapingRateLimitAdjuster(Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
-                                         int windowSeconds, double headroom) {
+  public TrafficShapingRateLimitAdjuster(
+      Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
+      int windowSeconds,
+      double headroom) {
     this.windowSeconds = windowSeconds;
     Preconditions.checkArgument(headroom >= 1.0, "headroom can't be less than 1!");
     Preconditions.checkArgument(windowSeconds > 0, "windowSeconds needs to be > 0!");
@@ -57,8 +59,9 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
       for (EntityPropertiesFactory propsFactory : entityPropsFactoryMap.values()) {
         EntityProperties props = propsFactory.get(type);
         long rate = props.getTotalReceivedRate();
-        EvictingRingBuffer<Long> stats = perEntityStats.computeIfAbsent(type, x ->
-            new SynchronizedEvictingRingBuffer<>(windowSeconds));
+        EvictingRingBuffer<Long> stats =
+            perEntityStats.computeIfAbsent(
+                type, x -> new SynchronizedEvictingRingBuffer<>(windowSeconds));
         if (rate > 0 || stats.size() > 0) {
           stats.add(rate);
           if (stats.size() >= 60) { // need at least 1 minute worth of stats to enable the limiter
@@ -81,11 +84,14 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   }
 
   @VisibleForTesting
-  void adjustRateLimiter(ReportableEntityType type, EvictingRingBuffer<Long> sample,
-                         RecyclableRateLimiter rateLimiter) {
+  void adjustRateLimiter(
+      ReportableEntityType type,
+      EvictingRingBuffer<Long> sample,
+      RecyclableRateLimiter rateLimiter) {
     List<Long> samples = sample.toList();
-    double suggestedLimit = MIN_RATE_LIMIT + (samples.stream().mapToLong(i -> i).sum() /
-        (double) samples.size()) * headroom;
+    double suggestedLimit =
+        MIN_RATE_LIMIT
+            + (samples.stream().mapToLong(i -> i).sum() / (double) samples.size()) * headroom;
     double currentRate = rateLimiter.getRate();
     if (Math.abs(currentRate - suggestedLimit) > currentRate * TOLERANCE_PERCENT / 100) {
       log.fine("Setting rate limit for " + type.toString() + " to " + suggestedLimit);

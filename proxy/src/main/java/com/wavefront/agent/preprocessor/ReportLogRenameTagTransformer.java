@@ -2,15 +2,12 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
@@ -23,17 +20,16 @@ public class ReportLogRenameTagTransformer implements Function<ReportLog, Report
 
   private final String tag;
   private final String newTag;
-  @Nullable
-  private final Pattern compiledPattern;
+  @Nullable private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Predicate<ReportLog> v2Predicate;
 
-
-  public ReportLogRenameTagTransformer(final String tag,
-                                         final String newTag,
-                                         @Nullable final String patternMatch,
-                                         @Nullable final Predicate<ReportLog> v2Predicate,
-                                         final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportLogRenameTagTransformer(
+      final String tag,
+      final String newTag,
+      @Nullable final String patternMatch,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.newTag = Preconditions.checkNotNull(newTag, "[newtag] can't be null");
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
@@ -52,9 +48,13 @@ public class ReportLogRenameTagTransformer implements Function<ReportLog, Report
     try {
       if (!v2Predicate.test(reportLog)) return reportLog;
 
-      Stream<Annotation> stream = reportLog.getAnnotations().stream().
-          filter(a -> a.getKey().equals(tag) && (compiledPattern == null ||
-              compiledPattern.matcher(a.getValue()).matches()));
+      Stream<Annotation> stream =
+          reportLog.getAnnotations().stream()
+              .filter(
+                  a ->
+                      a.getKey().equals(tag)
+                          && (compiledPattern == null
+                              || compiledPattern.matcher(a.getValue()).matches()));
 
       List<Annotation> annotations = stream.collect(Collectors.toList());
       annotations.forEach(a -> a.setKey(newTag));

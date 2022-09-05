@@ -1,7 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
-import javax.annotation.Nullable;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Utility class for methods used by preprocessors.
@@ -13,8 +13,8 @@ public abstract class PreprocessorUtil {
   /**
    * Enforce string max length limit - either truncate or truncate with "..." at the end.
    *
-   * @param input         Input string to truncate.
-   * @param maxLength     Truncate string at this length.
+   * @param input Input string to truncate.
+   * @param maxLength Truncate string at this length.
    * @param actionSubtype TRUNCATE or TRUNCATE_WITH_ELLIPSIS.
    * @return truncated string
    */
