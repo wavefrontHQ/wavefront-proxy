@@ -82,6 +82,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Counter> discardedSpanLogsBySampler;
   private final Supplier<Counter> receivedLogsTotal;
   private final Supplier<Counter> discardedLogs;
+
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -342,6 +343,11 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   @Override
   protected void processLine(
       final ChannelHandlerContext ctx, @Nonnull String message, @Nullable DataFormat format) {
+
+    if (message.contains("\04")) {
+      wavefrontHandler.reject(message, "'EOT' character is not allowed!");
+    }
+
     DataFormat dataFormat = format == null ? DataFormat.autodetect(message) : format;
     switch (dataFormat) {
       case SOURCE_TAG:

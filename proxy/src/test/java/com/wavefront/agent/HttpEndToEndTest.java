@@ -215,10 +215,10 @@ public class HttpEndToEndTest {
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.TOO_MANY_REQUESTS, "");
-              //            case 2: // TODO: review
-              //              assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
-              //              successfulSteps.incrementAndGet();
-              //              return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
+              // case 2: // TODO: review
+              // assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
+              // successfulSteps.incrementAndGet();
+              // return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
             case 10:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
@@ -291,7 +291,7 @@ public class HttpEndToEndTest {
           assertThat(content, containsString(expected));
           switch (testCounter.get()) {
               // TODO: review/implement
-              //              return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
+              // return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
             default:
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "");
@@ -519,7 +519,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
@@ -583,7 +583,7 @@ public class HttpEndToEndTest {
             + "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":"
             + timestamp2
             + ","
-            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+            + "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"_sampledByPolicy=NONE\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(
@@ -609,11 +609,15 @@ public class HttpEndToEndTest {
         "[{\"source\": \"myHost\",\n \"timestamp\": \""
             + timestamp
             + "\", "
-            + "\"application\":\"myApp\",\"service\":\"myService\"}]";
+            + "\"application\":\"myApp\",\"service\":\"myService\","
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "}]";
     String expectedLog =
         "[{\"timestamp\":"
             + timestamp
-            + ", \"text\":\"\", \"source\":\"myHost\", \"application\":\"myApp\", \"service\":\"myService\"}]";
+            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
         req -> {

@@ -1271,6 +1271,22 @@ public class ProxyConfig extends Configuration {
               + "`service`. Default: none")
   String customServiceTags = "";
 
+  @Parameter(
+      names = {"--customExceptionTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the exception in Wavefront in the absence of a "
+              + "tag named `exception`. Default: exception, error_name")
+  String customExceptionTags = "";
+
+  @Parameter(
+      names = {"--customLevelTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the log level in Wavefront in the absence of a "
+              + "tag named `level`. Default: level, log_level")
+  String customLevelTags = "";
+
   @Parameter() List<String> unparsed_params;
 
   TimeProvider timeProvider = System::currentTimeMillis;
@@ -1943,8 +1959,41 @@ public class ProxyConfig extends Configuration {
     return new ArrayList<>(tagSet);
   }
 
+  public List<String> getCustomExceptionTags() {
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customExceptionTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customExceptionTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomLevelTags() {
+    // create List of level tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customLevelTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customLevelTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
   public Map<String, String> getAgentMetricsPointTags() {
-    //noinspection UnstableApiUsage
+    // noinspection UnstableApiUsage
     return agentMetricsPointTags == null
         ? Collections.emptyMap()
         : Splitter.on(",")
@@ -2142,7 +2191,8 @@ public class ProxyConfig extends Configuration {
     }
 
     ReportableConfig config;
-    // If they've specified a push configuration file, override the command line values
+    // If they've specified a push configuration file, override the command line
+    // values
     try {
       if (pushConfigFile != null) {
         config = new ReportableConfig(pushConfigFile);
@@ -2388,6 +2438,8 @@ public class ProxyConfig extends Configuration {
       splitPushWhenRateLimited =
           config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
       customSourceTags = config.getString("customSourceTags", customSourceTags);
+      customLevelTags = config.getString("customLevelTags", customLevelTags);
+      customExceptionTags = config.getString("customExceptionTags", customExceptionTags);
       agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
       ephemeral = config.getBoolean("ephemeral", ephemeral);
       disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
@@ -2588,12 +2640,16 @@ public class ProxyConfig extends Configuration {
               pushFlushMaxLogs);
 
       /*
-       default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of
-       available heap memory. 25% is chosen heuristically as a safe number for scenarios with
-       limited system resources (4 CPU cores or less, heap size less than 4GB) to prevent OOM.
-       this is a conservative estimate, budgeting 200 characters (400 bytes) per per point line.
-       Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
-      */
+       * default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no
+       * more than 25% of
+       * available heap memory. 25% is chosen heuristically as a safe number for
+       * scenarios with
+       * limited system resources (4 CPU cores or less, heap size less than 4GB) to
+       * prevent OOM.
+       * this is a conservative estimate, budgeting 200 characters (400 bytes) per per
+       * point line.
+       * Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
+       */
       int listeningPorts =
           Iterables.size(
               Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));

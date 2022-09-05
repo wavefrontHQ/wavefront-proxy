@@ -90,6 +90,12 @@ public class OtlpTestHelpers {
   }
 
   public static SpanLogs.Builder wfSpanLogsGenerator(Span span, int droppedAttrsCount) {
+    return wfSpanLogsGenerator(span, droppedAttrsCount, null);
+  }
+
+  public static SpanLogs.Builder wfSpanLogsGenerator(
+      Span span, int droppedAttrsCount, String spanLine) {
+
     long logTimestamp =
         TimeUnit.MILLISECONDS.toMicros(span.getStartMillis() + (span.getDuration() / 2));
     Map<String, String> logFields =
@@ -110,7 +116,8 @@ public class OtlpTestHelpers {
         .setLogs(Collections.singletonList(spanLog))
         .setSpanId(span.getSpanId())
         .setTraceId(span.getTraceId())
-        .setCustomer(span.getCustomer());
+        .setCustomer(span.getCustomer())
+        .setSpan(spanLine == null ? null : spanLine);
   }
 
   public static io.opentelemetry.proto.trace.v1.Span.Builder otlpSpanGenerator() {

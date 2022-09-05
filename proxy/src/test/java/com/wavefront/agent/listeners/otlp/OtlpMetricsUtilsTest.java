@@ -216,12 +216,12 @@ public class OtlpMetricsUtilsTest {
   }
 
   @Test
-  public void acceptsSumWithMultipleDataPoints() {
+  public void acceptsSumWithIntAndDoubleDataPoints() {
     List<NumberDataPoint> points =
         ImmutableList.of(
             NumberDataPoint.newBuilder()
                 .setTimeUnixNano(TimeUnit.SECONDS.toNanos(1))
-                .setAsDouble(1.0)
+                .setAsInt(1)
                 .build(),
             NumberDataPoint.newBuilder()
                 .setTimeUnixNano(TimeUnit.SECONDS.toNanos(2))
@@ -233,7 +233,7 @@ public class OtlpMetricsUtilsTest {
         ImmutableList.of(
             OtlpTestHelpers.wfReportPointGenerator()
                 .setTimestamp(TimeUnit.SECONDS.toMillis(1))
-                .setValue(1.0)
+                .setValue(1)
                 .build(),
             OtlpTestHelpers.wfReportPointGenerator()
                 .setTimestamp(TimeUnit.SECONDS.toMillis(2))

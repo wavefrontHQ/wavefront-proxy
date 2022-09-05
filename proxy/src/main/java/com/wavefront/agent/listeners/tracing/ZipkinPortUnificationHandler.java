@@ -412,6 +412,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                     .build())
                         .collect(Collectors.toList()))
                 .build();
+        SpanUtils.addSpanLine(wavefrontSpan, spanLogs);
         spanLogsHandler.report(spanLogs);
       }
     }

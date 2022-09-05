@@ -11,6 +11,10 @@ import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
+import com.wavefront.common.Utils;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -19,6 +23,7 @@ import io.netty.util.CharsetUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +38,8 @@ import javax.annotation.Nullable;
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
 
   public static final ObjectMapper JSON_PARSER = new ObjectMapper();
+  private final Supplier<Histogram> receivedLogsBatches;
+
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
@@ -43,6 +50,9 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
       @Nullable final HealthCheckManager healthCheckManager,
       @Nullable final int port) {
     super(tokenAuthenticator, healthCheckManager, port);
+    this.receivedLogsBatches =
+        Utils.lazySupplier(
+            () -> Metrics.newHistogram(new MetricName("logs." + port, "", "received.batches")));
   }
 
   /** Handles an incoming HTTP message. Accepts HTTP POST on all paths */
@@ -52,7 +62,9 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     HttpResponseStatus status;
     try {
       DataFormat format = getFormat(request);
-      // Log batches may contain new lines as part of the message payload so we special case
+      processBatchMetrics(ctx, request, format);
+      // Log batches may contain new lines as part of the message payload so we
+      // special case
       // handling breaking up the batches
       Iterable<String> lines =
           (format == LOGS_JSON_ARR)
@@ -115,4 +127,11 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
    */
   protected abstract void processLine(
       final ChannelHandlerContext ctx, @Nonnull final String message, @Nullable DataFormat format);
+
+  protected void processBatchMetrics(
+      final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
+    if (format == LOGS_JSON_ARR) {
+      receivedLogsBatches.get().update(request.content().toString(CharsetUtil.UTF_8).length());
+    }
+  }
 }

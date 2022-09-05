@@ -1,7 +1,16 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.sdk.common.Constants.*;
-import static org.easymock.EasyMock.*;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.assertEquals;
 
 import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
@@ -30,17 +39,6 @@ public class OtlpGrpcTraceHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
-  private final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
-      new StreamObserver<ExportTraceServiceResponse>() {
-        @Override
-        public void onNext(ExportTraceServiceResponse postSpansResponse) {}
-
-        @Override
-        public void onError(Throwable throwable) {}
-
-        @Override
-        public void onCompleted() {}
-      };
 
   @Test
   public void testMinimalSpanAndEventAndHeartbeat() throws Exception {
@@ -91,7 +89,7 @@ public class OtlpGrpcTraceHandlerTest {
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true"))).build();
     wavefront.report.SpanLogs expectedLogs =
-        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0, "_sampledByPolicy=NONE").build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());
@@ -105,4 +103,16 @@ public class OtlpGrpcTraceHandlerTest {
     assertEquals("none", actualHeartbeatTags.get(SHARD_TAG_KEY));
     assertEquals("none", actualHeartbeatTags.get("span.kind"));
   }
+
+  public static final StreamObserver<ExportTraceServiceResponse> emptyStreamObserver =
+      new StreamObserver<ExportTraceServiceResponse>() {
+        @Override
+        public void onNext(ExportTraceServiceResponse postSpansResponse) {}
+
+        @Override
+        public void onError(Throwable throwable) {}
+
+        @Override
+        public void onCompleted() {}
+      };
 }

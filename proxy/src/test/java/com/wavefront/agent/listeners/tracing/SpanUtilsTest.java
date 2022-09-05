@@ -1,9 +1,12 @@
 package com.wavefront.agent.listeners.tracing;
 
-import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
-import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
+import static com.wavefront.agent.listeners.tracing.SpanUtils.*;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -14,6 +17,7 @@ import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.SpanLogsDecoder;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.function.Supplier;
 import org.junit.Before;
@@ -319,6 +323,7 @@ public class SpanUtilsTest {
             .setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0")
             .setSpanId("4217104a-690d-4927-baff-d9aa779414c2")
             .setCustomer("dummy")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -345,5 +350,54 @@ public class SpanUtilsTest {
         null,
         span -> true);
     verify(mockTraceSpanLogsHandler);
+  }
+
+  @Test
+  public void testAddSpanLineWithPolicy() {
+    Span span =
+        Span.newBuilder()
+            .setCustomer("dummy")
+            .setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0")
+            .setSpanId("4217104a-690d-4927-baff-d9aa779414c2")
+            .setName("spanName")
+            .setStartMillis(0L)
+            .setDuration(0L)
+            .setAnnotations(Collections.singletonList(new Annotation("_sampledByPolicy", "test")))
+            .build();
+    SpanLogs spanLogs =
+        SpanLogs.newBuilder()
+            .setCustomer("dummy")
+            .setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0")
+            .setSpanId("4217104a-690d-4927-baff-d9aa779414c2")
+            .setLogs(Collections.singletonList(SpanLog.newBuilder().setTimestamp(0L).build()))
+            .build();
+
+    addSpanLine(span, spanLogs);
+
+    assertEquals("_sampledByPolicy=test", spanLogs.getSpan());
+  }
+
+  @Test
+  public void testAddSpanLineWithoutPolicy() {
+    Span span =
+        Span.newBuilder()
+            .setCustomer("dummy")
+            .setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0")
+            .setSpanId("4217104a-690d-4927-baff-d9aa779414c2")
+            .setName("spanName")
+            .setStartMillis(0L)
+            .setDuration(0L)
+            .build();
+    SpanLogs spanLogs =
+        SpanLogs.newBuilder()
+            .setCustomer("dummy")
+            .setTraceId("d5355bf7-fc8d-48d1-b761-75b170f396e0")
+            .setSpanId("4217104a-690d-4927-baff-d9aa779414c2")
+            .setLogs(Collections.singletonList(SpanLog.newBuilder().setTimestamp(0L).build()))
+            .build();
+
+    addSpanLine(span, spanLogs);
+
+    assertEquals("_sampledByPolicy=NONE", spanLogs.getSpan());
   }
 }

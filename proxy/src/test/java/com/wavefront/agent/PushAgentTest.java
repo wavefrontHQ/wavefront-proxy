@@ -57,12 +57,18 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
-import wavefront.report.*;
+import org.junit.*;
+import wavefront.report.Annotation;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
+import wavefront.report.ReportEvent;
+import wavefront.report.ReportPoint;
+import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
+import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -76,7 +82,7 @@ public class PushAgentTest {
   private final long alignedStartTimeEpochSeconds = System.currentTimeMillis() / 1000 / 60 * 60;
   private PushAgent proxy;
   private int port;
-  //  private int tracePort;
+  // private int tracePort;
   private int customTracePort;
   private int deltaPort;
   private ReportableEntityHandler<ReportPoint> mockPointHandler =
@@ -644,7 +650,8 @@ public class PushAgentTest {
     verify(mockPointHandler);
   }
 
-  // test that histograms received on Wavefront port get routed to the correct handler
+  // test that histograms received on Wavefront port get routed to the correct
+  // handler
   @Test
   public void testHistogramDataOnWavefrontUnifiedPortHandlerPlaintextUncompressed()
       throws Exception {
@@ -699,7 +706,8 @@ public class PushAgentTest {
     verifyWithTimeout(500, mockHistogramHandler);
   }
 
-  // test Wavefront port handler with mixed payload: metrics, histograms, source tags
+  // test Wavefront port handler with mixed payload: metrics, histograms, source
+  // tags
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressedMixedDataPayload()
       throws Exception {
@@ -1002,6 +1010,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1019,6 +1028,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1249,6 +1259,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1266,6 +1277,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1350,6 +1362,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1367,6 +1380,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1563,6 +1577,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1580,6 +1595,7 @@ public class PushAgentTest {
             .setCustomer("dummy")
             .setTraceId(traceId)
             .setSpanId("testspanid")
+            .setSpan("_sampledByPolicy=NONE")
             .setLogs(
                 ImmutableList.of(
                     SpanLog.newBuilder()
@@ -1697,7 +1713,8 @@ public class PushAgentTest {
     gzippedHttpPost("http://localhost:" + ddPort + "/intake", getResource("ddTestSystem.json"));
     verify(mockPointHandler);
 
-    // test 3: post to /intake with system metrics enabled and http relay enabled, but remote
+    // test 3: post to /intake with system metrics enabled and http relay enabled,
+    // but remote
     // unavailable
     reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
     expect(mockStatusLine.getStatusCode()).andReturn(404); // remote returns a error http code
@@ -1744,7 +1761,8 @@ public class PushAgentTest {
         "http://localhost:" + ddPort + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
     verify(mockPointHandler);
 
-    // test 6: post to /api/v1/series including a /api/v1/intake call to ensure system host-tags are
+    // test 6: post to /api/v1/series including a /api/v1/intake call to ensure
+    // system host-tags are
     // propogated
     reset(mockPointHandler);
     mockPointHandler.report(
@@ -1826,7 +1844,7 @@ public class PushAgentTest {
 
   // @Test
   // public void testDeltaCounterHandlerMixedData() throws Exception {
-  //  moved to HttpEndToEndTest.testEndToEndDelta
+  // moved to HttpEndToEndTest.testEndToEndDelta
   // }
 
   @Test
@@ -1980,7 +1998,8 @@ public class PushAgentTest {
     // malformed json should return 400
     assertEquals(400, gzippedHttpPost("http://localhost:" + port + "/api/put", "{]"));
     assertEquals(204, gzippedHttpPost("http://localhost:" + port + "/api/put", payloadStr));
-    // 1 good, 1 invalid point - should return 400, but good point should still go through
+    // 1 good, 1 invalid point - should return 400, but good point should still go
+    // through
     assertEquals(400, gzippedHttpPost("http://localhost:" + port + "/api/put", payloadStr2));
 
     verify(mockPointHandler);
@@ -2122,7 +2141,8 @@ public class PushAgentTest {
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
             .setSource("defaultLocalHost")
             .build();
-    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+    SpanLogs expectedLogs =
+        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0, "_sampledByPolicy=NONE").build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());
