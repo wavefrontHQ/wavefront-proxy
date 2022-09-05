@@ -5,6 +5,12 @@ file:
     mode: "0644"
     owner: root
 command:
+  proxy-cheking:
+    exec: /tests/checking.sh
+    exit-status: 0
+    stdout:
+      - "1000"
+    stderr: []
   user-id:
     exec: id -u
     exit-status: 0

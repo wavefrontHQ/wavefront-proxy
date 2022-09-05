@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wf-proxy-edge-id
+data:
+  id: |-
+    {{ .Values.uuid.edge }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wf-proxy-chained-id
+data:
+  id: |-
+    {{ .Values.uuid.chain }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wf-proxy-checking-test
+data:
+  checking.sh: |
+    {{- (.Files.Get "scripts/proxy-checking-test.sh") | indent 4 -}}
