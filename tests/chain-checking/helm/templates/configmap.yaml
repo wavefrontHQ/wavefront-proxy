@@ -20,4 +20,4 @@ metadata:
   name: wf-proxy-checking-test
 data:
   checking.sh: |
-    {{- (.Files.Get "scripts/proxy-checking-test.sh") | indent 4 -}}
+    {{- include "proxy-checking-test" . | indent 4 -}}

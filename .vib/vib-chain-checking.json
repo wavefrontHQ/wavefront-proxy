@@ -28,14 +28,6 @@
       },
       "actions": [
         {
-          "action_id": "cypress",
-          "params": {
-            "resources": {
-              "path": "/.vib/chain-checking"
-            }
-          }
-        },
-        {
           "action_id": "trivy",
           "params": {
             "threshold": "CRITICAL",

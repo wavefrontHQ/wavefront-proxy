@@ -9,7 +9,7 @@ command:
     exec: /tests/checking.sh
     exit-status: 0
     stdout:
-      - "1000"
+      - '"status":"ACTIVE"'
     stderr: []
   user-id:
     exec: id -u
