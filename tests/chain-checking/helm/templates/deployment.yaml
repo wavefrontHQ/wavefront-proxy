@@ -32,10 +32,16 @@ spec:
           volumeMounts:
             - mountPath: /config
               name: id
+            - mountPath: /tests
+              name: tests
       volumes:
         - name: id
           configMap:
             name: wf-proxy-edge-id
+        - name: tests
+          configMap:
+            name: wf-proxy-checking-test
+            defaultMode: 0777
 
 ---
 apiVersion: apps/v1
