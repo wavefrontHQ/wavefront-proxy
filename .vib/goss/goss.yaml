@@ -7,7 +7,7 @@ file:
 command:
   proxy-cheking:
     exec: bash /tests/checking.sh
-    timeout: 60000
+    timeout: 600000
     exit-status: 0
     stdout:
       - '"status":"ACTIVE"'
