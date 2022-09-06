@@ -5,6 +5,7 @@ URL=${WF_URL:-'{{ .Values.wavefront.url }}'}
 TOKEN=${WF_TOKEN:-'{{ .Values.wavefront.token }}'}
 ID=${PROXY_ID:=$(cat "/config/id")}
 
+sleep 15
 
 for i in 1 2 3 4 5
 do
