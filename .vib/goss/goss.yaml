@@ -6,7 +6,7 @@ file:
     owner: root
 command:
   proxy-cheking:
-    exec: /tests/checking.sh
+    exec: bash /tests/checking.sh
     exit-status: 0
     stdout:
       - '"status":"ACTIVE"'
