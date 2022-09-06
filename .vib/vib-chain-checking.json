@@ -44,6 +44,17 @@
               "workload": "deploy-edge-deployment"
             }
           }
+        },
+        {
+          "action_id": "goss",
+          "params": {
+            "resources": {
+              "path": "/.vib/goss"
+            },
+            "remote": {
+              "workload": "deploy-chain-deployment"
+            }
+          }
         }
       ]
     }
