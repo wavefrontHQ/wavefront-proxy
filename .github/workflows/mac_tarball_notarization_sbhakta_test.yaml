@@ -40,6 +40,6 @@ jobs:
     - name: "${{ github.event.inputs.zip_name }}-${{ github.event.inputs.release_type }}-notarize"
       run: |
         set -x
-        chmod +x ./macos_proxy_notarization/proxy_notarization.sh; ./macos_proxy_notarization/proxy_notarization_sbhakta_test.sh '${{ github.event.inputs.zip_name }}'
+        chmod +x ./macos_proxy_notarization/proxy_notarization_sbhakta_test.sh; ./macos_proxy_notarization/proxy_notarization_sbhakta_test.sh '${{ github.event.inputs.zip_name }}'
         set +x
         sleep 60
