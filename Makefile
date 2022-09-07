@@ -64,8 +64,7 @@ push-linux: .info .prepare-builder
 #####
 # Package for Macos
 #####
-pack-macos:
-	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar macos/wavefront-proxy.jar
+build-macos: .cp-macos
 	cd macos && zip ${out}/wfproxy_macos_${VERSION}_${REVISION}.zip *
 	unzip -t ${out}/wfproxy_macos_${VERSION}_${REVISION}.zip
 
@@ -86,6 +85,10 @@ tests: .info .cp-docker
 .cp-linux:
 	cp ${out}/${ARTIFACT_ID}-${VERSION}-jar-with-dependencies.jar pkg/wavefront-proxy.jar
 	# ${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
+
+.cp-macos:
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar macos/wavefront-proxy.jar
+	${MAKE} .set_package JAR=macos/wavefront-proxy.jar PKG=macos
 
 clean:
 	docker buildx prune -a -f	
