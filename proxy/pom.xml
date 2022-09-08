@@ -491,16 +491,6 @@
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-exporter-jaeger-proto</artifactId>
       <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.opentelemetry</groupId>
-          <artifactId>opentelemetry-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.opentelemetry.proto</groupId>

@@ -49,7 +49,6 @@ abstract class ProxyUtil {
     }
   }
 
-
   /**
    * Read or create proxy id for this machine. Reads the UUID from specified file, or from
    * ~/.dshell/id if idFileName is null.
