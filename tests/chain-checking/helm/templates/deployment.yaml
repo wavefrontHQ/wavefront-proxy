@@ -29,6 +29,11 @@ spec:
             - name: pushrelay
               containerPort: 2879
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 2878
+            initialDelaySeconds: 60
+            periodSeconds: 60
           volumeMounts:
             - mountPath: /config
               name: id
@@ -75,6 +80,11 @@ spec:
             - name: push
               containerPort: 2878
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 2878
+            initialDelaySeconds: 60
+            periodSeconds: 60
           volumeMounts:
             - mountPath: /config
               name: id
