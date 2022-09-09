@@ -52,7 +52,7 @@
               "path": "/.vib/goss"
             },
             "remote": {
-              "workload": "deploy-chain-deployment"
+              "workload": "deploy-chained-deployment"
             }
           }
         }
