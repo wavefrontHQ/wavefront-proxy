@@ -12,6 +12,7 @@ if (Number.isNaN(delay)) {
     reports = 0;
     errors = 0;
 
+    const util = require('util')
     const mockttp = require('mockttp');
 
     const server = mockttp.getLocal({
@@ -26,9 +27,30 @@ if (Number.isNaN(delay)) {
     // });
 
 
-    server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough();
+    server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough({
+        beforeRequest: (request) => {
+            console.log(`[config] Got request:`);
+            console.log(util.inspect(request));
+        },
+        beforeResponse: (response) => {
+            console.log(`[config] Got ${response.statusCode} response:`);
+            console.log(util.inspect(response));
+            console.log(`body: ${response.body.getDecodedBuffer()}`);
+        }
+    });
 
-    server.forPost("/api/v2/wfproxy/checkin").thenPassThrough();
+    server.forPost("/api/v2/wfproxy/checkin").thenPassThrough({
+        beforeRequest: (request) => {
+            console.log(`[checkin] Got request:`);
+            console.log(util.inspect(request));
+        },
+        beforeResponse: (response) => {
+            console.log(`[checkin] Got ${response.statusCode} response:`);
+            console.log(util.inspect(response));
+            response.body.getDecodedBuffer().then()
+            console.log(`body: ${}`);
+        }
+    });
 
     server.forPost("/api/v2/wfproxy/report").thenCallback(async (request) => {
         reports++;
