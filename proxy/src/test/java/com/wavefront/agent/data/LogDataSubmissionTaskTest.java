@@ -53,7 +53,7 @@ public class LogDataSubmissionTaskTest {
             "2878",
             ImmutableList.of(log),
             System::currentTimeMillis);
-    expect(logAPI.proxyLogs(AGENT_PREFIX+uuid, ImmutableList.of(log))).andReturn(Response.status(429).build()).once();
+    expect(logAPI.proxyLogs(AGENT_PREFIX + uuid, ImmutableList.of(log))).andReturn(Response.status(429).build()).once();
     expectLastCall();
     replay(logAPI, queue);
     assertEquals(TaskResult.REMOVED, task.execute());
