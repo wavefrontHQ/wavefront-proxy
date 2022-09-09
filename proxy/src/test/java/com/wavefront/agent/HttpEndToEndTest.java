@@ -749,8 +749,8 @@ public class HttpEndToEndTest {
     String expectedLog =
         "[{\"source\":\"myHost\",\"timestamp\":"
             + timestamp
-            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
-            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + ",\"text\":\"\",\"log_level\":\"WARN\",\"error_name\":\"myException\","
+            + "\"application\":\"myApp\",\"service\":\"myService\""
             + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
