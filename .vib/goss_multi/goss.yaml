@@ -12,7 +12,7 @@ command:
     stdout:
       - '"status":"ACTIVE"'
     stderr: []
-  test_tenant-cheking:
+  test-tenant-cheking:
     exec: bash /files/test_tenant.sh
     timeout: 600000
     exit-status: 0

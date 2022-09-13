@@ -35,7 +35,7 @@
           }
         },
         {
-          "action_id": "goss_multi",
+          "action_id": "goss",
           "params": {
             "resources": {
               "path": "/.vib/goss_multi"

@@ -35,7 +35,7 @@
           }
         },
         {
-          "action_id": "goss-buffer",
+          "action_id": "goss",
           "params": {
             "resources": {
               "path": "/.vib/goss-buffer"
