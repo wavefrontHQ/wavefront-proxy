@@ -12,7 +12,7 @@
       "context": {
         "resources": {
           "url": "{SHA_ARCHIVE}",
-          "path": "tests/chain-multitenant/helm"
+          "path": "tests/multitenant/helm"
         }
       }
     },

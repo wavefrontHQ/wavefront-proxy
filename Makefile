@@ -70,12 +70,6 @@ pack-macos:
 	unzip -t ${out}/wfproxy_macos_${VERSION}_${REVISION}.zip
 
 
-#####
-# Run Proxy complex Tests
-#####
-tests: .info .cp-docker
-	$(MAKE) -C tests/chain-checking all
-
 .prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 
