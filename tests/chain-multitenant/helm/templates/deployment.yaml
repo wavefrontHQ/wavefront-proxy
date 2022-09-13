@@ -30,7 +30,7 @@ spec:
                 --idFile /tmp/id
                 -f /files/proxy.cfg
           ports: 
-            - name: pushListener
+            - name: push
               containerPort: 2878
               protocol: TCP
           livenessProbe:
