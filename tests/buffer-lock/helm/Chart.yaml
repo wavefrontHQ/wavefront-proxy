@@ -1,5 +1,5 @@
 apiVersion: v2
-name: wavefront-chain-test-helm
+name: wavefront-proxy-tests-buffer-lock-helm
 description: Wavefront Proxy Chain Checking
 type: application
 version: 0.1.0
