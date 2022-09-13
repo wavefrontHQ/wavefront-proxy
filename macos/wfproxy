@@ -3,11 +3,16 @@
 eval $(/usr/local/bin/brew shellenv)
 CMDDIR=$(dirname $0)
 NAME=$(basename $0)
-JAVA_HOME=$(/usr/libexec/java_home -v 11)
+JAVA_HOME=$(brew --prefix java11)
 PROXY=$(brew --prefix $NAME)
 
 BUFFER_DIR=${HOMEBREW_PREFIX}/var/spool/wavefront-proxy
 LOG_DIR=${HOMEBREW_PREFIX}/var/log/wavefront-proxy
+
+ENV_FILE=${HOMEBREW_PREFIX}/etc/wfproxy/prox_env.conf
+if [ -f "${ENV_FILE}" ] ; then
+  . ${ENV_FILE}
+fi
 
 if [ -x ${JAVA_HOME}/bin/java ]; then
     echo "Using JAVA_HOME=${JAVA_HOME}"
@@ -23,11 +28,6 @@ fi
 if [ ! -w ${LOG_DIR} ]; then 
     echo "Error!!! can't write to '${LOG_DIR}', please review directory permissions"
     exit -1
-fi
-
-ENV_FILE=${HOMEBREW_PREFIX}/etc/wfproxy/prox_env.conf
-if [ -f "${ENV_FILE}" ] ; then
-  . ${ENV_FILE}
 fi
 
 ${JAVA_HOME}/bin/java \
