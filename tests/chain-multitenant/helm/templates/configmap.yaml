@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: files
+data:
+  test_main.sh: |
+    {{- include "test_main" . | indent 4 }}
+  test_tenant.sh: |
+    {{- include "test_tenant" . | indent 4 }}
+  proxy.cfg: |
+    multicastingTenants=1
+    multicastingTenantName_1=mon
+    multicastingServer_1={{ .Values.wavefront_2.url }}
+    multicastingToken_1={{ .Values.wavefront_2.token }}

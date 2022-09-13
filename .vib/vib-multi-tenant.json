@@ -38,21 +38,10 @@
           "action_id": "goss",
           "params": {
             "resources": {
-              "path": "/.vib/goss_chain"
+              "path": "/.vib/goss_multi"
             },
             "remote": {
-              "workload": "deploy-edge-deployment"
-            }
-          }
-        },
-        {
-          "action_id": "goss",
-          "params": {
-            "resources": {
-              "path": "/.vib/goss_chain"
-            },
-            "remote": {
-              "workload": "deploy-chained-deployment"
+              "workload": "deploy-proxy-multitenant"
             }
           }
         }

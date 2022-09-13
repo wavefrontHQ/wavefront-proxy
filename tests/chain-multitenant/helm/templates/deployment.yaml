@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-multitenant
+  labels:
+    app: proxy-multitenant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy-multitenant
+  template:
+    metadata:
+      labels:
+        app: proxy-multitenant
+    spec:
+      containers:
+        - name: proxy-multitenant
+          image: {{ .Values.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: | 
+                --pushListenerPorts 2878 
+                --ephemeral false 
+                --idFile /tmp/id
+                -f /files/proxy.cfg
+          ports: 
+            - name: pushListenerPorts
+              containerPort: 2878
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 2878
+            initialDelaySeconds: 60
+            periodSeconds: 60
+          volumeMounts:
+            - mountPath: /files
+              name: files
+      volumes:
+        - name: id
+          configMap:
+            name: wf-proxy-edge-id
+        - name: files
+          configMap:
+            name: files
+            defaultMode: 0777
