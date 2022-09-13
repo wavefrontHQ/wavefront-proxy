@@ -1,9 +1,9 @@
-# {{- define "proxy-checking-test" }}
+{{- define "proxy-checking-test" }}
 #!/bin/bash
 
 URL=${WF_URL:-'{{ .Values.wavefront.url }}'}
 TOKEN=${WF_TOKEN:-'{{ .Values.wavefront.token }}'}
-ID=${PROXY_ID:=$(cat "/config/id")}
+ID=${PROXY_ID:=$(cat "/tmp/id")}
 
 sleep 15
 
@@ -25,4 +25,4 @@ do
     sleep 15
 done
 exit -1
-# {{- end }}
+{{- end }}

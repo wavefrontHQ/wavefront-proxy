@@ -2,6 +2,3 @@ image: docker.io/glaullon/proxy-dev:gh-build
 wavefront:
   url: https://nimba.wavefront.com/api/
   token: 46c15c01-abed-4e79-a689-9f91683238a1
-uuid:
-  edge: a93c1532-2d39-11ed-a261-0242ac120002
-  chain: b4a833a6-2d39-11ed-a261-0242ac120002

@@ -24,7 +24,7 @@ spec:
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_PROXY_ARGS
-              value: "--pushRelayListenerPorts 2879 --pushListenerPorts 2880 --ephemeral false --idFile /config/id"
+              value: "--pushRelayListenerPorts 2879 --pushListenerPorts 2880 --ephemeral false --idFile /tmp/id"
           ports: 
             - name: pushrelay
               containerPort: 2879
@@ -35,8 +35,6 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
           volumeMounts:
-            - mountPath: /config
-              name: id
             - mountPath: /tests
               name: tests
       volumes:
@@ -47,7 +45,6 @@ spec:
           configMap:
             name: wf-proxy-checking-test
             defaultMode: 0777
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -75,7 +72,7 @@ spec:
             - name: WAVEFRONT_TOKEN
               value: XXXXXX
             - name: WAVEFRONT_PROXY_ARGS
-              value: "--pushListenerPorts 2878 --ephemeral false --idFile /config/id"
+              value: "--pushListenerPorts 2878 --ephemeral false --idFile /tmp/id"
           ports: 
             - name: push
               containerPort: 2878
@@ -86,14 +83,9 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
           volumeMounts:
-            - mountPath: /config
-              name: id
             - mountPath: /tests
               name: tests
       volumes:
-        - name: id
-          configMap:
-            name: wf-proxy-chained-id
         - name: tests
           configMap:
             name: wf-proxy-checking-test
