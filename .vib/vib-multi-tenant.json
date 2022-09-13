@@ -41,7 +41,7 @@
               "path": "/.vib/goss_multi"
             },
             "remote": {
-              "workload": "deploy-proxy-multitenant"
+              "workload": "deploy-tests-proxy-multitenant"
             }
           }
         }
