@@ -35,10 +35,10 @@
           }
         },
         {
-          "action_id": "goss",
+          "action_id": "goss-buffer",
           "params": {
             "resources": {
-              "path": "/.vib/goss"
+              "path": "/.vib/goss-buffer"
             },
             "remote": {
               "workload": "deploy-wf-proxy-buffer-tests"

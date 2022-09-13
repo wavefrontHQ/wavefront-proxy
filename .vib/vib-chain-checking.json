@@ -35,7 +35,7 @@
           }
         },
         {
-          "action_id": "goss",
+          "action_id": "goss-chain-edge",
           "params": {
             "resources": {
               "path": "/.vib/goss_chain"
@@ -46,7 +46,7 @@
           }
         },
         {
-          "action_id": "goss",
+          "action_id": "goss-chain-chained",
           "params": {
             "resources": {
               "path": "/.vib/goss_chain"

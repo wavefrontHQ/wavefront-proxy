@@ -20,7 +20,7 @@
       },
       "actions": [
         {
-          "action_id": "goss",
+          "action_id": "goss-linux-install",
           "params": {
             "resources": {
               "path": "/.vib/linux-install",
