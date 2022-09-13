@@ -38,9 +38,6 @@ spec:
             - mountPath: /tests
               name: tests
       volumes:
-        - name: id
-          configMap:
-            name: wf-proxy-edge-id
         - name: tests
           configMap:
             name: wf-proxy-checking-test

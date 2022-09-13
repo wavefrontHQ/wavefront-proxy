@@ -42,9 +42,6 @@ spec:
             - mountPath: /files
               name: files
       volumes:
-        - name: id
-          configMap:
-            name: wf-proxy-edge-id
         - name: files
           configMap:
             name: files
