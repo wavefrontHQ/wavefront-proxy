@@ -1,6 +1,6 @@
 apiVersion: v2
 name: wavefront-proxy-tests-multitenant-helm
-description: Wavefront Proxy Chain Checking
+description: Wavefront Proxy Multitenant Checking
 type: application
 version: 0.1.0
 appVersion: "1.16.0"
