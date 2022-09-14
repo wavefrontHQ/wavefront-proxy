@@ -9,16 +9,10 @@ command:
     exec: bash /files/test_main.sh
     timeout: 600000
     exit-status: 0
-    stdout:
-      - '"status":"ACTIVE"'
-    stderr: []
   test-tenant-cheking:
     exec: bash /files/test_tenant.sh
     timeout: 600000
     exit-status: 0
-    stdout:
-      - '"status":"ACTIVE"'
-    stderr: []
   user-id:
     exec: id -u
     exit-status: 0

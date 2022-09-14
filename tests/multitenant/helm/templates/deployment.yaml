@@ -23,6 +23,10 @@ spec:
               value: {{ .Values.wavefront.url }}
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_URL_2
+              value: {{ .Values.wavefront_2.url }}
+            - name: WAVEFRONT_TOKEN_2
+              value: {{ .Values.wavefront_2.token }}
             - name: WAVEFRONT_PROXY_ARGS
               value: | 
                 --pushListenerPorts 2878 

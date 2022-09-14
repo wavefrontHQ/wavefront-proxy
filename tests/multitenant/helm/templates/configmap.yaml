@@ -3,10 +3,12 @@ kind: ConfigMap
 metadata:
   name: files
 data:
+  test_proxy_checkin.sh: |
+    {{- (.Files.Get "scripts/test_proxy_checkin.sh") | indent 4 }}
   test_main.sh: |
-    {{- include "test_main" . | indent 4 }}
+    {{- (.Files.Get "scripts/test_main.sh") | indent 4 }}
   test_tenant.sh: |
-    {{- include "test_tenant" . | indent 4 }}
+    {{- (.Files.Get "scripts/test_tenant.sh") | indent 4 }}
   proxy.cfg: |
     multicastingTenants=1
     multicastingTenantName_1=mon
