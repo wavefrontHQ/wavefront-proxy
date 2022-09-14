@@ -1,0 +1,29 @@
+{
+  "phases": {
+    "verify": {
+      "context": {
+        "application": {
+          "kind": "CONTAINER_IMAGE",
+          "details": {
+            "repository": {
+              "url": "oci://docker.io/{VIB_ENV_DOCKER_USER}"
+            },
+            "name": "proxy-dev",
+            "tag": "gh-build"
+          }
+        }
+      }, 
+      "actions": [
+        {
+          "action_id": "trivy",
+          "params": {
+            "threshold": "CRITICAL",
+            "vuln_type": [
+              "OS"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

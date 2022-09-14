@@ -1,0 +1,34 @@
+{
+  "phases": {
+    "verify": {
+      "context": {
+        "application": {
+          "kind": "OVA",
+          "details": {
+            "name": "wordpress",
+            "url" : "https://downloads.bitnami.com/files/stacks/wordpress/6.0.0-8/bitnami-wordpress-6.0.0-8-r04-linux-debian-11-x86_64-nami.ova"
+          }
+        },
+        "resources": {
+          "url": "https://gitlab.eng.vmware.com/api/v4/projects/76399/repository/archive.tar?sha=ebb14e4e1cac1099371f4bf87c2d2261202e387a&private_token=p8VKirPPUsb9-TxyghTf",
+          "path": "/examples/wordpress"
+        },
+        "runtime_parameters": "dXNlcl9kYXRhOiAiSXlFdlltbHVMMkpoYzJnS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5VlUwVlNUa0ZOUlQxMFpYTjBYM1Z6WlhJS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5UVFWTlRWMDlTUkQxRGIyMXdiR2xqWVhSbFpGQmhjM04zYjNKa01USXpJVFFLWlhod2IzSjBJRmRQVWtSUVVrVlRVMTlGVFVGSlREMTBaWE4wWDNWelpYSmZaVzFoYVd4QVpXMWhhV3d1WTI5dENtVjRjRzl5ZENCWFQxSkVVRkpGVTFOZlJrbFNVMVJmVGtGTlJUMVVaWE4wVG1GdFpRcGxlSEJ2Y25RZ1YwOVNSRkJTUlZOVFgweEJVMVJmVGtGTlJUMVVaWE4wVEdGemRFNWhiV1VLWlhod2IzSjBJRmRQVWtSUVVrVlRVMTlDVEU5SFgwNUJUVVU5SWxSbGMzUmZWWE5sY25NbmN5QkNiRzluSVNJS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5VFRWUlFYMGhQVTFROWJXRnBiQzV6WlhKMlpYSXVZMjl0Q21WNGNHOXlkQ0JYVDFKRVVGSkZVMU5mVTAxVVVGOVFUMUpVUFRFeU1BcGxlSEJ2Y25RZ1YwOVNSRkJTUlZOVFgxTk5WRkJmVlZORlVqMTBaWE4wWDIxaGFXeGZkWE5sY2dwbGVIQnZjblFnVjA5U1JGQlNSVk5UWDFOTlZGQmZVRUZUVTFkUFVrUTlkR1Z6ZEY5dFlXbHNYM0JoYzNOM2IzSmsiCm1lbW9yeV9saW1pdDogMTAyNApzc2g6CiAgdXNlcm5hbWU6IGJpdG5hbWkKcG9ydHM6CiAgLSA4MAogIC0gNDQz",
+        "target_platform": {
+          "target_platform_id": "3bbd2f0f-c2a6-45df-9d03-5764fda56a48"
+        }
+      },
+      "actions": [
+        {
+          "action_id": "goss",
+          "params": {
+            "resources": {
+              "path": "/.vib/linux-install",
+              "url": "{SHA_ARCHIVE}"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

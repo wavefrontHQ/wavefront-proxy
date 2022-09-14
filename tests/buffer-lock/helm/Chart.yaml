@@ -1,0 +1,6 @@
+apiVersion: v2
+name: wavefront-proxy-tests-buffer-lock-helm
+description: Wavefront Proxy Buffer Lock Checking
+type: application
+version: 0.1.0
+appVersion: "1.16.0"

@@ -71,10 +71,6 @@ pack-macos:
 
 
 #####
-# Run Proxy complex Tests
-#####
-tests: .info .cp-docker
-	$(MAKE) -C tests/chain-checking all
 
 stress-test: .info build-jar .cp-docker
 	cd tests/stress-test && $(MAKE) stress-local-loadgen

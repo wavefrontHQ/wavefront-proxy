@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wf-proxy-checking-test
+data:
+  checking.sh: |
+    {{- include "proxy-checking-test" . | indent 4 }}
