@@ -18,7 +18,14 @@ jobs:
     name: Package Container
     steps:
       - uses: actions/checkout@v2
-        name: Checkout Repository
+        name: Checkout Java-lib Repository
+        with:
+          ref: dev-proxy2
+          repository: wavefrontHQ/java-lib
+      - name: Build Java-lib
+        run: mvn --batch-mode install
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
