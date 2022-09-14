@@ -9,8 +9,10 @@ data:
     {{- (.Files.Get "scripts/test_main.sh") | indent 4 }}
   test_tenant.sh: |
     {{- (.Files.Get "scripts/test_tenant.sh") | indent 4 }}
+  test_metrics.sh: |
+    {{- (.Files.Get "scripts/test_metrics.sh") | indent 4 }}
   proxy.cfg: |
     multicastingTenants=1
-    multicastingTenantName_1=mon
+    multicastingTenantName_1=tenant1
     multicastingServer_1={{ .Values.wavefront_2.url }}
     multicastingToken_1={{ .Values.wavefront_2.token }}

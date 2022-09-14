@@ -13,6 +13,10 @@ command:
     exec: bash /files/test_tenant.sh
     timeout: 600000
     exit-status: 0
+  test-metrics-cheking:
+    exec: bash /files/test_metrics.sh
+    timeout: 600000
+    exit-status: 0
   user-id:
     exec: id -u
     exit-status: 0
