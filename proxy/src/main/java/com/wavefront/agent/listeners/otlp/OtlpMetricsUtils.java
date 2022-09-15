@@ -85,14 +85,22 @@ public class OtlpMetricsUtils {
       OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
-      String source = sourceAndResourceAttrs._1;
-      List<KeyValue> resourceAttributes =
-          includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 : Collections.EMPTY_LIST;
+      String source;
+      List<KeyValue> resourceAttributes;
 
       for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
         OTLP_DATA_LOGGER.finest(
             () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
+
+          List<KeyValue> attrList = new ArrayList<KeyValue>(Collections.EMPTY_LIST);
+
+          updateAttrsListForOtelMetrics(resource, otlpMetric.getName(), attrList);
+
+          source = sourceAndResourceAttrs._1;
+          resourceAttributes =
+              includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 : attrList;
+
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
               transform(otlpMetric, resourceAttributes, preprocessor, source);
@@ -103,6 +111,29 @@ public class OtlpMetricsUtils {
       }
     }
     return wfPoints;
+  }
+
+  /*MONIT-30703: adding application & system.name tags to a metric*/
+  @VisibleForTesting
+  public static void updateAttrsListForOtelMetrics(
+      Resource resource, String otlpMetric, List<KeyValue> attrList) {
+    if (OtlpTraceUtils.isOtelMetric(otlpMetric)) {
+      String appName =
+          OtlpTraceUtils.getAttrValByKey(
+              resource.getAttributesList(), OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY);
+      if (appName != null) {
+        attrList.add(
+            OtlpTraceUtils.getAttrKeyValue(OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY, appName));
+      }
+
+      String serviceName =
+          OtlpTraceUtils.getAttrValByKey(
+              resource.getAttributesList(), OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
+      if (serviceName != null) {
+        attrList.add(
+            OtlpTraceUtils.getAttrKeyValue(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY, serviceName));
+      }
+    }
   }
 
   @VisibleForTesting
