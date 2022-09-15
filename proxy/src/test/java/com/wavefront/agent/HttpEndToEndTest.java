@@ -9,6 +9,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
@@ -29,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -609,26 +611,29 @@ public class HttpEndToEndTest {
         "[{\"source\": \"myHost\",\n \"timestamp\": \""
             + timestamp
             + "\", "
-            + "\"application\":\"myApp\",\"service\":\"myService\","
-            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\","
+            + "\"application\":\"myApp\",\"service\":\"myService\""
             + "}]";
     String expectedLog =
-        "[{\"timestamp\":"
+        "[{\"source\": \"myHost\",\n \"timestamp\": "
             + timestamp
             + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
             + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
             + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
+    AtomicReference<String> result = new AtomicReference<>(new String());
     server.update(
         req -> {
-          String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
-          if (content.equals(expectedLog)) gotLog.set(true);
+          result.set(req.content().toString(CharsetUtil.UTF_8));
+          logger.fine("Content received: " + result);
+          gotLog.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
         });
     gzippedHttpPost("http://localhost:" + pushPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
 
     assertTrueWithTimeout(HTTP_timeout_tests * 10, gotLog::get);
+    ObjectMapper mapper = new ObjectMapper();
+    assertEquals(mapper.readTree(expectedLog), mapper.readTree(result.get()));
   }
 
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {
