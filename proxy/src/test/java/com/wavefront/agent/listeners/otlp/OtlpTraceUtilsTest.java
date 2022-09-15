@@ -1021,4 +1021,19 @@ public class OtlpTraceUtilsTest {
     Supplier<Boolean> spanLogsFeatureDisabled = () -> false;
     assertTrue(OtlpTraceUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
   }
+
+  @Test
+  public void testGetAttrKeyValue() {
+    KeyValue attrKeyValue = OtlpTraceUtils.getAttrKeyValue("test_key", "test_value");
+    List<KeyValue> attributes = new ArrayList<>();
+    attributes.add(attrKeyValue);
+    assertEquals("test_value", OtlpTraceUtils.getAttrValByKey(attributes, "test_key"));
+  }
+
+  @Test
+  public void testIsOtelMetric() {
+    assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.threads.count"));
+    assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.memory.usage"));
+    assertTrue(OtlpTraceUtils.isOtelMetric("runtime.jvm.gc.count"));
+  }
 }

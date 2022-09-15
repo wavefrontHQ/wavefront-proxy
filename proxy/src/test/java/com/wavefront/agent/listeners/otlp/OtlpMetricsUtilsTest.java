@@ -8,6 +8,7 @@ import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPoints
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -27,6 +28,7 @@ import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
+import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -859,5 +861,21 @@ public class OtlpMetricsUtilsTest {
     actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, preprocessor, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void testDoNotUpdateAttrsListForNonOtelMetrics() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("application", "test_app"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "test_service"))
+            .build();
+
+    List<NumberDataPoint> dataPoints =
+        Collections.singletonList(NumberDataPoint.newBuilder().setTimeUnixNano(0).build());
+    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(dataPoints).build();
+
+    OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, otlpMetric.getName(), emptyAttrs);
+    assertTrue(emptyAttrs.isEmpty());
   }
 }
