@@ -92,11 +92,10 @@ public class OtlpMetricsUtils {
             () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
 
-          List<KeyValue> attrList = updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
-
           source = sourceAndResourceAttrs._1;
           resourceAttributes =
-              includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 : attrList;
+              includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 :
+                  updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
 
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
