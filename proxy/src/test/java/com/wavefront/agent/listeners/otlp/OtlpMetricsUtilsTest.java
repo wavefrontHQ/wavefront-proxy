@@ -875,7 +875,8 @@ public class OtlpMetricsUtilsTest {
         Collections.singletonList(NumberDataPoint.newBuilder().setTimeUnixNano(0).build());
     Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(dataPoints).build();
 
-    OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, otlpMetric.getName(), emptyAttrs);
-    assertTrue(emptyAttrs.isEmpty());
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, otlpMetric.getName());
+    assertTrue(attrList.isEmpty());
   }
 }

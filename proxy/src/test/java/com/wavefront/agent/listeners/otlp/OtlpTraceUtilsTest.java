@@ -1035,5 +1035,6 @@ public class OtlpTraceUtilsTest {
     assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.threads.count"));
     assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.memory.usage"));
     assertTrue(OtlpTraceUtils.isOtelMetric("runtime.jvm.gc.count"));
+    assertFalse(OtlpTraceUtils.isOtelMetric("another.metric"));
   }
 }

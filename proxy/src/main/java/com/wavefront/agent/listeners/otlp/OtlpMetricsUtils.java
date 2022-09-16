@@ -26,7 +26,6 @@ import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,9 +92,7 @@ public class OtlpMetricsUtils {
             () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
 
-          List<KeyValue> attrList = new ArrayList<KeyValue>(Collections.EMPTY_LIST);
-
-          updateAttrsListForOtelMetrics(resource, otlpMetric.getName(), attrList);
+          List<KeyValue> attrList = updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
 
           source = sourceAndResourceAttrs._1;
           resourceAttributes =
@@ -115,24 +112,20 @@ public class OtlpMetricsUtils {
 
   /*MONIT-30703: adding application & system.name tags to a metric*/
   @VisibleForTesting
-  public static void updateAttrsListForOtelMetrics(
-      Resource resource, String otlpMetric, List<KeyValue> attrList) {
+  public static List<KeyValue> updateAttrsListForOtelMetrics(Resource resource, String otlpMetric) {
+    List<KeyValue> attrList = new ArrayList<>();
     if (OtlpTraceUtils.isOtelMetric(otlpMetric)) {
-      String appName =
-          OtlpTraceUtils.getAttrValByKey(
-              resource.getAttributesList(), OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY);
-      if (appName != null) {
-        attrList.add(
-            OtlpTraceUtils.getAttrKeyValue(OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY, appName));
-      }
+      extractValue(resource, attrList, OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY);
+      extractValue(resource, attrList, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
+    }
 
-      String serviceName =
-          OtlpTraceUtils.getAttrValByKey(
-              resource.getAttributesList(), OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
-      if (serviceName != null) {
-        attrList.add(
-            OtlpTraceUtils.getAttrKeyValue(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY, serviceName));
-      }
+    return attrList;
+  }
+
+  private static void extractValue(Resource resource, List<KeyValue> attrList, String key) {
+    String attrValue = OtlpTraceUtils.getAttrValByKey(resource.getAttributesList(), key);
+    if (attrValue != null) {
+      attrList.add(OtlpTraceUtils.getAttrKeyValue(key, attrValue));
     }
   }
 
@@ -306,7 +299,7 @@ public class OtlpMetricsUtils {
 
       ReportPoint rp =
           pointWithAnnotations(
-              name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+                  name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
               .setValue(histogram)
               .build();
       reportPoints.add(rp);
@@ -323,7 +316,7 @@ public class OtlpMetricsUtils {
       // each iteration
       ReportPoint rp =
           pointWithAnnotations(
-              name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+                  name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
               .setValue(bucket.getCount())
               .build();
       handleDupAnnotation(rp);
@@ -379,7 +372,7 @@ public class OtlpMetricsUtils {
             .build());
     toReturn.add(
         pointWithAnnotations(
-            name + "_count", pointAttributes, resourceAttrs, point.getTimeUnixNano())
+                name + "_count", pointAttributes, resourceAttrs, point.getTimeUnixNano())
             .setValue(point.getCount())
             .build());
     for (SummaryDataPoint.ValueAtQuantile q : point.getQuantileValuesList()) {

@@ -275,7 +275,7 @@ public class OtlpTraceUtils {
         otlpSpan.getEndTimeUnixNano() == 0
             ? 0
             : TimeUnit.NANOSECONDS.toMillis(
-            otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
+                otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
 
     wavefront.report.Span toReturn =
         wavefront.report.Span.newBuilder()
@@ -463,7 +463,7 @@ public class OtlpTraceUtils {
       int logsCount, Pair<Supplier<Boolean>, Counter> spanLogsDisabled) {
     return logsCount > 0
         && !isFeatureDisabled(
-        spanLogsDisabled._1, SPANLOGS_DISABLED, spanLogsDisabled._2, logsCount);
+            spanLogsDisabled._1, SPANLOGS_DISABLED, spanLogsDisabled._2, logsCount);
   }
 
   @Nullable
