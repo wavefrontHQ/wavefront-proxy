@@ -1,4 +1,6 @@
-image: docker.io/glaullon/proxy-dev:gh-build
+image:
+  name: XXXXXXXXXXXXXX
+  tag: XXXXXX
 wavefront:
-  url: https://nimba.wavefront.com/api/
-  token: 46c15c01-abed-4e79-a689-9f91683238a1
+  url: https://XXXXX.wavefront.com/api/
+  token: XXXXXXXXXXXXXX

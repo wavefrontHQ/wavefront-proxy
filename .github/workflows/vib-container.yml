@@ -12,6 +12,7 @@ env:
   CSP_API_URL: https://console.cloud.vmware.com
   CSP_API_TOKEN: ${{ secrets.CSP_API_TOKEN }}
   VIB_PUBLIC_URL: https://cp.bromelia.vmware.com
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 jobs:
   vib-container:
     runs-on: ubuntu-latest
@@ -30,21 +31,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: build application
-        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=gh-build MVN_ARGS=-DskipTests make build-jar docker
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar docker
       - name: Docker login
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
       - name: Docker push
-        run: docker push ${{ secrets.DOCKER_USER }}/proxy-dev:gh-build
+        run: docker push ${{ secrets.DOCKER_USER }}/proxy-dev:${{ env.BRANCH_NAME }}
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
           pipeline: vib-container.json
         env:
+          VIB_ENV_IMAGE_TAG: ${{ env.BRANCH_NAME }}
           VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_USER }}
   tests-chain-checking:
     runs-on: ubuntu-latest
     needs: vib-container
     steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
       - uses: actions/checkout@v2
         name: Checkout Repository
         with:
@@ -54,10 +66,25 @@ jobs:
         name: Verify Wavefront container
         with:
           pipeline: vib-chain-checking.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
   tests-multi-tenant:
     runs-on: ubuntu-latest
     needs: vib-container
     steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }}
+          wavefront_tenant:
+            url: ${{ secrets.WF_TENANT_URL }}
+            token: ${{ secrets.WF_TENANT_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
       - uses: actions/checkout@v2
         name: Checkout Repository
         with:
@@ -67,6 +94,8 @@ jobs:
         name: Verify Wavefront multi-tenant
         with:
           pipeline: vib-multi-tenant.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
   # tests-buffer-lock:
   #   runs-on: ubuntu-latest
   #   needs: vib-container

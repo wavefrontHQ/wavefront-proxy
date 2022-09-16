@@ -19,7 +19,8 @@ spec:
         emptyDir: {}
       containers:
         - name: wf-proxy-1
-          image: {{ .Values.image }}
+          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -36,7 +37,8 @@ spec:
           - name: shared-buffer
             mountPath: /buffer
         - name: wf-proxy-2
-          image: {{ .Values.image }}
+          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL

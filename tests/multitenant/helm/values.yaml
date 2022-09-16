@@ -1,7 +1,9 @@
-image: docker.io/glaullon/proxy-dev:gh-build
+image:
+  name: XXXXXXXXXXXXXX
+  tag: XXXXXX
 wavefront:
   url: https://XXXXX.wavefront.com/api/
   token: XXXXXXXXXXXXXX
-wavefront_2:
+wavefront_tenant:
   url: https://XXXX.wavefront.com/api/
   token: XXXXXXXXXXXXXX

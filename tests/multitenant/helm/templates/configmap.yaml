@@ -14,5 +14,5 @@ data:
   proxy.cfg: |
     multicastingTenants=1
     multicastingTenantName_1=tenant1
-    multicastingServer_1={{ .Values.wavefront_2.url }}
-    multicastingToken_1={{ .Values.wavefront_2.token }}
+    multicastingServer_1={{ .Values.wavefront_tenant.url }}
+    multicastingToken_1={{ .Values.wavefront_tenant.token }}

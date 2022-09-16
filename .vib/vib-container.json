@@ -9,7 +9,7 @@
               "url": "oci://docker.io/{VIB_ENV_DOCKER_USER}"
             },
             "name": "proxy-dev",
-            "tag": "gh-build"
+            "tag": "{VIB_ENV_IMAGE_TAG}"
           }
         }
       }, 

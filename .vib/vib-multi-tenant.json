@@ -18,7 +18,7 @@
     },
     "verify": {
       "context": {
-        "runtime_parameters": "IndhdmVmcm9udCI6CiAgInRva2VuIjogIjI4ZWY0NTEyLTk0NWItNGI3OC05ZWY0LWJjNWM5NTIwMzUzMiIKICAidXJsIjogImh0dHBzOi8vbmltYmEud2F2ZWZyb250LmNvbS9hcGkvIgoid2F2ZWZyb250XzIiOgogICJ0b2tlbiI6ICJlY2M5ZDdiNS03N2RmLTRkNDgtOGVlYi01YWE3NDEzMGUxMzMiCiAgInVybCI6ICJodHRwczovL3NoaXJhLndhdmVmcm9udC5jb20vYXBpLyIK",
+        "runtime_parameters": "{VIB_ENV_RUN_PARAMS}",
         "target_platform": {
           "target_platform_id": "7ddab896-2e4e-4d58-a501-f79897eba3a0"
         },

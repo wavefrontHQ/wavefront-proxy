@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: proxy-multitenant
-          image: {{ .Values.image }}
+          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -24,9 +25,9 @@ spec:
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_URL_2
-              value: {{ .Values.wavefront_2.url }}
+              value: {{ .Values.wavefront_tenant.url }}
             - name: WAVEFRONT_TOKEN_2
-              value: {{ .Values.wavefront_2.token }}
+              value: {{ .Values.wavefront_tenant.token }}
             - name: WAVEFRONT_PROXY_ARGS
               value: | 
                 --pushListenerPorts 2878 
