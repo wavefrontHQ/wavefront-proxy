@@ -96,7 +96,34 @@ jobs:
           pipeline: vib-multi-tenant.json
         env:
           VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
-  # tests-buffer-lock:
+  tests-disk-buffer:
+    runs-on: ubuntu-latest
+    needs: tests-chain-checking
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }}
+          wavefront_tenant:
+            url: ${{ secrets.WF_TENANT_URL }}
+            token: ${{ secrets.WF_TENANT_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront disk buffer
+        with:
+          pipeline: vib-disk-buffer.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }} # tests-buffer-lock:
   #   runs-on: ubuntu-latest
   #   needs: vib-container
   #   steps:

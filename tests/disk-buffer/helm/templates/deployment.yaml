@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tests-proxy-disk-buffer
+  labels:
+    app: proxy-disk-buffer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy-disk-buffer
+  template:
+    metadata:
+      labels:
+        app: proxy-disk-buffer
+    spec:
+      containers:
+        - name: proxy-disk-buffer
+          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_URL_2
+              value: {{ .Values.wavefront_tenant.url }}
+            - name: WAVEFRONT_TOKEN_2
+              value: {{ .Values.wavefront_tenant.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: | 
+                --pushListenerPorts 2878 
+                --ephemeral false 
+                --idFile /tmp/id
+                -f /files/proxy.cfg
+          ports: 
+            - name: push
+              containerPort: 2878
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 2878
+            initialDelaySeconds: 60
+            periodSeconds: 60
+          volumeMounts:
+            - mountPath: /files
+              name: files
+      volumes:
+        - name: files
+          configMap:
+            name: files
+            defaultMode: 0777

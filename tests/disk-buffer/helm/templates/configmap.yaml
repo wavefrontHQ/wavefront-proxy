@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: files
+data:
+  test_proxy_checkin.sh: |
+    {{- (.Files.Get "scripts/test_proxy_checkin.sh") | indent 4 }}
+  test_main.sh: |
+    {{- (.Files.Get "scripts/test_main.sh") | indent 4 }}
+  test_tenant.sh: |
+    {{- (.Files.Get "scripts/test_tenant.sh") | indent 4 }}
+  test_metrics.sh: |
+    {{- (.Files.Get "scripts/test_metrics.sh") | indent 4 }}
+  proxy.cfg: |
+    multicastingTenants=1
+    multicastingTenantName_1=tenant1
+    multicastingServer_1={{ .Values.wavefront_tenant.url }}
+    multicastingToken_1={{ .Values.wavefront_tenant.token }}
