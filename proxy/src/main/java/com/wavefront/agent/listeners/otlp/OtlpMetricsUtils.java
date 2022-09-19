@@ -94,8 +94,9 @@ public class OtlpMetricsUtils {
 
           source = sourceAndResourceAttrs._1;
           resourceAttributes =
-              includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 :
-                  updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
+              includeResourceAttrsForMetrics
+                  ? sourceAndResourceAttrs._2
+                  : updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
 
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
