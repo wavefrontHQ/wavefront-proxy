@@ -60,7 +60,7 @@ public class HttpEndToEndTest {
 
   @BeforeClass
   public static void setup() throws Exception {
-    backendPort = findAvailablePort(8081);
+    backendPort = findAvailablePort();
     ChannelHandler channelHandler = new WrappingHttpHandler(null, null, backendPort, server);
     thread =
         new Thread(
@@ -73,13 +73,13 @@ public class HttpEndToEndTest {
 
     digestTime = new AtomicLong(System.currentTimeMillis());
 
-    pushPort = findAvailablePort(2898);
-    tracesPort = findAvailablePort(3000);
-    histMinPort = findAvailablePort(40001);
-    histHourPort = findAvailablePort(40002);
-    histDayPort = findAvailablePort(40003);
-    histDistPort = findAvailablePort(40000);
-    deltaAggregationPort = findAvailablePort(50000);
+    pushPort = findAvailablePort();
+    tracesPort = findAvailablePort();
+    histMinPort = findAvailablePort();
+    histHourPort = findAvailablePort();
+    histDayPort = findAvailablePort();
+    histDistPort = findAvailablePort();
+    deltaAggregationPort = findAvailablePort();
 
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";

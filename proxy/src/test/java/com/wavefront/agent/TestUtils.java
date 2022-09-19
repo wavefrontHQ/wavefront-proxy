@@ -74,26 +74,16 @@ public class TestUtils {
     EasyMock.replay(httpClient, response, entity, line);
   }
 
-  public static int findAvailablePort(int startingPortNumber) {
-    int portNum = startingPortNumber;
-    ServerSocket socket;
-    while (portNum < startingPortNumber + 1000) {
-      try {
-        socket = new ServerSocket(portNum);
-        socket.close();
-        logger.log(Level.INFO, "Found available port: " + portNum);
-        return portNum;
-      } catch (IOException exc) {
-        logger.log(Level.WARNING, "Port " + portNum + " is not available:" + exc.getMessage());
-      }
-      portNum++;
+  public static int findAvailablePort() {
+    try {
+      ServerSocket socket = new ServerSocket(0);
+      int portNum = socket.getLocalPort();
+      socket.close();
+      logger.log(Level.INFO, "Found available port: " + portNum);
+      return portNum;
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
     }
-    throw new RuntimeException(
-        "Unable to find an available port in the ["
-            + startingPortNumber
-            + ";"
-            + (startingPortNumber + 1000)
-            + ") range");
   }
 
   public static void waitUntilListenerIsOnline(int port) throws Exception {

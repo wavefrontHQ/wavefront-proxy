@@ -13,7 +13,6 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.buffers.BuffersManagerConfig;
-import com.wavefront.agent.core.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
@@ -57,18 +56,11 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
-import org.junit.*;
-import wavefront.report.Annotation;
-import wavefront.report.Histogram;
-import wavefront.report.HistogramType;
-import wavefront.report.ReportEvent;
-import wavefront.report.ReportPoint;
-import wavefront.report.ReportSourceTag;
-import wavefront.report.SourceOperationType;
-import wavefront.report.SourceTagAction;
-import wavefront.report.Span;
-import wavefront.report.SpanLog;
-import wavefront.report.SpanLogs;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import wavefront.report.*;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -81,10 +73,10 @@ public class PushAgentTest {
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
   private final long alignedStartTimeEpochSeconds = System.currentTimeMillis() / 1000 / 60 * 60;
   private PushAgent proxy;
-  private int port;
+  //  private int port;
   // private int tracePort;
-  private int customTracePort;
-  private int deltaPort;
+  //  private int customTracePort;
+  //  private int deltaPort;
   private ReportableEntityHandler<ReportPoint> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
@@ -157,8 +149,8 @@ public class PushAgentTest {
 
   @Test
   public void testSecureAll() throws Exception {
-    int securePort1 = findAvailablePort(2888);
-    int securePort2 = findAvailablePort(2889);
+    int securePort1 = findAvailablePort();
+    int securePort2 = findAvailablePort();
     proxy.proxyConfig.privateCertPath =
         getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath =
@@ -246,8 +238,8 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
-    port = findAvailablePort(2888);
-    int securePort = findAvailablePort(2889);
+    int port = findAvailablePort();
+    int securePort = findAvailablePort();
     proxy.proxyConfig.privateCertPath =
         getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath =
@@ -335,8 +327,8 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerGzippedPlaintextStream() throws Exception {
-    port = findAvailablePort(2888);
-    int securePort = findAvailablePort(2889);
+    int port = findAvailablePort();
+    int securePort = findAvailablePort();
     proxy.proxyConfig.privateCertPath =
         getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath =
@@ -431,9 +423,9 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextOverHttp() throws Exception {
-    port = findAvailablePort(2888);
-    int securePort = findAvailablePort(2889);
-    int healthCheckPort = findAvailablePort(8881);
+    int port = findAvailablePort();
+    int securePort = findAvailablePort();
+    int healthCheckPort = findAvailablePort();
     proxy.proxyConfig.privateCertPath =
         getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath =
@@ -547,8 +539,8 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerHttpGzipped() throws Exception {
-    port = findAvailablePort(2888);
-    int securePort = findAvailablePort(2889);
+    int port = findAvailablePort();
+    int securePort = findAvailablePort();
     proxy.proxyConfig.privateCertPath =
         getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath =
@@ -655,7 +647,7 @@ public class PushAgentTest {
   @Test
   public void testHistogramDataOnWavefrontUnifiedPortHandlerPlaintextUncompressed()
       throws Exception {
-    port = findAvailablePort(2888);
+    int port = findAvailablePort();
     proxy.startGraphiteListener(
         port, mockHandlerFactory, null, new SpanSampler(new RateSampler(1.0D), () -> null));
     waitUntilListenerIsOnline(port);
@@ -711,7 +703,7 @@ public class PushAgentTest {
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressedMixedDataPayload()
       throws Exception {
-    port = findAvailablePort(2888);
+    int port = findAvailablePort();
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(
         Integer.parseInt(proxy.proxyConfig.getPushListenerPorts()),
@@ -798,10 +790,9 @@ public class PushAgentTest {
     verifyWithTimeout(500, mockPointHandler, mockHistogramHandler, mockEventHandler);
   }
 
-  @Ignore
   @Test
   public void testWavefrontHandlerAsDDIEndpoint() throws Exception {
-    port = findAvailablePort(2978);
+    int port = findAvailablePort();
     proxy.proxyConfig.dataBackfillCutoffHours = 8640;
     proxy.startGraphiteListener(
         port, mockHandlerFactory, null, new SpanSampler(new DurationSampler(5000), () -> null));
@@ -1236,9 +1227,9 @@ public class PushAgentTest {
 
   @Test
   public void testTraceUnifiedPortHandlerPlaintextDebugSampling() throws Exception {
-    int tracePort = findAvailablePort(3888);
+    int tracePort = findAvailablePort();
     proxy.startTraceListener(
-        port, mockHandlerFactory, new SpanSampler(new RateSampler(0.0D), () -> null));
+        tracePort, mockHandlerFactory, new SpanSampler(new RateSampler(0.0D), () -> null));
     waitUntilListenerIsOnline(tracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -1336,7 +1327,7 @@ public class PushAgentTest {
 
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
-    int tracePort = findAvailablePort(3888);
+    int tracePort = findAvailablePort();
     proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
     proxy.startTraceListener(
         Integer.parseInt(proxy.proxyConfig.getTraceListenerPorts()),
@@ -1439,7 +1430,7 @@ public class PushAgentTest {
 
   @Test
   public void testCustomTraceUnifiedPortHandlerDerivedMetrics() throws Exception {
-    customTracePort = findAvailablePort(51233);
+    int customTracePort = findAvailablePort();
     proxy.proxyConfig.customTracingListenerPorts = String.valueOf(customTracePort);
     setUserPreprocessorForTraceDerivedREDMetrics(customTracePort);
     proxy.startCustomTracingListener(
@@ -1550,7 +1541,7 @@ public class PushAgentTest {
 
   @Test
   public void testCustomTraceUnifiedPortHandlerPlaintext() throws Exception {
-    customTracePort = findAvailablePort(50000);
+    int customTracePort = findAvailablePort();
     proxy.startCustomTracingListener(
         customTracePort,
         mockHandlerFactory,
@@ -1662,9 +1653,9 @@ public class PushAgentTest {
 
   @Test(timeout = 30000)
   public void testDataDogUnifiedPortHandler() throws Exception {
-    int ddPort = findAvailablePort(4888);
+    int ddPort = findAvailablePort();
     proxy.startDataDogListener(ddPort, mockHandlerFactory, mockHttpClient);
-    int ddPort2 = findAvailablePort(4988);
+    int ddPort2 = findAvailablePort();
     PushAgent proxy2 = new PushAgent();
     proxy2.proxyConfig.flushThreads = 2;
     proxy2.proxyConfig.dataBackfillCutoffHours = 100000000;
@@ -1677,10 +1668,13 @@ public class PushAgentTest {
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
 
-    proxy2.startDataDogListener(ddPort, mockHandlerFactory, mockHttpClient);
+    proxy2.startDataDogListener(
+        Integer.parseInt(proxy2.proxyConfig.getDataDogJsonPorts()),
+        mockHandlerFactory,
+        mockHttpClient);
     waitUntilListenerIsOnline(ddPort2);
 
-    int ddPort3 = findAvailablePort(4990);
+    int ddPort3 = findAvailablePort();
     PushAgent proxy3 = new PushAgent();
     proxy3.proxyConfig.dataBackfillCutoffHours = 100000000;
     proxy3.proxyConfig.dataDogProcessSystemMetrics = true;
@@ -1847,48 +1841,14 @@ public class PushAgentTest {
   // moved to HttpEndToEndTest.testEndToEndDelta
   // }
 
-  @Test
-  public void testDeltaCounterHandlerDataStream() throws Exception {
-    deltaPort = findAvailablePort(5888);
-    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
-    proxy.proxyConfig.disableBuffer = true;
-
-    QueueInfo handlerKey = queuesManager.initQueue(ReportableEntityType.POINT);
-    BuffersManager.registerNewQueueIfNeedIt(handlerKey);
-
-    proxy.startDeltaCounterListener(
-        deltaPort, null, new SpanSampler(new RateSampler(1.0D), () -> null));
-    waitUntilListenerIsOnline(deltaPort);
-
-    String payloadStr = "∆test.mixed 1.0 " + alignedStartTimeEpochSeconds + " source=test1\n";
-    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
-    ReportableEntityHandler<?> handler =
-        proxy.deltaCounterHandlerFactory.getHandler(deltaPort, handlerKey);
-    if (!(handler instanceof DeltaCounterAccumulationHandlerImpl)) fail();
-    ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
-
-    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr));
-    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
-
-    ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
-
-    BuffersManager.onMsgBatch(
-        handlerKey,
-        1,
-        5,
-        new TestUtils.RateLimiter(),
-        batch -> {
-          assertEquals(2, batch.size());
-          batch.forEach(
-              s -> {
-                assertTrue(s.trim().matches("\"∆test.mixed\" [23].0(.*)"));
-              });
-        });
-  }
+  //  @Test
+  //  public void testDeltaCounterHandlerDataStream() throws Exception {
+  // SEE HttpEndToEndTest.testEndToEndDelta
+  //  }
 
   @Test
   public void testOpenTSDBPortHandler() throws Exception {
-    port = findAvailablePort(4242);
+    int port = findAvailablePort();
     proxy.startOpenTsdbListener(port, mockHandlerFactory);
     waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
@@ -2007,7 +1967,7 @@ public class PushAgentTest {
 
   @Test
   public void testJsonMetricsPortHandler() throws Exception {
-    port = findAvailablePort(3878);
+    int port = findAvailablePort();
     proxy.proxyConfig.jsonListenerPorts = String.valueOf(port);
     proxy.startJsonListener(port, mockHandlerFactory);
     waitUntilListenerIsOnline(port);
@@ -2106,7 +2066,7 @@ public class PushAgentTest {
 
   @Test
   public void testOtlpHttpPortHandlerTraces() throws Exception {
-    port = findAvailablePort(4318);
+    int port = findAvailablePort();
     proxy.proxyConfig.hostname = "defaultLocalHost";
     SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
     proxy.startOtlpHttpListener(port, mockHandlerFactory, mockWavefrontSender, mockSampler);
@@ -2150,7 +2110,7 @@ public class PushAgentTest {
 
   @Test
   public void testOtlpHttpPortHandlerMetrics() throws Exception {
-    port = findAvailablePort(4318);
+    int port = findAvailablePort();
     proxy.proxyConfig.hostname = "defaultLocalHost";
     proxy.startOtlpHttpListener(port, mockHandlerFactory, null, null);
     waitUntilListenerIsOnline(port);
@@ -2196,7 +2156,7 @@ public class PushAgentTest {
 
   @Test
   public void testOtlpGrpcHandlerCanListen() throws Exception {
-    port = findAvailablePort(4317);
+    int port = findAvailablePort();
     SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
     proxy.startOtlpGrpcListener(port, mockHandlerFactory, mockWavefrontSender, mockSampler);
     waitUntilListenerIsOnline(port);
@@ -2204,7 +2164,7 @@ public class PushAgentTest {
 
   @Test
   public void testJaegerGrpcHandlerCanListen() throws Exception {
-    port = findAvailablePort(14250);
+    int port = findAvailablePort();
     SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
     proxy.startTraceJaegerGrpcListener(port, mockHandlerFactory, mockWavefrontSender, mockSampler);
     waitUntilListenerIsOnline(port);
@@ -2212,7 +2172,7 @@ public class PushAgentTest {
 
   @Test
   public void testWriteHttpJsonMetricsPortHandler() throws Exception {
-    port = findAvailablePort(4878);
+    int port = findAvailablePort();
     proxy.proxyConfig.writeHttpJsonListenerPorts = String.valueOf(port);
     proxy.proxyConfig.hostname = "defaultLocalHost";
     proxy.startWriteHttpJsonListener(port, mockHandlerFactory);
@@ -2298,10 +2258,9 @@ public class PushAgentTest {
     verify(mockPointHandler);
   }
 
-  @Ignore
   @Test
   public void testRelayPortHandlerGzipped() throws Exception {
-    port = findAvailablePort(2888);
+    int port = findAvailablePort();
     proxy.proxyConfig.pushRelayListenerPorts = String.valueOf(port);
     proxy.proxyConfig.pushRelayHistogramAggregator = true;
     proxy.proxyConfig.pushRelayHistogramAggregatorAccumulatorSize = 10L;
@@ -2513,11 +2472,11 @@ public class PushAgentTest {
 
   @Test
   public void testHealthCheckAdminPorts() throws Exception {
-    port = findAvailablePort(2888);
-    int port2 = findAvailablePort(3888);
-    int port3 = findAvailablePort(4888);
-    int port4 = findAvailablePort(5888);
-    int adminPort = findAvailablePort(6888);
+    int port = findAvailablePort();
+    int port2 = findAvailablePort();
+    int port3 = findAvailablePort();
+    int port4 = findAvailablePort();
+    int adminPort = findAvailablePort();
     proxy.proxyConfig.pushListenerPorts = port + "," + port2 + "," + port3 + "," + port4;
     proxy.proxyConfig.adminApiListenerPort = adminPort;
     proxy.proxyConfig.httpHealthCheckPath = "/health";
@@ -2599,7 +2558,7 @@ public class PushAgentTest {
 
   @Test
   public void testLargeHistogramDataOnWavefrontUnifiedPortHandler() throws Exception {
-    port = findAvailablePort(2988);
+    int port = findAvailablePort();
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(
         port, mockHandlerFactory, null, new SpanSampler(new RateSampler(1.0D), () -> null));

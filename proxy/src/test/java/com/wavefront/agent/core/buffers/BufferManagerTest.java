@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class BufferManagerTest {
@@ -27,6 +28,8 @@ public class BufferManagerTest {
   }
 
   @Test
+  @Ignore // need external resources that not always is available we will write a functional test
+  // for this
   public void external() throws Exception {
     SQSBufferConfig sqsCfg = new SQSBufferConfig();
     sqsCfg.template = "wf-proxy-{{id}}-{{entity}}-{{port}}";
@@ -93,6 +96,7 @@ public class BufferManagerTest {
       BuffersManager.sendMsg(points, "tururu");
     }
     memory.flush(points);
+    Thread.sleep(1_000);
 
     assertEquals("MessageCount", 10_000, memory.countMetrics.get(points.getName()).doCount());
     assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
@@ -115,7 +119,7 @@ public class BufferManagerTest {
   }
 
   @Test
-  public void counters() {
+  public void counters() throws InterruptedException {
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.disk = false;
     BuffersManager.init(cfg);
@@ -127,11 +131,12 @@ public class BufferManagerTest {
       BuffersManager.sendMsg(points, "tururu");
     }
     memory.flush(points);
+    Thread.sleep(1_000);
     assertEquals("gauge.doCount", 1_654_321, memory.countMetrics.get(points.getName()).doCount());
   }
 
   @Test
-  public void bridgeControl() throws IOException {
+  public void bridgeControl() throws IOException, InterruptedException {
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.disk = true;
@@ -162,11 +167,13 @@ public class BufferManagerTest {
     assertEquals("failed", 100, memory.countMetrics.get(points.getName()).doCount());
   }
 
-  private void send100pointsAndFail(QueueInfo points, MemoryBuffer memory) {
+  private void send100pointsAndFail(QueueInfo points, MemoryBuffer memory)
+      throws InterruptedException {
     for (int i = 0; i < 100; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
     memory.flush(points);
+    Thread.sleep(1_000);
 
     memory.onMsgBatch(
         points,
@@ -246,6 +253,7 @@ public class BufferManagerTest {
     assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
     BuffersManager.sendMsg(points, "tururu");
     memory.flush(points);
+    Thread.sleep(1_000);
     assertEquals("MessageCount", 1, memory.countMetrics.get(points.getName()).doCount());
 
     for (int i = 0; i < 4; i++) {
@@ -270,7 +278,7 @@ public class BufferManagerTest {
   }
 
   @Test
-  public void memoryQueueFull() throws IOException {
+  public void memoryQueueFull() throws IOException, InterruptedException {
     Path buffer = Files.createTempDirectory("wfproxy");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.disk = true;
@@ -295,6 +303,7 @@ public class BufferManagerTest {
     }
 
     memory.flush(points);
+    Thread.sleep(1_000);
 
     assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
     assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
@@ -305,6 +314,7 @@ public class BufferManagerTest {
     }
 
     memory.flush(points);
+    Thread.sleep(1_000);
 
     assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
     assertEquals("MessageCount", 20, disk.countMetrics.get(points.getName()).doCount());
