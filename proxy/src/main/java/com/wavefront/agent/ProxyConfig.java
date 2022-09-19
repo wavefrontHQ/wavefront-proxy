@@ -1310,6 +1310,22 @@ public class ProxyConfig extends Configuration {
   String customServiceTags = "";
 
   @Parameter(
+      names = {"--customExceptionTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the exception in Wavefront in the absence of a "
+              + "tag named `exception`. Default: exception, error_name")
+  String customExceptionTags = "";
+
+  @Parameter(
+      names = {"--customLevelTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the log level in Wavefront in the absence of a "
+              + "tag named `level`. Default: level, log_level")
+  String customLevelTags = "";
+
+  @Parameter(
       names = {"--multicastingTenants"},
       description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
   protected int multicastingTenants = 0;
@@ -1989,6 +2005,39 @@ public class ProxyConfig extends Configuration {
     return new ArrayList<>(tagSet);
   }
 
+  public List<String> getCustomExceptionTags() {
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customExceptionTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customExceptionTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomLevelTags() {
+    // create List of level tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customLevelTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customLevelTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
   public Map<String, String> getAgentMetricsPointTags() {
     //noinspection UnstableApiUsage
     return agentMetricsPointTags == null
@@ -2453,6 +2502,8 @@ public class ProxyConfig extends Configuration {
       splitPushWhenRateLimited =
           config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
       customSourceTags = config.getString("customSourceTags", customSourceTags);
+      customLevelTags = config.getString("customLevelTags", customLevelTags);
+      customExceptionTags = config.getString("customExceptionTags", customExceptionTags);
       agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
       ephemeral = config.getBoolean("ephemeral", ephemeral);
       disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
