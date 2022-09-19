@@ -68,7 +68,7 @@ public class LogsIngesterTest {
 
           @Override
           public QueueInfo initQueue(ReportableEntityType entityType) {
-            return queues.computeIfAbsent(entityType.toString(), s -> new TestQueue());
+            return queues.computeIfAbsent(entityType.toString(), s -> new TestQueue(entityType));
           }
         };
   }

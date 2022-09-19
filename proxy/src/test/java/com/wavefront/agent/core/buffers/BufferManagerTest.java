@@ -7,6 +7,7 @@ import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.core.queues.TestQueue;
+import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,7 +39,7 @@ public class BufferManagerTest {
     cfg.sqsCfg = sqsCfg;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
     SQSBuffer sqs = (SQSBuffer) buffers.get(1);
 
@@ -83,7 +84,7 @@ public class BufferManagerTest {
     cfg.memoryCfg.msgExpirationTime = -1;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
     MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
     DiskBuffer disk = (DiskBuffer) buffers.get(1);
@@ -119,7 +120,7 @@ public class BufferManagerTest {
     cfg.disk = false;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue(8);
+    QueueInfo points = new TestQueue(8, ReportableEntityType.POINT);
     MemoryBuffer memory = (MemoryBuffer) BuffersManager.registerNewQueueIfNeedIt(points).get(0);
 
     for (int i = 0; i < 1_654_321; i++) {
@@ -139,7 +140,7 @@ public class BufferManagerTest {
     cfg.memoryCfg.msgRetry = 1;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
     MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
     DiskBuffer disk = (DiskBuffer) buffers.get(1);
@@ -189,7 +190,7 @@ public class BufferManagerTest {
     cfg.memoryCfg.msgRetry = -1;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
     MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
     DiskBuffer disk = (DiskBuffer) buffers.get(1);
@@ -226,7 +227,7 @@ public class BufferManagerTest {
     Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
     cfg.disk = true;
@@ -279,7 +280,7 @@ public class BufferManagerTest {
     cfg.memoryCfg.maxMemory = 500;
     BuffersManager.init(cfg);
 
-    QueueInfo points = new TestQueue();
+    QueueInfo points = new TestQueue(ReportableEntityType.POINT);
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
     MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
     DiskBuffer disk = (DiskBuffer) buffers.get(1);
