@@ -1,51 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: disk-buffer-test-metrics-filter
-  labels:
-    app: metrics-filter
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: metrics-filter
-  template:
-    metadata:
-      labels:
-        app: metrics-filter
-    spec:
-      containers:
-        - name: metrics-filter
-          image: node:18.3
-          ports:
-            - name: push
-              containerPort: 8000
-              protocol: TCP
-          workingDir: /opt/filter/
-          command: [ "bash", "run.sh" ]
-          livenessProbe:
-            tcpSocket:
-              port: 8000
-            initialDelaySeconds: 60
-            periodSeconds: 60
-          volumeMounts:
-            - mountPath: /opt/filter/
-              name: filter-code
-            - mountPath: /opt/certs/
-              name: certs
-      volumes:
-        - name: filter-code
-          configMap:
-            name: filter-code
-            defaultMode: 0644
-        - name: certs
-          configMap:
-            name: certs
-            defaultMode: 0644
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: disk-buffer-test-proxy
   labels:
     app: proxy
@@ -74,8 +29,8 @@ spec:
                 --pushListenerPorts 2878 
                 --ephemeral false 
                 --idFile /tmp/id
-                --proxyHost metrics-filter
-                --proxyPort 8000
+                --pushFlushInterval 3600000 
+                --memoryBufferExpirationTime 1
           ports: 
             - name: push
               containerPort: 2878
@@ -88,27 +43,8 @@ spec:
           volumeMounts:
             - mountPath: /scripts/
               name: scripts
-            - mountPath: /tmp/ca/
-              name: certs
       volumes:
         - name: scripts
           configMap:
             name: scripts
             defaultMode: 0777
-        - name: certs
-          configMap:
-            name: certs
-            defaultMode: 0644
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: metrics-filter
-spec:
-  ports:
-  - name: pushrelay
-    protocol: "TCP"
-    port: 8000
-    targetPort: 8000
-  selector:
-    app: metrics-filter

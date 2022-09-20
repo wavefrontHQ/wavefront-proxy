@@ -15,20 +15,22 @@ import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 
 public class MemoryBuffer extends ActiveMQBuffer {
   private static final Logger log = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
-  private static final Logger slowLog = new MessageDedupingLogger(
-      Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
+  private static final Logger slowLog =
+      new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
   private static final Logger droppedPointsLogger = Logger.getLogger("RawDroppedPoints");
 
-  private static final Map<String, LinkedTransferQueue<String>> midBuffers = new ConcurrentHashMap<>();
+  private static final Map<String, LinkedTransferQueue<String>> midBuffers =
+      new ConcurrentHashMap<>();
   private final ScheduledExecutorService executor;
   private final MemoryBufferConfig cfg;
 
   public MemoryBuffer(int level, String name, MemoryBufferConfig cfg) {
     super(level, name, false, null, cfg.maxMemory);
     this.cfg = cfg;
-    executor = Executors.newScheduledThreadPool(
-        Runtime.getRuntime().availableProcessors(),
-        new NamedThreadFactory("memory-buffer-receiver"));
+    executor =
+        Executors.newScheduledThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            new NamedThreadFactory("memory-buffer-receiver"));
   }
 
   public void shutdown() {
@@ -48,7 +50,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
     int counter = 0;
     try {
-      Object[] queues = amq.getActiveMQServer().getManagementService().getResources(QueueControl.class);
+      Object[] queues =
+          amq.getActiveMQServer().getManagementService().getResources(QueueControl.class);
       for (Object obj : queues) {
         QueueControl queue = (QueueControl) obj;
         int c = queue.expireMessages("");
@@ -68,8 +71,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   public void sendPoint(QueueInfo queue, String strPoint) {
     QueueStats.get(queue.getName()).msgLength.update(strPoint.length());
-    LinkedTransferQueue<String> midBuffer = midBuffers.computeIfAbsent(queue.getName(),
-        s -> new LinkedTransferQueue<>());
+    LinkedTransferQueue<String> midBuffer =
+        midBuffers.computeIfAbsent(queue.getName(), s -> new LinkedTransferQueue<>());
     midBuffer.add(strPoint);
   }
 
@@ -89,7 +92,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   protected void enableBridge() {
     log.info("bridge enabled");
-    AddressSettings addressSetting = amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    AddressSettings addressSetting =
+        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(cfg.msgExpirationTime);
     addressSetting.setMaxDeliveryAttempts(cfg.msgRetry);
     amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
@@ -97,7 +101,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   protected void disableBridge() {
     log.info("bridge disabled");
-    AddressSettings addressSetting = amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    AddressSettings addressSetting =
+        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(-1L);
     addressSetting.setMaxDeliveryAttempts(-1);
     amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);

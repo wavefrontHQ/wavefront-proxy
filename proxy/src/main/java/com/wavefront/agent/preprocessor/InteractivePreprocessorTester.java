@@ -38,70 +38,67 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   private final ReportableEntityHandlerFactory factory =
       new ReportableEntityHandlerFactory() {
         @Override
-        public  ReportableEntityHandler getHandler(String handler, QueueInfo queue) {
+        public ReportableEntityHandler getHandler(String handler, QueueInfo queue) {
           if (queue.getEntityType() == ReportableEntityType.TRACE) {
             return new ReportableEntityHandler<Span>() {
-                  @Override
-                  public void report(Span reportSpan) {
-                    System.out.println(SPAN_SERIALIZER.apply(reportSpan));
-                  }
+              @Override
+              public void report(Span reportSpan) {
+                System.out.println(SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void block(Span reportSpan) {
-                    System.out.println("Blocked: " + reportSpan);
-                  }
+              @Override
+              public void block(Span reportSpan) {
+                System.out.println("Blocked: " + reportSpan);
+              }
 
-                  @Override
-                  public void block(@Nullable Span reportSpan, @Nullable String message) {
-                    System.out.println("Blocked: " + SPAN_SERIALIZER.apply(reportSpan));
-                  }
+              @Override
+              public void block(@Nullable Span reportSpan, @Nullable String message) {
+                System.out.println("Blocked: " + SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void reject(@Nullable Span reportSpan, @Nullable String message) {
-                    System.out.println("Rejected: " + SPAN_SERIALIZER.apply(reportSpan));
-                  }
+              @Override
+              public void reject(@Nullable Span reportSpan, @Nullable String message) {
+                System.out.println("Rejected: " + SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void reject(@Nonnull String t, @Nullable String message) {
-                    System.out.println("Rejected: " + t);
-                  }
+              @Override
+              public void reject(@Nonnull String t, @Nullable String message) {
+                System.out.println("Rejected: " + t);
+              }
 
-                  @Override
-                  public void shutdown() {}
-                };
+              @Override
+              public void shutdown() {}
+            };
           }
           return new ReportableEntityHandler<ReportPoint>() {
-                @Override
-                public void report(ReportPoint reportPoint) {
-                  System.out.println(ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void report(ReportPoint reportPoint) {
+              System.out.println(ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void block(ReportPoint reportPoint) {
-                  System.out.println(
-                      "Blocked: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void block(ReportPoint reportPoint) {
+              System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-                  System.out.println(
-                      "Blocked: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+              System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
-                  System.out.println(
-                      "Rejected: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+              System.out.println("Rejected: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void reject(@Nonnull String t, @Nullable String message) {
-                  System.out.println("Rejected: " + t);
-                }
+            @Override
+            public void reject(@Nonnull String t, @Nullable String message) {
+              System.out.println("Rejected: " + t);
+            }
 
-                @Override
-                public void shutdown() {}
-              };
+            @Override
+            public void shutdown() {}
+          };
         }
 
         @Override

@@ -16,8 +16,6 @@ truncate_buffer(){
         -H "Authorization: Bearer ${WAVEFRONT_TOKEN}" \
         "${WAVEFRONT_URL}v2/proxy/${ID}" \
         -d '{"shutdown":false ,"truncate":true}'
-
-    wait_buffer_have_points 0
 }
 
 get_buffer_points(){
@@ -26,36 +24,30 @@ get_buffer_points(){
             "${WAVEFRONT_URL}v2/chart/raw?source=disk-buffer-test-proxy&metric=~proxy.buffer.disk.points.points" \
             -H 'accept: application/json' \
             -H "Authorization: Bearer ${WAVEFRONT_TOKEN}")
-    points=$(echo $test | jq -c '.[0].points | sort_by(.timestamp)[-1].value')
+    points=$(echo $test | jq 'map(.points) | flatten | sort_by(.timestamp)[-1].value')
     echo ${points}
 }
 
 wait_buffer_have_points(){
-    DONE=false
-    while [ !"${DONE}" ]
+    while true
     do
         sleep 15
         v=$(get_buffer_points)
         echo "${v}"
         if [ "${v}" -eq "${1}" ]
         then
-            DONE=true
+            return
         fi
     done
 }
 
-truncate_buffer
-
 METRICNAME_A="test.gh.buffer-disk.${RANDOM}${RANDOM}"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
-curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+for i in {0..99}
+do
+    curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+done
 
-wait_buffer_have_points 10
+
+wait_buffer_have_points 100
+truncate_buffer
+wait_buffer_have_points 0
