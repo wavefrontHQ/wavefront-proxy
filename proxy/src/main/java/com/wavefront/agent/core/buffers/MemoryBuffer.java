@@ -4,14 +4,17 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.logger.MessageDedupingLogger;
+import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.apache.activemq.artemis.api.core.management.QueueControl;
+import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
+
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
-import org.apache.activemq.artemis.api.core.management.QueueControl;
-import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
+
+import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 
 public class MemoryBuffer extends ActiveMQBuffer {
   private static final Logger log = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
@@ -78,12 +81,14 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   @Override
   public void registerNewQueueInfo(QueueInfo queue) {
-    // TODO:  int interval =
-    // entityPropsFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
-
+    int interval =
+        entityPropertiesFactoryMap
+            .get(queue.getTenant())
+            .get(queue.getEntityType())
+            .getPushFlushInterval();
     super.registerNewQueueInfo(queue);
     for (int i = 0; i < queue.getNumberThreads(); i++) {
-      executor.scheduleAtFixedRate(new sender(queue), 1, 1, TimeUnit.SECONDS);
+      executor.scheduleAtFixedRate(new sender(queue), interval, interval, TimeUnit.MILLISECONDS);
     }
   }
 

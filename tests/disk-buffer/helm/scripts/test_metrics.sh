@@ -11,10 +11,10 @@ ID=${PROXY_ID:=$(cat "/tmp/id")}
 
 truncate_buffer(){
     curl \
-        --silent -X 'GET' \
-        "${WAVEFRONT_URL}v2/proxy/${ID}" \
-        -H 'accept: application/json' \
+        -X 'PUT' \
+        -H 'Content-Type: application/json' \
         -H "Authorization: Bearer ${WAVEFRONT_TOKEN}" \
+        "${WAVEFRONT_URL}v2/proxy/${ID}" \
         -d '{"shutdown":false ,"truncate":true}'
 
     wait_buffer_have_points 0
@@ -34,7 +34,7 @@ wait_buffer_have_points(){
     DONE=false
     while [ !"${DONE}" ]
     do
-        sleep 2
+        sleep 15
         v=$(get_buffer_points)
         echo "${v}"
         if [ "${v}" -eq "${1}" ]
@@ -47,6 +47,15 @@ wait_buffer_have_points(){
 truncate_buffer
 
 METRICNAME_A="test.gh.buffer-disk.${RANDOM}${RANDOM}"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
+curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
 curl http://localhost:2878 -X POST -d "${METRICNAME_A} ${RANDOM} source=github_proxy_action"
 
 wait_buffer_have_points 10

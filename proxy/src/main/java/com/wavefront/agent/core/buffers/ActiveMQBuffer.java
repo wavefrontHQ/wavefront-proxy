@@ -193,12 +193,10 @@ public abstract class ActiveMQBuffer implements Buffer {
                 ClientProducer producer = session.createProducer(queue);
                 return new Pair<>(session, producer);
               } catch (Exception e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
               }
-              return null;
             });
 
-    // TODO: check if session still valid
     ClientSession session = mqCtx._1;
     ClientProducer producer = mqCtx._2;
     try {
@@ -214,8 +212,10 @@ public abstract class ActiveMQBuffer implements Buffer {
     } catch (ActiveMQObjectClosedException e) {
       log.log(Level.FINE, "connection close: " + e.getMessage());
       producers.remove(queue);
+      sendPoints(queue, points);
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
+      throw new RuntimeException(e);
     }
   }
 

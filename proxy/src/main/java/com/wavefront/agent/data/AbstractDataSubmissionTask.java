@@ -45,6 +45,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
    * @param queue port/handle
    * @param timeProvider time provider (in millis)
    */
+  // TODO: remove this
   AbstractDataSubmissionTask(
       EntityProperties properties,
       QueueInfo queue,

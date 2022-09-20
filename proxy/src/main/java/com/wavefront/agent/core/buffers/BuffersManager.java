@@ -64,7 +64,6 @@ public class BuffersManager {
         buffers.add(external);
       }
 
-      // TODO: move this to queue/queueInfo creation
       registeredQueues.put(queue.getName(), true);
     }
 

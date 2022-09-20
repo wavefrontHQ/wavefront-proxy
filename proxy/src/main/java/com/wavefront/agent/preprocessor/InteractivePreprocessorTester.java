@@ -37,12 +37,10 @@ public class InteractivePreprocessorTester implements InteractiveTester {
 
   private final ReportableEntityHandlerFactory factory =
       new ReportableEntityHandlerFactory() {
-        @SuppressWarnings("unchecked")
         @Override
-        public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+        public  ReportableEntityHandler getHandler(String handler, QueueInfo queue) {
           if (queue.getEntityType() == ReportableEntityType.TRACE) {
-            return (ReportableEntityHandler<T>)
-                new ReportableEntityHandler<Span>() {
+            return new ReportableEntityHandler<Span>() {
                   @Override
                   public void report(Span reportSpan) {
                     System.out.println(SPAN_SERIALIZER.apply(reportSpan));
@@ -72,8 +70,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
                   public void shutdown() {}
                 };
           }
-          return (ReportableEntityHandler<T>)
-              new ReportableEntityHandler<ReportPoint>() {
+          return new ReportableEntityHandler<ReportPoint>() {
                 @Override
                 public void report(ReportPoint reportPoint) {
                   System.out.println(ReportPointSerializer.pointToString(reportPoint));
