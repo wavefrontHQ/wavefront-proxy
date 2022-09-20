@@ -1,13 +1,5 @@
 command:
-  proxy-main-cheking:
-    exec: bash /files/test_main.sh
-    timeout: 600000
-    exit-status: 0
-  test-tenant-cheking:
-    exec: bash /files/test_tenant.sh
-    timeout: 600000
-    exit-status: 0
   test-metrics-cheking:
-    exec: bash /files/test_metrics.sh
+    exec: bash /scripts/test_metrics.sh
     timeout: 600000
     exit-status: 0

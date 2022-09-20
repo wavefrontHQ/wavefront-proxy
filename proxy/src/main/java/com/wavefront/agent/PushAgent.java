@@ -2066,9 +2066,4 @@ public class PushAgent extends AbstractAgent {
               }
             });
   }
-
-  @Override
-  protected void truncateBacklog() {
-    SenderTasksManager.truncateBuffers();
-  }
 }

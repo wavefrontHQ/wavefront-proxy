@@ -33,6 +33,13 @@ docker: .info .cp-docker
 	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/
 
 #####
+# Build single docker image for testing
+#####
+docker-test: .info .cp-docker
+	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/ --build-arg TEST=true
+
+
+#####
 # Build single docker image
 #####
 docker-RHEL: .info .cp-docker

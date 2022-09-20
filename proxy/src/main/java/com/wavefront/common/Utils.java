@@ -100,6 +100,7 @@ public abstract class Utils {
    * @param inputString input string
    * @return iterator
    */
+  // TODO: support 'global'
   @Nonnull
   public static List<Integer> csvToList(@Nullable String inputString) {
     List<String> res =

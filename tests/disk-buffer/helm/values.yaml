@@ -4,6 +4,3 @@ image:
 wavefront:
   url: https://XXXXX.wavefront.com/api/
   token: XXXXXXXXXXXXXX
-wavefront_tenant:
-  url: https://XXXX.wavefront.com/api/
-  token: XXXXXXXXXXXXXX

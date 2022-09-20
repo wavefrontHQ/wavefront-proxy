@@ -84,4 +84,10 @@ public class BuffersManager {
       OnMsgFunction func) {
     memoryBuffer.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
   }
+
+  public static void truncateBacklog() {
+    if (diskBuffer != null) {
+      diskBuffer.truncate();
+    }
+  }
 }

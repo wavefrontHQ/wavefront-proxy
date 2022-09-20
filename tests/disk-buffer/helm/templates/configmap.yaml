@@ -1,18 +1,32 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: files
+  name: scripts
 data:
   test_proxy_checkin.sh: |
-    {{- (.Files.Get "scripts/test_proxy_checkin.sh") | indent 4 }}
-  test_main.sh: |
-    {{- (.Files.Get "scripts/test_main.sh") | indent 4 }}
-  test_tenant.sh: |
-    {{- (.Files.Get "scripts/test_tenant.sh") | indent 4 }}
+{{ (.Files.Get "scripts/test_proxy_checkin.sh") | indent 4 }}
   test_metrics.sh: |
-    {{- (.Files.Get "scripts/test_metrics.sh") | indent 4 }}
-  proxy.cfg: |
-    multicastingTenants=1
-    multicastingTenantName_1=tenant1
-    multicastingServer_1={{ .Values.wavefront_tenant.url }}
-    multicastingToken_1={{ .Values.wavefront_tenant.token }}
+{{ (.Files.Get "scripts/test_metrics.sh") | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filter-code
+data:
+  run.sh: |
+{{ .Files.Get "filter/run.sh" | indent 4 }}
+  filter.js: |
+{{ .Files.Get "filter/filter.js" | indent 4 }}
+  package.json: |
+{{ .Files.Get "filter/package.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certs
+data:
+  rootCA.key: |
+{{ .Files.Get "certs/rootCA.key" | indent 4 }}
+  rootCA.pem: |
+{{ .Files.Get "certs/rootCA.pem" | indent 4 }}

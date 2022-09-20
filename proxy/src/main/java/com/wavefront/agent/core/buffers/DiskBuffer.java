@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.apache.activemq.artemis.api.core.management.AddressControl;
 
 public class DiskBuffer extends ActiveMQBuffer implements Buffer {
   private static final Logger log = Logger.getLogger(DiskBuffer.class.getCanonicalName());
@@ -45,5 +46,22 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
 
   public boolean isFull() {
     return amq.getActiveMQServer().getPagingManager().isDiskFull();
+  }
+
+  public void truncate() {
+    Object[] addresses =
+        amq.getActiveMQServer().getManagementService().getResources(AddressControl.class);
+
+    try {
+      for (Object obj : addresses) {
+        AddressControl address = (AddressControl) obj;
+        if (!address.getAddress().startsWith("active")) {
+          address.purge();
+          log.info(address.getAddress() + " buffer truncated");
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

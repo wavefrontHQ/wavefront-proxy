@@ -16,6 +16,12 @@ RUN chown -R wavefront:wavefront /opt/java/openjdk/lib/security/cacerts
 RUN mkdir -p /var/spool/wavefront-proxy/buffer
 RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy/buffer
 
+# just for testing
+ARG TEST
+RUN if [ ${TEST} = "true" ]; then \
+    apt-get update && apt-get install -y jq ;\
+    fi
+
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878

@@ -1,39 +1,81 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tests-proxy-disk-buffer
+  name: disk-buffer-test-metrics-filter
   labels:
-    app: proxy-disk-buffer
+    app: metrics-filter
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: proxy-disk-buffer
+      app: metrics-filter
   template:
     metadata:
       labels:
-        app: proxy-disk-buffer
+        app: metrics-filter
     spec:
       containers:
-        - name: proxy-disk-buffer
+        - name: metrics-filter
+          image: node:18.3
+          ports:
+            - name: push
+              containerPort: 8000
+              protocol: TCP
+          workingDir: /opt/filter/
+          command: [ "bash", "run.sh" ]
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 60
+          volumeMounts:
+            - mountPath: /opt/filter/
+              name: filter-code
+            - mountPath: /opt/certs/
+              name: certs
+      volumes:
+        - name: filter-code
+          configMap:
+            name: filter-code
+            defaultMode: 0644
+        - name: certs
+          configMap:
+            name: certs
+            defaultMode: 0644
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: disk-buffer-test-proxy
+  labels:
+    app: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+        - name: proxy
           image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
               value: {{ .Values.wavefront.url }}
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
-            - name: WAVEFRONT_URL_2
-              value: {{ .Values.wavefront_tenant.url }}
-            - name: WAVEFRONT_TOKEN_2
-              value: {{ .Values.wavefront_tenant.token }}
             - name: WAVEFRONT_PROXY_ARGS
               value: | 
+                --hostname disk-buffer-test-proxy
                 --pushListenerPorts 2878 
                 --ephemeral false 
                 --idFile /tmp/id
-                -f /files/proxy.cfg
+                --proxyHost metrics-filter
+                --proxyPort 8000
           ports: 
             - name: push
               containerPort: 2878
@@ -44,10 +86,29 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
           volumeMounts:
-            - mountPath: /files
-              name: files
+            - mountPath: /scripts/
+              name: scripts
+            - mountPath: /tmp/ca/
+              name: certs
       volumes:
-        - name: files
+        - name: scripts
           configMap:
-            name: files
+            name: scripts
             defaultMode: 0777
+        - name: certs
+          configMap:
+            name: certs
+            defaultMode: 0644
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-filter
+spec:
+  ports:
+  - name: pushrelay
+    protocol: "TCP"
+    port: 8000
+    targetPort: 8000
+  selector:
+    app: metrics-filter

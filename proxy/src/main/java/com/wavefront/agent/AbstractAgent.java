@@ -305,7 +305,7 @@ public abstract class AbstractAgent {
               apiContainer,
               this::processConfiguration,
               () -> System.exit(1),
-              this::truncateBacklog);
+              BuffersManager::truncateBacklog);
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -412,6 +412,4 @@ public abstract class AbstractAgent {
 
   /** Stops all listeners before terminating the process. */
   protected abstract void stopListeners();
-
-  protected abstract void truncateBacklog();
 }

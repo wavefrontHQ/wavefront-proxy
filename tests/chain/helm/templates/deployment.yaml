@@ -17,7 +17,6 @@ spec:
       containers:
         - name: wf-proxy-edge
           image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
