@@ -41,7 +41,7 @@
               "path": "/.vib/goss_disk_buffer"
             },
             "remote": {
-              "workload": "deploy-tests-proxy-disk-buffer"
+              "workload": "deploy-disk-buffer-test-proxy"
             }
           }
         }
