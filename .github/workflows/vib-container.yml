@@ -31,7 +31,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: build application
-        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar-test docker
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar docker-test
       - name: Docker login
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
       - name: Docker push
