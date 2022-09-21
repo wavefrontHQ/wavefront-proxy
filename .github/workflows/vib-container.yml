@@ -145,21 +145,21 @@ jobs:
   #       name: Verify Wavefront container
   #       with:
   #         pipeline: vib-deb-package-debian.json
-  vib-maven:
-    runs-on: ubuntu-latest
-    name: make build-jar
-    steps:
-      - uses: actions/checkout@v2
-        name: Checkout Java-lib Repository
-        with:
-          ref: dev-proxy2
-          repository: wavefrontHQ/java-lib
-      - name: Build Java-lib
-        run: mvn --batch-mode install
-      - uses: actions/checkout@v2
-        name: Checkout Proxy Repository
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-      - name: build application
-        run: make build-jar
+  # vib-maven:
+  #   runs-on: ubuntu-latest
+  #   name: make build-jar
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       name: Checkout Java-lib Repository
+  #       with:
+  #         ref: dev-proxy2
+  #         repository: wavefrontHQ/java-lib
+  #     - name: Build Java-lib
+  #       run: mvn --batch-mode install
+  #     - uses: actions/checkout@v2
+  #       name: Checkout Proxy Repository
+  #       with:
+  #         ref: ${{ github.event.pull_request.head.ref }}
+  #         repository: ${{ github.event.pull_request.head.repo.full_name }}
+  #     - name: build application
+  #       run: make build-jar
