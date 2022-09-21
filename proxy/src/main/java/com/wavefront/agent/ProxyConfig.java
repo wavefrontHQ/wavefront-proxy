@@ -2381,6 +2381,12 @@ public class ProxyConfig extends Configuration {
       histogramDistMemoryCache =
           config.getBoolean("histogramDistMemoryCache", histogramDistMemoryCache);
 
+      // hyperlogs global settings
+      customTimestampTags = config.getString("customTimestampTags", customTimestampTags);
+      customMessageTags = config.getString("customMessageTags", customMessageTags);
+      customApplicationTags = config.getString("customApplicationTags", customApplicationTags);
+      customServiceTags = config.getString("customServiceTags", customServiceTags);
+
       exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
       exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
@@ -2388,6 +2394,7 @@ public class ProxyConfig extends Configuration {
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
       flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
+      flushThreadsLogs = config.getInteger("flushThreadsLogs", flushThreadsLogs);
       jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
       writeHttpJsonListenerPorts =
           config.getString("writeHttpJsonListenerPorts", writeHttpJsonListenerPorts);
@@ -2670,6 +2677,7 @@ public class ProxyConfig extends Configuration {
               pushFlushMaxPoints);
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
       pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
+      pushFlushIntervalLogs = config.getInteger("pushFlushIntervalLogs", pushFlushIntervalLogs);
       retryBackoffBaseSeconds =
           Math.max(
               Math.min(
