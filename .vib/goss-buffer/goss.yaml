@@ -1,7 +1,7 @@
 command:
   proxy-cheking:
     exec: bash /scripts/test_metrics.sh
-    timeout: 600000
+    timeout: 900000
     exit-status: 0
     stdout:
       - '"status":"ACTIVE"'

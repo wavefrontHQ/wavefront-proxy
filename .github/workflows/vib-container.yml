@@ -163,3 +163,17 @@ jobs:
   #         repository: ${{ github.event.pull_request.head.repo.full_name }}
   #     - name: build application
   #       run: make build-jar
+  opentel-app-docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: tests/opentel/app
+          push: true
+          tags: user/app:latest
