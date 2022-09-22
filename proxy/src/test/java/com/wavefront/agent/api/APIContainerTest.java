@@ -25,15 +25,6 @@ public class APIContainerTest {
     }
   }
 
-  @Test
-  public void testAPIContainerInitiationWithDiscardData() {
-    APIContainer apiContainer = new APIContainer(this.proxyConfig, true);
-    assertEquals(apiContainer.getTenantNameList().size(), 1);
-    assertTrue(apiContainer.getProxyV2APIForTenant("central") instanceof NoopProxyV2API);
-    assertTrue(apiContainer.getSourceTagAPIForTenant("central") instanceof NoopSourceTagAPI);
-    assertTrue(apiContainer.getEventAPIForTenant("central") instanceof NoopEventAPI);
-  }
-
   @Test(expected = IllegalStateException.class)
   public void testUpdateServerEndpointURLWithNullProxyConfig() {
     APIContainer apiContainer = new APIContainer(null, null, null, null);
@@ -42,19 +33,10 @@ public class APIContainerTest {
 
   @Test
   public void testUpdateServerEndpointURLWithValidProxyConfig() {
-    APIContainer apiContainer = new APIContainer(this.proxyConfig, false);
+    APIContainer apiContainer = new APIContainer(this.proxyConfig);
     assertEquals(apiContainer.getTenantNameList().size(), NUM_TENANTS + 1);
     apiContainer.updateServerEndpointURL("central", "another-fake-url");
     assertEquals(apiContainer.getTenantNameList().size(), NUM_TENANTS + 1);
     assertNotNull(apiContainer.getProxyV2APIForTenant("central"));
-
-    apiContainer = new APIContainer(this.proxyConfig, true);
-    assertEquals(apiContainer.getTenantNameList().size(), 1);
-    apiContainer.updateServerEndpointURL("central", "another-fake-url");
-    assertEquals(apiContainer.getTenantNameList().size(), 1);
-    assertNotNull(apiContainer.getProxyV2APIForTenant("central"));
-    assertTrue(apiContainer.getProxyV2APIForTenant("central") instanceof NoopProxyV2API);
-    assertTrue(apiContainer.getSourceTagAPIForTenant("central") instanceof NoopSourceTagAPI);
-    assertTrue(apiContainer.getEventAPIForTenant("central") instanceof NoopEventAPI);
   }
 }

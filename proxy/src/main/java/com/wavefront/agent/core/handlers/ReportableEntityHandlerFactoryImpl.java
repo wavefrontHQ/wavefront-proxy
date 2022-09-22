@@ -72,7 +72,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?>>> handlers =
       new ConcurrentHashMap<>();
 
-  private final int blockedItemsPerBatch;
   private final ValidationConfiguration validationConfig;
   private final Logger blockedPointsLogger;
   private final Logger blockedHistogramsLogger;
@@ -83,19 +82,15 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   /**
    * Create new instance.
    *
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param validationConfig validation configuration.
    */
   public ReportableEntityHandlerFactoryImpl(
-      final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       final Logger blockedPointsLogger,
       final Logger blockedHistogramsLogger,
       final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
       final Logger blockedLogsLogger) {
-    this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
     this.blockedPointsLogger = blockedPointsLogger;
     this.blockedHistogramsLogger = blockedHistogramsLogger;
@@ -124,7 +119,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new ReportPointHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           validationConfig,
                           blockedPointsLogger,
                           VALID_POINTS_LOGGER,
@@ -133,19 +127,17 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new ReportPointHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           validationConfig,
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER,
                           histogramRecompressor);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(
-                          handler, queue, blockedItemsPerBatch, blockedPointsLogger);
+                          handler, queue, blockedPointsLogger);
                     case TRACE:
                       return new SpanHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           validationConfig,
                           blockedSpansLogger,
                           VALID_SPANS_LOGGER,
@@ -160,21 +152,18 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                       return new SpanLogsHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           blockedSpansLogger,
                           VALID_SPAN_LOGS_LOGGER);
                     case EVENT:
                       return new EventHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           blockedPointsLogger,
                           VALID_EVENTS_LOGGER);
                     case LOGS:
                       return new ReportLogHandlerImpl(
                           handler,
                           queue,
-                          blockedItemsPerBatch,
                           validationConfig,
                           blockedLogsLogger,
                           VALID_LOGS_LOGGER);

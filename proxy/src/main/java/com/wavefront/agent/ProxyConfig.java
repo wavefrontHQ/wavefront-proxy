@@ -20,7 +20,6 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
-import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
 import java.util.*;
 import java.util.logging.Logger;
@@ -144,21 +143,6 @@ public class ProxyConfig extends Configuration {
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(
-      names = {"--bufferShardSize"},
-      description =
-          "Buffer file partition size, in MB. "
-              + "Setting this value too low may reduce the efficiency of disk space utilization, "
-              + "while setting this value too high will allocate disk space in larger increments. "
-              + "Default: 128")
-  int bufferShardSize = 128;
-
-  @Parameter(
-      names = {"--disableBufferSharding"},
-      description = "Use single-file buffer " + "(legacy functionality). Default: false",
-      arity = 1)
-  boolean disableBufferSharding = false;
-
-  @Parameter(
       names = {"--sqsBuffer"},
       description =
           "Use AWS SQS Based for buffering transmissions " + "to be retried. Defaults to False",
@@ -182,14 +166,7 @@ public class ProxyConfig extends Configuration {
       description = "The AWS Region name the queue will live in.")
   String sqsQueueRegion = "us-west-2";
 
-  @Parameter(
-      names = {"--taskQueueLevel"},
-      converter = TaskQueueLevelConverter.class,
-      description =
-          "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. "
-              + "Default: ANY_ERROR")
-  TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
-
+  //TODO: review export buffer
   @Parameter(
       names = {"--exportQueuePorts"},
       description =
@@ -211,14 +188,7 @@ public class ProxyConfig extends Configuration {
       arity = 1)
   boolean exportQueueRetainData = true;
 
-  @Parameter(
-      names = {"--useNoopSender"},
-      description =
-          "Run proxy in debug/performance test "
-              + "mode and discard all received data. Default: false",
-      arity = 1)
-  boolean useNoopSender = false;
-
+  //TODO: is used?
   @Parameter(
       names = {"--flushThreads"},
       description =
@@ -228,16 +198,19 @@ public class ProxyConfig extends Configuration {
       order = 5)
   Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
+  //TODO: is used?
   @Parameter(
       names = {"--flushThreadsSourceTags"},
       description = "Number of threads that send " + "source tags data to the server. Default: 2")
   int flushThreadsSourceTags = DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--flushThreadsEvents"},
       description = "Number of threads that send " + "event data to the server. Default: 2")
   int flushThreadsEvents = DEFAULT_FLUSH_THREADS_EVENTS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--flushThreadsLogs"},
       description =
@@ -247,17 +220,13 @@ public class ProxyConfig extends Configuration {
       order = 5)
   Integer flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
-  @Parameter(
-      names = {"--purgeBuffer"},
-      description = "Whether to purge the retry buffer on start-up. Defaults to " + "false.",
-      arity = 1)
-  boolean purgeBuffer = false;
-
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushInterval"},
       description = "Milliseconds between batches. " + "Defaults to 1000 ms")
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushIntervalLogs"},
       description = "Milliseconds between batches. Defaults to 1000 ms")
@@ -268,31 +237,37 @@ public class ProxyConfig extends Configuration {
       description = "Maximum allowed points " + "in a single flush. Defaults: 40000")
   int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxHistograms"},
       description = "Maximum allowed histograms " + "in a single flush. Default: 10000")
   int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSourceTags"},
       description = "Maximum allowed source tags " + "in a single flush. Default: 50")
   int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSpans"},
       description = "Maximum allowed spans " + "in a single flush. Default: 5000")
   int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSpanLogs"},
       description = "Maximum allowed span logs " + "in a single flush. Default: 1000")
   int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxEvents"},
       description = "Maximum allowed events " + "in a single flush. Default: 50")
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxLogs"},
       description =
@@ -300,39 +275,46 @@ public class ProxyConfig extends Configuration {
               + "in a single flush in bytes between 1mb (1048576) and 5mb (5242880). Default: 4mb (4194304)")
   int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimit"},
       description = "Limit the outgoing point rate at the proxy. Default: " + "do not throttle.")
   double pushRateLimit = NO_RATE_LIMIT;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitHistograms"},
       description =
           "Limit the outgoing histogram " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitHistograms = NO_RATE_LIMIT;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSourceTags"},
       description = "Limit the outgoing rate " + "for source tags at the proxy. Default: 5 op/s")
   double pushRateLimitSourceTags = 5.0d;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSpans"},
       description =
           "Limit the outgoing tracing spans " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitSpans = NO_RATE_LIMIT;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSpanLogs"},
       description =
           "Limit the outgoing span logs " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitSpanLogs = NO_RATE_LIMIT;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitEvents"},
       description = "Limit the outgoing rate " + "for events at the proxy. Default: 5 events/s")
   double pushRateLimitEvents = 5.0d;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushRateLimitLogs"},
       description =
@@ -365,26 +347,25 @@ public class ProxyConfig extends Configuration {
               + "proxy in short bursts")
   int pushMemoryBufferLimitLogs = 16 * pushFlushMaxLogs;
 
-  @Parameter(
-      names = {"--pushBlockedSamples"},
-      description = "Max number of blocked samples to print to log. Defaults" + " to 5.")
-  Integer pushBlockedSamples = 5;
-
+  //TODO: is used?
   @Parameter(
       names = {"--blockedPointsLoggerName"},
       description = "Logger Name for blocked " + "points. " + "Default: RawBlockedPoints")
   String blockedPointsLoggerName = "RawBlockedPoints";
 
+  //TODO: is used?
   @Parameter(
       names = {"--blockedHistogramsLoggerName"},
       description = "Logger Name for blocked " + "histograms" + "Default: RawBlockedPoints")
   String blockedHistogramsLoggerName = "RawBlockedPoints";
 
+  //TODO: is used?
   @Parameter(
       names = {"--blockedSpansLoggerName"},
       description = "Logger Name for blocked spans" + "Default: RawBlockedPoints")
   String blockedSpansLoggerName = "RawBlockedPoints";
 
+  //TODO: is used?
   @Parameter(
       names = {"--blockedLogsLoggerName"},
       description = "Logger Name for blocked logs" + "Default: RawBlockedLogs")
@@ -403,6 +384,7 @@ public class ProxyConfig extends Configuration {
               + " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
   Integer pushListenerMaxReceivedLength = 32768;
 
+  //TODO: is used?
   @Parameter(
       names = {"--pushListenerHttpBufferSize"},
       description =
@@ -427,13 +409,6 @@ public class ProxyConfig extends Configuration {
       description =
           "Close idle inbound connections after " + " specified time in seconds. Default: 300")
   int listenerIdleConnectionTimeout = 300;
-
-  @Parameter(
-      names = {"--memGuardFlushThreshold"},
-      description =
-          "If heap usage exceeds this threshold (in percent), "
-              + "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
-  int memGuardFlushThreshold = 98;
 
   @Parameter(
       names = {"--histogramPassthroughRecompression"},
@@ -817,39 +792,11 @@ public class ProxyConfig extends Configuration {
   String idFile = null;
 
   @Parameter(
-      names = {"--allowRegex", "--whitelistRegex"},
-      description =
-          "Regex pattern (java"
-              + ".util.regex) that graphite input lines must match to be accepted")
-  String allowRegex;
-
-  @Parameter(
-      names = {"--blockRegex", "--blacklistRegex"},
-      description =
-          "Regex pattern (java"
-              + ".util.regex) that graphite input lines must NOT match to be accepted")
-  String blockRegex;
-
-  @Parameter(
       names = {"--opentsdbPorts"},
       description =
           "Comma-separated list of ports to listen on for opentsdb data. "
               + "Binds, by default, to none.")
   String opentsdbPorts = "";
-
-  @Parameter(
-      names = {"--opentsdbAllowRegex", "--opentsdbWhitelistRegex"},
-      description =
-          "Regex "
-              + "pattern (java.util.regex) that opentsdb input lines must match to be accepted")
-  String opentsdbAllowRegex;
-
-  @Parameter(
-      names = {"--opentsdbBlockRegex", "--opentsdbBlacklistRegex"},
-      description =
-          "Regex "
-              + "pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
-  String opentsdbBlockRegex;
 
   @Parameter(
       names = {"--picklePorts"},
@@ -984,21 +931,6 @@ public class ProxyConfig extends Configuration {
   Short pushRelayHistogramAggregatorCompression = 32;
 
   @Parameter(
-      names = {"--splitPushWhenRateLimited"},
-      description =
-          "Whether to split the push "
-              + "batch size when the push is rejected by Wavefront due to rate limit.  Default false.",
-      arity = 1)
-  boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-
-  @Parameter(
-      names = {"--retryBackoffBaseSeconds"},
-      description =
-          "For exponential backoff "
-              + "when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-
-  @Parameter(
       names = {"--customSourceTags"},
       description =
           "Comma separated list of point tag "
@@ -1111,18 +1043,6 @@ public class ProxyConfig extends Configuration {
   String preprocessorConfigFile = null;
 
   @Parameter(
-      names = {"--dataBackfillCutoffHours"},
-      description =
-          "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
-  int dataBackfillCutoffHours = 8760;
-
-  @Parameter(
-      names = {"--dataPrefillCutoffHours"},
-      description =
-          "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
-  int dataPrefillCutoffHours = 24;
-
-  @Parameter(
       names = {"--authMethod"},
       converter = TokenValidationMethodConverter.class,
       description =
@@ -1165,6 +1085,7 @@ public class ProxyConfig extends Configuration {
               + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
   String authStaticToken = null;
 
+  //TODO: review, do we need this?
   @Parameter(
       names = {"--adminApiListenerPort"},
       description = "Enables admin port to control " + "healthcheck status per port. Default: none")
@@ -1327,14 +1248,6 @@ public class ProxyConfig extends Configuration {
     return bufferFile;
   }
 
-  public int getBufferShardSize() {
-    return bufferShardSize;
-  }
-
-  public boolean isDisableBufferSharding() {
-    return disableBufferSharding;
-  }
-
   public boolean isSqsQueueBuffer() {
     return sqsQueueBuffer;
   }
@@ -1351,10 +1264,6 @@ public class ProxyConfig extends Configuration {
     return sqsQueueIdentifier;
   }
 
-  public TaskQueueLevel getTaskQueueLevel() {
-    return taskQueueLevel;
-  }
-
   public String getExportQueuePorts() {
     return exportQueuePorts;
   }
@@ -1365,10 +1274,6 @@ public class ProxyConfig extends Configuration {
 
   public boolean isExportQueueRetainData() {
     return exportQueueRetainData;
-  }
-
-  public boolean isUseNoopSender() {
-    return useNoopSender;
   }
 
   public Integer getFlushThreads() {
@@ -1389,10 +1294,6 @@ public class ProxyConfig extends Configuration {
 
   public int getPushFlushIntervalLogs() {
     return pushFlushIntervalLogs;
-  }
-
-  public boolean isPurgeBuffer() {
-    return purgeBuffer;
   }
 
   public int getPushFlushInterval() {
@@ -1467,10 +1368,6 @@ public class ProxyConfig extends Configuration {
     return pushMemoryBufferLimitLogs;
   }
 
-  public Integer getPushBlockedSamples() {
-    return pushBlockedSamples;
-  }
-
   public String getBlockedPointsLoggerName() {
     return blockedPointsLoggerName;
   }
@@ -1509,10 +1406,6 @@ public class ProxyConfig extends Configuration {
 
   public int getListenerIdleConnectionTimeout() {
     return listenerIdleConnectionTimeout;
-  }
-
-  public int getMemGuardFlushThreshold() {
-    return memGuardFlushThreshold;
   }
 
   public boolean isHistogramPassthroughRecompression() {
@@ -1759,24 +1652,8 @@ public class ProxyConfig extends Configuration {
     return idFile;
   }
 
-  public String getAllowRegex() {
-    return allowRegex;
-  }
-
-  public String getBlockRegex() {
-    return blockRegex;
-  }
-
   public String getOpentsdbPorts() {
     return opentsdbPorts;
-  }
-
-  public String getOpentsdbAllowRegex() {
-    return opentsdbAllowRegex;
-  }
-
-  public String getOpentsdbBlockRegex() {
-    return opentsdbBlockRegex;
   }
 
   public String getPicklePorts() {
@@ -1864,14 +1741,6 @@ public class ProxyConfig extends Configuration {
 
   public Short getPushRelayHistogramAggregatorCompression() {
     return pushRelayHistogramAggregatorCompression;
-  }
-
-  public boolean isSplitPushWhenRateLimited() {
-    return splitPushWhenRateLimited;
-  }
-
-  public double getRetryBackoffBaseSeconds() {
-    return retryBackoffBaseSeconds;
   }
 
   public List<String> getCustomSourceTags() {
@@ -2067,14 +1936,6 @@ public class ProxyConfig extends Configuration {
     return preprocessorConfigFile;
   }
 
-  public int getDataBackfillCutoffHours() {
-    return dataBackfillCutoffHours;
-  }
-
-  public int getDataPrefillCutoffHours() {
-    return dataPrefillCutoffHours;
-  }
-
   public TokenValidationMethod getAuthMethod() {
     return authMethod;
   }
@@ -2216,7 +2077,6 @@ public class ProxyConfig extends Configuration {
       pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
       pushRateLimitMaxBurstSeconds =
           config.getInteger("pushRateLimitMaxBurstSeconds", pushRateLimitMaxBurstSeconds);
-      pushBlockedSamples = config.getInteger("pushBlockedSamples", pushBlockedSamples);
       blockedPointsLoggerName =
           config.getString("blockedPointsLoggerName", blockedPointsLoggerName);
       blockedHistogramsLoggerName =
@@ -2234,7 +2094,6 @@ public class ProxyConfig extends Configuration {
           config.getInteger("traceListenerHttpBufferSize", traceListenerHttpBufferSize);
       listenerIdleConnectionTimeout =
           config.getInteger("listenerIdleConnectionTimeout", listenerIdleConnectionTimeout);
-      memGuardFlushThreshold = config.getInteger("memGuardFlushThreshold", memGuardFlushThreshold);
 
       // Histogram: global settings
       histogramPassthroughRecompression =
@@ -2390,7 +2249,6 @@ public class ProxyConfig extends Configuration {
       exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
       exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
-      useNoopSender = config.getBoolean("useNoopSender", useNoopSender);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
       flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
@@ -2418,15 +2276,7 @@ public class ProxyConfig extends Configuration {
       otlpResourceAttrsOnMetricsIncluded =
           config.getBoolean(
               "otlpResourceAttrsOnMetricsIncluded", otlpResourceAttrsOnMetricsIncluded);
-      allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
-      blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
-      opentsdbAllowRegex =
-          config.getString(
-              "opentsdbAllowRegex", config.getString("opentsdbWhitelistRegex", opentsdbAllowRegex));
-      opentsdbBlockRegex =
-          config.getString(
-              "opentsdbBlockRegex", config.getString("opentsdbBlacklistRegex", opentsdbBlockRegex));
       proxyHost = config.getString("proxyHost", proxyHost);
       proxyPort = config.getInteger("proxyPort", proxyPort);
       proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
@@ -2442,8 +2292,6 @@ public class ProxyConfig extends Configuration {
       gzipCompressionLevel =
           config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).intValue();
       soLingerTime = config.getInteger("soLingerTime", soLingerTime);
-      splitPushWhenRateLimited =
-          config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
       customSourceTags = config.getString("customSourceTags", customSourceTags);
       customLevelTags = config.getString("customLevelTags", customLevelTags);
       customExceptionTags = config.getString("customExceptionTags", customExceptionTags);
@@ -2494,16 +2342,7 @@ public class ProxyConfig extends Configuration {
                   pushRelayHistogramAggregatorCompression)
               .shortValue();
       bufferFile = config.getString("buffer", bufferFile);
-      bufferShardSize = config.getInteger("bufferShardSize", bufferShardSize);
-      disableBufferSharding = config.getBoolean("disableBufferSharding", disableBufferSharding);
-      taskQueueLevel =
-          TaskQueueLevel.fromString(
-              config.getString("taskQueueStrategy", taskQueueLevel.toString()));
-      purgeBuffer = config.getBoolean("purgeBuffer", purgeBuffer);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
-      dataBackfillCutoffHours =
-          config.getInteger("dataBackfillCutoffHours", dataBackfillCutoffHours);
-      dataPrefillCutoffHours = config.getInteger("dataPrefillCutoffHours", dataPrefillCutoffHours);
       filebeatPort = config.getInteger("filebeatPort", filebeatPort);
       rawLogsPort = config.getInteger("rawLogsPort", rawLogsPort);
       rawLogsMaxReceivedLength =
@@ -2678,12 +2517,6 @@ public class ProxyConfig extends Configuration {
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
       pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
       pushFlushIntervalLogs = config.getInteger("pushFlushIntervalLogs", pushFlushIntervalLogs);
-      retryBackoffBaseSeconds =
-          Math.max(
-              Math.min(
-                  config.getDouble("retryBackoffBaseSeconds", retryBackoffBaseSeconds),
-                  MAX_RETRY_BACKOFF_BASE_SECONDS),
-              1.0);
     } catch (Throwable exception) {
       logger.severe("Could not load configuration file " + pushConfigFile);
       throw new RuntimeException(exception.getMessage());
@@ -2766,17 +2599,6 @@ public class ProxyConfig extends Configuration {
       TokenValidationMethod convertedValue = TokenValidationMethod.fromString(value);
       if (convertedValue == null) {
         throw new ParameterException("Unknown token validation method value: " + value);
-      }
-      return convertedValue;
-    }
-  }
-
-  public static class TaskQueueLevelConverter implements IStringConverter<TaskQueueLevel> {
-    @Override
-    public TaskQueueLevel convert(String value) {
-      TaskQueueLevel convertedValue = TaskQueueLevel.fromString(value);
-      if (convertedValue == null) {
-        throw new ParameterException("Unknown task queue level: " + value);
       }
       return convertedValue;
     }

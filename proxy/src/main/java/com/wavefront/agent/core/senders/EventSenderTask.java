@@ -4,24 +4,15 @@ import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.api.EventAPI;
+
+import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * This class is responsible for accumulating events and sending them batch. This class is similar
- * to PostPushDataTimedTask.
- *
- * @author vasily@wavefront.com
- */
-class EventSenderTask extends AbstractSenderTask {
-
-  private final QueueInfo queue;
+class EventSenderTask extends SenderTask {
   private final EventAPI proxyAPI;
   private final UUID proxyId;
-  private final EntityProperties properties;
-  private final QueueStats queueStats;
 
   /**
    * @param queue handler key, that serves as an identifier of the metrics pipeline.
@@ -37,34 +28,12 @@ class EventSenderTask extends AbstractSenderTask {
       EntityProperties properties,
       Buffer buffer,
       QueueStats queueStats) {
-    super(queue, idx, properties, buffer);
-    this.queue = queue;
+    super(queue, idx, properties, buffer, queueStats);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
-    this.properties = properties;
-    this.queueStats = queueStats;
   }
 
-  // TODO: review
-
-  //  @Override
-  //  TaskResult processSingleBatch(List<Event> batch) {
-  //    EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, properties,
-  //        backlog, handlerKey.getHandle(), batch, null);
-  //    return task.execute();
-  //  }
-  //
-  //  @Override
-  //  public void flushSingleBatch(List<Event> batch, @Nullable QueueingReason reason) {
-  //    EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, properties,
-  //        backlog, handlerKey.getHandle(), batch, null);
-  //    task.enqueue(reason);
-  //  }
-
-  @Override
-  public int processSingleBatch(List<String> batch) {
-    EventDataSubmissionTask task =
-        new EventDataSubmissionTask(proxyAPI, proxyId, properties, queue, batch, null, queueStats);
-    return task.execute();
+  public Response submit(List<String> events) {
+    return proxyAPI.proxyEventsString(proxyId, "[" + String.join(",", events) + "]");
   }
 }

@@ -7,7 +7,6 @@ import static com.wavefront.data.Validation.validateSpan;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.data.AnnotationUtils;
@@ -43,8 +42,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
 
   /**
    * @param handlerKey pipeline hanler key.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param validationConfig parameters for data validation.
    * @param blockedItemLogger logger for blocked items.
    * @param validItemsLogger logger for valid items.
@@ -54,13 +51,12 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   SpanHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
       @Nonnull final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandler) {
-    super(handler, handlerKey, blockedItemsPerBatch, new SpanSerializer(), blockedItemLogger);
+    super(handler, handlerKey, new SpanSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;

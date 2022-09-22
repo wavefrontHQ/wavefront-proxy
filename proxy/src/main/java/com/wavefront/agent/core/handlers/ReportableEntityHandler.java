@@ -1,6 +1,5 @@
 package com.wavefront.agent.core.handlers;
 
-import com.wavefront.agent.core.senders.SenderTask;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

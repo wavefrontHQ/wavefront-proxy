@@ -11,7 +11,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.HostMetricTagsPair;
@@ -56,8 +55,6 @@ public class DeltaCounterAccumulationHandlerImpl
 
   /**
    * @param handlerKey metrics pipeline key.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param validationConfig validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
    * @param blockedItemLogger logger for blocked items.
@@ -66,13 +63,12 @@ public class DeltaCounterAccumulationHandlerImpl
   public DeltaCounterAccumulationHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       long aggregationIntervalSeconds,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(
-        handler, handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), blockedItemLogger);
+        handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
 

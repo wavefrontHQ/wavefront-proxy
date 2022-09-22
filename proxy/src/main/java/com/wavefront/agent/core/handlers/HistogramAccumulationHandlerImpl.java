@@ -43,8 +43,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    *
    * @param handlerKey pipeline handler key
    * @param digests accumulator for storing digests
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param granularity granularity level
    * @param validationConfig Supplier for the ValidationConfiguration
    */
@@ -52,7 +50,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       final String handler,
       final QueueInfo handlerKey,
       final Accumulator digests,
-      final int blockedItemsPerBatch,
       @Nullable Granularity granularity,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
@@ -60,7 +57,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
     super(
         handler,
         handlerKey,
-        blockedItemsPerBatch,
         validationConfig,
         blockedItemLogger,
         validItemsLogger,

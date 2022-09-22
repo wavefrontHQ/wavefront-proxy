@@ -10,14 +10,6 @@ import javax.annotation.Nullable;
 public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
 
   @Override
-  public double getRetryBackoffBaseSeconds() {
-    return DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-  }
-
-  @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {}
-
-  @Override
   public short getHistogramStorageAccuracy() {
     return 32;
   }

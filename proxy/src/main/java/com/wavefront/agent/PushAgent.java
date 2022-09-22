@@ -50,7 +50,6 @@ import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
-import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -233,7 +232,6 @@ public class PushAgent extends AbstractAgent {
     }
     handlerFactory =
         new ReportableEntityHandlerFactoryImpl(
-            proxyConfig.getPushBlockedSamples(),
             validationConfiguration,
             blockedPointsLogger,
             blockedHistogramsLogger,
@@ -635,7 +633,6 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startJsonListener(int port, ReportableEntityHandlerFactory handlerFactory) {
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler =
@@ -668,7 +665,6 @@ public class PushAgent extends AbstractAgent {
   protected void startWriteHttpJsonListener(
       int port, ReportableEntityHandlerFactory handlerFactory) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler =
@@ -700,7 +696,6 @@ public class PushAgent extends AbstractAgent {
   protected void startOpenTsdbListener(
       final int port, ReportableEntityHandlerFactory handlerFactory) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ReportableEntityDecoder<String, ReportPoint> openTSDBDecoder =
@@ -742,7 +737,6 @@ public class PushAgent extends AbstractAgent {
       return;
     }
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler =
@@ -785,7 +779,6 @@ public class PushAgent extends AbstractAgent {
       return;
     }
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
 
     // Set up a custom handler
     ChannelHandler channelHandler =
@@ -818,7 +811,6 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceListener(
       final int port, ReportableEntityHandlerFactory handlerFactory, SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler =
@@ -866,7 +858,6 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
     WavefrontInternalReporter wfInternalReporter = null;
     if (wfSender != null) {
@@ -1074,7 +1065,6 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     startAsManagedThread(
         port,
         () -> {
@@ -1128,7 +1118,6 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler =
@@ -1221,7 +1210,6 @@ public class PushAgent extends AbstractAgent {
       SharedGraphiteHostAnnotator hostAnnotator,
       SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
@@ -1276,7 +1264,6 @@ public class PushAgent extends AbstractAgent {
   protected void startDeltaCounterListener(
       int port, SharedGraphiteHostAnnotator hostAnnotator, SpanSampler sampler) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     if (this.deltaCounterHandlerFactory == null) {
@@ -1294,7 +1281,6 @@ public class PushAgent extends AbstractAgent {
                           new DeltaCounterAccumulationHandlerImpl(
                               handler,
                               queue,
-                              proxyConfig.getPushBlockedSamples(),
                               validationConfiguration,
                               proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
                               blockedPointsLogger,
@@ -1348,7 +1334,6 @@ public class PushAgent extends AbstractAgent {
       ReportableEntityHandlerFactory handlerFactory,
       SharedGraphiteHostAnnotator hostAnnotator) {
     registerPrefixFilter(port);
-    registerTimestampFilter(port);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ReportableEntityHandlerFactory handlerFactoryDelegate =
@@ -1392,7 +1377,6 @@ public class PushAgent extends AbstractAgent {
                           handler,
                           queue,
                           cachedAccumulator,
-                          proxyConfig.getPushBlockedSamples(),
                           null,
                           validationConfiguration,
                           blockedHistogramsLogger,
@@ -1723,7 +1707,6 @@ public class PushAgent extends AbstractAgent {
                             handler,
                             queue,
                             cachedAccumulator,
-                            proxyConfig.getPushBlockedSamples(),
                             granularity,
                             validationConfiguration,
                             blockedHistogramsLogger,
@@ -1739,7 +1722,6 @@ public class PushAgent extends AbstractAgent {
     ports.forEach(
         port -> {
           registerPrefixFilter(port);
-          registerTimestampFilter(port);
           if (proxyConfig.isHttpHealthCheckAllPorts()) {
             healthCheckManager.enableHealthcheck(port);
           }
@@ -1794,16 +1776,6 @@ public class PushAgent extends AbstractAgent {
                   + " for histogram samples, accumulating to the "
                   + listenerBinType);
         });
-  }
-
-  private void registerTimestampFilter(int port) {
-    preprocessors
-        .getSystemPreprocessor(port)
-        .forReportPoint()
-        .addFilter(
-            0,
-            new ReportPointTimestampInRangeFilter(
-                proxyConfig.getDataBackfillCutoffHours(), proxyConfig.getDataPrefillCutoffHours()));
   }
 
   private void registerPrefixFilter(int port) {
@@ -1912,22 +1884,6 @@ public class PushAgent extends AbstractAgent {
           config.getLogsRateLimit(),
           config.getGlobalLogsRateLimit());
 
-      if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
-        if (config.getRetryBackoffBaseSeconds() != null) {
-          // if the collector is in charge and it provided a setting, use it
-          tenantSpecificEntityProps
-              .getGlobalProperties()
-              .setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
-          logger.fine(
-              "Proxy backoff base set to (remotely) " + config.getRetryBackoffBaseSeconds());
-        } // otherwise don't change the setting
-      } else {
-        // restores the agent setting
-        tenantSpecificEntityProps.getGlobalProperties().setRetryBackoffBaseSeconds(null);
-        logger.fine(
-            "Proxy backoff base set to (locally) "
-                + tenantSpecificEntityProps.getGlobalProperties().getRetryBackoffBaseSeconds());
-      }
       tenantSpecificEntityProps
           .get(ReportableEntityType.HISTOGRAM)
           .setFeatureDisabled(BooleanUtils.isTrue(config.getHistogramDisabled()));

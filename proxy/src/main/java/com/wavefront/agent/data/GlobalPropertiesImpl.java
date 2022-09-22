@@ -23,17 +23,6 @@ public final class GlobalPropertiesImpl implements GlobalProperties {
 
   public GlobalPropertiesImpl(ProxyConfig wrapped) {
     this.wrapped = wrapped;
-    reportSettingAsGauge(this::getRetryBackoffBaseSeconds, "dynamic.retryBackoffBaseSeconds");
-  }
-
-  @Override
-  public double getRetryBackoffBaseSeconds() {
-    return firstNonNull(retryBackoffBaseSeconds, wrapped.getRetryBackoffBaseSeconds());
-  }
-
-  @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-    this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
   }
 
   @Override

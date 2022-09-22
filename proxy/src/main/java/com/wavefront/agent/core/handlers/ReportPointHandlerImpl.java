@@ -5,7 +5,6 @@ import static com.wavefront.data.Validation.validatePoint;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderTask;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Utils;
@@ -42,8 +41,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * Creates a new instance that handles either histograms or points.
    *
    * @param handlerKey handler key for the metrics pipeline.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param validationConfig validation configuration.
    * @param blockedItemLogger logger for blocked items (optional).
    * @param validItemsLogger sampling logger for valid items (optional).
@@ -52,13 +49,12 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   ReportPointHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
       @Nullable final Function<Histogram, Histogram> recompressor) {
     super(
-        handler, handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), blockedItemLogger);
+        handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;

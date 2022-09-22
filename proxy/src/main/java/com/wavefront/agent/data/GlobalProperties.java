@@ -10,20 +10,6 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public interface GlobalProperties {
-  /**
-   * Get base in seconds for retry thread exponential backoff.
-   *
-   * @return exponential backoff base value
-   */
-  double getRetryBackoffBaseSeconds();
-
-  /**
-   * Sets base in seconds for retry thread exponential backoff.
-   *
-   * @param retryBackoffBaseSeconds new value for exponential backoff base value. if null is
-   *     provided, reverts to originally configured value.
-   */
-  void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
 
   /**
    * Get histogram storage accuracy, as specified by the back-end.

@@ -22,9 +22,8 @@ class ReportSourceTagHandlerImpl
   public ReportSourceTagHandlerImpl(
       String handler,
       QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       final Logger blockedItemLogger) {
-    super(handler, handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, blockedItemLogger);
+    super(handler, handlerKey, SOURCE_TAG_SERIALIZER, blockedItemLogger);
   }
 
   @VisibleForTesting

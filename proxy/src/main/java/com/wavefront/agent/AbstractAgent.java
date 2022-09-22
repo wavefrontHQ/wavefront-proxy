@@ -79,44 +79,6 @@ public abstract class AbstractAgent {
         APIContainer.CENTRAL_TENANT_NAME, new EntityPropertiesFactoryImpl(proxyConfig));
   }
 
-  private void addPreprocessorFilters(String ports, String allowList, String blockList) {
-    if (ports != null && (allowList != null || blockList != null)) {
-      csvToList(ports)
-          .forEach(
-              port -> {
-                PreprocessorRuleMetrics ruleMetrics =
-                    new PreprocessorRuleMetrics(
-                        Metrics.newCounter(
-                            new TaggedMetricName(
-                                "validationRegex",
-                                "points-rejected",
-                                "port",
-                                String.valueOf(port))),
-                        Metrics.newCounter(
-                            new TaggedMetricName(
-                                "validationRegex", "cpu-nanos", "port", String.valueOf(port))),
-                        Metrics.newCounter(
-                            new TaggedMetricName(
-                                "validationRegex",
-                                "points-checked",
-                                "port",
-                                String.valueOf(port))));
-                if (blockList != null) {
-                  preprocessors
-                      .getSystemPreprocessor(port)
-                      .forPointLine()
-                      .addFilter(new LineBasedBlockFilter(blockList, ruleMetrics));
-                }
-                if (allowList != null) {
-                  preprocessors
-                      .getSystemPreprocessor(port)
-                      .forPointLine()
-                      .addFilter(new LineBasedAllowFilter(allowList, ruleMetrics));
-                }
-              });
-    }
-  }
-
   @VisibleForTesting
   void initSslContext() throws SSLException {
     if (!isEmpty(proxyConfig.getPrivateCertPath()) && !isEmpty(proxyConfig.getPrivateKeyPath())) {
@@ -161,12 +123,6 @@ public abstract class AbstractAgent {
               ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
             },
             ",");
-    addPreprocessorFilters(allPorts, proxyConfig.getAllowRegex(), proxyConfig.getBlockRegex());
-    // opentsdb block/allow lists are applied to opentsdbPorts only
-    addPreprocessorFilters(
-        proxyConfig.getOpentsdbPorts(),
-        proxyConfig.getOpentsdbAllowRegex(),
-        proxyConfig.getOpentsdbBlockRegex());
   }
 
   // Returns null on any exception, and logs the exception.
@@ -292,7 +248,7 @@ public abstract class AbstractAgent {
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
-      apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
+      apiContainer = new APIContainer(proxyConfig);
       // config the entityPropertiesFactoryMap
       for (String tenantName : proxyConfig.getMulticastingTenantList().keySet()) {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));

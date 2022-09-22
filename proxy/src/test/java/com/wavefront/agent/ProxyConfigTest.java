@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import com.beust.jcommander.ParameterException;
 import com.wavefront.agent.auth.TokenValidationMethod;
-import com.wavefront.agent.data.TaskQueueLevel;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -41,39 +40,6 @@ public class ProxyConfigTest {
 
     try {
       proxyConfig.parseArguments(new String[] {"--authMethod", ""}, "PushAgentTest");
-      fail();
-    } catch (ParameterException e) {
-      // noop
-    }
-  }
-
-  @Test
-  public void testTaskQueueLevelParsing() {
-    ProxyConfig proxyConfig = new ProxyConfig();
-    proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "NEVER"}, "PushAgentTest");
-    assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.NEVER);
-
-    proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "MEMORY"}, "PushAgentTest");
-    assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.MEMORY);
-
-    proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "PUSHBACK"}, "PushAgentTest");
-    assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.PUSHBACK);
-
-    proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "ANY_ERROR"}, "PushAgentTest");
-    assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.ANY_ERROR);
-
-    proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "ALWAYS"}, "PushAgentTest");
-    assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.ALWAYS);
-
-    try {
-      proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "OTHER"}, "PushAgentTest");
-      fail();
-    } catch (ParameterException e) {
-      // noop
-    }
-
-    try {
-      proxyConfig.parseArguments(new String[] {"--taskQueueLevel", ""}, "PushAgentTest");
       fail();
     } catch (ParameterException e) {
       // noop

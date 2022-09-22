@@ -4,8 +4,9 @@ import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.api.LogAPI;
+
+import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,12 +15,11 @@ import java.util.UUID;
  *
  * @author amitw@vmware.com
  */
-public class LogSenderTask extends AbstractSenderTask {
-  private final QueueInfo queue;
+public class LogSenderTask extends SenderTask {
+  public static final String AGENT_PREFIX = "WF-PROXY-AGENT-";
+
   private final LogAPI logAPI;
   private final UUID proxyId;
-  private final EntityProperties properties;
-  private final QueueStats queueStats;
 
   /**
    * @param handlerKey handler key, that serves as an identifier of the log pipeline.
@@ -35,19 +35,12 @@ public class LogSenderTask extends AbstractSenderTask {
       EntityProperties properties,
       Buffer buffer,
       QueueStats queueStats) {
-    super(handlerKey, idx, properties, buffer);
-    this.queue = handlerKey;
+    super(handlerKey, idx, properties, buffer, queueStats);
     this.logAPI = logAPI;
     this.proxyId = proxyId;
-    this.properties = properties;
-    this.queueStats = queueStats;
   }
 
-  // TODO: review
-  @Override
-  public int processSingleBatch(List<String> batch) {
-    LogDataSubmissionTask task =
-        new LogDataSubmissionTask(logAPI, proxyId, properties, queue, batch, null, queueStats);
-    return task.execute();
+  protected Response submit(List<String> logs) {
+    return logAPI.proxyLogsStr(AGENT_PREFIX + proxyId.toString(), "[" + String.join(",", logs) + "]");
   }
 }

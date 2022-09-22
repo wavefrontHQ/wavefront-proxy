@@ -2,7 +2,6 @@ package com.wavefront.agent.core.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.core.senders.SenderTask;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import java.util.Timer;
@@ -28,9 +27,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final QueueInfo queue;
   final String handler;
 
-  @SuppressWarnings("UnstableApiUsage")
-  final RateLimiter blockedItemsLimiter;
-
   final Function<T, String> serializer;
   final String rateUnit;
   final BurstRateTrackingCounter receivedStats;
@@ -45,8 +41,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   /**
    * @param queue metrics pipeline key (entity type + port number)
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
    * @param serializer helper function to convert objects to string. Used when writing blocked
    *     points to logs.
    * @param blockedItemsLogger a {@link Logger} instance for blocked items
@@ -54,14 +48,11 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   AbstractReportableEntityHandler(
       String handler,
       @NotNull QueueInfo queue,
-      final int blockedItemsPerBatch,
       final Function<T, String> serializer,
       @Nullable final Logger blockedItemsLogger) {
     this.handler = handler;
     this.queue = queue;
     //noinspection UnstableApiUsage
-    this.blockedItemsLimiter =
-        blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
     this.rateUnit = queue.getEntityType().getRateUnit();
     this.blockedItemsLogger = blockedItemsLogger;
@@ -110,8 +101,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (item != null && blockedItemsLogger != null) {
       blockedItemsLogger.warning(serializer.apply(item));
     }
-    //noinspection UnstableApiUsage
-    if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
+    if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
     }
   }
@@ -121,7 +111,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     rejectedCounter.inc();
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
     //noinspection UnstableApiUsage
-    if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
+    if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
     }
   }

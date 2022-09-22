@@ -91,7 +91,6 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.disableBuffer = true;
 
     proxy.proxyConfig.flushThreadsSourceTags = 1;
-    proxy.proxyConfig.splitPushWhenRateLimited = true;
     proxy.proxyConfig.pushRateLimitSourceTags = 100;
 
     proxy.proxyConfig.histogramMinuteListenerPorts = String.valueOf(histMinPort);

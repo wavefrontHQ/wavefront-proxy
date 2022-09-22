@@ -36,8 +36,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
 
   /**
    * @param handlerKey pipeline key.
-   * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
-   *     main log.
    * @param validationConfig validation configuration.
    * @param blockedLogsLogger logger for blocked logs.
    * @param validLogsLogger logger for valid logs.
@@ -45,11 +43,10 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   public ReportLogHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedLogsLogger,
       @Nullable final Logger validLogsLogger) {
-    super(handler, handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, blockedLogsLogger);
+    super(handler, handlerKey, LOG_SERIALIZER, blockedLogsLogger);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
     MetricsRegistry registry = Metrics.defaultRegistry();

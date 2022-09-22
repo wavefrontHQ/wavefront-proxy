@@ -24,18 +24,15 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
 
   /**
    * @param handlerKey pipeline key.
-   * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
-   *     main log.
    * @param blockedEventsLogger logger for blocked events.
    * @param validEventsLogger logger for valid events.
    */
   public EventHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      final int blockedItemsPerBatch,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {
-    super(handler, handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, blockedEventsLogger);
+    super(handler, handlerKey, EVENT_SERIALIZER, blockedEventsLogger);
     this.validItemsLogger = validEventsLogger;
   }
 
