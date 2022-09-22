@@ -171,9 +171,14 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          file: "{{context}}/tests/opentel/app/Dockerfile"
+          file: tests/opentel/app/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USER }}/opentel-app:${{ env.BRANCH_NAME }}
