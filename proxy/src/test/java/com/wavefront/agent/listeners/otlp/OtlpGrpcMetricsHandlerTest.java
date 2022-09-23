@@ -73,7 +73,8 @@ public class OtlpGrpcMetricsHandlerTest {
             mockHistogramHandler,
             preprocessorSupplier,
             DEFAULT_SOURCE,
-            false);
+            false,
+            true);
   }
 
   @Test
@@ -528,14 +529,6 @@ public class OtlpGrpcMetricsHandlerTest {
 
   @Test
   public void resourceAttrsCanBeExcluded() {
-    boolean includeResourceAttrsForMetrics = false;
-    subject =
-        new OtlpGrpcMetricsHandler(
-            mockReportPointHandler,
-            mockHistogramHandler,
-            preprocessorSupplier,
-            DEFAULT_SOURCE,
-            includeResourceAttrsForMetrics);
     String resourceAttrKey = "testKey";
 
     EasyMock.reset(mockReportPointHandler);
@@ -575,7 +568,8 @@ public class OtlpGrpcMetricsHandlerTest {
             mockHistogramHandler,
             preprocessorSupplier,
             DEFAULT_SOURCE,
-            includeResourceAttrsForMetrics);
+            includeResourceAttrsForMetrics,
+            true);
     String resourceAttrKey = "testKey";
 
     EasyMock.reset(mockReportPointHandler);
@@ -593,6 +587,46 @@ public class OtlpGrpcMetricsHandlerTest {
     Resource resource =
         Resource.newBuilder()
             .addAttributes(OtlpTestHelpers.attribute(resourceAttrKey, "testValue"))
+            .build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder()
+            .setResource(resource)
+            .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
+            .build();
+    ExportMetricsServiceRequest request =
+        ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockReportPointHandler);
+  }
+
+  @Test
+  public void resourceAttrsWithServiceNameCanBeIncluded() {
+    boolean includeResourceAttrsForMetrics = true;
+    subject =
+        new OtlpGrpcMetricsHandler(
+            mockReportPointHandler,
+            mockHistogramHandler,
+            preprocessorSupplier,
+            DEFAULT_SOURCE,
+            includeResourceAttrsForMetrics,
+            true);
+
+    EasyMock.reset(mockReportPointHandler);
+
+    Map<String, String> annotations = ImmutableMap.of("service", "testValue");
+    ReportPoint wfMetric =
+        OtlpTestHelpers.wfReportPointGenerator().setAnnotations(annotations).build();
+    mockReportPointHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder().build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+    Resource resource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "testValue"))
             .build();
     ResourceMetrics resourceMetrics =
         ResourceMetrics.newBuilder()
@@ -803,6 +837,102 @@ public class OtlpGrpcMetricsHandlerTest {
             .build();
     ExportMetricsServiceRequest request =
         ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockReportPointHandler);
+  }
+
+  @Test
+  public void appRelatedResAttrsShouldBeIncluded() {
+    String applicationKey = "application";
+    String serviceKey = "service.name";
+    String shardKey = "shard";
+    String clusterKey = "cluster";
+
+    EasyMock.reset(mockReportPointHandler);
+
+    Map<String, String> annotations =
+        ImmutableMap.<String, String>builder()
+            .put(applicationKey, "some-app-name")
+            .put("service", "some-service-name")
+            .put(shardKey, "some-shard-name")
+            .put(clusterKey, "some-cluster-name")
+            .build();
+
+    ReportPoint wfMetric =
+        OtlpTestHelpers.wfReportPointGenerator().setAnnotations(annotations).build();
+    mockReportPointHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder().build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+    Resource resource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute(applicationKey, "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute(serviceKey, "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute(shardKey, "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute(clusterKey, "some-cluster-name"))
+            .build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder()
+            .setResource(resource)
+            .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
+            .build();
+    ExportMetricsServiceRequest request =
+        ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockReportPointHandler);
+  }
+
+  @Test
+  public void appRelatedResAttrsCanBeExcluded() {
+    boolean shouldIncludeOtlpAppTagsOnMetrics = false;
+
+    subject =
+        new OtlpGrpcMetricsHandler(
+            mockReportPointHandler,
+            mockHistogramHandler,
+            preprocessorSupplier,
+            DEFAULT_SOURCE,
+            false,
+            shouldIncludeOtlpAppTagsOnMetrics);
+    String applicationKey = "application";
+    String serviceKey = "service.name";
+    String shardKey = "shard";
+    String clusterKey = "cluster";
+
+    EasyMock.reset(mockReportPointHandler);
+
+    ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator().build();
+    assertFalse(wfMetric.getAnnotations().containsKey(applicationKey));
+    assertFalse(wfMetric.getAnnotations().containsKey(serviceKey));
+    assertFalse(wfMetric.getAnnotations().containsKey(shardKey));
+    assertFalse(wfMetric.getAnnotations().containsKey(clusterKey));
+    mockReportPointHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder().build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+    Resource resource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute(applicationKey, "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute(serviceKey, "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute(shardKey, "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute(clusterKey, "some-cluster-name"))
+            .build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder()
+            .setResource(resource)
+            .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
+            .build();
+    ExportMetricsServiceRequest request =
+        ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+
     subject.export(request, emptyStreamObserver);
 
     EasyMock.verify(mockReportPointHandler);

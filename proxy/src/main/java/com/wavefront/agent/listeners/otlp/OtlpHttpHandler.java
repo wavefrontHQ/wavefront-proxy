@@ -74,6 +74,8 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
   private final boolean includeResourceAttrsForMetrics;
 
+  private final boolean includeOtlpAppTagsOnMetrics;
+
   public OtlpHttpHandler(
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable TokenAuthenticator tokenAuthenticator,
@@ -86,9 +88,11 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       Supplier<Boolean> spanLogsFeatureDisabled,
       String defaultSource,
       Set<String> traceDerivedCustomTagKeys,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
+    this.includeOtlpAppTagsOnMetrics = includeOtlpAppTagsOnMetrics;
     this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
     this.spanLogsHandler =
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
@@ -164,7 +168,8 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
               histogramHandler,
               preprocessorSupplier,
               defaultSource,
-              includeResourceAttrsForMetrics);
+              includeResourceAttrsForMetrics,
+              includeOtlpAppTagsOnMetrics);
           break;
         default:
           /*

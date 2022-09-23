@@ -8,6 +8,7 @@ import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPoints
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
@@ -864,19 +865,44 @@ public class OtlpMetricsUtilsTest {
   }
 
   @Test
-  public void testDoNotUpdateAttrsListForNonOtelMetrics() {
+  public void testUpdateAttrsList() {
     Resource otelResource =
         Resource.newBuilder()
-            .addAttributes(OtlpTestHelpers.attribute("application", "test_app"))
-            .addAttributes(OtlpTestHelpers.attribute("service.name", "test_service"))
+            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
             .build();
 
-    List<NumberDataPoint> dataPoints =
-        Collections.singletonList(NumberDataPoint.newBuilder().setTimeUnixNano(0).build());
-    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(dataPoints).build();
+    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, true);
+    assertEquals("some-app-name", OtlpTraceUtils.getAttrValByKey(attrList, "application"));
+    assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
+    assertEquals("some-shard-name", OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
+    assertEquals("some-cluster-name", OtlpTraceUtils.getAttrValByKey(attrList, "cluster"));
+  }
 
-    List<KeyValue> attrList =
-        OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, otlpMetric.getName());
+  @Test
+  public void testDoNotUpdateAttrsListWithDefaultValues() {
+    Resource otelResource = Resource.newBuilder().build();
+
+    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, true);
+    assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "application"));
+    assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "service"));
+    assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
+    assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "cluster"));
+  }
+
+  @Test
+  public void testDoNotUpdateAttrsList() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
+            .build();
+
+    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, false);
     assertTrue(attrList.isEmpty());
   }
 }

@@ -1029,12 +1029,4 @@ public class OtlpTraceUtilsTest {
     attributes.add(attrKeyValue);
     assertEquals("test_value", OtlpTraceUtils.getAttrValByKey(attributes, "test_key"));
   }
-
-  @Test
-  public void testIsOtelMetric() {
-    assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.threads.count"));
-    assertTrue(OtlpTraceUtils.isOtelMetric("process.runtime.jvm.memory.usage"));
-    assertTrue(OtlpTraceUtils.isOtelMetric("runtime.jvm.gc.count"));
-    assertFalse(OtlpTraceUtils.isOtelMetric("another.metric"));
-  }
 }

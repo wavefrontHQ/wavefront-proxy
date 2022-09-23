@@ -752,6 +752,14 @@ public class ProxyConfig extends Configuration {
       description = "If true, includes OTLP resource attributes on metrics (Default: false)")
   boolean otlpResourceAttrsOnMetricsIncluded = false;
 
+  @Parameter(
+      names = {"--otlpAppTagsOnMetricsIncluded"},
+      arity = 1,
+      description =
+          "If true, includes application tags(application, service.name, shard, "
+              + "cluster) on metrics (Default: true)")
+  boolean otlpAppTagsOnMetricsIncluded = true;
+
   // logs ingestion
   @Parameter(
       names = {"--filebeatPort"},
@@ -1777,6 +1785,10 @@ public class ProxyConfig extends Configuration {
     return otlpResourceAttrsOnMetricsIncluded;
   }
 
+  public boolean isOtlpAppTagsOnMetricsIncluded() {
+    return otlpAppTagsOnMetricsIncluded;
+  }
+
   public Integer getFilebeatPort() {
     return filebeatPort;
   }
@@ -2468,6 +2480,8 @@ public class ProxyConfig extends Configuration {
       otlpResourceAttrsOnMetricsIncluded =
           config.getBoolean(
               "otlpResourceAttrsOnMetricsIncluded", otlpResourceAttrsOnMetricsIncluded);
+      otlpAppTagsOnMetricsIncluded =
+          config.getBoolean("otlpAppTagsOnMetricsIncluded", otlpAppTagsOnMetricsIncluded);
       allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
       blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);

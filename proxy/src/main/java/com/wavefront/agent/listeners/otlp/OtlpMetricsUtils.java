@@ -1,5 +1,7 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.listeners.otlp.OtlpTraceUtils.replaceServiceNameKeyWithServiceKey;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -52,14 +54,20 @@ public class OtlpMetricsUtils {
       ReportableEntityHandler<ReportPoint, String> histogramHandler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
     for (ReportPoint point :
-        fromOtlpRequest(request, preprocessor, defaultSource, includeResourceAttrsForMetrics)) {
+        fromOtlpRequest(
+            request,
+            preprocessor,
+            defaultSource,
+            includeResourceAttrsForMetrics,
+            includeOtlpAppTagsOnMetrics)) {
       if (point.getValue() instanceof wavefront.report.Histogram) {
         if (!wasFilteredByPreprocessor(point, histogramHandler, preprocessor)) {
           histogramHandler.report(point);
@@ -76,7 +84,8 @@ public class OtlpMetricsUtils {
       ExportMetricsServiceRequest request,
       @Nullable ReportableEntityPreprocessor preprocessor,
       String defaultSource,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     List<ReportPoint> wfPoints = Lists.newArrayList();
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
@@ -95,8 +104,8 @@ public class OtlpMetricsUtils {
           source = sourceAndResourceAttrs._1;
           resourceAttributes =
               includeResourceAttrsForMetrics
-                  ? sourceAndResourceAttrs._2
-                  : updateAttrsListForOtelMetrics(resource, otlpMetric.getName());
+                  ? replaceServiceNameKeyWithServiceKey(sourceAndResourceAttrs._2)
+                  : updateAttrsListForOtelMetrics(resource, includeOtlpAppTagsOnMetrics);
 
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
@@ -112,11 +121,15 @@ public class OtlpMetricsUtils {
 
   /*MONIT-30703: adding application & system.name tags to a metric*/
   @VisibleForTesting
-  public static List<KeyValue> updateAttrsListForOtelMetrics(Resource resource, String otlpMetric) {
+  public static List<KeyValue> updateAttrsListForOtelMetrics(
+      Resource resource, boolean includeOtlpAppTagsOnMetrics) {
     List<KeyValue> attrList = new ArrayList<>();
-    if (OtlpTraceUtils.isOtelMetric(otlpMetric)) {
+
+    if (includeOtlpAppTagsOnMetrics) {
       extractValue(resource, attrList, OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY);
       extractValue(resource, attrList, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
+      extractValue(resource, attrList, OtlpTraceUtils.OTEL_CLUSTER_NAME_KEY);
+      extractValue(resource, attrList, OtlpTraceUtils.OTEL_SHARD_NAME_KEY);
     }
 
     return attrList;
@@ -125,6 +138,9 @@ public class OtlpMetricsUtils {
   private static void extractValue(Resource resource, List<KeyValue> attrList, String key) {
     String attrValue = OtlpTraceUtils.getAttrValByKey(resource.getAttributesList(), key);
     if (attrValue != null) {
+      if (key.equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY)) {
+        key = "service";
+      }
       attrList.add(OtlpTraceUtils.getAttrKeyValue(key, attrValue));
     }
   }

@@ -17,7 +17,6 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 import static com.wavefront.sdk.common.Constants.SPAN_LOG_KEY;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
@@ -69,6 +68,8 @@ public class OtlpTraceUtils {
   public static final String OTEL_DROPPED_LINKS_KEY = "otel.dropped_links_count";
   public static final String OTEL_SERVICE_NAME_KEY = "service.name";
   public static final String OTEL_APPLICATION_NAME_KEY = "application";
+  public static final String OTEL_CLUSTER_NAME_KEY = "cluster";
+  public static final String OTEL_SHARD_NAME_KEY = "shard";
   public static final String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private static final String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private static final String DEFAULT_SERVICE_NAME = "defaultService";
@@ -87,16 +88,6 @@ public class OtlpTraceUtils {
           put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
         }
       };
-
-  public static final Set<String> OTEL_METRICS =
-      ImmutableSet.of(
-          "process.runtime.jvm.threads.count",
-          "process.runtime.jvm.memory.usage",
-          "runtime.jvm.gc.count");
-
-  public static boolean isOtelMetric(String metricName) {
-    return OTEL_METRICS.contains(metricName);
-  }
 
   public static String getAttrValByKey(List<KeyValue> attributesList, String key) {
     Optional<KeyValue> sourceAttr =
@@ -347,6 +338,23 @@ public class OtlpTraceUtils {
     } else {
       return new Pair<>(defaultSource, otlpAttributes);
     }
+  }
+
+  @VisibleForTesting
+  static List<KeyValue> replaceServiceNameKeyWithServiceKey(List<KeyValue> attributes) {
+    Optional<KeyValue> serviceAttr =
+        attributes.stream()
+            .filter(kv -> kv.getKey().equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY))
+            .findFirst();
+
+    if (serviceAttr.isPresent()) {
+      List<KeyValue> attributesWithServiceKey = new ArrayList<>(attributes);
+      attributesWithServiceKey.remove(serviceAttr.get());
+      attributesWithServiceKey.add(
+          OtlpTraceUtils.getAttrKeyValue("service", fromAnyValue(serviceAttr.get().getValue())));
+      return attributesWithServiceKey;
+    }
+    return attributes;
   }
 
   @VisibleForTesting
