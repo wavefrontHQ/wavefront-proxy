@@ -743,15 +743,11 @@ public class HttpEndToEndTest {
         "[{\"source\": \"myHost\",\n \"timestamp\": \""
             + timestamp
             + "\", "
-            + "\"application\":\"myApp\",\"service\":\"myService\","
-            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
-            + "}]";
+            + "\"application\":\"myApp\",\"service\":\"myService\"}]";
     String expectedLog =
         "[{\"source\":\"myHost\",\"timestamp\":"
             + timestamp
-            + ",\"text\":\"\",\"log_level\":\"WARN\",\"error_name\":\"myException\","
-            + "\"application\":\"myApp\",\"service\":\"myService\""
-            + "}]";
+            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\"}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
         req -> {
