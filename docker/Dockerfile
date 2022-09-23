@@ -21,7 +21,7 @@ RUN chown -R wavefront:wavefront /var/log/wavefront
 # just for testing
 ARG TEST
 RUN if [ ${TEST} = "true" ]; then \
-    apt-get update && apt-get install -y jq ;\
+    apt-get update && apt-get install -y jq vim ;\
     fi
 
 # Run the agent

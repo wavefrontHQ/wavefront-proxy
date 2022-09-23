@@ -25,7 +25,6 @@ spec:
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_PROXY_ARGS
               value: | 
-                --hostname disk-opentel-proxy
                 --pushListenerPorts 2878 
                 --ephemeral false 
                 --idFile /tmp/id
@@ -66,6 +65,10 @@ spec:
         - name: opentel-app
           image: {{ .Values.image.opentelapp }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
+          ports: 
+            - name: push
+              containerPort: 8080
+              protocol: TCP
 ---
 apiVersion: v1
 kind: Service
@@ -73,9 +76,22 @@ metadata:
   name: opentel-proxy
 spec:
   ports:
-  - name: pushrelay
+  - name: push
     protocol: "TCP"
     port: 4317
     targetPort: 4317
   selector:
     app: opentel-proxy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentel-app
+spec:
+  ports:
+  - name: http
+    protocol: "TCP"
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: opentel-app
