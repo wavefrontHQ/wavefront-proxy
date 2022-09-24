@@ -1,17 +1,15 @@
 package com.wavefront.agent.queueing;
 
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertFalse;
+import static junit.framework.TestCase.assertTrue;
+
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 import org.junit.Test;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertTrue;
-
-/**
- * @author mike@wavefront.com
- */
+/** @author mike@wavefront.com */
 public class SQSQueueFactoryImplTest {
   @Test
   public void testQueueTemplate() {
@@ -31,9 +29,11 @@ public class SQSQueueFactoryImplTest {
 
   @Test
   public void testQueueNameGeneration() {
-    SQSQueueFactoryImpl queueFactory = new SQSQueueFactoryImpl(
-        new ProxyConfig().getSqsQueueNameTemplate(),"us-west-2","myid", false);
-    assertEquals("wf-proxy-myid-points-2878",
+    SQSQueueFactoryImpl queueFactory =
+        new SQSQueueFactoryImpl(
+            new ProxyConfig().getSqsQueueNameTemplate(), "us-west-2", "myid", false);
+    assertEquals(
+        "wf-proxy-myid-points-2878",
         queueFactory.getQueueName(HandlerKey.of(ReportableEntityType.POINT, "2878")));
   }
 }

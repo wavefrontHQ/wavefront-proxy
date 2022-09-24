@@ -14,18 +14,14 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
-
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nullable;
 
 /**
  * Miscellaneous support methods for running Wavefront proxy.
@@ -35,11 +31,10 @@ import java.util.logging.Logger;
 abstract class ProxyUtil {
   protected static final Logger logger = Logger.getLogger("proxy");
 
-  private ProxyUtil() {
-  }
+  private ProxyUtil() {}
 
   /**
-   * Gets or creates  proxy id for this machine.
+   * Gets or creates proxy id for this machine.
    *
    * @param proxyConfig proxy configuration
    * @return proxy ID
@@ -55,8 +50,8 @@ abstract class ProxyUtil {
   }
 
   /**
-   * Read or create proxy id for this machine. Reads the UUID from specified file,
-   * or from ~/.dshell/id if idFileName is null.
+   * Read or create proxy id for this machine. Reads the UUID from specified file, or from
+   * ~/.dshell/id if idFileName is null.
    *
    * @param idFileName file name to read proxy ID from.
    * @return proxy id
@@ -86,12 +81,14 @@ abstract class ProxyUtil {
     if (proxyIdFile.exists()) {
       if (proxyIdFile.isFile()) {
         try {
-          proxyId = UUID.fromString(Objects.requireNonNull(Files.asCharSource(proxyIdFile,
-              Charsets.UTF_8).readFirstLine()));
+          proxyId =
+              UUID.fromString(
+                  Objects.requireNonNull(
+                      Files.asCharSource(proxyIdFile, Charsets.UTF_8).readFirstLine()));
           logger.info("Proxy Id read from file: " + proxyId);
         } catch (IllegalArgumentException ex) {
-          throw new RuntimeException("Cannot read proxy id from " + proxyIdFile +
-              ", content is malformed");
+          throw new RuntimeException(
+              "Cannot read proxy id from " + proxyIdFile + ", content is malformed");
         } catch (IOException e) {
           throw new RuntimeException("Cannot read from " + proxyIdFile, e);
         }
@@ -110,50 +107,62 @@ abstract class ProxyUtil {
   }
 
   /**
-   * Create a {@link ChannelInitializer} with a single {@link ChannelHandler},
-   * wrapped in {@link PlainTextOrHttpFrameDecoder}.
+   * Create a {@link ChannelInitializer} with a single {@link ChannelHandler}, wrapped in {@link
+   * PlainTextOrHttpFrameDecoder}.
    *
-   * @param channelHandler        handler
-   * @param port                  port number.
-   * @param messageMaxLength      maximum line length for line-based protocols.
+   * @param channelHandler handler
+   * @param port port number.
+   * @param messageMaxLength maximum line length for line-based protocols.
    * @param httpRequestBufferSize maximum request size for HTTP POST.
-   * @param idleTimeout           idle timeout in seconds.
-   * @param sslContext            SSL context.
-   * @param corsConfig            enables CORS when {@link CorsConfig} is specified.
-   *
-   * @return channel initializer
-   */
-  static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
-                                                             int port, int messageMaxLength,
-                                                             int httpRequestBufferSize,
-                                                             int idleTimeout,
-                                                             @Nullable SslContext sslContext,
-                                                             @Nullable CorsConfig corsConfig) {
-    return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
-        corsConfig, messageMaxLength, httpRequestBufferSize)), port, idleTimeout, sslContext);
-  }
-
-  /**
-   * Create a {@link ChannelInitializer} with multiple dynamically created
-   * {@link ChannelHandler} objects.
-   *
-   * @param channelHandlerSuppliers Suppliers of ChannelHandlers.
-   * @param port                    port number.
-   * @param idleTimeout             idle timeout in seconds.
-   * @param sslContext              SSL context.
+   * @param idleTimeout idle timeout in seconds.
+   * @param sslContext SSL context.
+   * @param corsConfig enables CORS when {@link CorsConfig} is specified.
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(
-      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, int port, int idleTimeout,
+      ChannelHandler channelHandler,
+      int port,
+      int messageMaxLength,
+      int httpRequestBufferSize,
+      int idleTimeout,
+      @Nullable SslContext sslContext,
+      @Nullable CorsConfig corsConfig) {
+    return createInitializer(
+        ImmutableList.of(
+            () ->
+                new PlainTextOrHttpFrameDecoder(
+                    channelHandler, corsConfig, messageMaxLength, httpRequestBufferSize)),
+        port,
+        idleTimeout,
+        sslContext);
+  }
+
+  /**
+   * Create a {@link ChannelInitializer} with multiple dynamically created {@link ChannelHandler}
+   * objects.
+   *
+   * @param channelHandlerSuppliers Suppliers of ChannelHandlers.
+   * @param port port number.
+   * @param idleTimeout idle timeout in seconds.
+   * @param sslContext SSL context.
+   * @return channel initializer
+   */
+  static ChannelInitializer<SocketChannel> createInitializer(
+      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers,
+      int port,
+      int idleTimeout,
       @Nullable SslContext sslContext) {
     String strPort = String.valueOf(port);
-    ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
-        new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
-    ChannelHandler connectionTracker = new ConnectionTrackingHandler(
-        Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted", "port",
-            strPort)),
-        Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
-            strPort)));
+    ChannelHandler idleStateEventHandler =
+        new IdleStateEventHandler(
+            Metrics.newCounter(
+                new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
+    ChannelHandler connectionTracker =
+        new ConnectionTrackingHandler(
+            Metrics.newCounter(
+                new TaggedMetricName("listeners", "connections.accepted", "port", strPort)),
+            Metrics.newCounter(
+                new TaggedMetricName("listeners", "connections.active", "port", strPort)));
     if (sslContext != null) {
       logger.info("TLS enabled on port: " + port);
     }

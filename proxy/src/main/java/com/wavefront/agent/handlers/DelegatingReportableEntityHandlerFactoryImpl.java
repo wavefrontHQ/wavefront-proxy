@@ -3,12 +3,13 @@ package com.wavefront.agent.handlers;
 import javax.annotation.Nonnull;
 
 /**
- * Wrapper for {@link ReportableEntityHandlerFactory} to allow partial overrides for the
- * {@code getHandler} method.
+ * Wrapper for {@link ReportableEntityHandlerFactory} to allow partial overrides for the {@code
+ * getHandler} method.
  *
  * @author vasily@wavefront.com
  */
-public class DelegatingReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
+public class DelegatingReportableEntityHandlerFactoryImpl
+    implements ReportableEntityHandlerFactory {
   protected final ReportableEntityHandlerFactory delegate;
 
   public DelegatingReportableEntityHandlerFactoryImpl(ReportableEntityHandlerFactory delegate) {

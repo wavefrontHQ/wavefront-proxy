@@ -1,5 +1,9 @@
 package com.wavefront.agent.handlers;
 
+import static com.wavefront.agent.histogram.HistogramUtils.granularityToString;
+import static com.wavefront.common.Utils.lazySupplier;
+import static com.wavefront.data.Validation.validatePoint;
+
 import com.wavefront.agent.histogram.Granularity;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.agent.histogram.HistogramUtils;
@@ -8,25 +12,18 @@ import com.wavefront.api.agent.ValidationConfiguration;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import wavefront.report.Histogram;
-import wavefront.report.ReportPoint;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.agent.histogram.HistogramUtils.granularityToString;
-import static com.wavefront.common.Utils.lazySupplier;
-import static com.wavefront.data.Validation.validatePoint;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 /**
- * A ReportPointHandler that ships parsed points to a histogram accumulator instead of
- * forwarding them to SenderTask.
+ * A ReportPointHandler that ships parsed points to a histogram accumulator instead of forwarding
+ * them to SenderTask.
  *
  * @author vasily@wavefront.com
  */
@@ -44,41 +41,55 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   /**
    * Creates a new instance
    *
-   * @param handlerKey           pipeline handler key
-   * @param digests              accumulator for storing digests
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
-   *                             into the main log file.
-   * @param granularity          granularity level
-   * @param validationConfig     Supplier for the ValidationConfiguration
-   * @param isHistogramInput     Whether expected input data for this handler is histograms.
-   * @param receivedRateSink     Where to report received rate.
+   * @param handlerKey pipeline handler key
+   * @param digests accumulator for storing digests
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
+   *     the main log file.
+   * @param granularity granularity level
+   * @param validationConfig Supplier for the ValidationConfiguration
+   * @param isHistogramInput Whether expected input data for this handler is histograms.
+   * @param receivedRateSink Where to report received rate.
    */
-  public HistogramAccumulationHandlerImpl(final HandlerKey handlerKey,
-                                          final Accumulator digests,
-                                          final int blockedItemsPerBatch,
-                                          @Nullable Granularity granularity,
-                                          @Nonnull final ValidationConfiguration validationConfig,
-                                          boolean isHistogramInput,
-                                          @Nullable final BiConsumer<String, Long> receivedRateSink,
-                                          @Nullable final Logger blockedItemLogger,
-                                          @Nullable final Logger validItemsLogger) {
-    super(handlerKey, blockedItemsPerBatch, null, validationConfig, !isHistogramInput,
-        receivedRateSink, blockedItemLogger, validItemsLogger, null);
+  public HistogramAccumulationHandlerImpl(
+      final HandlerKey handlerKey,
+      final Accumulator digests,
+      final int blockedItemsPerBatch,
+      @Nullable Granularity granularity,
+      @Nonnull final ValidationConfiguration validationConfig,
+      boolean isHistogramInput,
+      @Nullable final BiConsumer<String, Long> receivedRateSink,
+      @Nullable final Logger blockedItemLogger,
+      @Nullable final Logger validItemsLogger) {
+    super(
+        handlerKey,
+        blockedItemsPerBatch,
+        null,
+        validationConfig,
+        !isHistogramInput,
+        receivedRateSink,
+        blockedItemLogger,
+        validItemsLogger,
+        null);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
-    pointCounter = lazySupplier(() ->
-        Metrics.newCounter(new MetricName(metricNamespace, "", "sample_added")));
-    pointRejectedCounter = lazySupplier(() ->
-        Metrics.newCounter(new MetricName(metricNamespace, "", "sample_rejected")));
-    histogramCounter = lazySupplier(() ->
-        Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_added")));
-    histogramRejectedCounter = lazySupplier(() ->
-        Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_rejected")));
-    histogramBinCount = lazySupplier(() ->
-        Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_bins")));
-    histogramSampleCount = lazySupplier(() ->
-        Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_samples")));
+    pointCounter =
+        lazySupplier(() -> Metrics.newCounter(new MetricName(metricNamespace, "", "sample_added")));
+    pointRejectedCounter =
+        lazySupplier(
+            () -> Metrics.newCounter(new MetricName(metricNamespace, "", "sample_rejected")));
+    histogramCounter =
+        lazySupplier(
+            () -> Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_added")));
+    histogramRejectedCounter =
+        lazySupplier(
+            () -> Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_rejected")));
+    histogramBinCount =
+        lazySupplier(
+            () -> Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_bins")));
+    histogramSampleCount =
+        lazySupplier(
+            () -> Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_samples")));
   }
 
   @Override
@@ -102,9 +113,13 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       Histogram value = (Histogram) point.getValue();
       Granularity pointGranularity = Granularity.fromMillis(value.getDuration());
       if (granularity != null && pointGranularity.getInMillis() > granularity.getInMillis()) {
-        reject(point, "Attempting to send coarser granularity (" +
-            granularityToString(pointGranularity) + ") distribution to a finer granularity (" +
-            granularityToString(granularity) + ") port");
+        reject(
+            point,
+            "Attempting to send coarser granularity ("
+                + granularityToString(pointGranularity)
+                + ") distribution to a finer granularity ("
+                + granularityToString(granularity)
+                + ") port");
         histogramRejectedCounter.get().inc();
         return;
       }
@@ -113,8 +128,8 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       histogramSampleCount.get().update(value.getCounts().stream().mapToLong(x -> x).sum());
 
       // Key
-      HistogramKey histogramKey = HistogramUtils.makeKey(point,
-          granularity == null ? pointGranularity : granularity);
+      HistogramKey histogramKey =
+          HistogramUtils.makeKey(point, granularity == null ? pointGranularity : granularity);
       histogramCounter.get().inc();
 
       // atomic update

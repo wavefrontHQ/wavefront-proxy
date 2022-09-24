@@ -2,9 +2,7 @@ package com.wavefront.agent.formatter;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import com.wavefront.common.MetricMangler;
-
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -39,7 +37,7 @@ public class GraphiteFormatter implements Function<String, String> {
     // 1. Extract fields
     String[] regions = mesg.trim().split(" ");
     final MetricMangler.MetricComponents components = metricMangler.extractComponents(regions[0]);
-    
+
     finalMesg.append(components.metric);
     finalMesg.append(" ");
 

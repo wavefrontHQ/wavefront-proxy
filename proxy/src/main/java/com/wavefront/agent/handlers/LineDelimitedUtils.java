@@ -1,8 +1,7 @@
 package com.wavefront.agent.handlers;
 
-import org.apache.commons.lang.StringUtils;
-
 import java.util.Collection;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * A collection of helper methods around plaintext newline-delimited payloads.
@@ -12,8 +11,7 @@ import java.util.Collection;
 public abstract class LineDelimitedUtils {
   static final String PUSH_DATA_DELIMITER = "\n";
 
-  private LineDelimitedUtils() {
-  }
+  private LineDelimitedUtils() {}
 
   /**
    * Split a newline-delimited payload into a string array.

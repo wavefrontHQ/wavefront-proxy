@@ -7,13 +7,6 @@ import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-
-import net.jpountz.lz4.LZ4BlockInputStream;
-import net.jpountz.lz4.LZ4BlockOutputStream;
-import org.apache.commons.io.IOUtils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +16,11 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
+import org.apache.commons.io.IOUtils;
 
 /**
  * A serializer + deserializer of {@link DataSubmissionTask} objects for storage.
@@ -31,30 +29,30 @@ import java.util.zip.GZIPOutputStream;
  * @author vasily@wavefront.com
  */
 public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements TaskConverter<T> {
-  private static final Logger logger = Logger.getLogger(
-      RetryTaskConverter.class.getCanonicalName());
+  private static final Logger logger =
+      Logger.getLogger(RetryTaskConverter.class.getCanonicalName());
 
-  static final byte[] TASK_HEADER = new byte[] { 'W', 'F' };
+  static final byte[] TASK_HEADER = new byte[] {'W', 'F'};
   static final byte FORMAT_RAW = 1; // 'W' 'F' 0x01 0x01 <payload>
   static final byte FORMAT_GZIP = 2; // 'W' 'F' 0x01 0x02 <payload>
   static final byte FORMAT_LZ4 = 3; // 'W' 'F' 0x01 0x03 <payload>
   static final byte WRAPPED = 4; // 'W' 'F' 0x06 0x04 0x01 <weight> <payload>
-  static final byte[] PREFIX = { 'W', 'F', 6, 4 };
+  static final byte[] PREFIX = {'W', 'F', 6, 4};
 
-  private final ObjectMapper objectMapper = JsonMapper.builder().
-      activateDefaultTyping(LaissezFaireSubTypeValidator.instance).build();
+  private final ObjectMapper objectMapper =
+      JsonMapper.builder().activateDefaultTyping(LaissezFaireSubTypeValidator.instance).build();
 
   private final CompressionType compressionType;
   private final Counter errorCounter;
 
   /**
-   * @param handle          Handle (usually port number) of the pipeline where the data came from.
+   * @param handle Handle (usually port number) of the pipeline where the data came from.
    * @param compressionType compression type to use for storing tasks.
    */
   public RetryTaskConverter(String handle, CompressionType compressionType) {
     this.compressionType = compressionType;
-    this.errorCounter = Metrics.newCounter(new TaggedMetricName("buffer", "read-errors",
-        "port", handle));
+    this.errorCounter =
+        Metrics.newCounter(new TaggedMetricName("buffer", "read-errors", "port", handle));
   }
 
   @SuppressWarnings("unchecked")
@@ -83,8 +81,10 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
                 stream = input;
                 break;
               default:
-                logger.warning("Unable to restore persisted task - unsupported data format " +
-                    "header detected: " + Arrays.toString(header));
+                logger.warning(
+                    "Unable to restore persisted task - unsupported data format "
+                        + "header detected: "
+                        + Arrays.toString(header));
                 return null;
             }
             return (T) objectMapper.readValue(stream, DataSubmissionTask.class);

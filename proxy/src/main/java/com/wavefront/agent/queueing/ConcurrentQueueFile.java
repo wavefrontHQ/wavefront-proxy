@@ -3,15 +3,14 @@ package com.wavefront.agent.queueing;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A thread-safe wrapper for {@link QueueFile}. This version assumes that operations on the head
- * and on the tail of the queue are mutually exclusive and should be synchronized. For a more
- * fine-grained  implementation, see {@link ConcurrentShardedQueueFile} that maintains separate
- * locks on the head and the tail of the queue.
+ * A thread-safe wrapper for {@link QueueFile}. This version assumes that operations on the head and
+ * on the tail of the queue are mutually exclusive and should be synchronized. For a more
+ * fine-grained implementation, see {@link ConcurrentShardedQueueFile} that maintains separate locks
+ * on the head and the tail of the queue.
  *
  * @author vasily@wavefront.com
  */

@@ -1,7 +1,13 @@
 package com.wavefront.agent.queueing;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.wavefront.common.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -17,23 +23,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import com.wavefront.common.Utils;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
- * A thread-safe {@link QueueFile} implementation, that uses multiple smaller "shard" files
- * instead of one large file. This also improves concurrency - when we have more than one file,
- * we can add and remove tasks at the same time without mutually exclusive locking.
+ * A thread-safe {@link QueueFile} implementation, that uses multiple smaller "shard" files instead
+ * of one large file. This also improves concurrency - when we have more than one file, we can add
+ * and remove tasks at the same time without mutually exclusive locking.
  *
  * @author vasily@wavefront.com
  */
@@ -47,8 +45,7 @@ public class ConcurrentShardedQueueFile implements QueueFile {
   private final int shardSizeBytes;
   private final QueueFileFactory queueFileFactory;
 
-  @VisibleForTesting
-  final Deque<Shard> shards = new ConcurrentLinkedDeque<>();
+  @VisibleForTesting final Deque<Shard> shards = new ConcurrentLinkedDeque<>();
   private final ReentrantLock globalLock = new ReentrantLock(true);
   private final ReentrantLock tailLock = new ReentrantLock(true);
   private final ReentrantLock headLock = new ReentrantLock(true);
@@ -57,23 +54,26 @@ public class ConcurrentShardedQueueFile implements QueueFile {
   private final AtomicLong modCount = new AtomicLong();
 
   /**
-   * @param fileNamePrefix   path + file name prefix for shard files
-   * @param fileNameSuffix   file name suffix to identify shard files
-   * @param shardSizeBytes   target shard size bytes
+   * @param fileNamePrefix path + file name prefix for shard files
+   * @param fileNameSuffix file name suffix to identify shard files
+   * @param shardSizeBytes target shard size bytes
    * @param queueFileFactory factory for {@link QueueFile} objects
    * @throws IOException if file(s) could not be created or accessed
    */
-  public ConcurrentShardedQueueFile(String fileNamePrefix,
-                                    String fileNameSuffix,
-                                    int shardSizeBytes,
-                                    QueueFileFactory queueFileFactory) throws IOException {
+  public ConcurrentShardedQueueFile(
+      String fileNamePrefix,
+      String fileNameSuffix,
+      int shardSizeBytes,
+      QueueFileFactory queueFileFactory)
+      throws IOException {
     this.fileNamePrefix = fileNamePrefix;
     this.fileNameSuffix = fileNameSuffix;
     this.shardSizeBytes = shardSizeBytes;
     this.queueFileFactory = queueFileFactory;
     //noinspection unchecked
-    for (String filename : ObjectUtils.firstNonNull(listFiles(fileNamePrefix, fileNameSuffix),
-        ImmutableList.of(getInitialFilename()))) {
+    for (String filename :
+        ObjectUtils.firstNonNull(
+            listFiles(fileNamePrefix, fileNameSuffix), ImmutableList.of(getInitialFilename()))) {
       Shard shard = new Shard(filename);
       // don't keep the QueueFile open within the shard object until it's actually needed,
       // as we don't want to keep too many files open.
@@ -227,8 +227,7 @@ public class ConcurrentShardedQueueFile implements QueueFile {
     Iterator<Shard> shardIterator = shards.iterator();
     int nextElementIndex = 0;
 
-    ShardedIterator() {
-    }
+    ShardedIterator() {}
 
     private void checkForComodification() {
       checkForClosedState();
@@ -314,8 +313,8 @@ public class ConcurrentShardedQueueFile implements QueueFile {
     }
 
     private boolean newShardRequired(int taskSize) {
-      return (taskSize > (shardSizeBytes - this.usedBytes - TASK_HEADER_SIZE_BYTES) &&
-          (taskSize <= (shardSizeBytes - HEADER_SIZE_BYTES) || this.numTasks > 0));
+      return (taskSize > (shardSizeBytes - this.usedBytes - TASK_HEADER_SIZE_BYTES)
+          && (taskSize <= (shardSizeBytes - HEADER_SIZE_BYTES) || this.numTasks > 0));
     }
   }
 
@@ -326,9 +325,9 @@ public class ConcurrentShardedQueueFile implements QueueFile {
   }
 
   private String getInitialFilename() {
-    return new File(fileNamePrefix).exists() ?
-        fileNamePrefix :
-        incrementFileName(fileNamePrefix, fileNameSuffix);
+    return new File(fileNamePrefix).exists()
+        ? fileNamePrefix
+        : incrementFileName(fileNamePrefix, fileNameSuffix);
   }
 
   @VisibleForTesting
@@ -337,11 +336,16 @@ public class ConcurrentShardedQueueFile implements QueueFile {
     String fnPrefix = Iterators.getLast(Splitter.on('/').split(path).iterator());
     Pattern pattern = getSuffixMatchingPattern(suffix);
     File bufferFilePath = new File(path);
-    File[] files = bufferFilePath.getParentFile().listFiles((dir, fileName) ->
-        (fileName.endsWith(suffix) || pattern.matcher(fileName).matches()) &&
-            fileName.startsWith(fnPrefix));
-    return (files == null || files.length == 0) ? null :
-        Arrays.stream(files).map(File::getAbsolutePath).sorted().collect(Collectors.toList());
+    File[] files =
+        bufferFilePath
+            .getParentFile()
+            .listFiles(
+                (dir, fileName) ->
+                    (fileName.endsWith(suffix) || pattern.matcher(fileName).matches())
+                        && fileName.startsWith(fnPrefix));
+    return (files == null || files.length == 0)
+        ? null
+        : Arrays.stream(files).map(File::getAbsolutePath).sorted().collect(Collectors.toList());
   }
 
   @VisibleForTesting

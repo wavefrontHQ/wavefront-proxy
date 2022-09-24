@@ -2,11 +2,11 @@ package org.logstash.beats;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
 import java.util.Iterator;
 
 /**
- * Implementation of {@link Batch} for the v2 protocol backed by ByteBuf. *must* be released after use.
+ * Implementation of {@link Batch} for the v2 protocol backed by ByteBuf. *must* be released after
+ * use.
  */
 public class V2Batch implements Batch {
   private ByteBuf internalBuffer = PooledByteBufAllocator.DEFAULT.buffer();
@@ -16,8 +16,8 @@ public class V2Batch implements Batch {
   private int batchSize;
   private int highestSequence = -1;
 
-  public void setProtocol(byte protocol){
-    if (protocol != Protocol.VERSION_2){
+  public void setProtocol(byte protocol) {
+    if (protocol != Protocol.VERSION_2) {
       throw new IllegalArgumentException("Only version 2 protocol is supported");
     }
   }
@@ -27,7 +27,7 @@ public class V2Batch implements Batch {
     return Protocol.VERSION_2;
   }
 
-  public Iterator<Message> iterator(){
+  public Iterator<Message> iterator() {
     internalBuffer.resetReaderIndex();
     return new Iterator<Message>() {
       @Override
@@ -39,7 +39,9 @@ public class V2Batch implements Batch {
       public Message next() {
         int sequenceNumber = internalBuffer.readInt();
         int readableBytes = internalBuffer.readInt();
-        Message message = new Message(sequenceNumber, internalBuffer.slice(internalBuffer.readerIndex(), readableBytes));
+        Message message =
+            new Message(
+                sequenceNumber, internalBuffer.slice(internalBuffer.readerIndex(), readableBytes));
         internalBuffer.readerIndex(internalBuffer.readerIndex() + readableBytes);
         message.setBatch(V2Batch.this);
         read++;
@@ -74,25 +76,26 @@ public class V2Batch implements Batch {
   }
 
   @Override
-  public int getHighestSequence(){
+  public int getHighestSequence() {
     return highestSequence;
   }
 
   /**
    * Adds a message to the batch, which will be constructed into an actual {@link Message} lazily.
+   *
    * @param sequenceNumber sequence number of the message within the batch
    * @param buffer A ByteBuf pointing to serialized JSon
    * @param size size of the serialized Json
    */
   void addMessage(int sequenceNumber, ByteBuf buffer, int size) {
     written++;
-    if (internalBuffer.writableBytes() < size + (2 * SIZE_OF_INT)){
+    if (internalBuffer.writableBytes() < size + (2 * SIZE_OF_INT)) {
       internalBuffer.capacity(internalBuffer.capacity() + size + (2 * SIZE_OF_INT));
     }
     internalBuffer.writeInt(sequenceNumber);
     internalBuffer.writeInt(size);
     buffer.readBytes(internalBuffer, size);
-    if (sequenceNumber > highestSequence){
+    if (sequenceNumber > highestSequence) {
       highestSequence = sequenceNumber;
     }
   }

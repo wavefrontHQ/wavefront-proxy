@@ -13,15 +13,6 @@ LABEL name="Wavefront Collector" \
     summary="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner." \
     description="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner."
 
-RUN mkdir /licenses
-
-COPY LICENSE /licenses
-COPY ./proxy/docker/run.sh run.sh
-
-EXPOSE 3878
-EXPOSE 2878
-EXPOSE 4242
-
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
 #  WAVEFRONT_URL           (required)
@@ -34,22 +25,27 @@ EXPOSE 4242
 RUN yum-config-manager --enable rhel-7-server-optional-rpms \
     && yum update --disableplugin=subscription-manager -y \
     && rm -rf /var/cache/yum \
-    && yum install -y sudo curl hostname java-11-openjdk-devel
+    && yum install -y hostname java-11-openjdk
 
 # Add new group:user "wavefront"
-RUN /usr/sbin/groupadd -g 2000 wavefront && useradd --comment '' --uid 1000 --gid 2000 wavefront
-RUN chown -R wavefront:wavefront /var
-RUN chown -R wavefront:wavefront /usr/lib/jvm/java-11-openjdk/lib/security/cacerts
-RUN chmod 755 /var
-
-# Download wavefront proxy (latest release). Merely extract the package, don't want to try running startup scripts.
-RUN curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | sudo bash \
-    && yum -y update \
-    && yum -y -q install wavefront-proxy
-
-# Configure agent
-RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
+RUN groupadd -g 2000 wavefront
+RUN useradd --uid 1000 --gid 2000 -m wavefront
+RUN chmod a+w /usr/lib/jvm/jre/lib/security/cacerts
+RUN mkdir -p /var/spool/wavefront-proxy
+RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy
 
 # Run the agent
-USER 1000:2000
-CMD ["/bin/bash", "/run.sh"]
+EXPOSE 3878
+EXPOSE 2878
+EXPOSE 4242
+
+USER wavefront:wavefront
+
+ADD wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
+ADD run.sh /opt/wavefront/wavefront-proxy/run.sh
+ADD log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
+ADD LICENSE /licenses/LICENSE
+
+CMD ["/bin/bash", "/opt/wavefront/wavefront-proxy/run.sh"]
+
+

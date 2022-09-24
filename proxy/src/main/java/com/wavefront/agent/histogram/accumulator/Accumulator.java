@@ -3,12 +3,9 @@ package com.wavefront.agent.histogram.accumulator;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.common.TimeProvider;
-
 import java.util.Iterator;
 import java.util.function.BiFunction;
-
 import javax.annotation.Nonnull;
-
 import wavefront.report.Histogram;
 
 /**
@@ -21,7 +18,7 @@ public interface Accumulator {
   /**
    * Update {@code AgentDigest} in the cache with another {@code AgentDigest}.
    *
-   * @param key   histogram key
+   * @param key histogram key
    * @param value {@code AgentDigest} to be merged
    */
   void put(HistogramKey key, @Nonnull AgentDigest value);
@@ -36,9 +33,9 @@ public interface Accumulator {
   void put(HistogramKey key, double value);
 
   /**
-   * Update {@link AgentDigest} in the cache with a {@code Histogram} value. If such
-   * {@code AgentDigest} does not exist for the specified key, it will be created
-   * using {@link AgentDigestFactory}.
+   * Update {@link AgentDigest} in the cache with a {@code Histogram} value. If such {@code
+   * AgentDigest} does not exist for the specified key, it will be created using {@link
+   * AgentDigestFactory}.
    *
    * @param key histogram key
    * @param value a {@code Histogram} to be merged into the {@code AgentDigest}
@@ -46,15 +43,17 @@ public interface Accumulator {
   void put(HistogramKey key, Histogram value);
 
   /**
-   * Attempts to compute a mapping for the specified key and its current mapped value
-   * (or null if there is no current mapping).
+   * Attempts to compute a mapping for the specified key and its current mapped value (or null if
+   * there is no current mapping).
    *
-   * @param key               key with which the specified value is to be associated
+   * @param key key with which the specified value is to be associated
    * @param remappingFunction the function to compute a value
-   * @return                  the new value associated with the specified key, or null if none
+   * @return the new value associated with the specified key, or null if none
    */
-  AgentDigest compute(HistogramKey key, BiFunction<? super HistogramKey,
-      ? super AgentDigest, ? extends AgentDigest> remappingFunction);
+  AgentDigest compute(
+      HistogramKey key,
+      BiFunction<? super HistogramKey, ? super AgentDigest, ? extends AgentDigest>
+          remappingFunction);
 
   /**
    * Returns an iterator over "ripe" digests ready to be shipped
@@ -71,8 +70,6 @@ public interface Accumulator {
    */
   long size();
 
-  /**
-   * Merge the contents of this cache with the corresponding backing store.
-   */
+  /** Merge the contents of this cache with the corresponding backing store. */
   void flush();
 }
