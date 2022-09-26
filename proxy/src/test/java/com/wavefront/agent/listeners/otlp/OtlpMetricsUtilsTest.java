@@ -3,12 +3,16 @@ package com.wavefront.agent.listeners.otlp;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.isServiceKeyPresent;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.replaceServiceNameKeyWithServiceKey;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -882,6 +886,25 @@ public class OtlpMetricsUtilsTest {
   }
 
   @Test
+  public void testUpdateAttrsListWithServiceKeyPresent() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
+            .build();
+
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
+    assertEquals("some-app-name", OtlpTraceUtils.getAttrValByKey(attrList, "application"));
+    assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
+    assertEquals("some-shard-name", OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
+    assertEquals("some-cluster-name", OtlpTraceUtils.getAttrValByKey(attrList, "cluster"));
+  }
+
+  @Test
   public void testDoNotUpdateAttrsListWithDefaultValues() {
     Resource otelResource = Resource.newBuilder().build();
 
@@ -891,5 +914,44 @@ public class OtlpMetricsUtilsTest {
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "service"));
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "cluster"));
+  }
+
+  @Test
+  public void testIsServiceKeyPresent() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .build();
+
+    assertFalse(isServiceKeyPresent(otelResource.getAttributesList()));
+
+    otelResource = Resource.newBuilder()
+        .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+        .build();
+
+    assertTrue(isServiceKeyPresent(otelResource.getAttributesList()));
+  }
+
+  @Test
+  public void testReplaceServiceNameKeyWithServiceKey() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .build();
+
+    List<KeyValue> attrList =
+        replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
+
+    otelResource = Resource.newBuilder()
+        .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+        .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
+        .build();
+
+    attrList =
+        replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
+    assertEquals("some-other-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service" +
+        ".name"));
   }
 }

@@ -125,28 +125,39 @@ public class OtlpMetricsUtils {
 
   @VisibleForTesting
   static List<KeyValue> replaceServiceNameKeyWithServiceKey(List<KeyValue> attributes) {
-    Optional<KeyValue> serviceAttr =
+    Optional<KeyValue> serviceNameAttr =
         attributes.stream()
             .filter(kv -> kv.getKey().equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY))
             .findFirst();
 
-    if (serviceAttr.isPresent()) {
+    if (serviceNameAttr.isPresent() && !isServiceKeyPresent(attributes)) {
       List<KeyValue> attributesWithServiceKey = new ArrayList<>(attributes);
-      attributesWithServiceKey.remove(serviceAttr.get());
+      attributesWithServiceKey.remove(serviceNameAttr.get());
       attributesWithServiceKey.add(
           OtlpTraceUtils.buildKeyValue(
-              SERVICE_TAG_KEY, OtlpTraceUtils.fromAnyValue(serviceAttr.get().getValue())));
+              SERVICE_TAG_KEY, OtlpTraceUtils.fromAnyValue(serviceNameAttr.get().getValue())));
       return attributesWithServiceKey;
     }
     return attributes;
   }
 
+  @VisibleForTesting
+  static boolean isServiceKeyPresent(List<KeyValue> attributes) {
+        return attributes.stream()
+            .anyMatch(kv -> kv.getKey().equals(SERVICE_TAG_KEY));
+  }
+
   /*MONIT-30703: adding application & system.name tags to a metric*/
   @VisibleForTesting
-  public static List<KeyValue> appTagsFromResourceAttrs(List<KeyValue> resourceAttrs) {
+  static List<KeyValue> appTagsFromResourceAttrs(List<KeyValue> resourceAttrs) {
     List<KeyValue> attrList = new ArrayList<>();
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, APPLICATION_TAG_KEY));
-    attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));
+    if (isServiceKeyPresent(resourceAttrs)) {
+      attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SERVICE_TAG_KEY));
+    }
+    else {
+      attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));
+    }
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, CLUSTER_TAG_KEY));
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SHARD_TAG_KEY));
     attrList.removeAll(Collections.singleton(null));
