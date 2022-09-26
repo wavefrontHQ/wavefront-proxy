@@ -24,16 +24,17 @@ import org.apache.activemq.artemis.api.core.*;
 import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
-import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.core.server.ActiveMQServer;
+import org.apache.activemq.artemis.core.server.impl.ActiveMQServerImpl;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
+import org.apache.activemq.artemis.spi.core.security.ActiveMQJAASSecurityManager;
 
-@SuppressWarnings("ALL")
 public abstract class ActiveMQBuffer implements Buffer {
   private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
   private static final Logger slowLog =
       new MessageDedupingLogger(Logger.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000, 1);
 
-  final EmbeddedActiveMQ amq;
+  final ActiveMQServer activeMQServer;
 
   private final Map<String, Pair<ClientSession, ClientProducer>> producers =
       new ConcurrentHashMap<>();
@@ -41,7 +42,7 @@ public abstract class ActiveMQBuffer implements Buffer {
       new ConcurrentHashMap<>();
 
   protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
-  private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
+  private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>(); // TODO review
   private final Map<String, Histogram> timeMetrics = new HashMap<>();
 
   final String name;
@@ -68,16 +69,28 @@ public abstract class ActiveMQBuffer implements Buffer {
       config.setPagingDirectory(new File(buffer, "paging").getAbsolutePath());
       config.setCreateBindingsDir(true);
       config.setCreateJournalDir(true);
+      config.setJournalLockAcquisitionTimeout(10);
     }
 
-    amq = new EmbeddedActiveMQ();
+    ActiveMQJAASSecurityManager securityManager = new ActiveMQJAASSecurityManager();
+    activeMQServer = new ActiveMQServerImpl(config, securityManager);
+    activeMQServer.registerActivationFailureListener(
+        exception ->
+            log.severe(
+                "error creating buffer, "
+                    + exception.getMessage()
+                    + ". Review if there is another Proxy running."));
 
     try {
       config.addAcceptorConfiguration("in-vm", "vm://" + serverID);
-      amq.setConfiguration(config);
-      amq.start();
+      activeMQServer.start();
     } catch (Exception e) {
       log.log(Level.SEVERE, "error creating buffer", e);
+      System.exit(-1);
+    }
+
+    if (!activeMQServer.isActive()) {
+      System.exit(-1);
     }
 
     AddressSettings addressSetting =
@@ -95,7 +108,7 @@ public abstract class ActiveMQBuffer implements Buffer {
       addressSetting.setAddressFullMessagePolicy(FAIL);
     }
 
-    amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
+    activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
   }
 
   @Override
@@ -133,7 +146,7 @@ public abstract class ActiveMQBuffer implements Buffer {
         (PointsGauge)
             Metrics.newGauge(
                 new MetricName("buffer." + name + "." + queue.getName(), "", "points"),
-                new PointsGauge(queue, amq)));
+                new PointsGauge(queue, activeMQServer)));
 
     timeMetrics.put(
         queue.getName(),
@@ -152,7 +165,7 @@ public abstract class ActiveMQBuffer implements Buffer {
         entry.getValue()._2.close(); // consumer
       }
 
-      amq.stop();
+      activeMQServer.stop();
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -182,9 +195,8 @@ public abstract class ActiveMQBuffer implements Buffer {
         producers.computeIfAbsent(
             sessionKey,
             s -> {
-              try {
-                ServerLocator serverLocator =
-                    ActiveMQClient.createServerLocator("vm://" + serverID);
+              try (ServerLocator serverLocator =
+                  ActiveMQClient.createServerLocator("vm://" + serverID)) {
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue);
@@ -226,17 +238,15 @@ public abstract class ActiveMQBuffer implements Buffer {
         consumers.computeIfAbsent(
             sessionKey,
             s -> {
-              try {
-                ServerLocator serverLocator =
-                    ActiveMQClient.createServerLocator("vm://" + serverID);
+              try (ServerLocator serverLocator =
+                  ActiveMQClient.createServerLocator("vm://" + serverID)) {
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
                 return new Pair<>(session, consumer);
               } catch (Exception e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
               }
-              return null;
             });
 
     ClientSession session = mqCtx._1;

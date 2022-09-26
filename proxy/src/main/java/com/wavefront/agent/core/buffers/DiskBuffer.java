@@ -45,12 +45,11 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
   }
 
   public boolean isFull() {
-    return amq.getActiveMQServer().getPagingManager().isDiskFull();
+    return activeMQServer.getPagingManager().isDiskFull();
   }
 
   public void truncate() {
-    Object[] addresses =
-        amq.getActiveMQServer().getManagementService().getResources(AddressControl.class);
+    Object[] addresses = activeMQServer.getManagementService().getResources(AddressControl.class);
 
     try {
       for (Object obj : addresses) {

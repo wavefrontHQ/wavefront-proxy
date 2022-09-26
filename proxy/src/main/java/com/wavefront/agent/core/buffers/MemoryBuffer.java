@@ -50,8 +50,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
     int counter = 0;
     try {
-      Object[] queues =
-          amq.getActiveMQServer().getManagementService().getResources(QueueControl.class);
+      Object[] queues = activeMQServer.getManagementService().getResources(QueueControl.class);
       for (Object obj : queues) {
         QueueControl queue = (QueueControl) obj;
         int c = queue.expireMessages("");
@@ -86,26 +85,24 @@ public class MemoryBuffer extends ActiveMQBuffer {
 
   protected void createBridge(DiskBuffer diskBuffer) {
     setNextBuffer(diskBuffer);
-    amq.getActiveMQServer().registerBrokerPlugin(new Bridge(this, diskBuffer));
+    activeMQServer.registerBrokerPlugin(new Bridge(this, diskBuffer));
     enableBridge();
   }
 
   protected void enableBridge() {
     log.info("bridge enabled");
-    AddressSettings addressSetting =
-        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    AddressSettings addressSetting = activeMQServer.getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(cfg.msgExpirationTime);
     addressSetting.setMaxDeliveryAttempts(cfg.msgRetry);
-    amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
+    activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
   }
 
   protected void disableBridge() {
     log.info("bridge disabled");
-    AddressSettings addressSetting =
-        amq.getActiveMQServer().getAddressSettingsRepository().getDefault();
+    AddressSettings addressSetting = activeMQServer.getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(-1L);
     addressSetting.setMaxDeliveryAttempts(-1);
-    amq.getActiveMQServer().getAddressSettingsRepository().setDefault(addressSetting);
+    activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
   }
 
   protected void flush(QueueInfo queue) {

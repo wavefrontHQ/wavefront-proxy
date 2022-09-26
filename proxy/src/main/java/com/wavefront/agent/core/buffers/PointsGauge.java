@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.management.AddressControl;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.api.core.management.ResourceNames;
-import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.core.server.ActiveMQServer;
 
 public class PointsGauge extends Gauge<Long> {
   private static final Logger log = Logger.getLogger(PointsGauge.class.getCanonicalName());
@@ -19,9 +19,9 @@ public class PointsGauge extends Gauge<Long> {
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("PointsGauge"));
   private Long pointsCount = 0L;
   private final QueueInfo queue;
-  private final EmbeddedActiveMQ amq;
+  private final ActiveMQServer amq;
 
-  public PointsGauge(QueueInfo queue, EmbeddedActiveMQ amq) {
+  public PointsGauge(QueueInfo queue, ActiveMQServer amq) {
     this.queue = queue;
     this.amq = amq;
     executor.scheduleAtFixedRate(() -> doCount(), 1, 1, TimeUnit.MINUTES);
@@ -37,17 +37,12 @@ public class PointsGauge extends Gauge<Long> {
 
     AddressControl address =
         (AddressControl)
-            amq.getActiveMQServer()
-                .getManagementService()
-                .getResource(ResourceNames.ADDRESS + queue.getName());
+            amq.getManagementService().getResource(ResourceNames.ADDRESS + queue.getName());
 
     try {
       for (String queueName : address.getQueueNames()) {
         QueueControl queueControl =
-            (QueueControl)
-                amq.getActiveMQServer()
-                    .getManagementService()
-                    .getResource(ResourceNames.QUEUE + queueName);
+            (QueueControl) amq.getManagementService().getResource(ResourceNames.QUEUE + queueName);
         Map<String, Object>[] messages = queueControl.listMessages("");
         for (Map<String, Object> message : messages) {
           int p = (int) message.get("points");
