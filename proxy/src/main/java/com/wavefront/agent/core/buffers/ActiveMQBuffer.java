@@ -195,8 +195,9 @@ public abstract class ActiveMQBuffer implements Buffer {
         producers.computeIfAbsent(
             sessionKey,
             s -> {
-              try (ServerLocator serverLocator =
-                  ActiveMQClient.createServerLocator("vm://" + serverID)) {
+              try {
+                ServerLocator serverLocator =
+                    ActiveMQClient.createServerLocator("vm://" + serverID);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue);
@@ -238,8 +239,9 @@ public abstract class ActiveMQBuffer implements Buffer {
         consumers.computeIfAbsent(
             sessionKey,
             s -> {
-              try (ServerLocator serverLocator =
-                  ActiveMQClient.createServerLocator("vm://" + serverID)) {
+              try {
+                ServerLocator serverLocator =
+                    ActiveMQClient.createServerLocator("vm://" + serverID);
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
