@@ -1,5 +1,7 @@
 package com.wavefront.agent.core.senders;
 
+import static com.wavefront.common.Utils.isWavefrontResponse;
+
 import com.wavefront.agent.core.buffers.Buffer;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
@@ -9,11 +11,6 @@ import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.TimerContext;
-import org.apache.logging.log4j.core.util.Throwables;
-
-import javax.net.ssl.SSLHandshakeException;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.core.Response;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -21,8 +18,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.common.Utils.isWavefrontResponse;
+import javax.net.ssl.SSLHandshakeException;
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.core.Response;
+import org.apache.logging.log4j.core.util.Throwables;
 
 abstract class SenderTask implements Runnable {
   private static final Logger log =
@@ -69,8 +68,8 @@ abstract class SenderTask implements Runnable {
       } else {
         queueStats.failed.inc(batch.size());
         switch (response.getStatus()) {
-          //TODO: 406,429 pushback
-          //TODO: 413 Payload Too Large
+            // TODO: 406,429 pushback
+            // TODO: 413 Payload Too Large
           case 401:
           case 403:
             log.warning(
@@ -101,7 +100,11 @@ abstract class SenderTask implements Runnable {
             }
             break;
         }
-        throw new SenderTaskException("HTTP error: "+response.getStatus()+" "+response.getStatusInfo().getReasonPhrase());
+        throw new SenderTaskException(
+            "HTTP error: "
+                + response.getStatus()
+                + " "
+                + response.getStatusInfo().getReasonPhrase());
       }
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);

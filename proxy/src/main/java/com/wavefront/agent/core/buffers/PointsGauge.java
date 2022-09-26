@@ -15,7 +15,7 @@ import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 
 public class PointsGauge extends Gauge<Long> {
   private static final Logger log = Logger.getLogger(PointsGauge.class.getCanonicalName());
-  private static final ScheduledExecutorService excutor =
+  private static final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("PointsGauge"));
   private Long pointsCount = 0L;
   private final QueueInfo queue;
@@ -24,7 +24,7 @@ public class PointsGauge extends Gauge<Long> {
   public PointsGauge(QueueInfo queue, EmbeddedActiveMQ amq) {
     this.queue = queue;
     this.amq = amq;
-    excutor.scheduleAtFixedRate(() -> doCount(), 1, 1, TimeUnit.MINUTES);
+    executor.scheduleAtFixedRate(() -> doCount(), 1, 1, TimeUnit.MINUTES);
   }
 
   @Override

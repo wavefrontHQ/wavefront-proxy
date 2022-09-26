@@ -1,8 +1,5 @@
 package com.wavefront.agent.data;
 
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;

@@ -132,8 +132,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           VALID_HISTOGRAMS_LOGGER,
                           histogramRecompressor);
                     case SOURCE_TAG:
-                      return new ReportSourceTagHandlerImpl(
-                          handler, queue, blockedPointsLogger);
+                      return new ReportSourceTagHandlerImpl(handler, queue, blockedPointsLogger);
                     case TRACE:
                       return new SpanHandlerImpl(
                           handler,
@@ -150,23 +149,13 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                               () -> getHandler(handler, queuesManager.initQueue(TRACE_SPAN_LOGS))));
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
-                          handler,
-                          queue,
-                          blockedSpansLogger,
-                          VALID_SPAN_LOGS_LOGGER);
+                          handler, queue, blockedSpansLogger, VALID_SPAN_LOGS_LOGGER);
                     case EVENT:
                       return new EventHandlerImpl(
-                          handler,
-                          queue,
-                          blockedPointsLogger,
-                          VALID_EVENTS_LOGGER);
+                          handler, queue, blockedPointsLogger, VALID_EVENTS_LOGGER);
                     case LOGS:
                       return new ReportLogHandlerImpl(
-                          handler,
-                          queue,
-                          validationConfig,
-                          blockedLogsLogger,
-                          VALID_LOGS_LOGGER);
+                          handler, queue, validationConfig, blockedLogsLogger, VALID_LOGS_LOGGER);
                     default:
                       throw new IllegalArgumentException(
                           "Unexpected entity type "

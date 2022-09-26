@@ -6,10 +6,9 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.ProxyV2API;
-
-import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
+import javax.ws.rs.core.Response;
 
 class LineDelimitedSenderTask extends SenderTask {
 

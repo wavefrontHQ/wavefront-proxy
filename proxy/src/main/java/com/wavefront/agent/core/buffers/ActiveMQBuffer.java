@@ -78,7 +78,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       amq.start();
     } catch (Exception e) {
       log.log(Level.SEVERE, "error creating buffer", e);
-      System.exit(-1);
     }
 
     AddressSettings addressSetting =
@@ -109,7 +108,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       registerQueueMetrics(queue);
     } catch (MalformedObjectNameException e) {
       log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
     }
   }
 
@@ -157,7 +155,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       amq.stop();
     } catch (Exception e) {
       e.printStackTrace();
-      System.exit(-1);
     }
   }
 
@@ -203,8 +200,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       ClientMessage message = session.createMessage(true);
       message.writeBodyBufferString(String.join("\n", points));
       message.putIntProperty("points", points.size());
-      // TODO: reimplement Merict size
-      //      msMetrics.get(queue.getName()).update(message.getWholeMessageSize());
       producer.send(message);
     } catch (ActiveMQAddressFullException e) {
       log.log(Level.FINE, "queue full: " + e.getMessage());
@@ -308,10 +303,9 @@ public abstract class ActiveMQBuffer implements Buffer {
       }
     } catch (ActiveMQException e) {
       log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
+      consumers.remove(sessionKey);
     } catch (Throwable e) {
       log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
     } finally {
       try {
         session.stop();
@@ -337,7 +331,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       }
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
-      System.exit(-1);
     }
   }
 

@@ -54,13 +54,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
-    super(
-        handler,
-        handlerKey,
-        validationConfig,
-        blockedItemLogger,
-        validItemsLogger,
-        null);
+    super(handler, handlerKey, validationConfig, blockedItemLogger, validItemsLogger, null);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);

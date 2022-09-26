@@ -21,7 +21,6 @@ import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.*;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;

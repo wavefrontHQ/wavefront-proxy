@@ -59,9 +59,7 @@ public class APIContainer {
   private String logServerToken;
   private String logServerEndpointUrl;
 
-  /**
-   * @param proxyConfig proxy configuration settings
-   */
+  /** @param proxyConfig proxy configuration settings */
   public APIContainer(ProxyConfig proxyConfig) {
     this.proxyConfig = proxyConfig;
     this.logServerToken = "NOT_SET";

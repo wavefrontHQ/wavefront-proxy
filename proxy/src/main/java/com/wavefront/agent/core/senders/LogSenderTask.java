@@ -5,10 +5,9 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.LogAPI;
-
-import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
+import javax.ws.rs.core.Response;
 
 /**
  * This class is responsible for accumulating logs and uploading them in batches.
@@ -41,6 +40,7 @@ public class LogSenderTask extends SenderTask {
   }
 
   protected Response submit(List<String> logs) {
-    return logAPI.proxyLogsStr(AGENT_PREFIX + proxyId.toString(), "[" + String.join(",", logs) + "]");
+    return logAPI.proxyLogsStr(
+        AGENT_PREFIX + proxyId.toString(), "[" + String.join(",", logs) + "]");
   }
 }

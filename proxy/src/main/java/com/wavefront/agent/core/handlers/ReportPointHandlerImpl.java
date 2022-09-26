@@ -53,8 +53,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
       @Nullable final Function<Histogram, Histogram> recompressor) {
-    super(
-        handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
+    super(handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;

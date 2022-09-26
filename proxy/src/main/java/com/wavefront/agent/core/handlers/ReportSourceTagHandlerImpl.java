@@ -20,9 +20,7 @@ class ReportSourceTagHandlerImpl
       value -> new SourceTag(value).toString();
 
   public ReportSourceTagHandlerImpl(
-      String handler,
-      QueueInfo handlerKey,
-      final Logger blockedItemLogger) {
+      String handler, QueueInfo handlerKey, final Logger blockedItemLogger) {
     super(handler, handlerKey, SOURCE_TAG_SERIALIZER, blockedItemLogger);
   }
 

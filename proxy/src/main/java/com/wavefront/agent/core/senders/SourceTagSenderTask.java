@@ -9,11 +9,10 @@ import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
-
-import javax.ws.rs.core.Response;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
+import javax.ws.rs.core.Response;
 
 public class SourceTagSenderTask extends SenderTask {
   private static final Logger log = Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());

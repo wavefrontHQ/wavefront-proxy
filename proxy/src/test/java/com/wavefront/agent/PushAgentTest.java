@@ -9,7 +9,6 @@ import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.buffers.BuffersManagerConfig;
@@ -29,7 +28,6 @@ import com.wavefront.agent.tls.NaiveTrustManager;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
