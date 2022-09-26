@@ -756,8 +756,8 @@ public class ProxyConfig extends Configuration {
       names = {"--otlpAppTagsOnMetricsIncluded"},
       arity = 1,
       description =
-          "If true, includes application tags(application, service.name, shard, "
-              + "cluster) on metrics (Default: true)")
+          "If true, includes the following application-related resource attributes on "
+              + "metrics: application, service.name, shard, cluster (Default: true)")
   boolean otlpAppTagsOnMetricsIncluded = true;
 
   // logs ingestion

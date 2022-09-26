@@ -73,7 +73,6 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
   private final boolean includeResourceAttrsForMetrics;
-
   private final boolean includeOtlpAppTagsOnMetrics;
 
   public OtlpHttpHandler(

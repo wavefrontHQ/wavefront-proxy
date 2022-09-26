@@ -1,6 +1,9 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.agent.listeners.otlp.OtlpTraceUtils.replaceServiceNameKeyWithServiceKey;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -28,9 +31,11 @@ import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -85,7 +90,7 @@ public class OtlpMetricsUtils {
       @Nullable ReportableEntityPreprocessor preprocessor,
       String defaultSource,
       boolean includeResourceAttrsForMetrics,
-      boolean includeOtlpAppTagsOnMetrics) {
+      boolean includeAppTagsOnMetrics) {
     List<ReportPoint> wfPoints = Lists.newArrayList();
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
@@ -93,20 +98,19 @@ public class OtlpMetricsUtils {
       OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
-      String source;
-      List<KeyValue> resourceAttributes;
+      String source = sourceAndResourceAttrs._1;
+
+      List<KeyValue> resourceAttributes = Collections.EMPTY_LIST;
+      if (includeResourceAttrsForMetrics) {
+        resourceAttributes = replaceServiceNameKeyWithServiceKey(sourceAndResourceAttrs._2);
+      } else if (includeAppTagsOnMetrics) {
+        resourceAttributes = appTagsFromResourceAttrs(sourceAndResourceAttrs._2);
+      }
 
       for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
         OTLP_DATA_LOGGER.finest(
             () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
-
-          source = sourceAndResourceAttrs._1;
-          resourceAttributes =
-              includeResourceAttrsForMetrics
-                  ? replaceServiceNameKeyWithServiceKey(sourceAndResourceAttrs._2)
-                  : updateAttrsListForOtelMetrics(resource, includeOtlpAppTagsOnMetrics);
-
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
               transform(otlpMetric, resourceAttributes, preprocessor, source);
@@ -119,30 +123,35 @@ public class OtlpMetricsUtils {
     return wfPoints;
   }
 
-  /*MONIT-30703: adding application & system.name tags to a metric*/
   @VisibleForTesting
-  public static List<KeyValue> updateAttrsListForOtelMetrics(
-      Resource resource, boolean includeOtlpAppTagsOnMetrics) {
-    List<KeyValue> attrList = new ArrayList<>();
+  static List<KeyValue> replaceServiceNameKeyWithServiceKey(List<KeyValue> attributes) {
+    Optional<KeyValue> serviceAttr =
+        attributes.stream()
+            .filter(kv -> kv.getKey().equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY))
+            .findFirst();
 
-    if (includeOtlpAppTagsOnMetrics) {
-      extractValue(resource, attrList, OtlpTraceUtils.OTEL_APPLICATION_NAME_KEY);
-      extractValue(resource, attrList, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
-      extractValue(resource, attrList, OtlpTraceUtils.OTEL_CLUSTER_NAME_KEY);
-      extractValue(resource, attrList, OtlpTraceUtils.OTEL_SHARD_NAME_KEY);
+    if (serviceAttr.isPresent()) {
+      List<KeyValue> attributesWithServiceKey = new ArrayList<>(attributes);
+      attributesWithServiceKey.remove(serviceAttr.get());
+      attributesWithServiceKey.add(
+          OtlpTraceUtils.buildKeyValue(
+              SERVICE_TAG_KEY, OtlpTraceUtils.fromAnyValue(serviceAttr.get().getValue())));
+      return attributesWithServiceKey;
     }
-
-    return attrList;
+    return attributes;
   }
 
-  private static void extractValue(Resource resource, List<KeyValue> attrList, String key) {
-    String attrValue = OtlpTraceUtils.getAttrValByKey(resource.getAttributesList(), key);
-    if (attrValue != null) {
-      if (key.equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY)) {
-        key = "service";
-      }
-      attrList.add(OtlpTraceUtils.getAttrKeyValue(key, attrValue));
-    }
+  /*MONIT-30703: adding application & system.name tags to a metric*/
+  @VisibleForTesting
+  public static List<KeyValue> appTagsFromResourceAttrs(List<KeyValue> resourceAttrs) {
+    List<KeyValue> attrList = new ArrayList<>();
+    attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, APPLICATION_TAG_KEY));
+    attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));
+    attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, CLUSTER_TAG_KEY));
+    attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SHARD_TAG_KEY));
+    attrList.removeAll(Collections.singleton(null));
+    attrList = replaceServiceNameKeyWithServiceKey(attrList);
+    return attrList;
   }
 
   @VisibleForTesting

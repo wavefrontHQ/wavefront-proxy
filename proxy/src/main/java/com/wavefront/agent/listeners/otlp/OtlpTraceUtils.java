@@ -67,9 +67,6 @@ public class OtlpTraceUtils {
   public static final String OTEL_DROPPED_EVENTS_KEY = "otel.dropped_events_count";
   public static final String OTEL_DROPPED_LINKS_KEY = "otel.dropped_links_count";
   public static final String OTEL_SERVICE_NAME_KEY = "service.name";
-  public static final String OTEL_APPLICATION_NAME_KEY = "application";
-  public static final String OTEL_CLUSTER_NAME_KEY = "cluster";
-  public static final String OTEL_SHARD_NAME_KEY = "shard";
   public static final String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private static final String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private static final String DEFAULT_SERVICE_NAME = "defaultService";
@@ -96,7 +93,11 @@ public class OtlpTraceUtils {
     return sourceAttr.map(keyValue -> fromAnyValue(keyValue.getValue())).orElse(null);
   }
 
-  public static KeyValue getAttrKeyValue(String key, String value) {
+  public static KeyValue getAttrByKey(List<KeyValue> attributesList, String key) {
+    return attributesList.stream().filter(kv -> key.equals(kv.getKey())).findFirst().orElse(null);
+  }
+
+  public static KeyValue buildKeyValue(String key, String value) {
     return KeyValue.newBuilder()
         .setKey(key)
         .setValue(AnyValue.newBuilder().setStringValue(value).build())
@@ -341,23 +342,6 @@ public class OtlpTraceUtils {
   }
 
   @VisibleForTesting
-  static List<KeyValue> replaceServiceNameKeyWithServiceKey(List<KeyValue> attributes) {
-    Optional<KeyValue> serviceAttr =
-        attributes.stream()
-            .filter(kv -> kv.getKey().equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY))
-            .findFirst();
-
-    if (serviceAttr.isPresent()) {
-      List<KeyValue> attributesWithServiceKey = new ArrayList<>(attributes);
-      attributesWithServiceKey.remove(serviceAttr.get());
-      attributesWithServiceKey.add(
-          OtlpTraceUtils.getAttrKeyValue("service", fromAnyValue(serviceAttr.get().getValue())));
-      return attributesWithServiceKey;
-    }
-    return attributes;
-  }
-
-  @VisibleForTesting
   static List<Annotation> annotationsFromAttributes(List<KeyValue> attributesList) {
     List<Annotation> annotations = new ArrayList<>();
     for (KeyValue attribute : attributesList) {
@@ -493,7 +477,41 @@ public class OtlpTraceUtils {
     return reporter;
   }
 
-  private static Map<String, String> mapFromAttributes(List<KeyValue> attributes) {
+  /**
+   * Converts an OTLP AnyValue object to its equivalent String representation. The implementation
+   * mimics {@code AsString()} from the OpenTelemetry Collector:
+   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
+   *
+   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for Attributes
+   * does not include maps as an allowed type of value:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
+   *
+   * @param anyValue OTLP Attributes value in {@link AnyValue} format
+   * @return String representation of the {@link AnyValue}
+   */
+  static String fromAnyValue(AnyValue anyValue) {
+    if (anyValue.hasStringValue()) {
+      return anyValue.getStringValue();
+    } else if (anyValue.hasBoolValue()) {
+      return Boolean.toString(anyValue.getBoolValue());
+    } else if (anyValue.hasIntValue()) {
+      return Long.toString(anyValue.getIntValue());
+    } else if (anyValue.hasDoubleValue()) {
+      return Double.toString(anyValue.getDoubleValue());
+    } else if (anyValue.hasArrayValue()) {
+      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
+      return values.stream()
+          .map(OtlpTraceUtils::fromAnyValue)
+          .collect(Collectors.joining(", ", "[", "]"));
+    } else if (anyValue.hasKvlistValue()) {
+      OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
+    } else if (anyValue.hasBytesValue()) {
+      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
+    }
+    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
+  }
+
+  static Map<String, String> mapFromAttributes(List<KeyValue> attributes) {
     Map<String, String> map = new HashMap<>();
     for (KeyValue attribute : attributes) {
       map.put(attribute.getKey(), fromAnyValue(attribute.getValue()));
@@ -533,39 +551,5 @@ public class OtlpTraceUtils {
 
     return Collections.singletonList(
         new Annotation(PARENT_KEY, SpanUtils.toStringId(parentSpanId)));
-  }
-
-  /**
-   * Converts an OTLP AnyValue object to its equivalent String representation. The implementation
-   * mimics {@code AsString()} from the OpenTelemetry Collector:
-   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
-   *
-   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for Attributes
-   * does not include maps as an allowed type of value:
-   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
-   *
-   * @param anyValue OTLP Attributes value in {@link AnyValue} format
-   * @return String representation of the {@link AnyValue}
-   */
-  private static String fromAnyValue(AnyValue anyValue) {
-    if (anyValue.hasStringValue()) {
-      return anyValue.getStringValue();
-    } else if (anyValue.hasBoolValue()) {
-      return Boolean.toString(anyValue.getBoolValue());
-    } else if (anyValue.hasIntValue()) {
-      return Long.toString(anyValue.getIntValue());
-    } else if (anyValue.hasDoubleValue()) {
-      return Double.toString(anyValue.getDoubleValue());
-    } else if (anyValue.hasArrayValue()) {
-      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
-      return values.stream()
-          .map(OtlpTraceUtils::fromAnyValue)
-          .collect(Collectors.joining(", ", "[", "]"));
-    } else if (anyValue.hasKvlistValue()) {
-      OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
-    } else if (anyValue.hasBytesValue()) {
-      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
-    }
-    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
   }
 }

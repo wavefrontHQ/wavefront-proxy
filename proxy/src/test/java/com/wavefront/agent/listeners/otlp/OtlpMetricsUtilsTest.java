@@ -9,7 +9,6 @@ import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -874,7 +873,8 @@ public class OtlpMetricsUtilsTest {
             .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
             .build();
 
-    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, true);
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
     assertEquals("some-app-name", OtlpTraceUtils.getAttrValByKey(attrList, "application"));
     assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
     assertEquals("some-shard-name", OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
@@ -885,24 +885,11 @@ public class OtlpMetricsUtilsTest {
   public void testDoNotUpdateAttrsListWithDefaultValues() {
     Resource otelResource = Resource.newBuilder().build();
 
-    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, true);
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "application"));
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "service"));
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "shard"));
     assertNull(OtlpTraceUtils.getAttrValByKey(attrList, "cluster"));
-  }
-
-  @Test
-  public void testDoNotUpdateAttrsList() {
-    Resource otelResource =
-        Resource.newBuilder()
-            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
-            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
-            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
-            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
-            .build();
-
-    List<KeyValue> attrList = OtlpMetricsUtils.updateAttrsListForOtelMetrics(otelResource, false);
-    assertTrue(attrList.isEmpty());
   }
 }

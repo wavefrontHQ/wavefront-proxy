@@ -1023,8 +1023,8 @@ public class OtlpTraceUtilsTest {
   }
 
   @Test
-  public void testGetAttrKeyValue() {
-    KeyValue attrKeyValue = OtlpTraceUtils.getAttrKeyValue("test_key", "test_value");
+  public void testBuildKeyValue() {
+    KeyValue attrKeyValue = OtlpTraceUtils.buildKeyValue("test_key", "test_value");
     List<KeyValue> attributes = new ArrayList<>();
     attributes.add(attrKeyValue);
     assertEquals("test_value", OtlpTraceUtils.getAttrValByKey(attributes, "test_key"));
