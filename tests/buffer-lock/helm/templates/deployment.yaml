@@ -31,18 +31,3 @@ spec:
           volumeMounts:
           - name: shared-buffer
             mountPath: /buffer
-        - name: wf-proxy-2
-          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/bash"]
-          args: ["-c","touch /var/log/wavefront/wavefront.log && tail -f /var/log/wavefront/wavefront.log"]
-          env:
-            - name: WAVEFRONT_URL
-              value: {{ .Values.wavefront.url }}
-            - name: WAVEFRONT_TOKEN
-              value: {{ .Values.wavefront.token }}
-            - name: WAVEFRONT_PROXY_ARGS
-              value: "--pushListenerPorts 2878 --buffer /buffer/"
-          volumeMounts:
-          - name: shared-buffer
-            mountPath: /buffer
