@@ -143,8 +143,7 @@ public class OtlpMetricsUtils {
 
   @VisibleForTesting
   static boolean isServiceKeyPresent(List<KeyValue> attributes) {
-        return attributes.stream()
-            .anyMatch(kv -> kv.getKey().equals(SERVICE_TAG_KEY));
+    return attributes.stream().anyMatch(kv -> kv.getKey().equals(SERVICE_TAG_KEY));
   }
 
   /*MONIT-30703: adding application & system.name tags to a metric*/
@@ -154,9 +153,9 @@ public class OtlpMetricsUtils {
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, APPLICATION_TAG_KEY));
     if (isServiceKeyPresent(resourceAttrs)) {
       attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SERVICE_TAG_KEY));
-    }
-    else {
-      attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));
+    } else {
+      attrList.add(
+          OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));
     }
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, CLUSTER_TAG_KEY));
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SHARD_TAG_KEY));

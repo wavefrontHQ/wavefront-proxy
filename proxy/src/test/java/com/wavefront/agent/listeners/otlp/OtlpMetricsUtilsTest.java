@@ -925,9 +925,10 @@ public class OtlpMetricsUtilsTest {
 
     assertFalse(isServiceKeyPresent(otelResource.getAttributesList()));
 
-    otelResource = Resource.newBuilder()
-        .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
-        .build();
+    otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+            .build();
 
     assertTrue(isServiceKeyPresent(otelResource.getAttributesList()));
   }
@@ -939,19 +940,18 @@ public class OtlpMetricsUtilsTest {
             .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
             .build();
 
-    List<KeyValue> attrList =
-        replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    List<KeyValue> attrList = replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
     assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
 
-    otelResource = Resource.newBuilder()
-        .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
-        .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
-        .build();
+    otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
+            .build();
 
-    attrList =
-        replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    attrList = replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
     assertEquals("some-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service"));
-    assertEquals("some-other-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service" +
-        ".name"));
+    assertEquals(
+        "some-other-service-name", OtlpTraceUtils.getAttrValByKey(attrList, "service" + ".name"));
   }
 }
