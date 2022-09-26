@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wf-proxy-buffer-tests
+  name: buffer-lock
   labels:
-    app: wf-proxy-buffer-tests
+    app: buffer-lock
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: wf-proxy-buffer-tests
+      app: buffer-lock
   template:
     metadata:
       labels:
-        app: wf-proxy-buffer-tests
+        app: buffer-lock
     spec:
       volumes:
       - name: shared-buffer
@@ -20,7 +20,6 @@ spec:
       containers:
         - name: wf-proxy-1
           image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -28,29 +27,22 @@ spec:
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_PROXY_ARGS
-              value: "--pushListenerPorts 2879 --buffer /buffer/proxy"
-          ports: 
-            - name: push
-              containerPort: 2879
-              protocol: TCP
+              value: "--pushListenerPorts 2878 --buffer /buffer/"
           volumeMounts:
           - name: shared-buffer
             mountPath: /buffer
         - name: wf-proxy-2
           image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-
           imagePullPolicy: IfNotPresent
+          command: ["/bin/bash"]
+          args: ["-c","touch /var/log/wavefront/wavefront.log && tail -f /var/log/wavefront/wavefront.log"]
           env:
             - name: WAVEFRONT_URL
               value: {{ .Values.wavefront.url }}
             - name: WAVEFRONT_TOKEN
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_PROXY_ARGS
-              value: "--pushListenerPorts 2878 --buffer /buffer/proxy"
-          ports: 
-            - name: push
-              containerPort: 2878
-              protocol: TCP
+              value: "--pushListenerPorts 2878 --buffer /buffer/"
           volumeMounts:
           - name: shared-buffer
             mountPath: /buffer
