@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -125,25 +124,18 @@ public class OtlpMetricsUtils {
 
   @VisibleForTesting
   static List<KeyValue> replaceServiceNameKeyWithServiceKey(List<KeyValue> attributes) {
-    Optional<KeyValue> serviceNameAttr =
-        attributes.stream()
-            .filter(kv -> kv.getKey().equals(OtlpTraceUtils.OTEL_SERVICE_NAME_KEY))
-            .findFirst();
-
-    if (serviceNameAttr.isPresent() && !isServiceKeyPresent(attributes)) {
+    KeyValue serviceNameAttr =
+        OtlpTraceUtils.getAttrByKey(attributes, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY);
+    KeyValue serviceAttr = OtlpTraceUtils.getAttrByKey(attributes, SERVICE_TAG_KEY);
+    if (serviceNameAttr != null && serviceAttr == null) {
       List<KeyValue> attributesWithServiceKey = new ArrayList<>(attributes);
-      attributesWithServiceKey.remove(serviceNameAttr.get());
+      attributesWithServiceKey.remove(serviceNameAttr);
       attributesWithServiceKey.add(
           OtlpTraceUtils.buildKeyValue(
-              SERVICE_TAG_KEY, OtlpTraceUtils.fromAnyValue(serviceNameAttr.get().getValue())));
+              SERVICE_TAG_KEY, serviceNameAttr.getValue().getStringValue()));
       return attributesWithServiceKey;
     }
     return attributes;
-  }
-
-  @VisibleForTesting
-  static boolean isServiceKeyPresent(List<KeyValue> attributes) {
-    return attributes.stream().anyMatch(kv -> kv.getKey().equals(SERVICE_TAG_KEY));
   }
 
   /*MONIT-30703: adding application & system.name tags to a metric*/
@@ -151,8 +143,9 @@ public class OtlpMetricsUtils {
   static List<KeyValue> appTagsFromResourceAttrs(List<KeyValue> resourceAttrs) {
     List<KeyValue> attrList = new ArrayList<>();
     attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, APPLICATION_TAG_KEY));
-    if (isServiceKeyPresent(resourceAttrs)) {
-      attrList.add(OtlpTraceUtils.getAttrByKey(resourceAttrs, SERVICE_TAG_KEY));
+    KeyValue serviceAttr = OtlpTraceUtils.getAttrByKey(resourceAttrs, SERVICE_TAG_KEY);
+    if (serviceAttr != null) {
+      attrList.add(serviceAttr);
     } else {
       attrList.add(
           OtlpTraceUtils.getAttrByKey(resourceAttrs, OtlpTraceUtils.OTEL_SERVICE_NAME_KEY));

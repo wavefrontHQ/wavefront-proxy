@@ -1021,12 +1021,4 @@ public class OtlpTraceUtilsTest {
     Supplier<Boolean> spanLogsFeatureDisabled = () -> false;
     assertTrue(OtlpTraceUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
   }
-
-  @Test
-  public void testBuildKeyValue() {
-    KeyValue attrKeyValue = OtlpTraceUtils.buildKeyValue("test_key", "test_value");
-    List<KeyValue> attributes = new ArrayList<>();
-    attributes.add(attrKeyValue);
-    assertEquals("test_value", OtlpTraceUtils.getAttrValByKey(attributes, "test_key"));
-  }
 }

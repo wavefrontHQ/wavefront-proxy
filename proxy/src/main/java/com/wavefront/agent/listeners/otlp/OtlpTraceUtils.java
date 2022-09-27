@@ -86,13 +86,6 @@ public class OtlpTraceUtils {
         }
       };
 
-  public static String getAttrValByKey(List<KeyValue> attributesList, String key) {
-    Optional<KeyValue> sourceAttr =
-        attributesList.stream().filter(kv -> key.equals(kv.getKey())).findFirst();
-
-    return sourceAttr.map(keyValue -> fromAnyValue(keyValue.getValue())).orElse(null);
-  }
-
   public static KeyValue getAttrByKey(List<KeyValue> attributesList, String key) {
     return attributesList.stream().filter(kv -> key.equals(kv.getKey())).findFirst().orElse(null);
   }
