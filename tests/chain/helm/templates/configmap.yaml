@@ -5,3 +5,12 @@ metadata:
 data:
   checking.sh: |
     {{- include "proxy-checking-test" . | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certs
+data:
+  rootCA.pem: |
+{{ (.Files.Get "certs/rootCA.pem") | indent 4 }}
+

@@ -1,6 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: https-proxy
+  labels:
+    app: https-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: https-proxy
+  template:
+    metadata:
+      labels:
+        app: https-proxy
+    spec:
+      containers:
+        - name: https-proxy
+          image: {{ .Values.image.user }}/filter:{{ .Values.image.tag }}
+          imagePullPolicy: Always
+          ports: 
+            - name: https-proxy
+              containerPort: 8000
+              protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: edge-deployment
   labels:
     app: wf-proxy-edge
@@ -16,7 +41,7 @@ spec:
     spec:
       containers:
         - name: wf-proxy-edge
-          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+          image: {{ .Values.image.user }}/proxy-dev:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -25,23 +50,26 @@ spec:
               value: {{ .Values.wavefront.token }}
             - name: WAVEFRONT_PROXY_ARGS
               value: "--pushRelayListenerPorts 2879 --pushListenerPorts 2880 --ephemeral false --idFile /tmp/id"
+            - name: JAVA_ARGS
+              value: "-Dhttps.proxyHost=https-proxy -Dhttps.proxyPort=8000"
           ports: 
             - name: pushrelay
               containerPort: 2879
               protocol: TCP
-          livenessProbe:
-            tcpSocket:
-              port: 2878
-            initialDelaySeconds: 60
-            periodSeconds: 60
           volumeMounts:
             - mountPath: /tests
               name: tests
+            - mountPath: /tmp/ca
+              name: certs
       volumes:
         - name: tests
           configMap:
             name: wf-proxy-checking-test
             defaultMode: 0777
+        - name: certs
+          configMap:
+            name: certs
+            defaultMode: 0644
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -61,8 +89,7 @@ spec:
     spec:
       containers:
         - name: wf-proxy-chained
-          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
-
+          image: {{ .Values.image.user }}/proxy-dev:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -75,11 +102,6 @@ spec:
             - name: push
               containerPort: 2878
               protocol: TCP
-          livenessProbe:
-            tcpSocket:
-              port: 2878
-            initialDelaySeconds: 60
-            periodSeconds: 60
           volumeMounts:
             - mountPath: /tests
               name: tests
@@ -101,3 +123,16 @@ spec:
     targetPort: 2879
   selector:
     app: wf-proxy-edge
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: https-proxy
+spec:
+  ports:
+  - name: https-proxy
+    protocol: "TCP"
+    port: 8000
+    targetPort: 8000
+  selector:
+    app: https-proxy
