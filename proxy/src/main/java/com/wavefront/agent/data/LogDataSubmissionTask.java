@@ -31,6 +31,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   private transient UUID proxyId;
 
   @JsonProperty private List<Log> logs;
+  @JsonProperty
   private int weight;
 
   @SuppressWarnings("unused")
