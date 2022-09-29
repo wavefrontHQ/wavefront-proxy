@@ -900,7 +900,7 @@ public class OtlpGrpcMetricsHandlerTest {
             false,
             shouldIncludeOtlpAppTagsOnMetrics);
     String applicationKey = "application";
-    String serviceKey = "service.name";
+    String serviceNameKey = "service.name";
     String shardKey = "shard";
     String clusterKey = "cluster";
 
@@ -908,7 +908,8 @@ public class OtlpGrpcMetricsHandlerTest {
 
     ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator().build();
     assertFalse(wfMetric.getAnnotations().containsKey(applicationKey));
-    assertFalse(wfMetric.getAnnotations().containsKey(serviceKey));
+    assertFalse(wfMetric.getAnnotations().containsKey(serviceNameKey));
+    assertFalse(wfMetric.getAnnotations().containsKey("service"));
     assertFalse(wfMetric.getAnnotations().containsKey(shardKey));
     assertFalse(wfMetric.getAnnotations().containsKey(clusterKey));
     mockReportPointHandler.report(wfMetric);
@@ -921,7 +922,7 @@ public class OtlpGrpcMetricsHandlerTest {
     Resource resource =
         Resource.newBuilder()
             .addAttributes(OtlpTestHelpers.attribute(applicationKey, "some-app-name"))
-            .addAttributes(OtlpTestHelpers.attribute(serviceKey, "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute(serviceNameKey, "some-service-name"))
             .addAttributes(OtlpTestHelpers.attribute(shardKey, "some-shard-name"))
             .addAttributes(OtlpTestHelpers.attribute(clusterKey, "some-cluster-name"))
             .build();
