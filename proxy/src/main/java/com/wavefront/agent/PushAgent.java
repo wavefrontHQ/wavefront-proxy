@@ -15,7 +15,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
@@ -35,6 +34,7 @@ import com.wavefront.agent.core.queues.QueuesManagerDefault;
 import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.data.EntityRateLimiter;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.histogram.*;
 import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
@@ -1919,7 +1919,7 @@ public class PushAgent extends AbstractAgent {
       @Nullable Number collectorRateLimit,
       @Nullable Number globalRateLimit) {
     EntityProperties entityProperties = entityPropertiesFactoryMap.get(tenantName).get(entityType);
-    RecyclableRateLimiter rateLimiter = entityProperties.getRateLimiter();
+    EntityRateLimiter rateLimiter = entityProperties.getRateLimiter();
     if (rateLimiter != null) {
       if (BooleanUtils.isTrue(collectorSetsRateLimit)) {
         if (collectorRateLimit != null

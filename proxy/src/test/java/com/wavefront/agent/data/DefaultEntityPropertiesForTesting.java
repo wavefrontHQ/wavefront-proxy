@@ -23,8 +23,8 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public RecyclableRateLimiter getRateLimiter() {
-    return RecyclableRateLimiterImpl.create(NO_RATE_LIMIT, getRateLimitMaxBurstSeconds());
+  public EntityRateLimiter getRateLimiter() {
+    return new EntityRateLimiter();
   }
 
   @Override

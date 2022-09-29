@@ -2,8 +2,20 @@ package com.wavefront.agent;
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.data.EntityRateLimiter;
 import com.wavefront.ingester.SpanDecoder;
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.message.BasicHeader;
+import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
+import wavefront.report.Span;
+
+import javax.net.SocketFactory;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
@@ -16,17 +28,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
-import javax.net.SocketFactory;
-import org.apache.commons.io.FileUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.message.BasicHeader;
-import org.easymock.EasyMock;
-import org.easymock.IArgumentMatcher;
-import wavefront.report.Span;
 
 public class TestUtils {
   private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
@@ -230,30 +231,9 @@ public class TestUtils {
     return out.get(0);
   }
 
-  public static class RateLimiter implements RecyclableRateLimiter {
+  public static class RateLimiter extends EntityRateLimiter {
     @Override
-    public double getRate() {
-      return 0;
-    }
-
-    @Override
-    public void setRate(double rate) {}
-
-    @Override
-    public double acquire(int permits) {
-      return permits;
-    }
-
-    @Override
-    public boolean tryAcquire(int permits) {
-      return true;
-    }
-
-    @Override
-    public void recyclePermits(int permits) {}
-
-    @Override
-    public boolean immediatelyAvailable(int permits) {
+    public boolean tryAcquire(int points) {
       return true;
     }
   }

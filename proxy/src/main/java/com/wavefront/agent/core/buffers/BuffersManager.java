@@ -1,7 +1,8 @@
 package com.wavefront.agent.core.buffers;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.data.EntityRateLimiter;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -79,7 +80,7 @@ public class BuffersManager {
       QueueInfo handler,
       int idx,
       int batchSize,
-      RecyclableRateLimiter rateLimiter,
+      EntityRateLimiter rateLimiter,
       OnMsgFunction func) {
     memoryBuffer.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
   }

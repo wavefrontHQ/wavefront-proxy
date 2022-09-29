@@ -9,6 +9,8 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.wavefront.agent.data.EntityRateLimiter;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 
 public class SQSBuffer implements Buffer {
@@ -66,7 +68,7 @@ public class SQSBuffer implements Buffer {
       QueueInfo queue,
       int idx,
       int batchSize,
-      RecyclableRateLimiter rateLimiter,
+      EntityRateLimiter rateLimiter,
       OnMsgFunction func) {
 
     String queueUrl = queuesUrls.get(queue.getName());

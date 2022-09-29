@@ -59,7 +59,7 @@ public interface EntityProperties {
    *
    * @return rate limiter
    */
-  RecyclableRateLimiter getRateLimiter();
+  EntityRateLimiter getRateLimiter();
 
   /**
    * Get the number of worker threads.

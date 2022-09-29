@@ -67,11 +67,12 @@ abstract class SenderTask implements Runnable {
         queueStats.delivered.inc(batch.size());
       } else {
         queueStats.failed.inc(batch.size());
-        switch (response.getStatus()) {
-            // TODO: 406,429 pushback
-            // TODO: 413 Payload Too Large
-          case 401:
-          case 403:
+        switch (response.getStatusInfo().toEnum()) {
+          case NOT_ACCEPTABLE: // CollectorApiServer RejectedExecutionException
+          case REQUEST_ENTITY_TOO_LARGE: // CollectorApiServer ReportBundleTooLargeException (PPS exceeded)
+            properties.getRateLimiter().pause();
+            break;
+          case FORBIDDEN:
             log.warning(
                 "["
                     + queue.getName()
@@ -81,8 +82,9 @@ abstract class SenderTask implements Runnable {
                     + queue.getEntityType()
                     + "' is enabled for your account!");
             break;
-          case 407:
-          case 408:
+          case UNAUTHORIZED:
+          case PROXY_AUTHENTICATION_REQUIRED:
+          case REQUEST_TIMEOUT:
             if (isWavefrontResponse(response)) {
               log.warning(
                   "["
