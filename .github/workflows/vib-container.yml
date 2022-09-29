@@ -30,12 +30,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-      - name: build application
-        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar docker-test
       - name: Docker login
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
-      - name: Docker push
-        run: docker push ${{ secrets.DOCKER_USER }}/proxy-dev:${{ env.BRANCH_NAME }}
+      - name: build application
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar docker-multi-arch
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
@@ -176,6 +174,31 @@ jobs:
         name: Verify Opentel
         with:
           pipeline: vib-opentel.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+  tests-logs:
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            user: ${{ secrets.DOCKER_USER }}/proxy-dev
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Logs
+        with:
+          pipeline: vib-logs.json
         env:
           VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
   filter-docker-build:

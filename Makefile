@@ -50,7 +50,7 @@ docker-RHEL: .info .cp-docker
 #####
 docker-multi-arch: .info .cp-docker
 	docker buildx create --use
-	docker buildx build --platform linux/amd64,linux/arm64 -t $(USER)/$(REPO):$(DOCKER_TAG) --push docker/
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(USER)/$(REPO):$(DOCKER_TAG) --push docker/ --build-arg TEST=true
 
 docker-multi-arch-with-latest-tag: .info .cp-docker
 	docker buildx create --use
