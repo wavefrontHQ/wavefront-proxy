@@ -120,21 +120,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       switch (response.getStatus()) {
         case 406:
         case 429:
-          if (enqueuedTimeMillis == Long.MAX_VALUE) {
-            if (properties.getTaskQueueLevel().isLessThan(TaskQueueLevel.PUSHBACK)) {
-              return TaskResult.RETRY_LATER;
-            }
-            enqueue(QueueingReason.PUSHBACK);
-            return TaskResult.PERSISTED;
-          }
-          if (properties.isSplitPushWhenRateLimited()) {
-            List<T> splitTasks =
-                splitTask(properties.getMinBatchSplitSize(), properties.getDataPerBatch());
-            if (splitTasks.size() == 1) return TaskResult.RETRY_LATER;
-            splitTasks.forEach(x -> x.enqueue(null));
-            return TaskResult.PERSISTED;
-          }
-          return TaskResult.RETRY_LATER;
+          return handleStatus429();
         case 401:
         case 403:
           log.warning(
@@ -286,5 +272,23 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     } else {
       return TaskResult.RETRY_LATER;
     }
+  }
+
+  protected TaskResult handleStatus429() {
+    if (enqueuedTimeMillis == Long.MAX_VALUE) {
+      if (properties.getTaskQueueLevel().isLessThan(TaskQueueLevel.PUSHBACK)) {
+        return TaskResult.RETRY_LATER;
+      }
+      enqueue(QueueingReason.PUSHBACK);
+      return TaskResult.PERSISTED;
+    }
+    if (properties.isSplitPushWhenRateLimited()) {
+      List<T> splitTasks =
+          splitTask(properties.getMinBatchSplitSize(), properties.getDataPerBatch());
+      if (splitTasks.size() == 1) return TaskResult.RETRY_LATER;
+      splitTasks.forEach(x -> x.enqueue(null));
+      return TaskResult.PERSISTED;
+    }
+    return TaskResult.RETRY_LATER;
   }
 }
