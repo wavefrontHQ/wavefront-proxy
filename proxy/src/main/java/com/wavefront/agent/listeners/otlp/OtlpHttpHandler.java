@@ -52,12 +52,15 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private static final Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
   private final String defaultSource;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
-  @Nullable private final WavefrontInternalReporter internalReporter;
-  @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
+  @Nullable
+  private final WavefrontInternalReporter internalReporter;
+  @Nullable
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final ScheduledExecutorService scheduledExecutorService;
   private final ReportableEntityHandler<Span> spanHandler;
-  @Nullable private final WavefrontSender sender;
+  @Nullable
+  private final WavefrontSender sender;
   private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final Set<String> traceDerivedCustomTagKeys;
   private final ReportableEntityHandler<ReportPoint> metricsHandler;
@@ -66,6 +69,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
   private final boolean includeResourceAttrsForMetrics;
+  private final boolean includeOtlpAppTagsOnMetrics;
 
   public OtlpHttpHandler(
       ReportableEntityHandlerFactory handlerFactory,
@@ -79,18 +83,16 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       Supplier<Boolean> spanLogsFeatureDisabled,
       String defaultSource,
       Set<String> traceDerivedCustomTagKeys,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     super(tokenAuthenticator, healthCheckManager, port);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
-    this.spanHandler =
-        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE));
-    this.spanLogsHandler =
-        handlerFactory.getHandler(
-            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
-    this.metricsHandler =
-        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
-    this.histogramHandler =
-        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM));
+    this.includeOtlpAppTagsOnMetrics = includeOtlpAppTagsOnMetrics;
+    this.spanHandler = handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE));
+    this.spanLogsHandler = handlerFactory.getHandler(
+        port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
+    this.metricsHandler = handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
+    this.histogramHandler = handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;
@@ -98,20 +100,17 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
 
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.receivedSpans = Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
-    this.spanSamplerAndCounter =
-        Pair.of(
-            sampler, Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
-    this.spansDisabled =
-        Pair.of(
-            spansFeatureDisabled,
-            Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
-    this.spanLogsDisabled =
-        Pair.of(
-            spanLogsFeatureDisabled,
-            Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
+    this.spanSamplerAndCounter = Pair.of(
+        sampler, Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
+    this.spansDisabled = Pair.of(
+        spansFeatureDisabled,
+        Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
+    this.spanLogsDisabled = Pair.of(
+        spanLogsFeatureDisabled,
+        Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
 
-    this.scheduledExecutorService =
-        Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-http-heart-beater"));
+    this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
+        new NamedThreadFactory("otlp-http-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
     this.internalReporter = OtlpTraceUtils.createAndStartInternalReporter(sender);
@@ -125,8 +124,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     try {
       switch (path) {
         case "/v1/traces/":
-          ExportTraceServiceRequest traceRequest =
-              ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
+          ExportTraceServiceRequest traceRequest = ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
           long spanCount = OtlpTraceUtils.getSpansCount(traceRequest);
           receivedSpans.inc(spanCount);
 
@@ -149,21 +147,23 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
               traceDerivedCustomTagKeys);
           break;
         case "/v1/metrics/":
-          ExportMetricsServiceRequest metricRequest =
-              ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer());
+          ExportMetricsServiceRequest metricRequest = ExportMetricsServiceRequest
+              .parseFrom(request.content().nioBuffer());
           OtlpMetricsUtils.exportToWavefront(
               metricRequest,
               metricsHandler,
               histogramHandler,
               preprocessorSupplier,
               defaultSource,
-              includeResourceAttrsForMetrics);
+              includeResourceAttrsForMetrics,
+              includeOtlpAppTagsOnMetrics);
           break;
         default:
           /*
-           We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
-           OTel Collector's OTLP Receiver code.
-          */
+           * We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found
+           * in
+           * OTel Collector's OTLP Receiver code.
+           */
           writeHttpResponse(
               ctx, HttpResponseStatus.BAD_REQUEST, "unknown endpoint " + path, request);
           return;
@@ -192,20 +192,20 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   }
 
   /*
-  Build an OTLP HTTP error response per the spec:
-  https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/otlp.md#otlphttp-response
+   * Build an OTLP HTTP error response per the spec:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/
+   * specification/protocol/otlp.md#otlphttp-response
    */
   private HttpResponse makeErrorResponse(Code rpcCode, String msg) {
     Status pbStatus = Status.newBuilder().setCode(rpcCode.getNumber()).setMessage(msg).build();
     ByteBuf content = Unpooled.copiedBuffer(pbStatus.toByteArray());
 
-    HttpHeaders headers =
-        new DefaultHttpHeaders()
-            .set(HttpHeaderNames.CONTENT_TYPE, "application/x-protobuf")
-            .set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
+    HttpHeaders headers = new DefaultHttpHeaders()
+        .set(HttpHeaderNames.CONTENT_TYPE, "application/x-protobuf")
+        .set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
 
-    HttpResponseStatus httpStatus =
-        (rpcCode == Code.NOT_FOUND) ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.BAD_REQUEST;
+    HttpResponseStatus httpStatus = (rpcCode == Code.NOT_FOUND) ? HttpResponseStatus.NOT_FOUND
+        : HttpResponseStatus.BAD_REQUEST;
 
     return new DefaultFullHttpResponse(
         HttpVersion.HTTP_1_1, httpStatus, content, headers, new DefaultHttpHeaders());

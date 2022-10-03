@@ -21,6 +21,7 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final String defaultSource;
   private final boolean includeResourceAttrsForMetrics;
+  private final boolean includeOtlpAppTagsOnMetrics;
 
   /** Create new instance. */
   public OtlpGrpcMetricsHandler(
@@ -28,13 +29,15 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
       ReportableEntityHandler<ReportPoint> histogramHandler,
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     super();
     this.pointHandler = pointHandler;
     this.histogramHandler = histogramHandler;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
+    this.includeOtlpAppTagsOnMetrics = includeOtlpAppTagsOnMetrics;
   }
 
   public OtlpGrpcMetricsHandler(
@@ -42,7 +45,8 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
-      boolean includeResourceAttrsForMetrics) {
+      boolean includeResourceAttrsForMetrics,
+      boolean includeOtlpAppTagsOnMetrics) {
     this(
         handlerFactory.getHandler(
             String.valueOf(port), queuesManager.initQueue(ReportableEntityType.POINT)),
@@ -50,7 +54,8 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
             String.valueOf(port), queuesManager.initQueue(ReportableEntityType.HISTOGRAM)),
         preprocessorSupplier,
         defaultSource,
-        includeResourceAttrsForMetrics);
+        includeResourceAttrsForMetrics,
+        includeOtlpAppTagsOnMetrics);
   }
 
   public void export(
@@ -62,7 +67,8 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
         histogramHandler,
         preprocessorSupplier,
         defaultSource,
-        includeResourceAttrsForMetrics);
+        includeResourceAttrsForMetrics,
+        includeOtlpAppTagsOnMetrics);
     responseObserver.onNext(ExportMetricsServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
   }

@@ -71,7 +71,8 @@ public class OtlpHttpHandlerTest {
             () -> false,
             "defaultSource",
             null,
-            false);
+            false,
+            true);
     io.opentelemetry.proto.trace.v1.Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
     ByteBuf body = Unpooled.copiedBuffer(otlpRequest.toByteArray());
