@@ -3,11 +3,14 @@ package com.wavefront.agent.listeners.otlp;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
 import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.replaceServiceNameKeyWithServiceKey;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -27,6 +30,7 @@ import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
+import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -859,5 +863,95 @@ public class OtlpMetricsUtilsTest {
     actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, preprocessor, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void testAppTagsFromResourceAttrs() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
+            .build();
+
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
+    assertEquals(
+        "some-app-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "application").getValue().getStringValue());
+    assertEquals(
+        "some-service-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "service").getValue().getStringValue());
+    assertEquals(
+        "some-shard-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "shard").getValue().getStringValue());
+    assertEquals(
+        "some-cluster-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "cluster").getValue().getStringValue());
+  }
+
+  @Test
+  public void testAppTagsFromResourceAttrsWhenServiceKeyIsPresent() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("application", "some-app-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("shard", "some-shard-name"))
+            .addAttributes(OtlpTestHelpers.attribute("cluster", "some-cluster-name"))
+            .build();
+
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
+    assertEquals(
+        "some-app-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "application").getValue().getStringValue());
+    assertEquals(
+        "some-service-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "service").getValue().getStringValue());
+    assertEquals(
+        "some-shard-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "shard").getValue().getStringValue());
+    assertEquals(
+        "some-cluster-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "cluster").getValue().getStringValue());
+    assertNull(OtlpTraceUtils.getAttrByKey(attrList, "service.name"));
+  }
+
+  @Test
+  public void testAppTagsFromResourceAttrsWhenAttrsAreNotProvided() {
+    Resource otelResource = Resource.newBuilder().build();
+
+    List<KeyValue> attrList =
+        OtlpMetricsUtils.appTagsFromResourceAttrs(otelResource.getAttributesList());
+    assertTrue(attrList.isEmpty());
+  }
+
+  @Test
+  public void testReplaceServiceNameKeyWithServiceKey() {
+    Resource otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-service-name"))
+            .build();
+
+    List<KeyValue> attrList = replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    assertEquals(
+        "some-service-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "service").getValue().getStringValue());
+
+    otelResource =
+        Resource.newBuilder()
+            .addAttributes(OtlpTestHelpers.attribute("service", "some-service-name"))
+            .addAttributes(OtlpTestHelpers.attribute("service.name", "some-other-service-name"))
+            .build();
+
+    attrList = replaceServiceNameKeyWithServiceKey(otelResource.getAttributesList());
+    assertEquals(
+        "some-service-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "service").getValue().getStringValue());
+    assertEquals(
+        "some-other-service-name",
+        OtlpTraceUtils.getAttrByKey(attrList, "service.name").getValue().getStringValue());
   }
 }
