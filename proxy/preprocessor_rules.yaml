@@ -1,8 +1,0 @@
-'2878':
-###############################################################
-## block sources starting with "pti-" These are apps that devs startup on their laptops
-################################################################
-- rule: block sources starting with pti
-  action: block
-  scope: sourceName
-  match: ".*pti-.*"
