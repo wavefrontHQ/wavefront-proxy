@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: https-proxy
-          image: {{ .Values.image.user }}/filter:{{ .Values.image.tag }}
+          image: {{ .Values.image.filter }}:{{ .Values.image.tag }}
           imagePullPolicy: Always
           ports: 
             - name: https-proxy
@@ -41,7 +41,7 @@ spec:
     spec:
       containers:
         - name: wf-proxy-edge
-          image: {{ .Values.image.user }}/proxy-dev:{{ .Values.image.tag }}
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
@@ -89,7 +89,7 @@ spec:
     spec:
       containers:
         - name: wf-proxy-chained
-          image: {{ .Values.image.user }}/proxy-dev:{{ .Values.image.tag }}
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL

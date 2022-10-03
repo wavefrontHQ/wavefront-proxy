@@ -4,7 +4,7 @@ VERSION := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${projec
 ARTIFACT_ID := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.artifactId}' --non-recursive exec:exec)
 REVISION ?= ${TS}
 USER ?= $(LOGNAME)
-REPO ?= proxy-dev
+REPO ?= proxy-snapshot
 PACKAGECLOUD_USER ?= wavefront
 PACKAGECLOUD_REPO ?= proxy-next
 

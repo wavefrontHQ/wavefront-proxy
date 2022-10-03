@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: logs-proxy
-          image: {{ .Values.image.user }}/proxy-dev:{{ .Values.image.tag }}
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL

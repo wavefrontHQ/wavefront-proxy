@@ -49,7 +49,7 @@ jobs:
           platforms: linux/amd64,linux/arm/v7
           push: true
           build-args: "TEST=true"
-          tags: "${{ secrets.DOCKER_OWNER }}/proxy-dev:${{ env.BRANCH_NAME }}"
+          tags: "${{ secrets.DOCKER_OWNER }}/proxy-snapshot:${{ env.BRANCH_NAME }}"
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -98,7 +98,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -125,7 +125,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -174,7 +174,7 @@ jobs:
         with:
           file: tests/opentel/app/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_OWNER }}/opentel-app:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_USER }}/opentel-app:${{ env.BRANCH_NAME }}
 
   tests-opentel:
     name: OpenTelemetry test
@@ -186,8 +186,8 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
-            opentelapp: ${{ secrets.DOCKER_OWNER }}/opentel-app
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            opentelapp: ${{ secrets.DOCKER_USER }}/opentel-app
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -214,7 +214,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            user: ${{ secrets.DOCKER_OWNER }}
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_LOGS_URL }}
@@ -251,7 +251,7 @@ jobs:
           context: tests/util/filter
           file: tests/util/filter/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_OWNER }}/filter:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_USER }}/filter:${{ env.BRANCH_NAME }}
 
   tests-chain-checking:
     name: Proxy Chain test
@@ -263,7 +263,8 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            user: ${{ secrets.DOCKER_OWNER }}
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            filter: ${{ secrets.DOCKER_USER }}/filter
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}

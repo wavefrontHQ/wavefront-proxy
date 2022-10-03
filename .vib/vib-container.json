@@ -8,7 +8,7 @@
             "repository": {
               "url": "oci://docker.io/{VIB_ENV_DOCKER_USER}"
             },
-            "name": "proxy-dev",
+            "name": "proxy-snapshot",
             "tag": "{VIB_ENV_IMAGE_TAG}"
           }
         }
