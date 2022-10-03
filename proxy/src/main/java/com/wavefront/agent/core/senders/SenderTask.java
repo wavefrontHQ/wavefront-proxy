@@ -102,11 +102,12 @@ abstract class SenderTask implements Runnable {
             }
             break;
         }
-        throw new SenderTaskException(
-            "HTTP error: "
-                + response.getStatus()
-                + " "
-                + response.getStatusInfo().getReasonPhrase());
+        if(!dropOnHTTPError(response.getStatusInfo(),batch.size())){
+          throw new SenderTaskException(
+              "HTTP error: "
+                  + response.getStatus()
+                  + " "
+                  + response.getStatusInfo().getReasonPhrase());}
       }
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
@@ -152,6 +153,11 @@ abstract class SenderTask implements Runnable {
     } finally {
       timer.stop();
     }
+  }
+
+  /* return true if the point need to be dropped on a specif HTTP error code */
+  protected boolean dropOnHTTPError(Response.StatusType statusInfo,int batchSize) {
+    return false;
   }
 
   protected abstract Response submit(List<String> events);
