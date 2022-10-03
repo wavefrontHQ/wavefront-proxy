@@ -30,7 +30,6 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import static com.wavefront.common.Utils.getLocalHostName;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits

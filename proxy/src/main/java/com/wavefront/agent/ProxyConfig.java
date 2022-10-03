@@ -38,10 +38,6 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -50,6 +46,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -800,10 +798,7 @@ public class ProxyConfig extends Configuration {
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
   String hostname = getLocalHostName();
 
-
-  /**
-   * This property holds the proxy name. Default proxyname to FQDN of machine.
-   */
+  /** This property holds the proxy name. Default proxyname to FQDN of machine. */
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
