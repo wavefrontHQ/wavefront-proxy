@@ -49,14 +49,14 @@ jobs:
           platforms: linux/amd64,linux/arm/v7
           push: true
           build-args: "TEST=true"
-          tags: "${{ secrets.DOCKER_USER }}/proxy-dev:${{ env.BRANCH_NAME }}"
+          tags: "${{ secrets.DOCKER_OWNER }}/proxy-dev:${{ env.BRANCH_NAME }}"
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Package Wavefront container
         with:
           pipeline: vib-container.json
         env:
           VIB_ENV_IMAGE_TAG: ${{ env.BRANCH_NAME }}
-          VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_OWNER }}
 
   tests-multi-tenant:
     name: Multitenamt test
@@ -174,7 +174,7 @@ jobs:
         with:
           file: tests/opentel/app/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USER }}/opentel-app:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_OWNER }}/opentel-app:${{ env.BRANCH_NAME }}
 
   tests-opentel:
     name: OpenTelemetry test
@@ -187,7 +187,7 @@ jobs:
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
             name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
-            opentelapp: ${{ secrets.DOCKER_USER }}/opentel-app
+            opentelapp: ${{ secrets.DOCKER_OWNER }}/opentel-app
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -214,7 +214,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            user: ${{ secrets.DOCKER_USER }}
+            user: ${{ secrets.DOCKER_OWNER }}
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_LOGS_URL }}
@@ -251,7 +251,7 @@ jobs:
           context: tests/util/filter
           file: tests/util/filter/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USER }}/filter:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_OWNER }}/filter:${{ env.BRANCH_NAME }}
 
   tests-chain-checking:
     name: Proxy Chain test
@@ -263,7 +263,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            user: ${{ secrets.DOCKER_USER }}
+            user: ${{ secrets.DOCKER_OWNER }}
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
