@@ -10,7 +10,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class SharedGraphiteHostAnnotatorTest {
 
   @Test

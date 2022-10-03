@@ -20,9 +20,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * @param blockedItemLogger logger for blocked items.
    */
   SpanLogsHandlerImpl(
-      final String handler,
-      final QueueInfo handlerKey,
-      @Nullable final Logger blockedItemLogger) {
+      final String handler, final QueueInfo handlerKey, @Nullable final Logger blockedItemLogger) {
     super(handler, handlerKey, new SpanLogsSerializer(), blockedItemLogger);
   }
 

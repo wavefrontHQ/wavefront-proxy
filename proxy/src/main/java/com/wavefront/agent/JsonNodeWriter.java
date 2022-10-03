@@ -13,11 +13,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.MessageBodyWriter;
 
-/**
- * Writer that serializes JsonNodes.
- *
- * @author Clement Pang (clement@wavefront.com)
- */
+/** Writer that serializes JsonNodes. */
 public class JsonNodeWriter implements MessageBodyWriter<JsonNode> {
 
   private final ObjectMapper mapper = new ObjectMapper();

@@ -7,8 +7,6 @@ import wavefront.report.Span;
 /**
  * Create a new span annotation by extracting a portion of a span name, source name or another
  * annotation
- *
- * @author vasily@wavefront.com
  */
 public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnnotationTransformer {
 

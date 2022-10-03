@@ -1,15 +1,10 @@
 package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import javax.annotation.Nonnull;
 import org.easymock.EasyMock;
 import wavefront.report.*;
 
-/**
- * Mock factory for testing
- *
- * @author vasily@wavefront.com
- */
+/** Mock factory for testing */
 public class MockReportableEntityHandlerFactory {
 
   public static ReportPointHandlerImpl getMockReportPointHandler() {

@@ -22,8 +22,6 @@ import wavefront.report.TimeSeries;
 /**
  * Consumes log messages sent to {@link #ingestLog(LogsMessage)}. Configures and starts the periodic
  * flush of consumed metric data to Wavefront.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class LogsIngester {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());

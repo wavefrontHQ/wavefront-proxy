@@ -14,11 +14,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-/**
- * Create a point tag by extracting a portion of a metric name, source name or another point tag
- *
- * @author vasily@wavefront.com
- */
+/** Create a point tag by extracting a portion of a metric name, source name or another point tag */
 public class SpanExtractAnnotationTransformer implements Function<Span, Span> {
 
   protected final String key;

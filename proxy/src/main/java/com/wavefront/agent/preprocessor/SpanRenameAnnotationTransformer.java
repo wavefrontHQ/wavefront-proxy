@@ -15,8 +15,6 @@ import wavefront.report.Span;
  * Rename a given span tag's/annotation's (optional: if its value matches a regex pattern)
  *
  * <p>If the tag matches multiple span annotation keys , all keys will be renamed.
- *
- * @author akodali@vmare.com
  */
 public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
 

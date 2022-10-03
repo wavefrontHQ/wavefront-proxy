@@ -6,7 +6,6 @@ import static org.junit.Assert.assertTrue;
 import javax.ws.rs.core.Response;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class HistogramUtilsTest {
 
   @Test

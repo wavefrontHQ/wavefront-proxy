@@ -19,11 +19,7 @@ import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
-/**
- * Interactive tester for preprocessor rules.
- *
- * @author vasily@wavefront.com
- */
+/** Interactive tester for preprocessor rules. */
 public class InteractivePreprocessorTester implements InteractiveTester {
   private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private static final ReportableEntityDecoder<String, Span> SPAN_DECODER =

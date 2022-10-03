@@ -23,11 +23,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
-/**
- * Miscellaneous support methods for running Wavefront proxy.
- *
- * @author vasily@wavefront.com
- */
+/** Miscellaneous support methods for running Wavefront proxy. */
 public abstract class ProxyUtil {
   protected static final Logger logger = Logger.getLogger("proxy");
 

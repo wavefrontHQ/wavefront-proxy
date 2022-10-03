@@ -82,7 +82,9 @@ public class PreprocessorConfigManager {
     this(System::currentTimeMillis);
   }
 
-  /** @param timeSupplier Supplier for current time (in millis). */
+  /**
+   * @param timeSupplier Supplier for current time (in millis).
+   */
   @VisibleForTesting
   PreprocessorConfigManager(@Nonnull Supplier<Long> timeSupplier) {
     this.timeSupplier = timeSupplier;

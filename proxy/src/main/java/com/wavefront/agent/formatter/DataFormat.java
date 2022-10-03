@@ -4,11 +4,7 @@ import com.wavefront.api.agent.Constants;
 import com.wavefront.ingester.AbstractIngesterFormatter;
 import javax.annotation.Nullable;
 
-/**
- * Best-effort data format auto-detection.
- *
- * @author vasily@wavefront.com
- */
+/** Best-effort data format auto-detection. */
 public enum DataFormat {
   DEFAULT,
   WAVEFRONT,

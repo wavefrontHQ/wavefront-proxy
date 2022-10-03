@@ -16,7 +16,6 @@ import org.junit.Test;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-/** @author Han Zhang (zhanghan@vmware.com) */
 public class SpanSamplerTest {
   @Test
   public void testSample() {

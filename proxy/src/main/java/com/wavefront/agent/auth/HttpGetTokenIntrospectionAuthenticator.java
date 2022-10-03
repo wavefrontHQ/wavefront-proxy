@@ -16,8 +16,6 @@ import org.apache.http.util.EntityUtils;
 /**
  * {@link TokenIntrospectionAuthenticator} that considers any 2xx response to be valid. Token to
  * validate is passed in the url, {{token}} placeholder is substituted before the call.
- *
- * @author vasily@wavefront.com
  */
 class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
   private final HttpClient httpClient;

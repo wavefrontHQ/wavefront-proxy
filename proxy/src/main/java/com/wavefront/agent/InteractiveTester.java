@@ -2,11 +2,7 @@ package com.wavefront.agent;
 
 import com.wavefront.agent.config.ConfigurationException;
 
-/**
- * Base interface for all interactive testers (logs and preprocessor at the moment).
- *
- * @author vasily@wavefront.com
- */
+/** Base interface for all interactive testers (logs and preprocessor at the moment). */
 public interface InteractiveTester {
 
   /**

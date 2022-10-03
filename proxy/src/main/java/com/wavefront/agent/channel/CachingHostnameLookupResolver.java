@@ -15,8 +15,6 @@ import javax.annotation.Nullable;
 /**
  * Convert {@link InetAddress} to {@link String}, either by performing reverse DNS lookups (cached,
  * as the name implies), or by converting IP addresses into their string representation.
- *
- * @author vasily@wavefront.com
  */
 public class CachingHostnameLookupResolver implements Function<InetAddress, String> {
 

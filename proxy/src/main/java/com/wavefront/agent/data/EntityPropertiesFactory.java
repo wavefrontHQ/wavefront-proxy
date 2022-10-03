@@ -2,11 +2,7 @@ package com.wavefront.agent.data;
 
 import com.wavefront.data.ReportableEntityType;
 
-/**
- * Generates entity-specific wrappers for dynamic proxy settings.
- *
- * @author vasily@wavefront.com
- */
+/** Generates entity-specific wrappers for dynamic proxy settings. */
 public interface EntityPropertiesFactory {
 
   /**

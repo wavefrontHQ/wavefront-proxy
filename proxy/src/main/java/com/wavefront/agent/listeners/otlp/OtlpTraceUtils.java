@@ -57,10 +57,6 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 public class OtlpTraceUtils {
   // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
   public static final String OTEL_DROPPED_ATTRS_KEY = "otel.dropped_attributes_count";

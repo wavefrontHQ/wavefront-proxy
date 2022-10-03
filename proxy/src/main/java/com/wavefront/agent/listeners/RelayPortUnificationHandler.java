@@ -57,8 +57,6 @@ import wavefront.report.SpanLogs;
  * DDI (Direct Data Ingestion) endpoint. All the data received on this endpoint will register as
  * originating from this proxy. Supports metric, histogram and distributed trace data (no source tag
  * support or log support at this moment). Intended for internal use.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {

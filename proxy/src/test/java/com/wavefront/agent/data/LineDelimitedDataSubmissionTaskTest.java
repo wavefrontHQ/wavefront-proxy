@@ -2,7 +2,6 @@ package com.wavefront.agent.data;
 
 import static org.junit.Assert.*;
 
-/** @author vasily@wavefront.com */
 public class LineDelimitedDataSubmissionTaskTest {
   //  @Test
   //  public void testSplitTask() {

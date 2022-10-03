@@ -4,11 +4,7 @@ import com.google.common.base.Preconditions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/**
- * {@link TokenAuthenticator} that validates tokens by comparing them to a pre-defined value.
- *
- * @author vasily@wavefront.com
- */
+/** {@link TokenAuthenticator} that validates tokens by comparing them to a pre-defined value. */
 class StaticTokenAuthenticator implements TokenAuthenticator {
   private final String staticToken;
 

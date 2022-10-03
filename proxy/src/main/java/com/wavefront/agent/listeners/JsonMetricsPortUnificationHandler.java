@@ -31,12 +31,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * Agent-side JSON metrics endpoint.
- *
- * @author Clement Pang (clement@wavefront.com).
- * @author vasily@wavefront.com.
- */
+/** Agent-side JSON metrics endpoint. */
 @ChannelHandler.Sharable
 public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Set<String> STANDARD_PARAMS = ImmutableSet.of("h", "p", "d", "t");

@@ -26,8 +26,6 @@ import org.apache.commons.lang.math.NumberUtils;
  * healthy. - POST /disable/{port} mark port {port} as unhealthy. - POST /enable mark all
  * healthcheck-enabled ports as healthy. - POST /disable mark all healthcheck-enabled ports as
  * unhealthy.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {

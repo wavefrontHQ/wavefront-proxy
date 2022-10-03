@@ -41,11 +41,7 @@ import javax.net.ssl.SSLException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
-/**
- * Agent that runs remotely on a server collecting metrics.
- *
- * @author Clement Pang (clement@wavefront.com)
- */
+/** Agent that runs remotely on a server collecting metrics. */
 public abstract class AbstractAgent {
   protected static final Logger logger = Logger.getLogger("proxy");
   /** A set of commandline parameters to hide when echoing command line arguments */

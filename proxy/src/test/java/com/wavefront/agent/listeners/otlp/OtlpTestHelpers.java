@@ -31,10 +31,6 @@ import org.apache.commons.compress.utils.Lists;
 import org.hamcrest.FeatureMatcher;
 import wavefront.report.*;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 public class OtlpTestHelpers {
   public static final String DEFAULT_SOURCE = "test-source";
   private static final long startTimeMs = System.currentTimeMillis();

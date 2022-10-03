@@ -15,8 +15,6 @@ import wavefront.report.Span;
 /**
  * Replace regex transformer. Performs search and replace on a specified component of a span (span
  * name, source name or an annotation value, depending on "scope" parameter.
- *
- * @author vasily@wavefront.com
  */
 public class SpanReplaceRegexTransformer implements Function<Span, Span> {
 

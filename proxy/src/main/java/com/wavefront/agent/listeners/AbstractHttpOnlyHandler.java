@@ -10,11 +10,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/**
- * Base class for HTTP-only listeners.
- *
- * @author vasily@wavefront.com
- */
+/** Base class for HTTP-only listeners. */
 @ChannelHandler.Sharable
 public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHandler {
   private static final Logger logger =

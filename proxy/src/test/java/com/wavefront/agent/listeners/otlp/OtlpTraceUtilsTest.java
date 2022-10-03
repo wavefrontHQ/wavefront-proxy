@@ -49,10 +49,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import wavefront.report.Annotation;
 import wavefront.report.SpanLogs;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*"})
 @PrepareForTest({SpanDerivedMetricsUtils.class, OtlpTraceUtils.class})

@@ -13,9 +13,6 @@ import org.jboss.resteasy.util.CommitHeaderOutputStream;
  * An alternative to {@link
  * org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor} that allows changing
  * the GZIP deflater's compression level.
- *
- * @author vasily@wavefront.com
- * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  */
 public class GZIPEncodingInterceptorWithVariableCompression implements WriterInterceptor {
   private final int level;

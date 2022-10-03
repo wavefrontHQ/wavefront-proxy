@@ -27,11 +27,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link SpanUtils}.
- *
- * @author Shipeng Xie (xshipeng@vmware.com)
- */
+/** Unit tests for {@link SpanUtils}. */
 public class SpanUtilsTest {
   private ReportableEntityDecoder<String, Span> spanDecoder = new SpanDecoder("localdev");
   private ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDocoder = new SpanLogsDecoder();

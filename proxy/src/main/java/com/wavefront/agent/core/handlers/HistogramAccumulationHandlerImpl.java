@@ -14,7 +14,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -24,8 +23,6 @@ import wavefront.report.ReportPoint;
 /**
  * A ReportPointHandler that ships parsed points to a histogram accumulator instead of forwarding
  * them to SenderTask.
- *
- * @author vasily@wavefront.com
  */
 public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   private final Accumulator digests;

@@ -7,7 +7,6 @@ import org.hamcrest.Matcher;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class PointMatchers {
 
   private static String mapToString(Map<String, String> map) {

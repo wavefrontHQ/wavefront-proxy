@@ -12,11 +12,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * Removes a log tag if its value matches an optional regex pattern (always remove if null)
- *
- * @author amitw@vmware.com
- */
+/** Removes a log tag if its value matches an optional regex pattern (always remove if null) */
 public class ReportLogDropTagTransformer implements Function<ReportLog, ReportLog> {
 
   @Nonnull private final Pattern compiledTagPattern;

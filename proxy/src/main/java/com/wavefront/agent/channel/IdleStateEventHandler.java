@@ -10,11 +10,7 @@ import java.net.InetSocketAddress;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
-/**
- * Disconnect idle clients (handle READER_IDLE events triggered by IdleStateHandler)
- *
- * @author vasily@wavefront.com
- */
+/** Disconnect idle clients (handle READER_IDLE events triggered by IdleStateHandler) */
 @ChannelHandler.Sharable
 public class IdleStateEventHandler extends ChannelInboundHandlerAdapter {
   private static final Logger logger =

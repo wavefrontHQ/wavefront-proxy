@@ -69,7 +69,8 @@ abstract class SenderTask implements Runnable {
         queueStats.failed.inc(batch.size());
         switch (response.getStatusInfo().toEnum()) {
           case NOT_ACCEPTABLE: // CollectorApiServer RejectedExecutionException
-          case REQUEST_ENTITY_TOO_LARGE: // CollectorApiServer ReportBundleTooLargeException (PPS exceeded)
+          case REQUEST_ENTITY_TOO_LARGE: // CollectorApiServer ReportBundleTooLargeException (PPS
+            // exceeded)
             properties.getRateLimiter().pause();
             break;
           case FORBIDDEN:
@@ -102,12 +103,13 @@ abstract class SenderTask implements Runnable {
             }
             break;
         }
-        if(!dropOnHTTPError(response.getStatusInfo(),batch.size())){
+        if (!dropOnHTTPError(response.getStatusInfo(), batch.size())) {
           throw new SenderTaskException(
               "HTTP error: "
                   + response.getStatus()
                   + " "
-                  + response.getStatusInfo().getReasonPhrase());}
+                  + response.getStatusInfo().getReasonPhrase());
+        }
       }
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
@@ -156,7 +158,7 @@ abstract class SenderTask implements Runnable {
   }
 
   /* return true if the point need to be dropped on a specif HTTP error code */
-  protected boolean dropOnHTTPError(Response.StatusType statusInfo,int batchSize) {
+  protected boolean dropOnHTTPError(Response.StatusType statusInfo, int batchSize) {
     return false;
   }
 

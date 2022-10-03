@@ -14,7 +14,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
@@ -25,11 +24,7 @@ import java.util.*;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
 
-/**
- * Proxy configuration (refactored from {@link AbstractAgent}).
- *
- * @author vasily@wavefront.com
- */
+/** Proxy configuration (refactored from {@link AbstractAgent}). */
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());

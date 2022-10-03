@@ -12,11 +12,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * Only allow log tags that match the allowed list.
- *
- * @author vasily@wavefront.com
- */
+/** Only allow log tags that match the allowed list. */
 public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportLog> {
 
   private final Map<String, Pattern> allowedTags;

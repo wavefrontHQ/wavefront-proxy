@@ -2,7 +2,6 @@ package com.wavefront.agent.logsharvesting;
 
 import com.yammer.metrics.core.*;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
   @Override
   public void processMeter(MetricName name, Metered meter, ReadProcessorContext context) {

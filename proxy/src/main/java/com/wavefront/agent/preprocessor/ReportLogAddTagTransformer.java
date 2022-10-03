@@ -9,11 +9,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * Creates a new log tag with a specified value, or overwrite an existing one.
- *
- * @author amitw@wavefront.com
- */
+/** Creates a new log tag with a specified value, or overwrite an existing one. */
 public class ReportLogAddTagTransformer implements Function<ReportLog, ReportLog> {
 
   protected final String tag;

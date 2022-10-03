@@ -16,7 +16,6 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
  *
- * @author vasily@wavefront.com
  * @param <T> the type of input objects handled
  * @param <U> the type of the output object as handled by {@link SenderTask}
  */

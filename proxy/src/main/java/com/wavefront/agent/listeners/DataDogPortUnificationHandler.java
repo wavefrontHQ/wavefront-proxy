@@ -54,8 +54,6 @@ import wavefront.report.ReportPoint;
 
 /**
  * Accepts incoming HTTP requests in DataDog JSON format. has the ability to relay them to DataDog.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {

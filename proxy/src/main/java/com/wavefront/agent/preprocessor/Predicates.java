@@ -21,8 +21,6 @@ import javax.annotation.Nullable;
 /**
  * Collection of helper methods Base factory class for predicates; supports both text parsing as
  * well as YAML logic.
- *
- * @author vasily@wavefront.com.
  */
 public abstract class Predicates {
   @VisibleForTesting static final String[] LOGICAL_OPS = {"all", "any", "none", "ignore"};

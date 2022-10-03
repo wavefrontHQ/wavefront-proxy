@@ -19,8 +19,6 @@ import javax.annotation.Nullable;
  * <p>With the introduction of Delta Counter for Yammer metrics, this class now treats Counters as
  * Delta Counters. So anybody using this {@link #getCounter(MetricName, MetricMatcher)} method will
  * get an instance of Delta counter.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class EvictingMetricsRegistry {
   private final MetricsRegistry metricsRegistry;

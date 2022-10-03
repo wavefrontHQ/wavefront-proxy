@@ -8,8 +8,6 @@ import javax.annotation.Nullable;
 /**
  * A no-op rule that simply counts points or spans or logs. Optionally, can count only
  * points/spans/logs matching the {@code if} predicate.
- *
- * @author vasily@wavefront.com
  */
 public class CountTransformer<T> implements Function<T, T> {
 

@@ -4,7 +4,6 @@ import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/** @author vasily@wavefront.com */
 public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
 
   @Override

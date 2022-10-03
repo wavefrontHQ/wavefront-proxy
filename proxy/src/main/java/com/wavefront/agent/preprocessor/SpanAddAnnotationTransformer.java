@@ -9,11 +9,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-/**
- * Creates a new annotation with a specified key/value pair.
- *
- * @author vasily@wavefront.com
- */
+/** Creates a new annotation with a specified key/value pair. */
 public class SpanAddAnnotationTransformer implements Function<Span, Span> {
 
   protected final String key;

@@ -11,8 +11,6 @@ import wavefront.report.Span;
 /**
  * Force lowercase transformer. Converts a specified component of a point (metric name, source name
  * or a point tag value, depending on "scope" parameter) to lower case to enforce consistency.
- *
- * @author vasily@wavefront.com
  */
 public class SpanForceLowercaseTransformer implements Function<Span, Span> {
 

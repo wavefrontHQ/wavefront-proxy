@@ -36,7 +36,6 @@ import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
-/** @author Sumit Deo (deosu@vmware.com) */
 public class OtlpMetricsUtilsTest {
     private static final List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
     private static final long startTimeMs = System.currentTimeMillis();

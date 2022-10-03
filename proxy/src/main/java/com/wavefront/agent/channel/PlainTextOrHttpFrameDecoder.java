@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
  * @see <a
  *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
  *     Port Unification Example</a>
- * @author Mike McLaughlin (mike@wavefront.com)
  */
 public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 

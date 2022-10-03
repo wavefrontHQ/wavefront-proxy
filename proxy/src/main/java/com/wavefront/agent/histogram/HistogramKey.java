@@ -11,9 +11,6 @@ import javax.annotation.Nullable;
 /**
  * Uniquely identifies a time-series - time-interval pair. These are the base sample aggregation
  * scopes on the agent. Refactored from HistogramUtils.
- *
- * @author Tim Schmidt (tim@wavefront.com)
- * @author vasily@wavefront.com
  */
 public class HistogramKey {
   // NOTE: fields are not final to allow object reuse

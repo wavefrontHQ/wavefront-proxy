@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class FilebeatIngester implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
   private final LogsIngester logsIngester;

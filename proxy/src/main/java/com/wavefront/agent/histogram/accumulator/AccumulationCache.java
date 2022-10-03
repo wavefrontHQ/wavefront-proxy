@@ -25,8 +25,6 @@ import wavefront.report.Histogram;
 
 /**
  * Expose a local cache of limited size along with a task to flush that cache to the backing store.
- *
- * @author Tim Schmidt (tim@wavefront.com).
  */
 public class AccumulationCache implements Accumulator {
   private static final Logger logger = Logger.getLogger(AccumulationCache.class.getCanonicalName());

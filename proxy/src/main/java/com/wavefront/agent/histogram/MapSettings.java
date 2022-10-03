@@ -5,8 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Stores settings ChronicleMap has been initialized with to trigger map re-creation when settings
  * change (since ChronicleMap doesn't persist init values for entries/avgKeySize/avgValueSize)
- *
- * @author vasily@wavefront.com
  */
 public class MapSettings {
   private long entries;

@@ -8,7 +8,6 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import java.util.function.Function;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import wavefront.report.ReportEvent;

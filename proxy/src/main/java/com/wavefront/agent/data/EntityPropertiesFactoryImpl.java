@@ -1,31 +1,28 @@
 package com.wavefront.agent.data;
 
+import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.data.ReportableEntityType;
-
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-
-/**
- * Generates entity-specific wrappers for dynamic proxy settings.
- *
- * @author vasily@wavefront.com
- */
+/** Generates entity-specific wrappers for dynamic proxy settings. */
 public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   private final Map<ReportableEntityType, EntityProperties> wrappers;
   private final GlobalProperties global;
 
-  /** @param proxyConfig proxy settings container */
+  /**
+   * @param proxyConfig proxy settings container
+   */
   public EntityPropertiesFactoryImpl(ProxyConfig proxyConfig) {
     global = new GlobalPropertiesImpl(proxyConfig);
     EntityProperties pointProperties = new PointsProperties(proxyConfig);
@@ -66,10 +63,13 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
     public AbstractEntityProperties(ProxyConfig wrapped) {
       this.wrapped = wrapped;
-//      this.rateLimiter = new RecyclableRateLimiterWithMetrics(
-//                  RecyclableRateLimiterImpl.create(getRateLimit(), getRateLimitMaxBurstSeconds()),
-//                  getRateLimiterName());
-      rateLimiter = new EntityRateLimiter(getRateLimit(), getRateLimitMaxBurstSeconds(), getRateLimiterName());
+      //      this.rateLimiter = new RecyclableRateLimiterWithMetrics(
+      //                  RecyclableRateLimiterImpl.create(getRateLimit(),
+      // getRateLimitMaxBurstSeconds()),
+      //                  getRateLimiterName());
+      rateLimiter =
+          new EntityRateLimiter(
+              getRateLimit(), getRateLimitMaxBurstSeconds(), getRateLimiterName());
 
       reportSettingAsGauge(this::getPushFlushInterval, "dynamic.pushFlushInterval");
     }
@@ -105,7 +105,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public int getPushFlushInterval() {
       return wrapped.getPushFlushInterval();
     }
-
   }
 
   /** Base class for entity types that do not require separate subscriptions. */

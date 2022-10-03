@@ -9,8 +9,6 @@ import javax.annotation.Nonnull;
 /**
  * Track the number of currently active connections and total count of accepted incoming
  * connections.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class ConnectionTrackingHandler extends ChannelInboundHandlerAdapter {

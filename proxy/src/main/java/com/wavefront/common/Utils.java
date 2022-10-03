@@ -17,11 +17,7 @@ import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang.StringUtils;
 
-/**
- * A placeholder class for miscellaneous utility methods.
- *
- * @author vasily@wavefront.com
- */
+/** A placeholder class for miscellaneous utility methods. */
 public abstract class Utils {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();

@@ -2,7 +2,6 @@ package com.wavefront.agent.core.buffers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.data.EntityRateLimiter;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

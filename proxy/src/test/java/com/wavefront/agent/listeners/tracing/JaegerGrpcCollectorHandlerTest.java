@@ -34,11 +34,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link JaegerGrpcCollectorHandler}
- *
- * @author Hao Song (songhao@vmware.com)
- */
+/** Unit tests for {@link JaegerGrpcCollectorHandler} */
 public class JaegerGrpcCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
   private final ReportableEntityHandler<Span> mockTraceHandler =

@@ -19,8 +19,6 @@ import java.util.logging.Logger;
 
 /**
  * Wrapper for a {@link LogsIngestionConfig} that supports hot-loading and removal notifications.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class LogsIngestionConfigManager {
   protected static final Logger logger =

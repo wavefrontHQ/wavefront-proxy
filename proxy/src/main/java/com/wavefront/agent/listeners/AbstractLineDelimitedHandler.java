@@ -31,8 +31,6 @@ import javax.annotation.Nullable;
 /**
  * Base class for all line-based protocols. Supports TCP line protocol as well as HTTP POST with
  * newline-delimited payload.
- *
- * @author vasily@wavefront.com.
  */
 @ChannelHandler.Sharable
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {

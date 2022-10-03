@@ -19,11 +19,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * Channel handler for byte array data.
- *
- * @author Mike McLaughlin (mike@wavefront.com)
- */
+/** Channel handler for byte array data. */
 @ChannelHandler.Sharable
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private static final Logger logger =

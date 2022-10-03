@@ -3,11 +3,7 @@ package com.wavefront.agent.data;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import javax.annotation.Nullable;
 
-/**
- * Unified interface for dynamic entity-specific dynamic properties, that may change at runtime
- *
- * @author vasily@wavefront.com
- */
+/** Unified interface for dynamic entity-specific dynamic properties, that may change at runtime */
 public interface EntityProperties {
   // what we consider "unlimited"
   int NO_RATE_LIMIT = 10_000_000;

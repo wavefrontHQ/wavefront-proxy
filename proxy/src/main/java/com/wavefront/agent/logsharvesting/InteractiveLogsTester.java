@@ -16,7 +16,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class InteractiveLogsTester implements InteractiveTester {
 
   private final Supplier<LogsIngestionConfig> logsIngestionConfigSupplier;

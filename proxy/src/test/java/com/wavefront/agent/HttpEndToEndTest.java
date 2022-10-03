@@ -607,27 +607,27 @@ public class HttpEndToEndTest {
 
     long timestamp = time * 1000 + 12345;
     String payload =
-            "[{\"source\": \"myHost\",\n \"timestamp\": \""
-                    + timestamp
-                    + "\", "
-                    + "\"log_level\":\"WARN\",\"error_name\":\"myException\","
-                    + "\"application\":\"myApp\",\"service\":\"myService\""
-                    + "}]";
+        "[{\"source\": \"myHost\",\n \"timestamp\": \""
+            + timestamp
+            + "\", "
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\","
+            + "\"application\":\"myApp\",\"service\":\"myService\""
+            + "}]";
     String expectedLog =
-            "[{\"source\": \"myHost\",\n \"timestamp\": "
-                    + timestamp
-                    + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
-                    + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
-                    + "}]";
+        "[{\"source\": \"myHost\",\n \"timestamp\": "
+            + timestamp
+            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
+            + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     AtomicReference<String> result = new AtomicReference<>(new String());
     server.update(
-            req -> {
-              result.set(req.content().toString(CharsetUtil.UTF_8));
-              logger.fine("Content received: " + result);
-              gotLog.set(true);
-              return makeResponse(HttpResponseStatus.OK, "");
-            });
+        req -> {
+          result.set(req.content().toString(CharsetUtil.UTF_8));
+          logger.fine("Content received: " + result);
+          gotLog.set(true);
+          return makeResponse(HttpResponseStatus.OK, "");
+        });
     gzippedHttpPost("http://localhost:" + pushPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
 
     assertTrueWithTimeout(HTTP_timeout_tests * 10, gotLog::get);
@@ -642,28 +642,28 @@ public class HttpEndToEndTest {
 
     long timestamp = time * 1000 + 12345;
     String payload =
-            "[{\"source\": \"myHost\",\n \"timestamp\": \""
-                    + timestamp
-                    + "\", "
-                    + "\"log_level\":\"WARN\",\"error_name\":\"myException\","
-                    + "\"application\":\"myApp\",\"service\":\"myService\""
-                    + "}]";
+        "[{\"source\": \"myHost\",\n \"timestamp\": \""
+            + timestamp
+            + "\", "
+            + "\"log_level\":\"WARN\",\"error_name\":\"myException\","
+            + "\"application\":\"myApp\",\"service\":\"myService\""
+            + "}]";
 
     AtomicInteger count = new AtomicInteger(0);
     AtomicBoolean fail = new AtomicBoolean(false);
     server.update(
-            req -> {
-              if (count.incrementAndGet()>3) {
-                fail.set(true);
-              } else if (count.get() == 3) {
-                return makeResponse(HttpResponseStatus.TOO_MANY_REQUESTS, "");
-              }
-              return makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "");
-            });
+        req -> {
+          if (count.incrementAndGet() > 3) {
+            fail.set(true);
+          } else if (count.get() == 3) {
+            return makeResponse(HttpResponseStatus.TOO_MANY_REQUESTS, "");
+          }
+          return makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "");
+        });
     gzippedHttpPost("http://localhost:" + pushPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
     Thread.sleep(10000);
-    assertEquals("TOO_MANY_REQUESTS not working",false,fail.get());
-    assertEquals("TOO_MANY_REQUESTS not working",3,count.get());
+    assertEquals("TOO_MANY_REQUESTS not working", false, fail.get());
+    assertEquals("TOO_MANY_REQUESTS not working", 3, count.get());
   }
 
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {

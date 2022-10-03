@@ -10,11 +10,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import javax.annotation.Nullable;
 
-/**
- * A simple healthcheck-only endpoint handler. All other endpoints return a 404.
- *
- * @author vasily@wavefront.com
- */
+/** A simple healthcheck-only endpoint handler. All other endpoints return a 404. */
 @ChannelHandler.Sharable
 public class HttpHealthCheckEndpointHandler extends AbstractHttpOnlyHandler {
 

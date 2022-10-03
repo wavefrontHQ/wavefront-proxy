@@ -34,11 +34,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link JaegerPortUnificationHandler}.
- *
- * @author Han Zhang (zhanghan@vmware.com)
- */
+/** Unit tests for {@link JaegerPortUnificationHandler}. */
 public class JaegerPortUnificationHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
   // Derived RED metrics related.
