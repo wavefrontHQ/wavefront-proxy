@@ -26,15 +26,12 @@ import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes incoming Span objects, validates them and hands them over to one of the
- * {@link SenderTask} threads.
- *
- * @author vasily@wavefront.com
+ * SenderTask threads.
  */
 public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, String> {
   private static final Logger log = Logger.getLogger(SpanHandlerImpl.class.getCanonicalName());
 
   private final ValidationConfiguration validationConfig;
-  private final Logger validItemsLogger;
   private final Function<String, Integer> dropSpansDelayedMinutes;
   private final com.yammer.metrics.core.Histogram receivedTagCount;
   private final com.yammer.metrics.core.Counter policySampledSpanCounter;
@@ -44,7 +41,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    * @param handlerKey pipeline hanler key.
    * @param validationConfig parameters for data validation.
    * @param blockedItemLogger logger for blocked items.
-   * @param validItemsLogger logger for valid items.
    * @param dropSpansDelayedMinutes latency threshold for dropping delayed spans.
    * @param spanLogsHandler spanLogs handler.
    */
@@ -53,12 +49,10 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       final QueueInfo handlerKey,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
-      @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
       @Nonnull final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandler) {
     super(handler, handlerKey, new SpanSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
-    this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
     this.receivedTagCount =
         Metrics.newHistogram(
@@ -129,7 +123,5 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
         }
       }
     }
-
-    if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }
 }

@@ -68,7 +68,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
   public AbstractPortUnificationHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final int port) {
+      final int port) {
     this.tokenAuthenticator =
         ObjectUtils.firstNonNull(tokenAuthenticator, TokenAuthenticator.DUMMY_AUTHENTICATOR);
     this.healthCheck =

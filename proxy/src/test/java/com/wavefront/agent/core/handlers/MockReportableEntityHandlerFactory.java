@@ -66,7 +66,7 @@ public class MockReportableEntityHandlerFactory {
       }
 
       @Override
-      public void shutdown(@Nonnull int handle) {}
+      public void shutdown(int handle) {}
     };
   }
 }

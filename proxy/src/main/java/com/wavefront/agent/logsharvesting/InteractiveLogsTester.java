@@ -74,7 +74,7 @@ public class InteractiveLogsTester implements InteractiveTester {
           }
 
           @Override
-          public void shutdown(@Nonnull int handle) {}
+          public void shutdown(int handle) {}
         };
 
     LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix);

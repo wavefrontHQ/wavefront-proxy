@@ -24,50 +24,6 @@ import wavefront.report.Histogram;
  * handlers on demand at runtime, as well as redirecting traffic to a different pipeline.
  */
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
-  private static final Logger logger = Logger.getLogger("sampling");
-
-  public static final Logger VALID_POINTS_LOGGER =
-      new SamplingLogger(
-          ReportableEntityType.POINT,
-          Logger.getLogger("RawValidPoints"),
-          getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
-          "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")),
-          logger::info);
-  public static final Logger VALID_HISTOGRAMS_LOGGER =
-      new SamplingLogger(
-          ReportableEntityType.HISTOGRAM,
-          Logger.getLogger("RawValidHistograms"),
-          getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
-          "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")),
-          logger::info);
-  private static final Logger VALID_SPANS_LOGGER =
-      new SamplingLogger(
-          ReportableEntityType.TRACE,
-          Logger.getLogger("RawValidSpans"),
-          getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"),
-          false,
-          logger::info);
-  private static final Logger VALID_SPAN_LOGS_LOGGER =
-      new SamplingLogger(
-          TRACE_SPAN_LOGS,
-          Logger.getLogger("RawValidSpanLogs"),
-          getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"),
-          false,
-          logger::info);
-  private static final Logger VALID_EVENTS_LOGGER =
-      new SamplingLogger(
-          EVENT,
-          Logger.getLogger("RawValidEvents"),
-          getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"),
-          false,
-          logger::info);
-  private static final Logger VALID_LOGS_LOGGER =
-      new SamplingLogger(
-          LOGS,
-          Logger.getLogger("RawValidLogs"),
-          getSystemPropertyAsDouble("wavefront.proxy.loglogs.sample-rate"),
-          false,
-          logger::info);
 
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?>>> handlers =
       new ConcurrentHashMap<>();
@@ -121,7 +77,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           validationConfig,
                           blockedPointsLogger,
-                          VALID_POINTS_LOGGER,
                           null);
                     case HISTOGRAM:
                       return new ReportPointHandlerImpl(
@@ -129,7 +84,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           validationConfig,
                           blockedHistogramsLogger,
-                          VALID_HISTOGRAMS_LOGGER,
                           histogramRecompressor);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(handler, queue, blockedPointsLogger);
@@ -139,7 +93,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           queue,
                           validationConfig,
                           blockedSpansLogger,
-                          VALID_SPANS_LOGGER,
                           (tenantName) ->
                               entityPropertiesFactoryMap
                                   .get(tenantName)
@@ -148,14 +101,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           Utils.lazySupplier(
                               () -> getHandler(handler, queuesManager.initQueue(TRACE_SPAN_LOGS))));
                     case TRACE_SPAN_LOGS:
-                      return new SpanLogsHandlerImpl(
-                          handler, queue, blockedSpansLogger, VALID_SPAN_LOGS_LOGGER);
+                      return new SpanLogsHandlerImpl(handler, queue, blockedSpansLogger);
                     case EVENT:
-                      return new EventHandlerImpl(
-                          handler, queue, blockedPointsLogger, VALID_EVENTS_LOGGER);
+                      return new EventHandlerImpl(handler, queue, blockedPointsLogger);
                     case LOGS:
-                      return new ReportLogHandlerImpl(
-                          handler, queue, validationConfig, blockedLogsLogger, VALID_LOGS_LOGGER);
+                      return new ReportLogHandlerImpl(handler, queue, validationConfig, blockedLogsLogger);
                     default:
                       throw new IllegalArgumentException(
                           "Unexpected entity type "
@@ -167,7 +117,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   }
 
   @Override
-  public void shutdown(@Nonnull int handle) {
+  public void shutdown(int handle) {
     if (handlers.containsKey(String.valueOf(handle))) {
       handlers.get(String.valueOf(handle)).values().forEach(ReportableEntityHandler::shutdown);
     }

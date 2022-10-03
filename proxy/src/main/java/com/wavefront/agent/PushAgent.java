@@ -5,8 +5,6 @@ import static com.wavefront.agent.ProxyContext.entityPropertiesFactoryMap;
 import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-import static com.wavefront.agent.core.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
-import static com.wavefront.agent.core.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.lazySupplier;
@@ -1285,12 +1283,11 @@ public class PushAgent extends AbstractAgent {
                               queue,
                               validationConfiguration,
                               proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
-                              blockedPointsLogger,
-                              VALID_POINTS_LOGGER));
+                              blockedPointsLogger));
             }
 
             @Override
-            public void shutdown(@Nonnull int handle) {
+            public void shutdown(int handle) {
               if (handlers.containsKey(String.valueOf(handle))) {
                 handlers.values().forEach(ReportableEntityHandler::shutdown);
               }
@@ -1381,8 +1378,7 @@ public class PushAgent extends AbstractAgent {
                           cachedAccumulator,
                           null,
                           validationConfiguration,
-                          blockedHistogramsLogger,
-                          VALID_HISTOGRAMS_LOGGER);
+                          blockedHistogramsLogger);
                 }
                 return delegate.getHandler(handler, queue);
               }
@@ -1711,12 +1707,11 @@ public class PushAgent extends AbstractAgent {
                             cachedAccumulator,
                             granularity,
                             validationConfiguration,
-                            blockedHistogramsLogger,
-                            VALID_HISTOGRAMS_LOGGER));
+                            blockedHistogramsLogger));
           }
 
           @Override
-          public void shutdown(@Nonnull int handle) {
+          public void shutdown(int handle) {
             handlers.values().forEach(ReportableEntityHandler::shutdown);
           }
         };

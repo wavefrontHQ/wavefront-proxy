@@ -48,7 +48,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
   public AbstractLineDelimitedHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final int port) {
+      final int port) {
     super(tokenAuthenticator, healthCheckManager, port);
     this.receivedLogsBatches =
         Utils.lazySupplier(

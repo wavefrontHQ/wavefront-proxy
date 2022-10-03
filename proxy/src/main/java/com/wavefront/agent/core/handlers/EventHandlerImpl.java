@@ -20,20 +20,15 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   private static final Function<ReportEvent, String> EVENT_SERIALIZER =
       value -> new Event(value).toString();
 
-  private final Logger validItemsLogger;
-
   /**
    * @param handlerKey pipeline key.
    * @param blockedEventsLogger logger for blocked events.
-   * @param validEventsLogger logger for valid events.
    */
   public EventHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
-      @Nullable final Logger blockedEventsLogger,
-      @Nullable final Logger validEventsLogger) {
+      @Nullable final Logger blockedEventsLogger) {
     super(handler, handlerKey, EVENT_SERIALIZER, blockedEventsLogger);
-    this.validItemsLogger = validEventsLogger;
   }
 
   @VisibleForTesting
@@ -71,10 +66,6 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
           logger.fine("Tenant '" + tenant + "' invalid");
         }
       }
-    }
-
-    if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
-      validItemsLogger.info(EVENT_SERIALIZER.apply(event));
     }
   }
 }

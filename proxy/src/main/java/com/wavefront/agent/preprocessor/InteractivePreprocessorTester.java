@@ -102,7 +102,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
         }
 
         @Override
-        public void shutdown(@Nonnull int handle) {}
+        public void shutdown(int handle) {}
       };
 
   /**

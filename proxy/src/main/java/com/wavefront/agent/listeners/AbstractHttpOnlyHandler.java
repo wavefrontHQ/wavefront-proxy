@@ -30,7 +30,7 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
   public AbstractHttpOnlyHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final int port) {
+      final int port) {
     super(tokenAuthenticator, healthCheckManager, port);
   }
 

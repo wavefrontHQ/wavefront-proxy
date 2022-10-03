@@ -24,13 +24,12 @@ import wavefront.report.ReportPoint;
 
 /**
  * Handler that processes incoming ReportPoint objects, validates them and hands them over to one of
- * the {@link SenderTask} threads.
+ * the SenderTask threads.
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
   private static final Logger logger =
       Logger.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
 
-  final Logger validItemsLogger;
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
   final com.yammer.metrics.core.Histogram receivedPointLag;
@@ -43,7 +42,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param handlerKey handler key for the metrics pipeline.
    * @param validationConfig validation configuration.
    * @param blockedItemLogger logger for blocked items (optional).
-   * @param validItemsLogger sampling logger for valid items (optional).
    * @param recompressor histogram recompressor (optional)
    */
   ReportPointHandlerImpl(
@@ -51,11 +49,9 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       final QueueInfo handlerKey,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final Logger blockedItemLogger,
-      @Nullable final Logger validItemsLogger,
       @Nullable final Function<Histogram, Histogram> recompressor) {
     super(handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
-    this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;
     MetricsRegistry registry = Metrics.defaultRegistry();
     this.receivedPointLag =
@@ -102,7 +98,5 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
         }
       }
     }
-
-    if (validItemsLogger != null) validItemsLogger.info(strPoint);
   }
 }

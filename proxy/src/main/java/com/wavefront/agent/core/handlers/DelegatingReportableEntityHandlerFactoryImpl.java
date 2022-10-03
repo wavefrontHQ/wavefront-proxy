@@ -21,7 +21,7 @@ public class DelegatingReportableEntityHandlerFactoryImpl
   }
 
   @Override
-  public void shutdown(@Nonnull int handle) {
+  public void shutdown(int handle) {
     delegate.shutdown(handle);
   }
 }

@@ -20,5 +20,5 @@ public interface ReportableEntityHandlerFactory {
   }
 
   /** Shutdown pipeline for a specific handle. */
-  void shutdown(@Nonnull int handle);
+  void shutdown(int handle);
 }

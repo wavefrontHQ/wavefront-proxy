@@ -70,10 +70,6 @@ public class PushAgentTest {
   private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
   private final long alignedStartTimeEpochSeconds = System.currentTimeMillis() / 1000 / 60 * 60;
   private PushAgent proxy;
-  //  private int port;
-  // private int tracePort;
-  //  private int customTracePort;
-  //  private int deltaPort;
   private ReportableEntityHandler<ReportPoint> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =

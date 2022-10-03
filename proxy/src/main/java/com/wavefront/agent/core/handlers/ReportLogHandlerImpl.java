@@ -20,8 +20,6 @@ import wavefront.report.ReportLog;
 
 /**
  * This class will validate parsed logs and distribute them among SenderTask threads.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<ReportLog, Log> {
   private static final Function<ReportLog, String> LOG_SERIALIZER =
@@ -32,22 +30,18 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final com.yammer.metrics.core.Histogram receivedTagLength;
   final com.yammer.metrics.core.Histogram receivedMessageLength;
   final com.yammer.metrics.core.Counter receivedByteCount;
-  private final Logger validItemsLogger;
 
   /**
    * @param handlerKey pipeline key.
    * @param validationConfig validation configuration.
    * @param blockedLogsLogger logger for blocked logs.
-   * @param validLogsLogger logger for valid logs.
    */
   public ReportLogHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
       @Nonnull final ValidationConfiguration validationConfig,
-      @Nullable final Logger blockedLogsLogger,
-      @Nullable final Logger validLogsLogger) {
+      @Nullable final Logger blockedLogsLogger) {
     super(handler, handlerKey, LOG_SERIALIZER, blockedLogsLogger);
-    this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
     MetricsRegistry registry = Metrics.defaultRegistry();
     this.receivedLogLag =
@@ -79,9 +73,5 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
 
     getReceivedCounter().inc();
     BuffersManager.sendMsg(queue, logObj.toString());
-
-    if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
-      validItemsLogger.info(LOG_SERIALIZER.apply(log));
-    }
   }
 }

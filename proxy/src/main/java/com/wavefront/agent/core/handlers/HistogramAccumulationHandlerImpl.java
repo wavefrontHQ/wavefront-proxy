@@ -52,9 +52,8 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       final Accumulator digests,
       @Nullable Granularity granularity,
       @Nonnull final ValidationConfiguration validationConfig,
-      @Nullable final Logger blockedItemLogger,
-      @Nullable final Logger validItemsLogger) {
-    super(handler, handlerKey, validationConfig, blockedItemLogger, validItemsLogger, null);
+      @Nullable final Logger blockedItemLogger) {
+    super(handler, handlerKey, validationConfig, blockedItemLogger, null);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
@@ -119,10 +118,6 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
 
       // atomic update
       digests.put(histogramKey, value);
-    }
-
-    if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
-      validItemsLogger.info(serializer.apply(point));
     }
   }
 }

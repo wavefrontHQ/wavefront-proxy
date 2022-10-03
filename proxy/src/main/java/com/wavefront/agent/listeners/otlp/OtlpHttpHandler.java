@@ -71,7 +71,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable TokenAuthenticator tokenAuthenticator,
       @Nullable HealthCheckManager healthCheckManager,
-      @NonNull int port,
+      int port,
       @Nullable WavefrontSender wfSender,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       SpanSampler sampler,

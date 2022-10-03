@@ -35,8 +35,6 @@ import wavefront.report.ReportPoint;
  * Handler that processes incoming DeltaCounter objects, aggregates them and hands it over to one of
  * the {@link SenderTask} threads according to deltaCountersAggregationIntervalSeconds or before
  * cache expires.
- *
- * @author djia@vmware.com
  */
 public class DeltaCounterAccumulationHandlerImpl
     extends AbstractReportableEntityHandler<ReportPoint, String> {
@@ -46,7 +44,6 @@ public class DeltaCounterAccumulationHandlerImpl
 
   final Histogram receivedPointLag;
   private final ValidationConfiguration validationConfig;
-  private final Logger validItemsLogger;
   private final BurstRateTrackingCounter reportedStats;
   private final Supplier<Counter> discardedCounterSupplier;
   private final Cache<HostMetricTagsPair, AtomicDouble> aggregatedDeltas;
@@ -58,18 +55,15 @@ public class DeltaCounterAccumulationHandlerImpl
    * @param validationConfig validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
    * @param blockedItemLogger logger for blocked items.
-   * @param validItemsLogger logger for valid items.
    */
   public DeltaCounterAccumulationHandlerImpl(
       final String handler,
       final QueueInfo handlerKey,
       @Nonnull final ValidationConfiguration validationConfig,
       long aggregationIntervalSeconds,
-      @Nullable final Logger blockedItemLogger,
-      @Nullable final Logger validItemsLogger) {
+      @Nullable final Logger blockedItemLogger) {
     super(handler, handlerKey, new ReportPointSerializer(), blockedItemLogger);
     this.validationConfig = validationConfig;
-    this.validItemsLogger = validItemsLogger;
 
     this.aggregatedDeltas =
         Caffeine.newBuilder()
@@ -176,9 +170,6 @@ public class DeltaCounterAccumulationHandlerImpl
           new HostMetricTagsPair(point.getHost(), point.getMetric(), point.getAnnotations());
       Objects.requireNonNull(aggregatedDeltas.get(hostMetricTagsPair, key -> new AtomicDouble(0)))
           .getAndAdd(deltaValue);
-      if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
-        validItemsLogger.info(serializer.apply(point));
-      }
     } else {
       reject(point, "Port is not configured to accept non-delta counter data!");
     }
