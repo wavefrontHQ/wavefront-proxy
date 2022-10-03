@@ -1168,7 +1168,8 @@ public class PushAgent extends AbstractAgent {
                     handlerFactory,
                     preprocessors.get(strPort),
                     proxyConfig.getHostname(),
-                    proxyConfig.isOtlpResourceAttrsOnMetricsIncluded());
+                    proxyConfig.isOtlpResourceAttrsOnMetricsIncluded(),
+                    proxyConfig.isOtlpAppTagsOnMetricsIncluded());
             io.grpc.Server server =
                 NettyServerBuilder.forPort(port)
                     .addService(traceHandler)
@@ -1216,7 +1217,8 @@ public class PushAgent extends AbstractAgent {
                     .isFeatureDisabled(),
             proxyConfig.getHostname(),
             proxyConfig.getTraceDerivedCustomTagKeys(),
-            proxyConfig.isOtlpResourceAttrsOnMetricsIncluded());
+            proxyConfig.isOtlpResourceAttrsOnMetricsIncluded(),
+            proxyConfig.isOtlpAppTagsOnMetricsIncluded());
 
     startAsManagedThread(
         port,
