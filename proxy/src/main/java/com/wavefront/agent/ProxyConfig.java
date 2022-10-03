@@ -188,7 +188,6 @@ public class ProxyConfig extends Configuration {
       arity = 1)
   boolean exportQueueRetainData = true;
 
-  // TODO: is used?
   @Parameter(
       names = {"--flushThreads"},
       description =
@@ -198,19 +197,16 @@ public class ProxyConfig extends Configuration {
       order = 5)
   Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
-  // TODO: is used?
   @Parameter(
       names = {"--flushThreadsSourceTags"},
       description = "Number of threads that send " + "source tags data to the server. Default: 2")
   int flushThreadsSourceTags = DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--flushThreadsEvents"},
       description = "Number of threads that send " + "event data to the server. Default: 2")
   int flushThreadsEvents = DEFAULT_FLUSH_THREADS_EVENTS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--flushThreadsLogs"},
       description =
@@ -220,13 +216,11 @@ public class ProxyConfig extends Configuration {
       order = 5)
   Integer flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushInterval"},
       description = "Milliseconds between batches. " + "Defaults to 1000 ms")
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushIntervalLogs"},
       description = "Milliseconds between batches. Defaults to 1000 ms")
@@ -237,37 +231,31 @@ public class ProxyConfig extends Configuration {
       description = "Maximum allowed points " + "in a single flush. Defaults: 40000")
   int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxHistograms"},
       description = "Maximum allowed histograms " + "in a single flush. Default: 10000")
   int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSourceTags"},
       description = "Maximum allowed source tags " + "in a single flush. Default: 50")
   int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSpans"},
       description = "Maximum allowed spans " + "in a single flush. Default: 5000")
   int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxSpanLogs"},
       description = "Maximum allowed span logs " + "in a single flush. Default: 1000")
   int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxEvents"},
       description = "Maximum allowed events " + "in a single flush. Default: 50")
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushFlushMaxLogs"},
       description =
@@ -275,7 +263,6 @@ public class ProxyConfig extends Configuration {
               + "in a single flush in bytes between 1mb (1048576) and 5mb (5242880). Default: 4mb (4194304)")
   int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimit"},
       description = "Limit the outgoing point rate at the proxy. Default: " + "do not throttle.")
@@ -287,33 +274,28 @@ public class ProxyConfig extends Configuration {
           "Limit the outgoing histogram " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitHistograms = NO_RATE_LIMIT;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSourceTags"},
       description = "Limit the outgoing rate " + "for source tags at the proxy. Default: 5 op/s")
   double pushRateLimitSourceTags = 5.0d;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSpans"},
       description =
           "Limit the outgoing tracing spans " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitSpans = NO_RATE_LIMIT;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitSpanLogs"},
       description =
           "Limit the outgoing span logs " + "rate at the proxy. Default: do not throttle.")
   double pushRateLimitSpanLogs = NO_RATE_LIMIT;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitEvents"},
       description = "Limit the outgoing rate " + "for events at the proxy. Default: 5 events/s")
   double pushRateLimitEvents = 5.0d;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitLogs"},
       description =
@@ -326,45 +308,22 @@ public class ProxyConfig extends Configuration {
           "Max number of burst seconds to allow "
               + "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
   Integer pushRateLimitMaxBurstSeconds = 10;
-  // TODO: make it in bytes
-  @Parameter(
-      names = {"--pushMemoryBufferLimit"},
-      description =
-          "Max number of points that can stay in memory buffers"
-              + " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this "
-              + " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if "
-              + " you have points arriving at the proxy in short bursts")
-  int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
 
-  @Parameter(
-      names = {"--pushMemoryBufferLimitLogs"},
-      description =
-          "Max number of logs that "
-              + "can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxLogs, "
-              + "minimum size: pushFlushMaxLogs. Setting this value lower than default reduces memory usage "
-              + "but will force the proxy to spool to disk more frequently if you have points arriving at the "
-              + "proxy in short bursts")
-  int pushMemoryBufferLimitLogs = 16 * pushFlushMaxLogs;
-
-  // TODO: is used?
   @Parameter(
       names = {"--blockedPointsLoggerName"},
       description = "Logger Name for blocked " + "points. " + "Default: RawBlockedPoints")
   String blockedPointsLoggerName = "RawBlockedPoints";
 
-  // TODO: is used?
   @Parameter(
       names = {"--blockedHistogramsLoggerName"},
       description = "Logger Name for blocked " + "histograms" + "Default: RawBlockedPoints")
   String blockedHistogramsLoggerName = "RawBlockedPoints";
 
-  // TODO: is used?
   @Parameter(
       names = {"--blockedSpansLoggerName"},
       description = "Logger Name for blocked spans" + "Default: RawBlockedPoints")
   String blockedSpansLoggerName = "RawBlockedPoints";
 
-  // TODO: is used?
   @Parameter(
       names = {"--blockedLogsLoggerName"},
       description = "Logger Name for blocked logs" + "Default: RawBlockedLogs")
@@ -383,7 +342,6 @@ public class ProxyConfig extends Configuration {
               + " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
   Integer pushListenerMaxReceivedLength = 32768;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushListenerHttpBufferSize"},
       description =
@@ -1084,7 +1042,6 @@ public class ProxyConfig extends Configuration {
               + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
   String authStaticToken = null;
 
-  // TODO: review, do we need this?
   @Parameter(
       names = {"--adminApiListenerPort"},
       description = "Enables admin port to control " + "healthcheck status per port. Default: none")
@@ -1357,14 +1314,6 @@ public class ProxyConfig extends Configuration {
 
   public int getPushRateLimitMaxBurstSeconds() {
     return pushRateLimitMaxBurstSeconds;
-  }
-
-  public int getPushMemoryBufferLimit() {
-    return pushMemoryBufferLimit;
-  }
-
-  public int getPushMemoryBufferLimitLogs() {
-    return pushMemoryBufferLimitLogs;
   }
 
   public String getBlockedPointsLoggerName() {
@@ -2479,41 +2428,7 @@ public class ProxyConfig extends Configuration {
                       MAX_BATCH_SIZE_LOGS_PAYLOAD),
                   (int) pushRateLimitLogs),
               DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
-      pushMemoryBufferLimitLogs =
-          Math.max(
-              config.getInteger("pushMemoryBufferLimitLogs", pushMemoryBufferLimitLogs),
-              pushFlushMaxLogs);
 
-      /*
-       * default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no
-       * more than 25% of
-       * available heap memory. 25% is chosen heuristically as a safe number for
-       * scenarios with
-       * limited system resources (4 CPU cores or less, heap size less than 4GB) to
-       * prevent OOM.
-       * this is a conservative estimate, budgeting 200 characters (400 bytes) per per
-       * point line.
-       * Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
-       */
-      int listeningPorts =
-          Iterables.size(
-              Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
-      long calculatedMemoryBufferLimit =
-          Math.max(
-              Math.min(
-                  16L * pushFlushMaxPoints,
-                  Runtime.getRuntime().maxMemory()
-                      / Math.max(0, listeningPorts)
-                      / 4
-                      / flushThreads
-                      / 400),
-              pushFlushMaxPoints);
-      logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit =
-          Math.max(
-              config.getInteger("pushMemoryBufferLimit", pushMemoryBufferLimit),
-              pushFlushMaxPoints);
-      logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
       pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
       pushFlushIntervalLogs = config.getInteger("pushFlushIntervalLogs", pushFlushIntervalLogs);
     } catch (Throwable exception) {

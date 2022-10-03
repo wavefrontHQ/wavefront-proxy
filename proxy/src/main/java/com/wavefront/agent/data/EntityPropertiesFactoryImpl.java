@@ -106,9 +106,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       return wrapped.getPushFlushInterval();
     }
 
-    public int getMemoryBufferLimit() {
-      return wrapped.getPushMemoryBufferLimit();
-    }
   }
 
   /** Base class for entity types that do not require separate subscriptions. */
@@ -155,7 +152,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public PointsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxPoints");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -179,7 +175,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public HistogramsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxHistograms");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -203,7 +198,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SourceTagsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSourceTags");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitSourceTags");
     }
 
     @Override
@@ -222,11 +216,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getMemoryBufferLimit() {
-      return 16 * wrapped.getPushFlushMaxSourceTags();
-    }
-
-    @Override
     public int getFlushThreads() {
       return wrapped.getFlushThreadsSourceTags();
     }
@@ -237,7 +226,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SpansProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpans");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -261,7 +249,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SpanLogsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpanLogs");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -285,7 +272,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public EventsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxEvents");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitEvents");
     }
 
     @Override
@@ -304,11 +290,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getMemoryBufferLimit() {
-      return 16 * wrapped.getPushFlushMaxEvents();
-    }
-
-    @Override
     public int getFlushThreads() {
       return wrapped.getFlushThreadsEvents();
     }
@@ -319,7 +300,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public LogsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxLogs");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitLogs");
     }
 
     @Override
@@ -330,11 +310,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxLogs();
-    }
-
-    @Override
-    public int getMemoryBufferLimit() {
-      return wrapped.getPushMemoryBufferLimitLogs();
     }
 
     @Override

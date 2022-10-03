@@ -169,9 +169,8 @@ public class PushAgent extends AbstractAgent {
     ProxyContext.queuesManager = new QueuesManagerDefault(proxyConfig);
     SenderTasksManager.init(apiContainer, agentId);
 
-    /***** PROXY NEW *****/
+    /***** Setup Buffers *****/
 
-    logger.info("--> " + Runtime.getRuntime().availableProcessors() + " cpu");
     BuffersManagerConfig cfg = new BuffersManagerConfig();
 
     double maxMemory = Runtime.getRuntime().maxMemory();
@@ -202,7 +201,7 @@ public class PushAgent extends AbstractAgent {
 
     BuffersManager.init(cfg);
 
-    /***** END PROXY NEW *****/
+    /***** END Setup Buffers *****/
 
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
