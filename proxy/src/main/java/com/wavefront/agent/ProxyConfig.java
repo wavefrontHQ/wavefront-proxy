@@ -281,7 +281,6 @@ public class ProxyConfig extends Configuration {
       description = "Limit the outgoing point rate at the proxy. Default: " + "do not throttle.")
   double pushRateLimit = NO_RATE_LIMIT;
 
-  // TODO: is used?
   @Parameter(
       names = {"--pushRateLimitHistograms"},
       description =
