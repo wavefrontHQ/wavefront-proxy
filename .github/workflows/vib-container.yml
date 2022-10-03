@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -98,7 +98,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -125,7 +125,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
             url: ${{ secrets.WF_MAIN_URL }}
@@ -186,7 +186,7 @@ jobs:
         run: |
           echo "VIB_ENV_RUN_PARAMS=$(echo \
           "image:
-            name: ${{ secrets.DOCKER_USER }}/proxy-dev
+            name: ${{ secrets.DOCKER_OWNER }}/proxy-dev
             opentelapp: ${{ secrets.DOCKER_USER }}/opentel-app
             tag: ${{ env.BRANCH_NAME }}
           wavefront:
