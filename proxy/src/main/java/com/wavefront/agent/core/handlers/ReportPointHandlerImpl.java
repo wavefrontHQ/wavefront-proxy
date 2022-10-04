@@ -16,9 +16,10 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -28,7 +29,7 @@ import wavefront.report.ReportPoint;
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
   private static final Logger logger =
-      Logger.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
+      LogManager.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
 
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
@@ -94,7 +95,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
         if (tenantQueue != null) {
           BuffersManager.sendMsg(tenantQueue, strPoint);
         } else {
-          logger.fine("Tenant '" + tenant + "' invalid");
+          logger.info("Tenant '" + tenant + "' invalid");
         }
       }
     }

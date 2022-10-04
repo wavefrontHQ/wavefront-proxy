@@ -36,7 +36,8 @@ import org.apache.logging.log4j.Logger;
  * proxy metrics to the back-end.
  */
 public class ProxyCheckInScheduler {
-  private static final Logger logger = LogManager.getLogger("proxy");
+  private static final Logger logger =
+      LogManager.getLogger(ProxyCheckInScheduler.class.getCanonicalName());
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**

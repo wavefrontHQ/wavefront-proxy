@@ -46,7 +46,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   public AdminPortUnificationHandler(
       @Nullable TokenAuthenticator tokenAuthenticator,
       @Nullable HealthCheckManager healthCheckManager,
-      @Nullable int port,
+      int port,
       @Nullable String remoteIpAllowRegex) {
     super(tokenAuthenticator, healthCheckManager, port);
     this.remoteIpAllowRegex = remoteIpAllowRegex;

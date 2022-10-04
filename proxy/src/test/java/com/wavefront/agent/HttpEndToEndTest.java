@@ -672,7 +672,7 @@ public class HttpEndToEndTest {
     public WrappingHttpHandler(
         @Nullable TokenAuthenticator tokenAuthenticator,
         @Nullable HealthCheckManager healthCheckManager,
-        @Nullable int port,
+        int port,
         @Nonnull Function<FullHttpRequest, HttpResponse> func) {
       super(tokenAuthenticator, healthCheckManager, port);
       this.func = func;

@@ -11,10 +11,10 @@ import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.Histogram;
 
 /**

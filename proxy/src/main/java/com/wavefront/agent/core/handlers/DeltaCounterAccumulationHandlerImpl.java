@@ -25,9 +25,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.ReportPoint;
 
 /**
@@ -39,7 +40,7 @@ public class DeltaCounterAccumulationHandlerImpl
     extends AbstractReportableEntityHandler<ReportPoint, String> {
 
   private static final Logger log =
-      Logger.getLogger(DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
+      LogManager.getLogger(DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
 
   final Histogram receivedPointLag;
   private final ValidationConfiguration validationConfig;
@@ -147,7 +148,7 @@ public class DeltaCounterAccumulationHandlerImpl
         if (tenantQueue != null) {
           BuffersManager.sendMsg(tenantQueue, strPoint);
         } else {
-          log.fine("Tenant '" + tenant + "' invalid");
+          log.info("Tenant '" + tenant + "' invalid");
         }
       }
     }

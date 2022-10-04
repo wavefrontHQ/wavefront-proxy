@@ -33,17 +33,17 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.net.ssl.SSLException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Agent that runs remotely on a server collecting metrics. */
 public abstract class AbstractAgent {
-  protected static final Logger logger = Logger.getLogger("proxy");
+  private static final Logger logger = LogManager.getLogger(AbstractAgent.class.getCanonicalName());
   /** A set of commandline parameters to hide when echoing command line arguments */
   protected static final Set<String> PARAMETERS_TO_HIDE =
       ImmutableSet.of("-t", "--token", "--proxyPassword");
@@ -130,9 +130,9 @@ public abstract class AbstractAgent {
       return objectMapper.readValue(
           new File(proxyConfig.getLogsIngestionConfigFile()), LogsIngestionConfig.class);
     } catch (UnrecognizedPropertyException e) {
-      logger.severe("Unable to load logs ingestion config: " + e.getMessage());
+      logger.error("Unable to load logs ingestion config: " + e.getMessage());
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Could not load logs ingestion config", e);
+      logger.error("Could not load logs ingestion config", e);
     }
     return null;
   }
@@ -169,7 +169,7 @@ public abstract class AbstractAgent {
       }
     } catch (ParameterException e) {
       logger.info(versionStr);
-      logger.severe("Parameter exception: " + e.getMessage());
+      logger.error("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
     logger.info(versionStr);
@@ -270,11 +270,11 @@ public abstract class AbstractAgent {
             public void run() {
               // exit if no active listeners
               if (activeListeners.count() == 0) {
-                logger.severe(
+                logger.error(
                     "**** All listener threads failed to start - there is already a "
                         + "running instance listening on configured ports, or no listening ports "
                         + "configured!");
-                logger.severe("Aborting start-up");
+                logger.error("Aborting start-up");
                 System.exit(1);
               }
 
@@ -292,7 +292,7 @@ public abstract class AbstractAgent {
           },
           5000);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, e.getMessage(), e);
+      logger.error(e.getMessage(), e);
       //      logger.severe(e.getMessage());
       System.exit(1);
     }
@@ -350,7 +350,7 @@ public abstract class AbstractAgent {
       System.out.println("Shutdown complete.");
     } catch (Throwable t) {
       try {
-        logger.log(Level.SEVERE, "Error during shutdown: ", t);
+        logger.error("Error during shutdown: ", t);
       } catch (Throwable loggingError) {
         t.addSuppressed(loggingError);
         t.printStackTrace();

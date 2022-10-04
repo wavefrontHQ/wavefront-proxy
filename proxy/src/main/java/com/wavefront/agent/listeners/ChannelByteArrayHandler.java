@@ -14,16 +14,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.ReportPoint;
 
 /** Channel handler for byte array data. */
 @ChannelHandler.Sharable
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private static final Logger logger =
-      Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
+      LogManager.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
 
   private final ReportableEntityDecoder<byte[], ReportPoint> decoder;
   private final ReportableEntityHandler<ReportPoint> pointHandler;
@@ -79,7 +79,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
       if (remoteAddress != null) {
         errMsg += "; remote: " + remoteAddress.getHostString();
       }
-      logger.log(Level.WARNING, errMsg, e);
+      logger.warn(errMsg, e);
       pointHandler.block(null, errMsg);
     }
   }
@@ -94,7 +94,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     // backwards compatibility: apply "pointLine" rules to metric name
     if (!preprocessor.forPointLine().filter(point.getMetric(), messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warn(ReportPointSerializer.pointToString(point));
       } else {
         blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
@@ -104,7 +104,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     preprocessor.forReportPoint().transform(point);
     if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warn(ReportPointSerializer.pointToString(point));
       } else {
         blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
@@ -129,6 +129,6 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     if (remoteAddress != null) {
       message += "; remote: " + remoteAddress.getHostString();
     }
-    logger.warning(message);
+    logger.warn(message);
   }
 }

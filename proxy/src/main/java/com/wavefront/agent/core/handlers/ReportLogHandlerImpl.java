@@ -11,9 +11,9 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
