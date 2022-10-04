@@ -48,7 +48,7 @@ if (Number.isNaN(delay)) {
             console.log(`[checkin] Got ${response.statusCode} response:`);
             console.log(util.inspect(response));
             response.body.getDecodedBuffer().then()
-            console.log(`body: ${}`);
+            console.log(`body: ${response.body.getDecodedBuffer().then()}`);
         }
     });
 
@@ -87,7 +87,7 @@ http = require('http');
 
 const app = express();
 
-const server = app.listen(7000, () => {
+const server = app.listen(8001, () => {
     console.log(`Admin UI running on PORT ${server.address().port}`);
 });
 

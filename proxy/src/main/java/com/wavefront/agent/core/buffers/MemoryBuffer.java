@@ -1,5 +1,7 @@
 package com.wavefront.agent.core.buffers;
 
+import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.FAIL;
+
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.NamedThreadFactory;
@@ -94,6 +96,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
     AddressSettings addressSetting = activeMQServer.getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(cfg.msgExpirationTime);
     addressSetting.setMaxDeliveryAttempts(cfg.msgRetry);
+    addressSetting.setMaxSizeBytes(cfg.maxMemory);
+    addressSetting.setAddressFullMessagePolicy(FAIL);
     activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
   }
 
@@ -102,6 +106,8 @@ public class MemoryBuffer extends ActiveMQBuffer {
     AddressSettings addressSetting = activeMQServer.getAddressSettingsRepository().getDefault();
     addressSetting.setMaxExpiryDelay(-1L);
     addressSetting.setMaxDeliveryAttempts(-1);
+    addressSetting.setMaxSizeBytes(cfg.maxMemory);
+    addressSetting.setAddressFullMessagePolicy(FAIL);
     activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
   }
 
