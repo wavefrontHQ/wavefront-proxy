@@ -50,7 +50,14 @@ import wavefront.report.Annotation;
 import wavefront.report.SpanLogs;
 
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "jdk.xml.*", "org.xml.*", "org.w3c.*"})
+@PowerMockIgnore({
+  "javax.management.*",
+  "com.sun.org.apache.xerces.*",
+  "javax.xml.*",
+  "jdk.xml.*",
+  "org.xml.*",
+  "org.w3c.*"
+})
 @PrepareForTest({SpanDerivedMetricsUtils.class, OtlpTraceUtils.class})
 public class OtlpTraceUtilsTest {
 
