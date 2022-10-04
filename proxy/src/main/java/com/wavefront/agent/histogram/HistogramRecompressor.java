@@ -17,11 +17,7 @@ import java.util.function.Supplier;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 
-/**
- * Recompresses histograms to reduce their size.
- *
- * @author vasily@wavefront.com
- */
+/** Recompresses histograms to reduce their size. */
 public class HistogramRecompressor implements Function<Histogram, Histogram> {
   private final Supplier<Short> storageAccuracySupplier;
   private final Supplier<Counter> histogramsCompacted =
@@ -31,7 +27,9 @@ public class HistogramRecompressor implements Function<Histogram, Histogram> {
       Utils.lazySupplier(
           () -> Metrics.newCounter(new TaggedMetricName("histogram", "histograms_recompressed")));
 
-  /** @param storageAccuracySupplier Supplier for histogram storage accuracy */
+  /**
+   * @param storageAccuracySupplier Supplier for histogram storage accuracy
+   */
   public HistogramRecompressor(Supplier<Short> storageAccuracySupplier) {
     this.storageAccuracySupplier = storageAccuracySupplier;
   }

@@ -29,11 +29,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Utility methods for processing Jaeger Thrift trace data.
- *
- * @author Han Zhang (zhanghan@vmware.com)
- */
+/** Utility methods for processing Jaeger Thrift trace data. */
 public abstract class JaegerThriftUtils {
   protected static final Logger logger =
       Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());

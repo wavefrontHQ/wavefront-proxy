@@ -9,11 +9,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 
-/**
- * Constants and utility methods for validating feature subscriptions.
- *
- * @author vasily@wavefront.com
- */
+/** Constants and utility methods for validating feature subscriptions. */
 public abstract class FeatureCheckUtils {
   public static final String HISTO_DISABLED =
       "Ingested point discarded because histogram "

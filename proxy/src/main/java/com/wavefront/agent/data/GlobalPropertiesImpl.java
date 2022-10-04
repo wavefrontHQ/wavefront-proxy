@@ -5,11 +5,7 @@ import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Dynamic non-entity specific properties, that may change at runtime.
- *
- * @author vasily@wavefront.com
- */
+/** Dynamic non-entity specific properties, that may change at runtime. */
 public final class GlobalPropertiesImpl implements GlobalProperties {
   private final ProxyConfig wrapped;
   private Double retryBackoffBaseSeconds = null;

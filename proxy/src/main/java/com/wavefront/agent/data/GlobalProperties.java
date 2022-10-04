@@ -4,11 +4,7 @@ import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Unified interface for non-entity specific dynamic properties, that may change at runtime.
- *
- * @author vasily@wavefront.com
- */
+/** Unified interface for non-entity specific dynamic properties, that may change at runtime. */
 public interface GlobalProperties {
 
   /**

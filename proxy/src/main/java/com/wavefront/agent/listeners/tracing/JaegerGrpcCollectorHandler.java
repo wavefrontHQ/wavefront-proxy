@@ -39,8 +39,6 @@ import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes trace data in Jaeger ProtoBuf format and converts them to Wavefront format
- *
- * @author Hao Song (songhao@vmware.com)
  */
 public class JaegerGrpcCollectorHandler extends CollectorServiceGrpc.CollectorServiceImplBase
     implements Runnable, Closeable {

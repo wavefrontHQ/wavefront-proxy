@@ -39,11 +39,7 @@ import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
-/**
- * Container for all Wavefront back-end API objects (proxy, source tag, event)
- *
- * @author vasily@wavefront.com
- */
+/** Container for all Wavefront back-end API objects (proxy, source tag, event) */
 public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
   public static final String API_SERVER = "server";
@@ -59,7 +55,9 @@ public class APIContainer {
   private String logServerToken;
   private String logServerEndpointUrl;
 
-  /** @param proxyConfig proxy configuration settings */
+  /**
+   * @param proxyConfig proxy configuration settings
+   */
   public APIContainer(ProxyConfig proxyConfig) {
     this.proxyConfig = proxyConfig;
     this.logServerToken = "NOT_SET";

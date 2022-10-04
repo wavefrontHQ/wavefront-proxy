@@ -5,11 +5,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import javax.annotation.Nonnull;
 
-/**
- * A no-op health check manager.
- *
- * @author vasily@wavefront.com.
- */
+/** A no-op health check manager. */
 public class NoopHealthCheckManager implements HealthCheckManager {
   @Override
   public HttpResponse getHealthCheckResponse(

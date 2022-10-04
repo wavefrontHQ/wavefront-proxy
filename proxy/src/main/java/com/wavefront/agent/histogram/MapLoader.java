@@ -20,8 +20,6 @@ import net.openhft.chronicle.map.VanillaChronicleMap;
  * Loader for {@link ChronicleMap}. If a file already exists at the given location, will make an
  * attempt to load the map from the existing file. Will fall-back to an in memory representation if
  * the file cannot be loaded (see logs).
- *
- * @author Tim Schmidt (tim@wavefront.com).
  */
 public class MapLoader<
     K, V, KM extends BytesReader<K> & BytesWriter<K>, VM extends SizedReader<V> & SizedWriter<V>> {

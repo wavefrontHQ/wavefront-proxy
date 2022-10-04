@@ -10,7 +10,6 @@ import org.junit.Test;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 
-/** @author vasily@wavefront.com */
 public class HistogramRecompressorTest {
 
   @Test

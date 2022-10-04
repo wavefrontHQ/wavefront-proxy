@@ -19,11 +19,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Unit tests around {@link MapLoader}.
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Unit tests around {@link MapLoader}. */
 public class MapLoaderTest {
   private static final short COMPRESSION = 100;
 

@@ -30,11 +30,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Utility methods for processing Jaeger Protobuf trace data.
- *
- * @author Hao Song (songhao@vmware.com)
- */
+/** Utility methods for processing Jaeger Protobuf trace data. */
 public abstract class JaegerProtobufUtils {
   protected static final Logger logger =
       Logger.getLogger(JaegerProtobufUtils.class.getCanonicalName());

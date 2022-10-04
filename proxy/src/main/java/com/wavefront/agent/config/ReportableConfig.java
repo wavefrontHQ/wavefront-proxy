@@ -17,8 +17,6 @@ import javax.annotation.Nullable;
 /**
  * Wrapper class to simplify access to .properties file + track values as metrics as they are
  * retrieved
- *
- * @author vasily@wavefront.com
  */
 public class ReportableConfig {
   private static final Logger logger = Logger.getLogger(ReportableConfig.class.getCanonicalName());

@@ -86,7 +86,7 @@ http = require('http');
 
 const app = express();
 
-const server = app.listen(7000, () => {
+const server = app.listen(8001, () => {
     console.log(`Admin UI running on PORT ${server.address().port}`);
 });
 

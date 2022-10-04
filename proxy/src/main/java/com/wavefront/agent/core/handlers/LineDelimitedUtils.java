@@ -3,11 +3,7 @@ package com.wavefront.agent.core.handlers;
 import java.util.Collection;
 import org.apache.commons.lang.StringUtils;
 
-/**
- * A collection of helper methods around plaintext newline-delimited payloads.
- *
- * @author vasily@wavefront.com
- */
+/** A collection of helper methods around plaintext newline-delimited payloads. */
 public abstract class LineDelimitedUtils {
   static final String PUSH_DATA_DELIMITER = "\n";
 

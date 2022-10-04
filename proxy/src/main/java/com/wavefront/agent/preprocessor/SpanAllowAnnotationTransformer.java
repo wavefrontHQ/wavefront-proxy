@@ -14,11 +14,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-/**
- * Only allow span annotations that match the allowed list.
- *
- * @author vasily@wavefront.com
- */
+/** Only allow span annotations that match the allowed list. */
 public class SpanAllowAnnotationTransformer implements Function<Span, Span> {
   private static final Set<String> SYSTEM_TAGS =
       ImmutableSet.of("service", "application", "cluster", "shard");

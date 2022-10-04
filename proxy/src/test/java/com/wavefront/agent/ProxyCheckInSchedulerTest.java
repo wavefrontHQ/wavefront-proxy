@@ -21,7 +21,6 @@ import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class ProxyCheckInSchedulerTest {
 
   @Test

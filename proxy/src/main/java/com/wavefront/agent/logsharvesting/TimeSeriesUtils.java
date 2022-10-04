@@ -9,7 +9,6 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import wavefront.report.TimeSeries;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class TimeSeriesUtils {
 
   private static final DatumReader<TimeSeries> datumReader =

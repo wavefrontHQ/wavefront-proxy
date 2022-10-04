@@ -84,10 +84,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import net.openhft.chronicle.map.ChronicleMap;
 import org.apache.commons.lang.BooleanUtils;
@@ -97,12 +94,15 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.logstash.beats.Server;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 /** Push-only Agent. */
 public class PushAgent extends AbstractAgent {
+  private static final Logger logger = LogManager.getLogger(PushAgent.class.getCanonicalName());
 
   public static boolean isMulticastingActive;
 
@@ -172,6 +172,7 @@ public class PushAgent extends AbstractAgent {
     /***** Setup Buffers *****/
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.debug = proxyConfig.debugBuffer;
 
     double maxMemory = Runtime.getRuntime().maxMemory();
     double buffersMaxMemory = maxMemory / 2;
@@ -203,10 +204,10 @@ public class PushAgent extends AbstractAgent {
 
     /***** END Setup Buffers *****/
 
-    blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
-    blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
-    blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
-    blockedLogsLogger = Logger.getLogger(proxyConfig.getBlockedLogsLoggerName());
+    blockedPointsLogger = LogManager.getLogger(proxyConfig.getBlockedPointsLoggerName());
+    blockedHistogramsLogger = LogManager.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
+    blockedSpansLogger = LogManager.getLogger(proxyConfig.getBlockedSpansLoggerName());
+    blockedLogsLogger = LogManager.getLogger(proxyConfig.getBlockedLogsLoggerName());
 
     if (proxyConfig.getSoLingerTime() >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, proxyConfig.getSoLingerTime());
@@ -267,7 +268,7 @@ public class PushAgent extends AbstractAgent {
     if (StringUtils.isNotBlank(proxyConfig.getGraphitePorts())
         || StringUtils.isNotBlank(proxyConfig.getPicklePorts())) {
       if (tokenAuthenticator.authRequired()) {
-        logger.warning("Graphite mode is not compatible with HTTP authentication, ignoring");
+        logger.warn("Graphite mode is not compatible with HTTP authentication, ignoring");
       } else {
         Preconditions.checkNotNull(
             proxyConfig.getGraphiteFormat(),
@@ -350,10 +351,10 @@ public class PushAgent extends AbstractAgent {
             startRawLogsIngestionListener(proxyConfig.getRawLogsPort(), logsIngester);
           }
         } catch (ConfigurationException e) {
-          logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
+          logger.error("Cannot start logsIngestion", e);
         }
       } else {
-        logger.warning("Cannot start logsIngestion: invalid configuration or no config specified");
+        logger.warn("Cannot start logsIngestion: invalid configuration or no config specified");
       }
     }
   }
@@ -730,7 +731,7 @@ public class PushAgent extends AbstractAgent {
   protected void startDataDogListener(
       final int port, ReportableEntityHandlerFactory handlerFactory, HttpClient httpClient) {
     if (tokenAuthenticator.authRequired()) {
-      logger.warning(
+      logger.warn(
           "Port: " + port + " (DataDog) is not compatible with HTTP authentication, ignoring");
       return;
     }
@@ -770,7 +771,7 @@ public class PushAgent extends AbstractAgent {
   protected void startPickleListener(
       int port, ReportableEntityHandlerFactory handlerFactory, GraphiteFormatter formatter) {
     if (tokenAuthenticator.authRequired()) {
-      logger.warning(
+      logger.warn(
           "Port: "
               + port
               + " (pickle format) is not compatible with HTTP authentication, ignoring");
@@ -918,7 +919,7 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       SpanSampler sampler) {
     if (tokenAuthenticator.authRequired()) {
-      logger.warning("Port: " + port + " is not compatible with HTTP authentication, ignoring");
+      logger.warn("Port: " + port + " is not compatible with HTTP authentication, ignoring");
       return;
     }
     startAsManagedThread(
@@ -954,7 +955,7 @@ public class PushAgent extends AbstractAgent {
           } catch (InterruptedException e) {
             logger.info("Listener on port " + port + " shut down.");
           } catch (Exception e) {
-            logger.log(Level.SEVERE, "Jaeger trace collector exception", e);
+            logger.error("Jaeger trace collector exception", e);
           } finally {
             activeListeners.dec();
           }
@@ -1015,7 +1016,7 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       SpanSampler sampler) {
     if (tokenAuthenticator.authRequired()) {
-      logger.warning("Port: " + port + " is not compatible with HTTP authentication, ignoring");
+      logger.warn("Port: " + port + " is not compatible with HTTP authentication, ignoring");
       return;
     }
     startAsManagedThread(
@@ -1047,7 +1048,7 @@ public class PushAgent extends AbstractAgent {
                     .build();
             server.start();
           } catch (Exception e) {
-            logger.log(Level.SEVERE, "Jaeger gRPC trace collector exception", e);
+            logger.error("Jaeger gRPC trace collector exception", e);
           } finally {
             activeListeners.dec();
           }
@@ -1102,7 +1103,7 @@ public class PushAgent extends AbstractAgent {
                     .build();
             server.start();
           } catch (Exception e) {
-            logger.log(Level.SEVERE, "OTLP gRPC collector exception", e);
+            logger.error("OTLP gRPC collector exception", e);
           } finally {
             activeListeners.dec();
           }
@@ -1439,7 +1440,7 @@ public class PushAgent extends AbstractAgent {
 
   protected void startLogsIngestionListener(int port, LogsIngester logsIngester) {
     if (tokenAuthenticator.authRequired()) {
-      logger.warning("Filebeat log ingestion is not compatible with HTTP authentication, ignoring");
+      logger.warn("Filebeat log ingestion is not compatible with HTTP authentication, ignoring");
       return;
     }
     final Server filebeatServer =
@@ -1463,9 +1464,9 @@ public class PushAgent extends AbstractAgent {
             // noinspection ConstantConditions
             if (e instanceof BindException) {
               bindErrors.inc();
-              logger.severe("Unable to start listener - port " + port + " is already in use!");
+              logger.error("Unable to start listener - port " + port + " is already in use!");
             } else {
-              logger.log(Level.SEVERE, "Filebeat exception", e);
+              logger.error("Filebeat exception", e);
             }
           } finally {
             activeListeners.dec();
@@ -1596,7 +1597,7 @@ public class PushAgent extends AbstractAgent {
           // warn if accumulator is more than 1.5x the original size,
           // as ChronicleMap starts losing efficiency
           if (accumulator.size() > accumulatorSize * 5) {
-            logger.severe(
+            logger.error(
                 "Histogram "
                     + listenerBinType
                     + " accumulator size ("
@@ -1608,7 +1609,7 @@ public class PushAgent extends AbstractAgent {
                     + "recommend increasing the value for accumulator size in wavefront.conf and "
                     + "restarting the proxy.");
           } else if (accumulator.size() > accumulatorSize * 2) {
-            logger.warning(
+            logger.warn(
                 "Histogram "
                     + listenerBinType
                     + " accumulator size ("
@@ -1678,13 +1679,12 @@ public class PushAgent extends AbstractAgent {
     shutdownTasks.add(
         () -> {
           try {
-            logger.fine("Flushing in-flight histogram accumulator digests: " + listenerBinType);
+            logger.info("Flushing in-flight histogram accumulator digests: " + listenerBinType);
             cachedAccumulator.flush();
-            logger.fine("Shutting down histogram accumulator cache: " + listenerBinType);
+            logger.info("Shutting down histogram accumulator cache: " + listenerBinType);
             accumulator.close();
           } catch (Throwable t) {
-            logger.log(
-                Level.SEVERE,
+            logger.error(
                 "Error flushing " + listenerBinType + " accumulator, possibly unclean shutdown: ",
                 t);
           }
@@ -1803,12 +1803,12 @@ public class PushAgent extends AbstractAgent {
           tenantSpecificEntityProps
               .get(ReportableEntityType.POINT)
               .setDataPerBatch(pointsPerBatch.intValue());
-          logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
+          logger.info("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restore the original setting
         tenantSpecificEntityProps.get(ReportableEntityType.POINT).setDataPerBatch(null);
-        logger.fine(
+        logger.info(
             "Proxy push batch set to (locally) "
                 + tenantSpecificEntityProps.get(ReportableEntityType.POINT).getDataPerBatch());
       }
@@ -1898,7 +1898,7 @@ public class PushAgent extends AbstractAgent {
       validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die, so just log it.
-      logger.log(Level.WARNING, "Error during configuration update", e);
+      logger.warn("Error during configuration update", e);
     }
     try {
       super.processConfiguration(tenantName, config);
@@ -1923,7 +1923,7 @@ public class PushAgent extends AbstractAgent {
           rateLimiter.setRate(collectorRateLimit.doubleValue());
           entityProperties.setDataPerBatch(
               Math.min(collectorRateLimit.intValue(), entityProperties.getDataPerBatch()));
-          logger.warning(
+          logger.warn(
               "["
                   + tenantName
                   + "]: "
@@ -1946,7 +1946,7 @@ public class PushAgent extends AbstractAgent {
             entityProperties.setDataPerBatch(null);
           }
           if (rateLimit >= NO_RATE_LIMIT) {
-            logger.warning(
+            logger.warn(
                 entityType.toCapitalizedString()
                     + " rate limit is no longer "
                     + "enforced by remote");
@@ -1954,7 +1954,7 @@ public class PushAgent extends AbstractAgent {
             if (proxyCheckinScheduler != null
                 && proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
               // this will skip printing this message upon init
-              logger.warning(
+              logger.warn(
                   entityType.toCapitalizedString()
                       + " rate limit restored to "
                       + rateLimit

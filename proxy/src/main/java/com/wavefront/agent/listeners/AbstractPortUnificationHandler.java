@@ -39,8 +39,6 @@ import org.apache.http.client.utils.URLEncodedUtils;
  * String or FullHttpRequest type, all other types are ignored. Has ability to support health checks
  * and authentication of incoming HTTP requests. Designed to be used with {@link
  * com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder}.
- *
- * @author vasily@wavefront.com
  */
 @SuppressWarnings("SameReturnValue")
 @ChannelHandler.Sharable

@@ -7,8 +7,6 @@ import javax.annotation.Nullable;
  * A helper class for instrumenting preprocessor rules. Tracks two counters: number of times the
  * rule has been successfully applied, and counter of CPU time (nanos) spent on applying the rule to
  * troubleshoot possible performance issues.
- *
- * @author vasily@wavefront.com
  */
 public class PreprocessorRuleMetrics {
   @Nullable private final Counter ruleAppliedCounter;

@@ -17,8 +17,6 @@ import wavefront.report.HistogramType;
 /**
  * Wrapper for {@link com.yammer.metrics.core.MetricProcessor}. It provides additional support for
  * Delta Counters and WavefrontHistogram.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 

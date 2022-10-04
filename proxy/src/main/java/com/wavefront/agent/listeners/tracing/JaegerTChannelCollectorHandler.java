@@ -42,8 +42,6 @@ import wavefront.report.SpanLogs;
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and converts them to Wavefront
  * format
- *
- * @author vasily@wavefront.com
  */
 public class JaegerTChannelCollectorHandler
     extends ThriftRequestHandler<Collector.submitBatches_args, Collector.submitBatches_result>

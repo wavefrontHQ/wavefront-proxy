@@ -57,10 +57,6 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 public class OtlpTraceUtils {
   // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
   public static final String OTEL_DROPPED_ATTRS_KEY = "otel.dropped_attributes_count";
@@ -74,17 +70,17 @@ public class OtlpTraceUtils {
   private static final String SPAN_EVENT_TAG_KEY = "name";
   private static final String SPAN_KIND_TAG_KEY = "span.kind";
   private static final HashMap<SpanKind, Annotation> SPAN_KIND_ANNOTATION_HASH_MAP =
-          new HashMap<SpanKind, Annotation>() {
-            {
-              put(SpanKind.SPAN_KIND_CLIENT, new Annotation(SPAN_KIND_TAG_KEY, "client"));
-              put(SpanKind.SPAN_KIND_CONSUMER, new Annotation(SPAN_KIND_TAG_KEY, "consumer"));
-              put(SpanKind.SPAN_KIND_INTERNAL, new Annotation(SPAN_KIND_TAG_KEY, "internal"));
-              put(SpanKind.SPAN_KIND_PRODUCER, new Annotation(SPAN_KIND_TAG_KEY, "producer"));
-              put(SpanKind.SPAN_KIND_SERVER, new Annotation(SPAN_KIND_TAG_KEY, "server"));
-              put(SpanKind.SPAN_KIND_UNSPECIFIED, new Annotation(SPAN_KIND_TAG_KEY, "unspecified"));
-              put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
-            }
-          };
+      new HashMap<SpanKind, Annotation>() {
+        {
+          put(SpanKind.SPAN_KIND_CLIENT, new Annotation(SPAN_KIND_TAG_KEY, "client"));
+          put(SpanKind.SPAN_KIND_CONSUMER, new Annotation(SPAN_KIND_TAG_KEY, "consumer"));
+          put(SpanKind.SPAN_KIND_INTERNAL, new Annotation(SPAN_KIND_TAG_KEY, "internal"));
+          put(SpanKind.SPAN_KIND_PRODUCER, new Annotation(SPAN_KIND_TAG_KEY, "producer"));
+          put(SpanKind.SPAN_KIND_SERVER, new Annotation(SPAN_KIND_TAG_KEY, "server"));
+          put(SpanKind.SPAN_KIND_UNSPECIFIED, new Annotation(SPAN_KIND_TAG_KEY, "unspecified"));
+          put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
+        }
+      };
 
   public static KeyValue getAttrByKey(List<KeyValue> attributesList, String key) {
     return attributesList.stream().filter(kv -> key.equals(kv.getKey())).findFirst().orElse(null);
@@ -92,9 +88,9 @@ public class OtlpTraceUtils {
 
   public static KeyValue buildKeyValue(String key, String value) {
     return KeyValue.newBuilder()
-            .setKey(key)
-            .setValue(AnyValue.newBuilder().setStringValue(value).build())
-            .build();
+        .setKey(key)
+        .setValue(AnyValue.newBuilder().setStringValue(value).build())
+        .build();
   }
 
   static class WavefrontSpanAndLogs {
@@ -148,7 +144,7 @@ public class OtlpTraceUtils {
 
       // always report RED metrics irrespective of span sampling
       discoveredHeartbeatMetrics.add(
-              reportREDMetrics(span, internalReporter, traceDerivedCustomTagKeys));
+          reportREDMetrics(span, internalReporter, traceDerivedCustomTagKeys));
     }
   }
 
@@ -157,9 +153,9 @@ public class OtlpTraceUtils {
   //   below throw an error and we don't report any of the list.
   @VisibleForTesting
   static List<WavefrontSpanAndLogs> fromOtlpRequest(
-          ExportTraceServiceRequest request,
-          @Nullable ReportableEntityPreprocessor preprocessor,
-          String defaultSource) {
+      ExportTraceServiceRequest request,
+      @Nullable ReportableEntityPreprocessor preprocessor,
+      String defaultSource) {
     List<WavefrontSpanAndLogs> wfSpansAndLogs = new ArrayList<>();
 
     for (ResourceSpans rSpans : request.getResourceSpansList()) {
@@ -174,8 +170,8 @@ public class OtlpTraceUtils {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Span: " + otlpSpan);
 
           wfSpansAndLogs.add(
-                  transformAll(
-                          otlpSpan, resource.getAttributesList(), scope, preprocessor, defaultSource));
+              transformAll(
+                  otlpSpan, resource.getAttributesList(), scope, preprocessor, defaultSource));
         }
       }
     }
@@ -206,11 +202,11 @@ public class OtlpTraceUtils {
 
   @VisibleForTesting
   static WavefrontSpanAndLogs transformAll(
-          io.opentelemetry.proto.trace.v1.Span otlpSpan,
-          List<KeyValue> resourceAttributes,
-          InstrumentationScope scope,
-          @Nullable ReportableEntityPreprocessor preprocessor,
-          String defaultSource) {
+      io.opentelemetry.proto.trace.v1.Span otlpSpan,
+      List<KeyValue> resourceAttributes,
+      InstrumentationScope scope,
+      @Nullable ReportableEntityPreprocessor preprocessor,
+      String defaultSource) {
     Span span = transformSpan(otlpSpan, resourceAttributes, scope, preprocessor, defaultSource);
     SpanLogs logs = transformEvents(otlpSpan, span);
     if (!logs.getLogs().isEmpty()) {
@@ -227,22 +223,22 @@ public class OtlpTraceUtils {
 
   @VisibleForTesting
   static Span transformSpan(
-          io.opentelemetry.proto.trace.v1.Span otlpSpan,
-          List<KeyValue> resourceAttrs,
-          InstrumentationScope scope,
-          ReportableEntityPreprocessor preprocessor,
-          String defaultSource) {
+      io.opentelemetry.proto.trace.v1.Span otlpSpan,
+      List<KeyValue> resourceAttrs,
+      InstrumentationScope scope,
+      ReportableEntityPreprocessor preprocessor,
+      String defaultSource) {
     Pair<String, List<KeyValue>> sourceAndResourceAttrs =
-            sourceFromAttributes(resourceAttrs, defaultSource);
+        sourceFromAttributes(resourceAttrs, defaultSource);
     String source = sourceAndResourceAttrs._1;
     resourceAttrs = sourceAndResourceAttrs._2;
 
     // Order of arguments to Stream.of() matters: when a Resource Attribute and a Span Attribute
     // happen to share the same key, we want the Span Attribute to "win" and be preserved.
     List<KeyValue> otlpAttributes =
-            Stream.of(resourceAttrs, otlpSpan.getAttributesList())
-                    .flatMap(Collection::stream)
-                    .collect(Collectors.toList());
+        Stream.of(resourceAttrs, otlpSpan.getAttributesList())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
 
     List<Annotation> wfAnnotations = annotationsFromAttributes(otlpAttributes);
 
@@ -257,22 +253,22 @@ public class OtlpTraceUtils {
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
     long startTimeMs = TimeUnit.NANOSECONDS.toMillis(otlpSpan.getStartTimeUnixNano());
     long durationMs =
-            otlpSpan.getEndTimeUnixNano() == 0
-                    ? 0
-                    : TimeUnit.NANOSECONDS.toMillis(
-                    otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
+        otlpSpan.getEndTimeUnixNano() == 0
+            ? 0
+            : TimeUnit.NANOSECONDS.toMillis(
+                otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
 
     wavefront.report.Span toReturn =
-            wavefront.report.Span.newBuilder()
-                    .setName(otlpSpan.getName())
-                    .setSpanId(wfSpanId)
-                    .setTraceId(wfTraceId)
-                    .setStartMillis(startTimeMs)
-                    .setDuration(durationMs)
-                    .setAnnotations(wfAnnotations)
-                    .setSource(source)
-                    .setCustomer("dummy")
-                    .build();
+        wavefront.report.Span.newBuilder()
+            .setName(otlpSpan.getName())
+            .setSpanId(wfSpanId)
+            .setTraceId(wfTraceId)
+            .setStartMillis(startTimeMs)
+            .setDuration(durationMs)
+            .setAnnotations(wfAnnotations)
+            .setSource(source)
+            .setCustomer("dummy")
+            .build();
 
     // apply preprocessor
     if (preprocessor != null) {
@@ -302,27 +298,27 @@ public class OtlpTraceUtils {
     }
 
     return SpanLogs.newBuilder()
-            .setLogs(logs)
-            .setSpanId(wfSpan.getSpanId())
-            .setTraceId(wfSpan.getTraceId())
-            .setCustomer(wfSpan.getCustomer())
-            .build();
+        .setLogs(logs)
+        .setSpanId(wfSpan.getSpanId())
+        .setTraceId(wfSpan.getTraceId())
+        .setCustomer(wfSpan.getCustomer())
+        .build();
   }
 
   // Returns a String of the source value and the original List<KeyValue> attributes except
   // with the removal of the KeyValue determined to be the source.
   @VisibleForTesting
   static Pair<String, List<KeyValue>> sourceFromAttributes(
-          List<KeyValue> otlpAttributes, String defaultSource) {
+      List<KeyValue> otlpAttributes, String defaultSource) {
     // Order of keys in List matters: it determines precedence when multiple candidates exist.
     List<String> candidateKeys = Arrays.asList(SOURCE_KEY, "host.name", "hostname", "host.id");
     Comparator<KeyValue> keySorter = Comparator.comparing(kv -> candidateKeys.indexOf(kv.getKey()));
 
     Optional<KeyValue> sourceAttr =
-            otlpAttributes.stream()
-                    .filter(kv -> candidateKeys.contains(kv.getKey()))
-                    .sorted(keySorter)
-                    .findFirst();
+        otlpAttributes.stream()
+            .filter(kv -> candidateKeys.contains(kv.getKey()))
+            .sorted(keySorter)
+            .findFirst();
 
     if (sourceAttr.isPresent()) {
       List<KeyValue> attributesWithoutSource = new ArrayList<>(otlpAttributes);
@@ -369,21 +365,21 @@ public class OtlpTraceUtils {
 
   @VisibleForTesting
   static List<Annotation> annotationsFromDroppedCounts(
-          io.opentelemetry.proto.trace.v1.Span otlpSpan) {
+      io.opentelemetry.proto.trace.v1.Span otlpSpan) {
     List<Annotation> annotations = new ArrayList<>();
     if (otlpSpan.getDroppedAttributesCount() != 0) {
       annotations.add(
-              new Annotation(
-                      OTEL_DROPPED_ATTRS_KEY, String.valueOf(otlpSpan.getDroppedAttributesCount())));
+          new Annotation(
+              OTEL_DROPPED_ATTRS_KEY, String.valueOf(otlpSpan.getDroppedAttributesCount())));
     }
     if (otlpSpan.getDroppedEventsCount() != 0) {
       annotations.add(
-              new Annotation(
-                      OTEL_DROPPED_EVENTS_KEY, String.valueOf(otlpSpan.getDroppedEventsCount())));
+          new Annotation(
+              OTEL_DROPPED_EVENTS_KEY, String.valueOf(otlpSpan.getDroppedEventsCount())));
     }
     if (otlpSpan.getDroppedLinksCount() != 0) {
       annotations.add(
-              new Annotation(OTEL_DROPPED_LINKS_KEY, String.valueOf(otlpSpan.getDroppedLinksCount())));
+          new Annotation(OTEL_DROPPED_LINKS_KEY, String.valueOf(otlpSpan.getDroppedLinksCount())));
     }
 
     return annotations;
@@ -391,28 +387,28 @@ public class OtlpTraceUtils {
 
   @VisibleForTesting
   static Pair<Map<String, String>, String> reportREDMetrics(
-          Span span,
-          WavefrontInternalReporter internalReporter,
-          Set<String> traceDerivedCustomTagKeys) {
+      Span span,
+      WavefrontInternalReporter internalReporter,
+      Set<String> traceDerivedCustomTagKeys) {
     Map<String, String> annotations = mapFromAnnotations(span.getAnnotations());
     List<Pair<String, String>> spanTags =
-            span.getAnnotations().stream()
-                    .map(a -> Pair.of(a.getKey(), a.getValue()))
-                    .collect(Collectors.toList());
+        span.getAnnotations().stream()
+            .map(a -> Pair.of(a.getKey(), a.getValue()))
+            .collect(Collectors.toList());
 
     return reportWavefrontGeneratedData(
-            internalReporter,
-            span.getName(),
-            annotations.get(APPLICATION_TAG_KEY),
-            annotations.get(SERVICE_TAG_KEY),
-            annotations.get(CLUSTER_TAG_KEY),
-            annotations.get(SHARD_TAG_KEY),
-            span.getSource(),
-            annotations.getOrDefault(COMPONENT_TAG_KEY, NULL_TAG_VAL),
-            Boolean.parseBoolean(annotations.get(ERROR_TAG_KEY)),
-            TimeUnit.MILLISECONDS.toMicros(span.getDuration()),
-            traceDerivedCustomTagKeys,
-            spanTags);
+        internalReporter,
+        span.getName(),
+        annotations.get(APPLICATION_TAG_KEY),
+        annotations.get(SERVICE_TAG_KEY),
+        annotations.get(CLUSTER_TAG_KEY),
+        annotations.get(SHARD_TAG_KEY),
+        span.getSource(),
+        annotations.getOrDefault(COMPONENT_TAG_KEY, NULL_TAG_VAL),
+        Boolean.parseBoolean(annotations.get(ERROR_TAG_KEY)),
+        TimeUnit.MILLISECONDS.toMicros(span.getDuration()),
+        traceDerivedCustomTagKeys,
+        spanTags);
   }
 
   @VisibleForTesting
@@ -431,7 +427,7 @@ public class OtlpTraceUtils {
 
     for (Map.Entry<String, String> tagEntry : tags.entrySet()) {
       requiredTags.add(
-              Annotation.newBuilder().setKey(tagEntry.getKey()).setValue(tagEntry.getValue()).build());
+          Annotation.newBuilder().setKey(tagEntry.getKey()).setValue(tagEntry.getValue()).build());
     }
 
     return requiredTags;
@@ -439,21 +435,21 @@ public class OtlpTraceUtils {
 
   static long getSpansCount(ExportTraceServiceRequest request) {
     return request.getResourceSpansList().stream()
-            .flatMapToLong(r -> r.getScopeSpansList().stream().mapToLong(ScopeSpans::getSpansCount))
-            .sum();
+        .flatMapToLong(r -> r.getScopeSpansList().stream().mapToLong(ScopeSpans::getSpansCount))
+        .sum();
   }
 
   @VisibleForTesting
   static boolean shouldReportSpanLogs(
-          int logsCount, Pair<Supplier<Boolean>, Counter> spanLogsDisabled) {
+      int logsCount, Pair<Supplier<Boolean>, Counter> spanLogsDisabled) {
     return logsCount > 0
-            && !isFeatureDisabled(
+        && !isFeatureDisabled(
             spanLogsDisabled._1, SPANLOGS_DISABLED, spanLogsDisabled._2, logsCount);
   }
 
   @Nullable
   static WavefrontInternalReporter createAndStartInternalReporter(
-          @Nullable WavefrontSender sender) {
+      @Nullable WavefrontSender sender) {
     if (sender == null) return null;
 
     /*
@@ -461,11 +457,11 @@ public class OtlpTraceUtils {
     This mirrors the behavior in the Custom Tracing Listener and Jaeger Listeners.
      */
     WavefrontInternalReporter reporter =
-            new WavefrontInternalReporter.Builder()
-                    .prefixedWith(TRACING_DERIVED_PREFIX)
-                    .withSource("otlp")
-                    .reportMinuteDistribution()
-                    .build(sender);
+        new WavefrontInternalReporter.Builder()
+            .prefixedWith(TRACING_DERIVED_PREFIX)
+            .withSource("otlp")
+            .reportMinuteDistribution()
+            .build(sender);
     reporter.start(1, TimeUnit.MINUTES);
     return reporter;
   }
@@ -494,8 +490,8 @@ public class OtlpTraceUtils {
     } else if (anyValue.hasArrayValue()) {
       List<AnyValue> values = anyValue.getArrayValue().getValuesList();
       return values.stream()
-              .map(OtlpTraceUtils::fromAnyValue)
-              .collect(Collectors.joining(", ", "[", "]"));
+          .map(OtlpTraceUtils::fromAnyValue)
+          .collect(Collectors.joining(", ", "[", "]"));
     } else if (anyValue.hasKvlistValue()) {
       OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
     } else if (anyValue.hasBytesValue()) {
@@ -543,6 +539,6 @@ public class OtlpTraceUtils {
       return Collections.emptyList();
 
     return Collections.singletonList(
-            new Annotation(PARENT_KEY, SpanUtils.toStringId(parentSpanId)));
+        new Annotation(PARENT_KEY, SpanUtils.toStringId(parentSpanId)));
   }
 }

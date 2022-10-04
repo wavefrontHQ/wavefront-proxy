@@ -12,8 +12,6 @@ import wavefront.report.ReportLog;
 /**
  * Blocking regex-based filter. Rejects a log if a specified component (message, source, or log tag
  * value, depending on the "scope" parameter) doesn't match the regex.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogBlockFilter implements AnnotatedPredicate<ReportLog> {
 

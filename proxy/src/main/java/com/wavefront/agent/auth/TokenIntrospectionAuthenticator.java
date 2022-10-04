@@ -17,8 +17,6 @@ import javax.annotation.Nullable;
  * {@link TokenAuthenticator} that uses an external webservice for validating tokens. Responses are
  * cached and re-validated every {@code authResponseRefreshInterval} seconds; if the service is not
  * available, a cached last valid response may be used until {@code authResponseMaxTtl} expires.
- *
- * @author vasily@wavefront.com
  */
 abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
   private static final Logger logger =

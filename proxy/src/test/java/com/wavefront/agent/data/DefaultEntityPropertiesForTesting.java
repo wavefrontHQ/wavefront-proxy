@@ -1,10 +1,7 @@
 package com.wavefront.agent.data;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import javax.annotation.Nullable;
 
-/** @author vasily@wavefront.com */
 public class DefaultEntityPropertiesForTesting implements EntityProperties {
 
   @Override

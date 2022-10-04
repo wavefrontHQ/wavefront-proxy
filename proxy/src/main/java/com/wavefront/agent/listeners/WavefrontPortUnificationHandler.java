@@ -45,8 +45,6 @@ import wavefront.report.*;
  *
  * <p>Accepts incoming messages of either String or FullHttpRequest type: single data point in a
  * string, or multiple points in the HTTP post body, newline-delimited.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandler {

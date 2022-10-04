@@ -7,7 +7,6 @@ import com.wavefront.agent.ProxyConfig;
 import org.junit.Before;
 import org.junit.Test;
 
-/** @author Xiaochen Wang (xiaochenw@vmware.com). */
 public class APIContainerTest {
   private final int NUM_TENANTS = 5;
   private ProxyConfig proxyConfig;

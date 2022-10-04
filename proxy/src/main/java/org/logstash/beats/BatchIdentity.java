@@ -4,11 +4,7 @@ import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/**
- * Identity of a filebeat batch, based on the first message. Used for duplicate batch detection.
- *
- * @author vasily@wavefront.com.
- */
+/** Identity of a filebeat batch, based on the first message. Used for duplicate batch detection. */
 public class BatchIdentity {
   private final String timestampStr;
   private final int highestSequence;

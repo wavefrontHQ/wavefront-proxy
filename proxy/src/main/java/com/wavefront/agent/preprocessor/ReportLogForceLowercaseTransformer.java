@@ -11,8 +11,6 @@ import wavefront.report.ReportLog;
 /**
  * Force lowercase transformer. Converts a specified component of a log (message, source name or a
  * log tag value, depending on "scope" parameter) to lower case to enforce consistency.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogForceLowercaseTransformer implements Function<ReportLog, ReportLog> {
 

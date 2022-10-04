@@ -21,11 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/**
- * A collection of helper methods around Netty channels.
- *
- * @author vasily@wavefront.com
- */
+/** A collection of helper methods around Netty channels. */
 public abstract class ChannelUtils {
 
   private static final Map<Integer, LoadingCache<Integer, Counter>> RESPONSE_STATUS_CACHES =

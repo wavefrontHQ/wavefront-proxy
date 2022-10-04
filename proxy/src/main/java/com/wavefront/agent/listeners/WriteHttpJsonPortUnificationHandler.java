@@ -28,12 +28,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * This class handles incoming messages in write_http format.
- *
- * @author Clement Pang (clement@wavefront.com).
- * @author vasily@wavefront.com
- */
+/** This class handles incoming messages in write_http format. */
 @ChannelHandler.Sharable
 public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =

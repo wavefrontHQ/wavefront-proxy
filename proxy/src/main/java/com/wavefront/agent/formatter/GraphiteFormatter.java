@@ -5,11 +5,7 @@ import com.google.common.base.Preconditions;
 import com.wavefront.common.MetricMangler;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Specific formatter for the graphite/collectd world of metric-munged names.
- *
- * @author dev@wavefront.com.
- */
+/** Specific formatter for the graphite/collectd world of metric-munged names. */
 public class GraphiteFormatter implements Function<String, String> {
 
   private final MetricMangler metricMangler;

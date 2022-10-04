@@ -28,10 +28,6 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 import wavefront.report.Annotation;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 public class OtlpGrpcTraceHandlerTest {
   private final ReportableEntityHandler<wavefront.report.Span> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();

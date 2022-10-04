@@ -18,8 +18,6 @@ import javax.annotation.Nullable;
  *
  * <p>Differences from GraphiteHostAnnotator: - sharable - lazy load - does not proactively perform
  * rDNS lookups unless needed - can be applied to HTTP payloads
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class SharedGraphiteHostAnnotator {

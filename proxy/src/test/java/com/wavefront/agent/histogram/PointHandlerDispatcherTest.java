@@ -17,7 +17,6 @@ import org.junit.Before;
 import org.junit.Test;
 import wavefront.report.ReportPoint;
 
-/** @author Tim Schmidt (tim@wavefront.com). */
 public class PointHandlerDispatcherTest {
   private static final short COMPRESSION = 100;
 

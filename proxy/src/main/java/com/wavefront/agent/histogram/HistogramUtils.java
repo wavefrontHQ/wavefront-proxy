@@ -21,11 +21,7 @@ import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 import wavefront.report.ReportPoint;
 
-/**
- * Helpers around histograms
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Helpers around histograms */
 public final class HistogramUtils {
   private HistogramUtils() {
     // Not instantiable

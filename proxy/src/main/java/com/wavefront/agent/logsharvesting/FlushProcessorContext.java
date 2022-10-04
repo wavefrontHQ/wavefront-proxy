@@ -7,7 +7,6 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class FlushProcessorContext {
   private final long timestamp;
   private final TimeSeries timeSeries;

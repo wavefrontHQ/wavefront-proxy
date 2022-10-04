@@ -9,11 +9,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-/**
- * Helper class for creating span samplers.
- *
- * @author Vikram Raman (vikram@wavefront.com)
- */
+/** Helper class for creating span samplers. */
 public class SpanSamplerUtils {
 
   @Nullable

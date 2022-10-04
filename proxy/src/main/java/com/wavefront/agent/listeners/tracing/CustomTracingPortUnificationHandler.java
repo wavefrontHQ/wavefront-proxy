@@ -35,11 +35,7 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Handler that process trace data sent from tier 1 SDK.
- *
- * @author djia@vmware.com
- */
+/** Handler that process trace data sent from tier 1 SDK. */
 @ChannelHandler.Sharable
 public class CustomTracingPortUnificationHandler extends TracePortUnificationHandler {
   private static final Logger logger =

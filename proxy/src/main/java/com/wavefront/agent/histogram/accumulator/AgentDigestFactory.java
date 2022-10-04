@@ -7,8 +7,6 @@ import java.util.function.Supplier;
 /**
  * A simple factory for creating {@link AgentDigest} objects with a specific compression level and
  * expiration TTL.
- *
- * @author vasily@wavefront.com
  */
 public class AgentDigestFactory {
   private final Supplier<Short> compressionSupplier;

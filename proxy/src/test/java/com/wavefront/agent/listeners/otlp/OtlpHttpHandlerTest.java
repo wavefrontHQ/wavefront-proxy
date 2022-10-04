@@ -22,11 +22,7 @@ import org.junit.Test;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link OtlpHttpHandler}.
- *
- * @author Glenn Oppegard (goppegard@vmware.com)
- */
+/** Unit tests for {@link OtlpHttpHandler}. */
 public class OtlpHttpHandlerTest {
   private final ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();

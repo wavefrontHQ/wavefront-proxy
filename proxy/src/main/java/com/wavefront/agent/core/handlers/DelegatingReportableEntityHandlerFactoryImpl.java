@@ -1,7 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import javax.annotation.Nonnull;
 
 /**
  * Wrapper for {@link ReportableEntityHandlerFactory} to allow partial overrides for the {@code

@@ -24,11 +24,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Utility methods for handling Span and SpanLogs.
- *
- * @author Shipeng Xie (xshipeng@vmware.com)
- */
+/** Utility methods for handling Span and SpanLogs. */
 public final class SpanUtils {
   private static final Logger logger = Logger.getLogger(SpanUtils.class.getCanonicalName());
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();

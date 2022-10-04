@@ -8,7 +8,6 @@ import java.io.File;
 import java.util.UUID;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class ProxyUtilTest {
 
   @Test

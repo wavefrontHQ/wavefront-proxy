@@ -4,18 +4,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import com.wavefront.agent.data.EntityRateLimiter;
 import com.wavefront.ingester.SpanDecoder;
-import org.apache.commons.io.FileUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.message.BasicHeader;
-import org.easymock.EasyMock;
-import org.easymock.IArgumentMatcher;
-import wavefront.report.Span;
-
-import javax.net.SocketFactory;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
@@ -28,6 +16,17 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
+import javax.net.SocketFactory;
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.message.BasicHeader;
+import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
+import wavefront.report.Span;
 
 public class TestUtils {
   private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());

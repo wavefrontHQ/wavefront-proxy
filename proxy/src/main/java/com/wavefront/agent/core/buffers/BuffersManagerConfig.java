@@ -7,4 +7,5 @@ public class BuffersManagerConfig {
   public SQSBufferConfig sqsCfg = new SQSBufferConfig();
   public final MemoryBufferConfig memoryCfg = new MemoryBufferConfig();
   public final DiskBufferConfig diskCfg = new DiskBufferConfig();
+  public boolean debug = false;
 }

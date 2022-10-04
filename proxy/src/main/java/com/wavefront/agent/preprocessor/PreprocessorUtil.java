@@ -3,11 +3,7 @@ package com.wavefront.agent.preprocessor;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * Utility class for methods used by preprocessors.
- *
- * @author vasily@wavefront.com
- */
+/** Utility class for methods used by preprocessors. */
 public abstract class PreprocessorUtil {
 
   /**

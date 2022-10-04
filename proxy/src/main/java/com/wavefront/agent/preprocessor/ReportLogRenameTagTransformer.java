@@ -11,11 +11,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * Rename a log tag (optional: if its value matches a regex pattern)
- *
- * @author amitw@vmare.com
- */
+/** Rename a log tag (optional: if its value matches a regex pattern) */
 public class ReportLogRenameTagTransformer implements Function<ReportLog, ReportLog> {
 
   private final String tag;

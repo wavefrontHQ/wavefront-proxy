@@ -22,8 +22,6 @@ import org.apache.http.util.EntityUtils;
  * {@link TokenIntrospectionAuthenticator} that validates tokens against an OAuth 2.0-compliant
  * Token Introspection endpoint, as described in <a href="https://tools.ietf.org/html/rfc7662">RFC
  * 7662</a>.
- *
- * @author vasily@wavefront.com
  */
 class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();

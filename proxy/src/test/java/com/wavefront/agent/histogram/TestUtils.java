@@ -7,11 +7,7 @@ import java.util.concurrent.TimeUnit;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/**
- * Shared test helpers around histograms
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Shared test helpers around histograms */
 public final class TestUtils {
   public static long DEFAULT_TIME_MILLIS =
       TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()));

@@ -11,16 +11,13 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * This class will validate parsed logs and distribute them among SenderTask threads.
- */
+/** This class will validate parsed logs and distribute them among SenderTask threads. */
 public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<ReportLog, Log> {
   private static final Function<ReportLog, String> LOG_SERIALIZER =
       value -> new Log(value).toString();

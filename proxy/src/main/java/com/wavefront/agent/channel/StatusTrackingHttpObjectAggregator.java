@@ -8,8 +8,6 @@ import io.netty.handler.codec.http.HttpRequest;
 /**
  * A {@link HttpObjectAggregator} that correctly tracks HTTP 413 returned for incoming payloads that
  * are too large.
- *
- * @author vasily@wavefront.com
  */
 public class StatusTrackingHttpObjectAggregator extends HttpObjectAggregator {
 

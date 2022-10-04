@@ -10,8 +10,6 @@ import wavefront.report.Span;
 /**
  * Sanitize spans (e.g., span source and tag keys) according to the same rules that are applied at
  * the SDK-level.
- *
- * @author Han Zhang (zhanghan@vmware.com)
  */
 public class SpanSanitizeTransformer implements Function<Span, Span> {
   private final PreprocessorRuleMetrics ruleMetrics;

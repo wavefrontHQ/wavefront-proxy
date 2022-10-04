@@ -8,11 +8,7 @@ import org.apache.http.conn.socket.LayeredConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.protocol.HttpContext;
 
-/**
- * Delegated SSLConnectionSocketFactory that sets SoTimeout explicitly (for Apache HttpClient).
- *
- * @author vasily@wavefront.com
- */
+/** Delegated SSLConnectionSocketFactory that sets SoTimeout explicitly (for Apache HttpClient). */
 public class SSLConnectionSocketFactoryImpl implements LayeredConnectionSocketFactory {
   private final SSLConnectionSocketFactory delegate;
   private final int soTimeout;

@@ -7,15 +7,14 @@ import static com.wavefront.data.ReportableEntityType.*;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
-import com.wavefront.common.logger.SamplingLogger;
 import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.Histogram;
 
 /**
@@ -73,11 +72,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                   switch (queue.getEntityType()) {
                     case POINT:
                       return new ReportPointHandlerImpl(
-                          handler,
-                          queue,
-                          validationConfig,
-                          blockedPointsLogger,
-                          null);
+                          handler, queue, validationConfig, blockedPointsLogger, null);
                     case HISTOGRAM:
                       return new ReportPointHandlerImpl(
                           handler,
@@ -105,7 +100,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                     case EVENT:
                       return new EventHandlerImpl(handler, queue, blockedPointsLogger);
                     case LOGS:
-                      return new ReportLogHandlerImpl(handler, queue, validationConfig, blockedLogsLogger);
+                      return new ReportLogHandlerImpl(
+                          handler, queue, validationConfig, blockedLogsLogger);
                     default:
                       throw new IllegalArgumentException(
                           "Unexpected entity type "

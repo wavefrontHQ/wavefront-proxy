@@ -10,8 +10,6 @@ import wavefront.report.ReportLog;
 /**
  * Creates a new log tag with a specified value. If such log tag already exists, the value won't be
  * overwritten.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogAddTagIfNotExistsTransformer extends ReportLogAddTagTransformer {
 

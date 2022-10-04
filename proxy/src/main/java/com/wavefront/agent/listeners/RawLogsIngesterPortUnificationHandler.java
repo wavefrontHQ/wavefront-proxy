@@ -25,11 +25,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 
-/**
- * Process incoming logs in raw plaintext format.
- *
- * @author vasily@wavefront.com
- */
+/** Process incoming logs in raw plaintext format. */
 public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger =
       Logger.getLogger(RawLogsIngesterPortUnificationHandler.class.getCanonicalName());

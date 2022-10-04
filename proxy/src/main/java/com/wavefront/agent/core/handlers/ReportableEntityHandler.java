@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
  * Handler that processes incoming objects of a single entity type, validates them and hands them
  * over to one of the {@link SenderTask} threads.
  *
- * @author vasily@wavefront.com
  * @param <T> the type of input objects handled.
  */
 public interface ReportableEntityHandler<T> {

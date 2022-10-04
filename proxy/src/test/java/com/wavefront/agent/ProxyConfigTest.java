@@ -6,7 +6,6 @@ import com.beust.jcommander.ParameterException;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class ProxyConfigTest {
 
   @Test

@@ -49,8 +49,6 @@ import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes Jaeger Thrift trace data over HTTP and converts them to Wavefront format.
- *
- * @author Han Zhang (zhanghan@vmware.com)
  */
 public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {

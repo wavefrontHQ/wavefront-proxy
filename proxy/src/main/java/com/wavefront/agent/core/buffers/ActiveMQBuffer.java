@@ -1,5 +1,8 @@
 package com.wavefront.agent.core.buffers;
 
+import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.FAIL;
+import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.PAGE;
+
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityRateLimiter;
@@ -10,6 +13,16 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import org.apache.activemq.artemis.api.core.*;
 import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.core.config.Configuration;
@@ -18,17 +31,6 @@ import org.apache.activemq.artemis.core.server.ActiveMQServer;
 import org.apache.activemq.artemis.core.server.impl.ActiveMQServerImpl;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.apache.activemq.artemis.spi.core.security.ActiveMQJAASSecurityManager;
-
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-import java.io.File;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.FAIL;
-import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessagePolicy.PAGE;
 
 public abstract class ActiveMQBuffer implements Buffer {
   private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
@@ -61,6 +63,13 @@ public abstract class ActiveMQBuffer implements Buffer {
     config.setPersistenceEnabled(persistenceEnabled);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
     config.setGlobalMaxSize(maxMemory);
+
+    try {
+      Path tmpBuffer = Files.createTempDirectory("wfproxy");
+      config.setPagingDirectory(tmpBuffer.toString());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     if (persistenceEnabled) {
       config.setMaxDiskUsage(70);
@@ -230,11 +239,7 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   @Override
   public void onMsgBatch(
-      QueueInfo queue,
-      int idx,
-      int batchSize,
-      EntityRateLimiter rateLimiter,
-      OnMsgFunction func) {
+      QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
     String sessionKey = "onMsgBatch." + queue.getName() + "." + Thread.currentThread().getName();
     Pair<ClientSession, ClientConsumer> mqCtx =
         consumers.computeIfAbsent(

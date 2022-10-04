@@ -21,11 +21,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.ObjectUtils;
 
-/**
- * Centrally manages healthcheck statuses (for controlling load balancers).
- *
- * @author vasily@wavefront.com.
- */
+/** Centrally manages healthcheck statuses (for controlling load balancers). */
 public class HealthCheckManagerImpl implements HealthCheckManager {
   private static final Logger log = Logger.getLogger(HealthCheckManager.class.getCanonicalName());
 
@@ -38,7 +34,9 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
   private final int failStatusCode;
   private final String failResponseBody;
 
-  /** @param config Proxy configuration */
+  /**
+   * @param config Proxy configuration
+   */
   public HealthCheckManagerImpl(@Nonnull ProxyConfig config) {
     this(
         config.getHttpHealthCheckPath(),

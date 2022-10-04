@@ -7,23 +7,22 @@ import com.yammer.metrics.core.*;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
  *
- * @author vasily@wavefront.com
  * @param <T> the type of input objects handled
  * @param <U> the type of the output object as handled by {@link SenderTask}
  */
 abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T> {
   protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
   private static final Logger logger =
-      Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+      LogManager.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   final QueueInfo queue;
   final String handler;
 
@@ -99,7 +98,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   public void reject(@Nullable T item, @Nullable String message) {
     rejectedCounter.inc();
     if (item != null && blockedItemsLogger != null) {
-      blockedItemsLogger.warning(serializer.apply(item));
+      blockedItemsLogger.warn(serializer.apply(item));
     }
     if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
@@ -109,7 +108,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void reject(@Nonnull String line, @Nullable String message) {
     rejectedCounter.inc();
-    if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
+    if (blockedItemsLogger != null) blockedItemsLogger.warn(line);
     //noinspection UnstableApiUsage
     if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
@@ -142,10 +141,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     } catch (IllegalArgumentException e) {
       this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
     } catch (Exception ex) {
-      logger.log(
-          Level.SEVERE,
-          "WF-500 Uncaught exception when handling input (" + serializer.apply(item) + ")",
-          ex);
+      logger.error(
+          "WF-500 Uncaught exception when handling input (" + serializer.apply(item) + ")", ex);
     }
   }
 

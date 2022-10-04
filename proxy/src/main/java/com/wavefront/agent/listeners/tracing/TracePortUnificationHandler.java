@@ -38,8 +38,6 @@ import wavefront.report.SpanLogs;
  *
  * <p>Accepts incoming messages of either String or FullHttpRequest type: single Span in a string,
  * or multiple points in the HTTP post body, newline-delimited.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {

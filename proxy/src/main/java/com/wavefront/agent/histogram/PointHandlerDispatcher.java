@@ -17,11 +17,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * Dispatch task for marshalling "ripe" digests for shipment to the agent to a point handler.
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Dispatch task for marshalling "ripe" digests for shipment to the agent to a point handler. */
 public class PointHandlerDispatcher implements Runnable {
   private static final Logger logger =
       Logger.getLogger(PointHandlerDispatcher.class.getCanonicalName());

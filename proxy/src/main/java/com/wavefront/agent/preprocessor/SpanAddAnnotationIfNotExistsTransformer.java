@@ -10,8 +10,6 @@ import wavefront.report.Span;
 /**
  * Creates a new annotation with a specified key/value pair. If such point tag already exists, the
  * value won't be overwritten.
- *
- * @author vasily@wavefront.com
  */
 public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTransformer {
 

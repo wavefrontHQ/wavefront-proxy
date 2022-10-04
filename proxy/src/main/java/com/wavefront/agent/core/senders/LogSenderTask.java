@@ -7,16 +7,11 @@ import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.LogAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
-
 import java.util.List;
 import java.util.UUID;
 import javax.ws.rs.core.Response;
 
-/**
- * This class is responsible for accumulating logs and uploading them in batches.
- *
- * @author amitw@vmware.com
- */
+/** This class is responsible for accumulating logs and uploading them in batches. */
 public class LogSenderTask extends SenderTask {
   public static final String AGENT_PREFIX = "WF-PROXY-AGENT-";
 
@@ -52,11 +47,11 @@ public class LogSenderTask extends SenderTask {
   // A 429 from VRLIC means that the daily ingestion limit has been reached
   @Override
   protected boolean dropOnHTTPError(Response.StatusType statusInfo, int batchSize) {
-    if (statusInfo.getStatusCode()==429){
-      Metrics.newCounter(new MetricName(queue.getName(), "", "failed" + ".ingestion_limit_reached")) .inc(batchSize);
+    if (statusInfo.getStatusCode() == 429) {
+      Metrics.newCounter(new MetricName(queue.getName(), "", "failed" + ".ingestion_limit_reached"))
+          .inc(batchSize);
       return true;
     }
     return super.dropOnHTTPError(statusInfo, batchSize);
   }
-
 }

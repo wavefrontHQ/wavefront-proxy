@@ -54,11 +54,7 @@ import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
-/**
- * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
- *
- * @author Anil Kodali (akodali@vmware.com)
- */
+/** Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format. */
 @ChannelHandler.Sharable
 public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {

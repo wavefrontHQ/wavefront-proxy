@@ -4,13 +4,11 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.data.EntityRateLimiter;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.wavefront.agent.data.EntityRateLimiter;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 
 public class SQSBuffer implements Buffer {
@@ -65,11 +63,7 @@ public class SQSBuffer implements Buffer {
 
   @Override
   public void onMsgBatch(
-      QueueInfo queue,
-      int idx,
-      int batchSize,
-      EntityRateLimiter rateLimiter,
-      OnMsgFunction func) {
+      QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
 
     String queueUrl = queuesUrls.get(queue.getName());
     long start = System.currentTimeMillis();

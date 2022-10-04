@@ -3,8 +3,8 @@ package com.wavefront.agent.core.handlers;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.ingester.SpanLogsSerializer;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.Logger;
 import wavefront.report.SpanLogs;
 
 /**
@@ -20,9 +20,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * @param blockedItemLogger logger for blocked items.
    */
   SpanLogsHandlerImpl(
-      final String handler,
-      final QueueInfo handlerKey,
-      @Nullable final Logger blockedItemLogger) {
+      final String handler, final QueueInfo handlerKey, @Nullable final Logger blockedItemLogger) {
     super(handler, handlerKey, new SpanLogsSerializer(), blockedItemLogger);
   }
 

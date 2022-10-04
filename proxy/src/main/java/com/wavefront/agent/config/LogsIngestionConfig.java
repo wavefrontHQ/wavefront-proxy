@@ -81,8 +81,6 @@ import java.util.concurrent.TimeUnit;
  *   - "MYPATTERN she sold %{NUMBER:value} sea shells"
  * </code>
  * </pre>
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 @SuppressWarnings("CanBeFinal")
 public class LogsIngestionConfig extends Configuration {

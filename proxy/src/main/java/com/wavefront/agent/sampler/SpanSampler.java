@@ -27,8 +27,6 @@ import wavefront.report.Span;
 /**
  * Sampler that takes a {@link Span} as input and delegates to a {@link Sampler} when evaluating the
  * sampling decision.
- *
- * @author Han Zhang (zhanghan@vmware.com)
  */
 public class SpanSampler {
   public static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";

@@ -17,11 +17,7 @@ import net.openhft.chronicle.map.ChronicleMap;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Unit tests around {@link AccumulationCache}
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Unit tests around {@link AccumulationCache} */
 public class AccumulationCacheTest {
   private static final Logger logger =
       Logger.getLogger(AccumulationCacheTest.class.getCanonicalName());

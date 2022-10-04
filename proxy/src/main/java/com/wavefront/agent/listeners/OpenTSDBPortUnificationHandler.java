@@ -33,11 +33,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * This class handles both OpenTSDB JSON and OpenTSDB plaintext protocol.
- *
- * @author Mike McLaughlin (mike@wavefront.com)
- */
+/** This class handles both OpenTSDB JSON and OpenTSDB plaintext protocol. */
 public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandler {
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and

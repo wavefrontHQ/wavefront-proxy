@@ -1,10 +1,6 @@
 package com.wavefront.agent.auth;
 
-/**
- * Auth validation methods supported.
- *
- * @author vasily@wavefront.com
- */
+/** Auth validation methods supported. */
 public enum TokenValidationMethod {
   NONE,
   STATIC_TOKEN,

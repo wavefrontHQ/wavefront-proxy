@@ -1,7 +1,6 @@
 package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.queues.QueueInfo;
-import javax.annotation.Nonnull;
 
 /** Factory for {@link ReportableEntityHandler} objects. */
 public interface ReportableEntityHandlerFactory {

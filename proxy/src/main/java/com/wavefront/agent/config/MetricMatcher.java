@@ -18,11 +18,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import wavefront.report.TimeSeries;
 
-/**
- * Object defining transformation between a log line into structured telemetry data.
- *
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** Object defining transformation between a log line into structured telemetry data. */
 @SuppressWarnings("CanBeFinal")
 public class MetricMatcher extends Configuration {
   protected static final Logger logger = Logger.getLogger(MetricMatcher.class.getCanonicalName());
