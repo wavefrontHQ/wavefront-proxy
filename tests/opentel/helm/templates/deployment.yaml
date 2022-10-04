@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: opentel-proxy
-          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           env:
             - name: WAVEFRONT_URL
