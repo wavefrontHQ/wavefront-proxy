@@ -802,7 +802,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
-  String proxyname = getLocalHostName();
+  String proxyname = hostname;
 
   @Parameter(
       names = {"--idFile"},
