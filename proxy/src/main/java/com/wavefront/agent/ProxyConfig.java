@@ -2509,7 +2509,7 @@ public class ProxyConfig extends Configuration {
   long memoryBufferExpirationTime = 600;
 
   public long getMemoryBufferExpirationTime() {
-    return memoryBufferExpirationTime * 1000;
+    return memoryBufferExpirationTime;
   }
 
   @Parameter(

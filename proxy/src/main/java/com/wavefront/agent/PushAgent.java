@@ -181,6 +181,9 @@ public class PushAgent extends AbstractAgent {
     }
 
     cfg.memoryCfg.msgExpirationTime = proxyConfig.getMemoryBufferExpirationTime();
+    if (cfg.memoryCfg.msgExpirationTime != -1) {
+      cfg.memoryCfg.msgExpirationTime *= 1000;
+    }
     cfg.memoryCfg.msgRetry = proxyConfig.getMemoryBufferRetryLimit();
     cfg.memoryCfg.maxMemory = (long) buffersMaxMemory;
 
