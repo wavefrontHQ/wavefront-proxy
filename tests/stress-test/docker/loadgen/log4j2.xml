@@ -8,6 +8,7 @@
         </Console>
     </Appenders>
     <Loggers>
+        <Logger name="org.apache.activemq" level="OFF" additivity="false" />
         <Root level="INFO">
             <AppenderRef ref="Console" />
         </Root>

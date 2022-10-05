@@ -26,10 +26,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits
@@ -37,7 +37,7 @@ import org.apache.logging.log4j.Logger;
  */
 public class ProxyCheckInScheduler {
   private static final Logger logger =
-      LogManager.getLogger(ProxyCheckInScheduler.class.getCanonicalName());
+      Logger.getLogger(ProxyCheckInScheduler.class.getCanonicalName());
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
@@ -310,18 +310,18 @@ public class ProxyCheckInScheduler {
             continue;
           }
           if (configEntry.getKey().equals(APIContainer.CENTRAL_TENANT_NAME)) {
-            if (logger.isDebugEnabled()) {
-              logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
-              logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
+            if (logger.isLoggable(Level.FINE)) {
+              logger.fine("Server configuration getShutOffAgents: " + config.getShutOffAgents());
+              logger.fine("Server configuration isTruncateQueue: " + config.isTruncateQueue());
             }
             if (config.getShutOffAgents()) {
-              logger.warn(
+              logger.warning(
                   firstNonNull(
                       config.getShutOffMessage(),
                       "Shutting down: Server side flag indicating proxy has to shut down."));
               shutdownHook.run();
             } else if (config.isTruncateQueue()) {
-              logger.warn(
+              logger.warning(
                   "Truncating queue: Server side flag indicating proxy queue has to be truncated.");
               truncateBacklog.run();
             }
@@ -330,7 +330,7 @@ public class ProxyCheckInScheduler {
         }
       }
     } catch (Exception e) {
-      logger.error("Exception occurred during configuration update", e);
+      logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
     }
   }
 
@@ -346,13 +346,13 @@ public class ProxyCheckInScheduler {
         retries.set(0);
       }
     } catch (Exception ex) {
-      logger.error("Could not generate proxy metrics", ex);
+      logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
     }
   }
 
   private void checkinError(String errMsg) {
-    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
-    logger.error(errMsg);
-    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
+    logger.severe(errMsg);
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
   }
 }

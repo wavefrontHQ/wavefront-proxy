@@ -9,7 +9,7 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
 import java.util.function.Function;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Logger;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 

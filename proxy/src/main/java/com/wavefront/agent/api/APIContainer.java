@@ -16,6 +16,7 @@ import java.net.PasswordAuthentication;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.ext.WriterInterceptor;
 import org.apache.commons.lang.StringUtils;
@@ -26,8 +27,6 @@ import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
@@ -44,7 +43,7 @@ public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
   public static final String API_SERVER = "server";
   public static final String API_TOKEN = "token";
-  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(APIContainer.class.getCanonicalName());
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
@@ -166,7 +165,7 @@ public class APIContainer {
       String logServerEndpointUrl, String logServerToken) {
     // if one of the values is blank but not the other, something has gone wrong
     if (StringUtils.isBlank(logServerEndpointUrl) != StringUtils.isBlank(logServerToken)) {
-      logger.warn("mismatch between logServerEndPointUrl and logServerToken during checkin");
+      logger.warning("mismatch between logServerEndPointUrl and logServerToken during checkin");
     }
     // if either are null or empty, just return
     if (StringUtils.isBlank(logServerEndpointUrl) || StringUtils.isBlank(logServerToken)) {

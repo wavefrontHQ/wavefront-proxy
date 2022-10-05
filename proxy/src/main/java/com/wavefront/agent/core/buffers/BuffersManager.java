@@ -6,10 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.*;
 
 public class BuffersManager {
   private static final Map<String, Boolean> registeredQueues = new HashMap<>();
@@ -18,12 +14,6 @@ public class BuffersManager {
   private static Buffer external;
 
   public static void init(BuffersManagerConfig cfg) {
-
-    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-    Configuration config = ctx.getConfiguration();
-    LoggerConfig loggerConfig = config.getLoggerConfig("org.apache.activemq");
-    loggerConfig.setLevel(cfg.debug ? Level.INFO : Level.OFF);
-    ctx.updateLoggers();
 
     memoryBuffer = new MemoryBuffer(0, "memory", cfg.memoryCfg);
 
