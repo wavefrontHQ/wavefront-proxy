@@ -2287,7 +2287,7 @@ public class ProxyConfig extends Configuration {
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
-
+      proxyname = config.getString("proxyname", proxyname);
       if (StringUtils.isNotBlank(config.getString("hostname", ""))) {
         logger.warning(
             "Deprecated field hostname specified in config setting. Please use "
@@ -2295,7 +2295,6 @@ public class ProxyConfig extends Configuration {
         hostname = config.getString("hostname", hostname);
         proxyname = hostname;
       }
-      proxyname = config.getString("proxyname", proxyname);
       logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
 
       idFile = config.getString("idFile", idFile);
