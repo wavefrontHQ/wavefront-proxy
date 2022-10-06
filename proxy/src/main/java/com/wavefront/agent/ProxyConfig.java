@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
 /**
@@ -802,7 +801,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
-  String proxyname = hostname;
+  String proxyname = getLocalHostName();
 
   @Parameter(
       names = {"--idFile"},
@@ -2288,14 +2287,15 @@ public class ProxyConfig extends Configuration {
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
 
-      if (StringUtils.isNotBlank(config.getString("hostname", ""))) {
+      String FQDN = getLocalHostName();
+      hostname = config.getString("hostname", hostname);
+      proxyname = config.getString("proxyname", proxyname);
+      if (!hostname.equals(FQDN)) {
         logger.warning(
             "Deprecated field hostname specified in config setting. Please use "
                 + "proxyname config field to set proxy name.");
-        hostname = config.getString("hostname", hostname);
-        proxyname = hostname;
+        if (proxyname.equals(FQDN)) proxyname = hostname;
       }
-      proxyname = config.getString("proxyname", proxyname);
       logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
 
       idFile = config.getString("idFile", idFile);
