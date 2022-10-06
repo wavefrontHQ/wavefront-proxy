@@ -788,10 +788,20 @@ public class ProxyConfig extends Configuration {
       description = "Location of logs ingestions config yaml file.")
   String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
 
+  /**
+   * Deprecated property, please use proxyname config field to set proxy name. Default hostname to
+   * FQDN of machine. Sent as internal metric tag with checkin.
+   */
   @Parameter(
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
   String hostname = getLocalHostName();
+
+  /** This property holds the proxy name. Default proxyname to FQDN of machine. */
+  @Parameter(
+      names = {"--proxyname"},
+      description = "Name for the proxy. Defaults to hostname.")
+  String proxyname = getLocalHostName();
 
   @Parameter(
       names = {"--idFile"},
@@ -1813,6 +1823,10 @@ public class ProxyConfig extends Configuration {
     return hostname;
   }
 
+  public String getProxyname() {
+    return proxyname;
+  }
+
   public String getIdFile() {
     return idFile;
   }
@@ -2272,7 +2286,18 @@ public class ProxyConfig extends Configuration {
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
+
+      String FQDN = getLocalHostName();
       hostname = config.getString("hostname", hostname);
+      proxyname = config.getString("proxyname", proxyname);
+      if (!hostname.equals(FQDN)) {
+        logger.warning(
+            "Deprecated field hostname specified in config setting. Please use "
+                + "proxyname config field to set proxy name.");
+        if (proxyname.equals(FQDN)) proxyname = hostname;
+      }
+      logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
+
       idFile = config.getString("idFile", idFile);
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
       pushRateLimitHistograms =

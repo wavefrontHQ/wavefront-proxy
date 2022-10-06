@@ -29,8 +29,7 @@ public class LogDataSubmissionTaskTest {
   public void test429() throws IOException {
     TaskQueue<LogDataSubmissionTask> queue = createMock(TaskQueue.class);
     reset(logAPI, queue);
-    ReportLog testLog =
-        new ReportLog(0L, "msg", "host", "", "", "level", "exception", ImmutableList.of());
+    ReportLog testLog = new ReportLog(0L, "msg", "host", ImmutableList.of());
     Log log = new Log(testLog);
     UUID uuid = UUID.randomUUID();
     LogDataSubmissionTask task =

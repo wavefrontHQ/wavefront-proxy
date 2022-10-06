@@ -402,7 +402,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2022-08.2</version>
+      <version>2022-10.1</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>

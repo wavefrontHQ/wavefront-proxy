@@ -739,19 +739,9 @@ public class HttpEndToEndTest {
     if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     long timestamp = time * 1000 + 12345;
-    String payload =
-        "[{\"source\": \"myHost\",\n \"timestamp\": \""
-            + timestamp
-            + "\", "
-            + "\"application\":\"myApp\",\"service\":\"myService\","
-            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
-            + "}]";
+    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"" + "}]";
     String expectedLog =
-        "[{\"source\":\"myHost\",\"timestamp\":"
-            + timestamp
-            + ",\"text\":\"\",\"application\":\"myApp\",\"service\":\"myService\","
-            + "\"log_level\":\"WARN\",\"error_name\":\"myException\""
-            + "}]";
+        "[{\"source\":\"myHost\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(
         req -> {
