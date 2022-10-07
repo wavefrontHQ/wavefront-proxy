@@ -97,4 +97,17 @@ public class ProxyConfigTest {
         "PushAgentTest");
     assertTrue(config.isOtlpResourceAttrsOnMetricsIncluded());
   }
+
+  @Test
+  public void testOtlpAppTagsOnMetricsIncluded() {
+    ProxyConfig config = new ProxyConfig();
+
+    // include application, shard, cluster, service.name resource attributes by default on metrics
+    assertTrue(config.isOtlpAppTagsOnMetricsIncluded());
+
+    // do not include the above-mentioned resource attributes
+    config.parseArguments(
+        new String[] {"--otlpAppTagsOnMetricsIncluded", String.valueOf(false)}, "PushAgentTest");
+    assertFalse(config.isOtlpAppTagsOnMetricsIncluded());
+  }
 }

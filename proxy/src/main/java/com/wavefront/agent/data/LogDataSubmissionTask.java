@@ -8,6 +8,8 @@ import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Log;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.MetricName;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +31,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   private transient UUID proxyId;
 
   @JsonProperty private List<Log> logs;
-  private int weight;
+  @JsonProperty private int weight;
 
   @SuppressWarnings("unused")
   LogDataSubmissionTask() {}
@@ -63,6 +65,14 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   @Override
   Response doExecute() {
     return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
+  }
+
+  @Override
+  protected TaskResult handleStatus429() {
+    Metrics.newCounter(
+            new MetricName(entityType + "." + handle, "", "failed" + ".ingestion_limit_reached"))
+        .inc(this.weight());
+    return TaskResult.REMOVED;
   }
 
   @Override

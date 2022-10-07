@@ -62,7 +62,6 @@ java \
 	-jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
 	-h $WAVEFRONT_URL \
 	-t $WAVEFRONT_TOKEN \
-	--hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
 	--ephemeral true \
 	--buffer ${spool_dir}/buffer \
 	--flushThreads 6 \
