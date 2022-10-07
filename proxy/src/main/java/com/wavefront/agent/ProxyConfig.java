@@ -752,6 +752,14 @@ public class ProxyConfig extends Configuration {
       description = "If true, includes OTLP resource attributes on metrics (Default: false)")
   boolean otlpResourceAttrsOnMetricsIncluded = false;
 
+  @Parameter(
+      names = {"--otlpAppTagsOnMetricsIncluded"},
+      arity = 1,
+      description =
+          "If true, includes the following application-related resource attributes on "
+              + "metrics: application, service.name, shard, cluster (Default: true)")
+  boolean otlpAppTagsOnMetricsIncluded = true;
+
   // logs ingestion
   @Parameter(
       names = {"--filebeatPort"},
@@ -780,10 +788,20 @@ public class ProxyConfig extends Configuration {
       description = "Location of logs ingestions config yaml file.")
   String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
 
+  /**
+   * Deprecated property, please use proxyname config field to set proxy name. Default hostname to
+   * FQDN of machine. Sent as internal metric tag with checkin.
+   */
   @Parameter(
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
   String hostname = getLocalHostName();
+
+  /** This property holds the proxy name. Default proxyname to FQDN of machine. */
+  @Parameter(
+      names = {"--proxyname"},
+      description = "Name for the proxy. Defaults to hostname.")
+  String proxyname = getLocalHostName();
 
   @Parameter(
       names = {"--idFile"},
@@ -1310,6 +1328,22 @@ public class ProxyConfig extends Configuration {
   String customServiceTags = "";
 
   @Parameter(
+      names = {"--customExceptionTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the exception in Wavefront in the absence of a "
+              + "tag named `exception`. Default: exception, error_name")
+  String customExceptionTags = "";
+
+  @Parameter(
+      names = {"--customLevelTags"},
+      description =
+          "Comma separated list of log tag "
+              + "keys that should be treated as the log level in Wavefront in the absence of a "
+              + "tag named `level`. Default: level, log_level")
+  String customLevelTags = "";
+
+  @Parameter(
       names = {"--multicastingTenants"},
       description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
   protected int multicastingTenants = 0;
@@ -1761,6 +1795,10 @@ public class ProxyConfig extends Configuration {
     return otlpResourceAttrsOnMetricsIncluded;
   }
 
+  public boolean isOtlpAppTagsOnMetricsIncluded() {
+    return otlpAppTagsOnMetricsIncluded;
+  }
+
   public Integer getFilebeatPort() {
     return filebeatPort;
   }
@@ -1783,6 +1821,10 @@ public class ProxyConfig extends Configuration {
 
   public String getHostname() {
     return hostname;
+  }
+
+  public String getProxyname() {
+    return proxyname;
   }
 
   public String getIdFile() {
@@ -1984,6 +2026,39 @@ public class ProxyConfig extends Configuration {
               if (!tagSet.add(x)) {
                 logger.warning(
                     "Duplicate tag " + x + " specified in customServiceTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomExceptionTags() {
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customExceptionTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customExceptionTags config setting");
+              }
+            });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomLevelTags() {
+    // create List of level tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",")
+        .trimResults()
+        .omitEmptyStrings()
+        .split(customLevelTags)
+        .forEach(
+            x -> {
+              if (!tagSet.add(x)) {
+                logger.warning(
+                    "Duplicate tag " + x + " specified in customLevelTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -2211,7 +2286,18 @@ public class ProxyConfig extends Configuration {
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
+
+      String FQDN = getLocalHostName();
       hostname = config.getString("hostname", hostname);
+      proxyname = config.getString("proxyname", proxyname);
+      if (!hostname.equals(FQDN)) {
+        logger.warning(
+            "Deprecated field hostname specified in config setting. Please use "
+                + "proxyname config field to set proxy name.");
+        if (proxyname.equals(FQDN)) proxyname = hostname;
+      }
+      logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
+
       idFile = config.getString("idFile", idFile);
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
       pushRateLimitHistograms =
@@ -2389,6 +2475,12 @@ public class ProxyConfig extends Configuration {
       histogramDistMemoryCache =
           config.getBoolean("histogramDistMemoryCache", histogramDistMemoryCache);
 
+      // hyperlogs global settings
+      customTimestampTags = config.getString("customTimestampTags", customTimestampTags);
+      customMessageTags = config.getString("customMessageTags", customMessageTags);
+      customApplicationTags = config.getString("customApplicationTags", customApplicationTags);
+      customServiceTags = config.getString("customServiceTags", customServiceTags);
+
       exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
       exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
@@ -2396,6 +2488,7 @@ public class ProxyConfig extends Configuration {
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
       flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
+      flushThreadsLogs = config.getInteger("flushThreadsLogs", flushThreadsLogs);
       jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
       writeHttpJsonListenerPorts =
           config.getString("writeHttpJsonListenerPorts", writeHttpJsonListenerPorts);
@@ -2419,6 +2512,8 @@ public class ProxyConfig extends Configuration {
       otlpResourceAttrsOnMetricsIncluded =
           config.getBoolean(
               "otlpResourceAttrsOnMetricsIncluded", otlpResourceAttrsOnMetricsIncluded);
+      otlpAppTagsOnMetricsIncluded =
+          config.getBoolean("otlpAppTagsOnMetricsIncluded", otlpAppTagsOnMetricsIncluded);
       allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
       blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
@@ -2446,6 +2541,8 @@ public class ProxyConfig extends Configuration {
       splitPushWhenRateLimited =
           config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
       customSourceTags = config.getString("customSourceTags", customSourceTags);
+      customLevelTags = config.getString("customLevelTags", customLevelTags);
+      customExceptionTags = config.getString("customExceptionTags", customExceptionTags);
       agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
       ephemeral = config.getBoolean("ephemeral", ephemeral);
       disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
@@ -2678,6 +2775,7 @@ public class ProxyConfig extends Configuration {
               pushFlushMaxPoints);
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
       pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
+      pushFlushIntervalLogs = config.getInteger("pushFlushIntervalLogs", pushFlushIntervalLogs);
       retryBackoffBaseSeconds =
           Math.max(
               Math.min(

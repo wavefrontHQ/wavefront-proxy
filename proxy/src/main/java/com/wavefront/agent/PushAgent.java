@@ -196,7 +196,9 @@ public class PushAgent extends AbstractAgent {
                               proxyConfig.getCustomTimestampTags(),
                               proxyConfig.getCustomMessageTags(),
                               proxyConfig.getCustomApplicationTags(),
-                              proxyConfig.getCustomServiceTags()))
+                              proxyConfig.getCustomServiceTags(),
+                              proxyConfig.getCustomLevelTags(),
+                              proxyConfig.getCustomExceptionTags()))
                       .build());
   // default rate sampler which always samples.
   protected final RateSampler rateSampler = new RateSampler(1.0d);
@@ -1166,7 +1168,8 @@ public class PushAgent extends AbstractAgent {
                     handlerFactory,
                     preprocessors.get(strPort),
                     proxyConfig.getHostname(),
-                    proxyConfig.isOtlpResourceAttrsOnMetricsIncluded());
+                    proxyConfig.isOtlpResourceAttrsOnMetricsIncluded(),
+                    proxyConfig.isOtlpAppTagsOnMetricsIncluded());
             io.grpc.Server server =
                 NettyServerBuilder.forPort(port)
                     .addService(traceHandler)
@@ -1214,7 +1217,8 @@ public class PushAgent extends AbstractAgent {
                     .isFeatureDisabled(),
             proxyConfig.getHostname(),
             proxyConfig.getTraceDerivedCustomTagKeys(),
-            proxyConfig.isOtlpResourceAttrsOnMetricsIncluded());
+            proxyConfig.isOtlpResourceAttrsOnMetricsIncluded(),
+            proxyConfig.isOtlpAppTagsOnMetricsIncluded());
 
     startAsManagedThread(
         port,

@@ -54,8 +54,9 @@ public class ProxyCheckInScheduler {
   private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
   private final Runnable truncateBacklog;
-
+  private String hostname;
   private String serverEndpointUrl = null;
+
   private volatile JsonNode agentMetrics;
   private final AtomicInteger retries = new AtomicInteger(0);
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
@@ -101,6 +102,7 @@ public class ProxyCheckInScheduler {
         successfulCheckIns.incrementAndGet();
       }
     }
+    hostname = proxyConfig.getHostname();
   }
 
   /** Set up and schedule regular check-ins. */
@@ -163,6 +165,7 @@ public class ProxyCheckInScheduler {
                     "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
                     proxyConfig.getHostname()
                         + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
+                    proxyConfig.getProxyname(),
                     getBuildVersion(),
                     System.currentTimeMillis(),
                     agentMetricsWorkingCopy,
@@ -341,6 +344,8 @@ public class ProxyCheckInScheduler {
     try {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", ID);
+      // MONIT-27856 Adds real hostname (fqdn if possible) as internal metric tag
+      pointTags.put("hostname", hostname);
       synchronized (executor) {
         agentMetrics =
             JsonMetricsGenerator.generateJsonMetrics(
