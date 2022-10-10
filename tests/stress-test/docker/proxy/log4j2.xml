@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO" monitorInterval="5">
-    <Properties>
-        <Property name="log-path">/var/log/wavefront</Property>
-    </Properties>
-
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout>
@@ -11,23 +7,8 @@
             </PatternLayout>
         </Console>
     </Appenders>
-
     <Loggers>
-        <!-- Logger for storing Dropped points -->
-        <AsyncLogger name="RawDroppedPoints" level="ERROR" additivity="false">
-            <AppenderRef ref="Console" />
-        </AsyncLogger>
-
-        <AsyncLogger name="org.apache.activemq.audit.base" level="ERROR" additivity="false">
-            <AppenderRef ref="Console" />
-        </AsyncLogger>
-        <AsyncLogger name="org.apache.activemq.audit.resource" level="ERROR" additivity="false">
-            <AppenderRef ref="Console" />
-        </AsyncLogger>
-        <AsyncLogger name="org.apache.activemq.audit.message" level="ERROR" additivity="false">
-            <AppenderRef ref="Console" />
-        </AsyncLogger>
-
+        <Logger name="org.apache.activemq" level="OFF" additivity="false" />
         <Root level="INFO">
             <AppenderRef ref="Console" />
         </Root>

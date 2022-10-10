@@ -17,10 +17,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
@@ -30,7 +29,7 @@ import wavefront.report.SpanLogs;
  * SenderTask threads.
  */
 public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, String> {
-  private static final Logger log = LogManager.getLogger(SpanHandlerImpl.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(SpanHandlerImpl.class.getCanonicalName());
 
   private final ValidationConfiguration validationConfig;
   private final Function<String, Integer> dropSpansDelayedMinutes;
