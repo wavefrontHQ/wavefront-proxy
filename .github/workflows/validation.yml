@@ -1,4 +1,4 @@
-name: VIB
+name: Proxy Validation
 on: # rebuild any PRs and main branch changes
   pull_request:
   pull_request_target:
