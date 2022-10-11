@@ -27,7 +27,7 @@ do
 		--after-install after-install.sh \
 		--before-remove before-remove.sh \
 		--after-remove after-remove.sh \
-		--architecture all \
+		--architecture amd64 \
 		--deb-no-default-config-files \
 		--deb-priority optional \
 		--depends ${deps[$target]} \
