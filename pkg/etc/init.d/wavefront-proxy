@@ -119,6 +119,7 @@ jsvc_exec()
 		$java_args \
 		-Xss2049k \
 		-XX:OnOutOfMemoryError="kill -1 %p" \
+        -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-errfile $err_file \
 		-pidfile $pid_file \

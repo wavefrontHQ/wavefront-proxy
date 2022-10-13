@@ -60,12 +60,13 @@ fi
 #############
 java \
     $jvm_container_opts $JAVA_ARGS \
-	-Dlog4j.configurationFile=${log4j} \
-	-jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
-	-h $WAVEFRONT_URL \
-	-t $WAVEFRONT_TOKEN \
-	--hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
-	--ephemeral true \
-	--buffer ${spool_dir}/buffer \
-	--flushThreads 6 \
-	$WAVEFRONT_PROXY_ARGS
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
+    -Dlog4j.configurationFile=${log4j} \
+    -jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
+    -h $WAVEFRONT_URL \
+    -t $WAVEFRONT_TOKEN \
+    --hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
+    --ephemeral true \
+    --buffer ${spool_dir}/buffer \
+    --flushThreads 6 \
+    $WAVEFRONT_PROXY_ARGS
