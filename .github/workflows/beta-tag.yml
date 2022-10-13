@@ -2,13 +2,18 @@ name: Beta
 on:
   push:
     tags:
-      - v12.0.beta*
+      - v12.1.beta.*
 env:
   TAG: ${{ github.ref_name }}
 jobs:
-  vib-container:
+  beta-build:
     runs-on: ubuntu-latest
     name: Build Proxy Docker Image
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v2
         name: Checkout Java-lib Repository
@@ -24,6 +29,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: build application
         run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.TAG }} make build-jar cp-docker
+      - name: login PCKGC
+        run: echo '${{ secrets.PCKGC_FILE }}' > pkg/package_cloud.conf
+      - name: build linux
+        run: PACKAGECLOUD_USER=${{ secrets.PCKGC_USER }} PACKAGECLOUD_REPO=proxy-snapshot REVISION=${{ env.TAG }} make build-linux
+      - name: deploy to s3 rpm
+        run: aws s3 cp out/*rpm s3://eso-wfproxy-testing/performance_test_artifacts/
+      - name: deploy to s3 deb
+        run: aws s3 cp out/*deb s3://eso-wfproxy-testing/performance_test_artifacts/
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
