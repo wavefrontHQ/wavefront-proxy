@@ -86,6 +86,17 @@ public class OtlpTraceUtils {
         }
       };
 
+  public static KeyValue getAttrByKey(List<KeyValue> attributesList, String key) {
+    return attributesList.stream().filter(kv -> key.equals(kv.getKey())).findFirst().orElse(null);
+  }
+
+  public static KeyValue buildKeyValue(String key, String value) {
+    return KeyValue.newBuilder()
+        .setKey(key)
+        .setValue(AnyValue.newBuilder().setStringValue(value).build())
+        .build();
+  }
+
   static class WavefrontSpanAndLogs {
     Span span;
     SpanLogs spanLogs;
@@ -459,7 +470,41 @@ public class OtlpTraceUtils {
     return reporter;
   }
 
-  private static Map<String, String> mapFromAttributes(List<KeyValue> attributes) {
+  /**
+   * Converts an OTLP AnyValue object to its equivalent String representation. The implementation
+   * mimics {@code AsString()} from the OpenTelemetry Collector:
+   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
+   *
+   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for Attributes
+   * does not include maps as an allowed type of value:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
+   *
+   * @param anyValue OTLP Attributes value in {@link AnyValue} format
+   * @return String representation of the {@link AnyValue}
+   */
+  static String fromAnyValue(AnyValue anyValue) {
+    if (anyValue.hasStringValue()) {
+      return anyValue.getStringValue();
+    } else if (anyValue.hasBoolValue()) {
+      return Boolean.toString(anyValue.getBoolValue());
+    } else if (anyValue.hasIntValue()) {
+      return Long.toString(anyValue.getIntValue());
+    } else if (anyValue.hasDoubleValue()) {
+      return Double.toString(anyValue.getDoubleValue());
+    } else if (anyValue.hasArrayValue()) {
+      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
+      return values.stream()
+          .map(OtlpTraceUtils::fromAnyValue)
+          .collect(Collectors.joining(", ", "[", "]"));
+    } else if (anyValue.hasKvlistValue()) {
+      OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
+    } else if (anyValue.hasBytesValue()) {
+      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
+    }
+    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
+  }
+
+  static Map<String, String> mapFromAttributes(List<KeyValue> attributes) {
     Map<String, String> map = new HashMap<>();
     for (KeyValue attribute : attributes) {
       map.put(attribute.getKey(), fromAnyValue(attribute.getValue()));
@@ -499,39 +544,5 @@ public class OtlpTraceUtils {
 
     return Collections.singletonList(
         new Annotation(PARENT_KEY, SpanUtils.toStringId(parentSpanId)));
-  }
-
-  /**
-   * Converts an OTLP AnyValue object to its equivalent String representation. The implementation
-   * mimics {@code AsString()} from the OpenTelemetry Collector:
-   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
-   *
-   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for Attributes
-   * does not include maps as an allowed type of value:
-   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
-   *
-   * @param anyValue OTLP Attributes value in {@link AnyValue} format
-   * @return String representation of the {@link AnyValue}
-   */
-  private static String fromAnyValue(AnyValue anyValue) {
-    if (anyValue.hasStringValue()) {
-      return anyValue.getStringValue();
-    } else if (anyValue.hasBoolValue()) {
-      return Boolean.toString(anyValue.getBoolValue());
-    } else if (anyValue.hasIntValue()) {
-      return Long.toString(anyValue.getIntValue());
-    } else if (anyValue.hasDoubleValue()) {
-      return Double.toString(anyValue.getDoubleValue());
-    } else if (anyValue.hasArrayValue()) {
-      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
-      return values.stream()
-          .map(OtlpTraceUtils::fromAnyValue)
-          .collect(Collectors.joining(", ", "[", "]"));
-    } else if (anyValue.hasKvlistValue()) {
-      OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
-    } else if (anyValue.hasBytesValue()) {
-      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
-    }
-    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
   }
 }
