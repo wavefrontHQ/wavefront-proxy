@@ -6,7 +6,6 @@ import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessageP
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityRateLimiter;
-import com.wavefront.common.Pair;
 import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -39,10 +38,8 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   final ActiveMQServer activeMQServer;
 
-  private final Map<String, Pair<ClientSession, ClientProducer>> producers =
-      new ConcurrentHashMap<>();
-  private final Map<String, Pair<ClientSession, ClientConsumer>> consumers =
-      new ConcurrentHashMap<>();
+  private final Map<String, Session> producers = new ConcurrentHashMap<>();
+  private final Map<String, Session> consumers = new ConcurrentHashMap<>();
 
   protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
   private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>(); // TODO review
@@ -166,13 +163,13 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   public void shutdown() {
     try {
-      for (Map.Entry<String, Pair<ClientSession, ClientProducer>> entry : producers.entrySet()) {
-        entry.getValue()._1.close(); // session
-        entry.getValue()._2.close(); // producer
+      for (Map.Entry<String, Session> entry : producers.entrySet()) {
+        entry.getValue().close(); // session
+        entry.getValue().close(); // producer
       }
-      for (Map.Entry<String, Pair<ClientSession, ClientConsumer>> entry : consumers.entrySet()) {
-        entry.getValue()._1.close(); // session
-        entry.getValue()._2.close(); // consumer
+      for (Map.Entry<String, Session> entry : consumers.entrySet()) {
+        entry.getValue().close(); // session
+        entry.getValue().close(); // consumer
       }
 
       activeMQServer.stop();
@@ -201,7 +198,7 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   public void doSendPoints(String queue, List<String> points) throws ActiveMQAddressFullException {
     String sessionKey = "sendMsg." + queue + "." + Thread.currentThread().getName();
-    Pair<ClientSession, ClientProducer> mqCtx =
+    Session mqCtx =
         producers.computeIfAbsent(
             sessionKey,
             s -> {
@@ -211,25 +208,24 @@ public abstract class ActiveMQBuffer implements Buffer {
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue);
-                return new Pair<>(session, producer);
+                return new Session(session, producer, serverLocator);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
             });
 
-    ClientSession session = mqCtx._1;
-    ClientProducer producer = mqCtx._2;
     try {
-      ClientMessage message = session.createMessage(true);
+      ClientMessage message = mqCtx.session.createMessage(true);
       message.writeBodyBufferString(String.join("\n", points));
       message.putIntProperty("points", points.size());
-      producer.send(message);
+      mqCtx.producer.send(message);
     } catch (ActiveMQAddressFullException e) {
       log.log(Level.FINE, "queue full: " + e.getMessage());
       throw e;
     } catch (ActiveMQObjectClosedException e) {
       log.log(Level.FINE, "connection close: " + e.getMessage());
-      producers.remove(queue);
+      mqCtx.close();
+      producers.remove(sessionKey);
       sendPoints(queue, points);
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
@@ -241,7 +237,7 @@ public abstract class ActiveMQBuffer implements Buffer {
   public void onMsgBatch(
       QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
     String sessionKey = "onMsgBatch." + queue.getName() + "." + Thread.currentThread().getName();
-    Pair<ClientSession, ClientConsumer> mqCtx =
+    Session mqCtx =
         consumers.computeIfAbsent(
             sessionKey,
             s -> {
@@ -251,23 +247,21 @@ public abstract class ActiveMQBuffer implements Buffer {
                 ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
-                return new Pair<>(session, consumer);
+                return new Session(session, consumer, serverLocator);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
             });
 
-    ClientSession session = mqCtx._1;
-    ClientConsumer consumer = mqCtx._2;
     try {
       long start = System.currentTimeMillis();
-      session.start();
+      mqCtx.session.start();
       List<String> batch = new ArrayList<>(batchSize);
       List<ClientMessage> toACK = new ArrayList<>();
       boolean done = false;
       boolean needRollBack = false;
       while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
-        ClientMessage msg = consumer.receive(100);
+        ClientMessage msg = mqCtx.consumer.receive(100);
         if (msg != null) {
           List<String> points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
           boolean ok = rateLimiter.tryAcquire(points.size());
@@ -298,13 +292,13 @@ public abstract class ActiveMQBuffer implements Buffer {
                 throw new RuntimeException(e);
               }
             });
-        session.commit();
+        mqCtx.session.commit();
         if (needRollBack) {
           // rollback all messages not ACKed (rate)
-          session.rollback();
+          mqCtx.session.rollback();
         }
       } catch (Exception e) {
-        log.log(Level.SEVERE, e.getMessage());
+        log.log(Level.SEVERE, e.toString());
         if (log.isLoggable(Level.FINER)) {
           log.log(Level.SEVERE, "error", e);
         }
@@ -317,18 +311,21 @@ public abstract class ActiveMQBuffer implements Buffer {
                 throw new RuntimeException(ex);
               }
             });
-        session.rollback();
+        mqCtx.session.rollback();
       }
-    } catch (ActiveMQException e) {
-      log.log(Level.SEVERE, "error", e);
-      consumers.remove(sessionKey);
     } catch (Throwable e) {
       log.log(Level.SEVERE, "error", e);
+      mqCtx.close();
+      consumers.remove(sessionKey);
     } finally {
       try {
-        session.stop();
+        if (!mqCtx.session.isClosed()) {
+          mqCtx.session.stop();
+        }
       } catch (ActiveMQException e) {
         log.log(Level.SEVERE, "error", e);
+        mqCtx.close();
+        consumers.remove(sessionKey);
       }
     }
   }
@@ -354,5 +351,51 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   public void setNextBuffer(Buffer nextBuffer) {
     this.nextBuffer = nextBuffer;
+  }
+
+  private class Session {
+    ClientSession session;
+    ClientConsumer consumer;
+    ServerLocator serverLocator;
+    ClientProducer producer;
+
+    Session(ClientSession session, ClientConsumer consumer, ServerLocator serverLocator) {
+      this.session = session;
+      this.consumer = consumer;
+      this.serverLocator = serverLocator;
+    }
+
+    public Session(ClientSession session, ClientProducer producer, ServerLocator serverLocator) {
+      this.session = session;
+      this.producer = producer;
+      this.serverLocator = serverLocator;
+    }
+
+    void close() {
+      if (session != null) {
+        try {
+          session.close();
+        } catch (Throwable e) {
+        }
+      }
+      if (consumer != null) {
+        try {
+          consumer.close();
+        } catch (Throwable e) {
+        }
+      }
+      if (serverLocator != null) {
+        try {
+          serverLocator.close();
+        } catch (Throwable e) {
+        }
+      }
+      if (producer != null) {
+        try {
+          producer.close();
+        } catch (Throwable e) {
+        }
+      }
+    }
   }
 }

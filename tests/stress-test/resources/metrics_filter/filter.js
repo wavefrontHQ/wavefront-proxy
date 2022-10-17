@@ -22,35 +22,9 @@ if (Number.isNaN(delay)) {
         }
     });
 
-    // server.forAnyRequest().thenCallback(async (request) => {
-    //     console.log('reques: ', request);
-    // });
+    server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough();
 
-
-    server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough({
-        beforeRequest: (request) => {
-            console.log(`[config] Got request:`);
-            console.log(util.inspect(request));
-        },
-        beforeResponse: (response) => {
-            console.log(`[config] Got ${response.statusCode} response:`);
-            console.log(util.inspect(response));
-            console.log(`body: ${response.body.getDecodedBuffer()}`);
-        }
-    });
-
-    server.forPost("/api/v2/wfproxy/checkin").thenPassThrough({
-        beforeRequest: (request) => {
-            console.log(`[checkin] Got request:`);
-            console.log(util.inspect(request));
-        },
-        beforeResponse: (response) => {
-            console.log(`[checkin] Got ${response.statusCode} response:`);
-            console.log(util.inspect(response));
-            response.body.getDecodedBuffer().then()
-            console.log(`body: ${response.body.getDecodedBuffer().then()}`);
-        }
-    });
+    server.forPost("/api/v2/wfproxy/checkin").thenPassThrough();
 
     server.forPost("/api/v2/wfproxy/report").thenCallback(async (request) => {
         reports++;
@@ -59,7 +33,7 @@ if (Number.isNaN(delay)) {
             resStatus = 500;
             errors++;
         }
-        await sleep(delay * 1000)
+        await sleep((delay * 1000) + (Math.random() * 500))
         return {
             status: resStatus,
         };

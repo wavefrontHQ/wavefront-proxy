@@ -53,8 +53,6 @@ if [ -d "/tmp/ca/" ]; then
   done
 fi
 
-/bin/telegraf &
-
 #############
 # run proxy #
 #############
@@ -66,7 +64,5 @@ java \
     -h $WAVEFRONT_URL \
     -t $WAVEFRONT_TOKEN \
     --hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
-    --ephemeral true \
     --buffer ${spool_dir}/buffer \
-    --flushThreads 6 \
     $WAVEFRONT_PROXY_ARGS

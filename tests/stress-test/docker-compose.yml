@@ -26,9 +26,9 @@ services:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
       WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg --buffer /buffer
-      JAVA_HEAP_USAGE: 1G
+      JAVA_HEAP_USAGE: 6G
       JVM_USE_CONTAINER_OPTS: false
-      JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=1098 -Dcom.sun.management.jmxremote.rmi.port=1098 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false "
+      JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
       TLGF_WF_URL: https://${WF_URL}
     deploy:
       resources:

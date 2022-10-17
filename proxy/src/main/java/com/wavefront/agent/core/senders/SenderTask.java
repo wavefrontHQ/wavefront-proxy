@@ -44,9 +44,16 @@ abstract class SenderTask implements Runnable {
 
   @Override
   public void run() {
-    // TODO: review getDataPerBatch and getRateLimiter
-    buffer.onMsgBatch(
-        queue, idx, properties.getDataPerBatch(), properties.getRateLimiter(), this::processBatch);
+    try {
+      buffer.onMsgBatch(
+          queue,
+          idx,
+          properties.getDataPerBatch(),
+          properties.getRateLimiter(),
+          this::processBatch);
+    } catch (Throwable e) {
+      log.log(Level.SEVERE, "error sending " + queue.getEntityType().name(), e);
+    }
   }
 
   private void processBatch(List<String> batch) throws SenderTaskException {

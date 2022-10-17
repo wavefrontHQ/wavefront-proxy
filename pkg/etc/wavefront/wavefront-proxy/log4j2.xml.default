@@ -8,7 +8,12 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.apache.activemq" level="OFF" additivity="false" />
+        <AsyncLogger name="RawDroppedPoints" level="OFF" additivity="false">
+            <AppenderRef ref="Console" />
+        </AsyncLogger>
+        <Logger name="org.apache.activemq" level="OFF" additivity="false">
+            <AppenderRef ref="Console" />
+        </Logger>
         <Root level="INFO">
             <AppenderRef ref="Console" />
         </Root>

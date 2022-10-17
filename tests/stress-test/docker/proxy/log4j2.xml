@@ -6,11 +6,22 @@
                 <pattern>%d{h:mm:ss} %-5level [%c{1}:%M] %m%n</pattern>
             </PatternLayout>
         </Console>
+        <File name="LogToFile" fileName="/var/log/wavefront/wavefront.log">
+            <PatternLayout>
+                <pattern>%d{h:mm:ss} %-5level [%c{1}:%M] %m%n</pattern>
+            </PatternLayout>
+        </File>
     </Appenders>
     <Loggers>
-        <Logger name="org.apache.activemq" level="OFF" additivity="false" />
+        <AsyncLogger name="RawDroppedPoints" level="OFF" additivity="false">
+            <AppenderRef ref="Console" />
+        </AsyncLogger>
+        <Logger name="org.apache.activemq" level="OFF" additivity="false">
+            <AppenderRef ref="Console" />
+        </Logger>
         <Root level="INFO">
             <AppenderRef ref="Console" />
+            <AppenderRef ref="LogToFile" />
         </Root>
     </Loggers>
 </Configuration>
