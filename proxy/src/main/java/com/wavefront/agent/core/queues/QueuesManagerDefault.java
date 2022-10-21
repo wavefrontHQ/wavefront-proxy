@@ -49,6 +49,6 @@ public class QueuesManagerDefault implements QueuesManager {
 
   private static void setupQueue(QueueInfo q) {
     List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(q);
-    buffers.forEach(buffer -> SenderTasksManager.createSenderTasks(q, buffer, 1));
+    buffers.forEach(buffer -> SenderTasksManager.createSenderTasks(q, buffer));
   }
 }

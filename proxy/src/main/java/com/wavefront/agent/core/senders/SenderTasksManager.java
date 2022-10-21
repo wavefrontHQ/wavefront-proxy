@@ -9,16 +9,14 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.api.ProxyV2API;
-import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
+import javax.validation.constraints.NotNull;
 
 /** Factory for {@link SenderTask} objects. */
 public class SenderTasksManager {
@@ -51,23 +49,25 @@ public class SenderTasksManager {
     //        });
   }
 
-  public static void createSenderTasks(@Nonnull QueueInfo queue, Buffer buffer, double factor) {
+  public static void createSenderTasks(@Nonnull QueueInfo queue, Buffer buffer) {
     ReportableEntityType entityType = queue.getEntityType();
     String tenantName = queue.getTenant();
+
+    String name = "submitter-" + buffer.getName() + "-" + tenantName + "-" + queue.getName();
 
     int numThreads = entityPropertiesFactoryMap.get(tenantName).get(entityType).getFlushThreads();
     int interval =
         entityPropertiesFactoryMap.get(tenantName).get(entityType).getPushFlushInterval();
     ScheduledExecutorService scheduler =
         executors.computeIfAbsent(
-            queue.getName(),
+            name,
             x ->
                 Executors.newScheduledThreadPool(
-                    numThreads, new NamedThreadFactory("submitter-" + queue.getName())));
+                    numThreads, new PriorityNamedThreadFactory(name, buffer.getPriority())));
 
     QueueStats queueStats = QueueStats.get(queue.getName());
 
-    for (int i = 0; i < numThreads * factor; i++) {
+    for (int i = 0; i < numThreads; i++) {
       SenderTask sender = generateSenderTask(queue, i, buffer, queueStats);
       scheduler.scheduleAtFixedRate(sender, interval, interval, TimeUnit.MILLISECONDS);
     }
@@ -188,8 +188,21 @@ public class SenderTasksManager {
     return senderTask;
   }
 
-  // TODO: review and move to BuffersManager
-  public static void truncateBuffers() {
-    throw new RuntimeException("needs implementation !!!!");
+  private static class PriorityNamedThreadFactory implements ThreadFactory {
+    private final String threadNamePrefix;
+    private final AtomicInteger counter = new AtomicInteger();
+    private final int priority;
+
+    public PriorityNamedThreadFactory(@NotNull String threadNamePrefix, int priority) {
+      this.threadNamePrefix = threadNamePrefix;
+      this.priority = priority;
+    }
+
+    public Thread newThread(@NotNull Runnable r) {
+      Thread toReturn = new Thread(r);
+      toReturn.setName(this.threadNamePrefix + "-" + this.counter.getAndIncrement());
+      toReturn.setPriority(priority);
+      return toReturn;
+    }
   }
 }

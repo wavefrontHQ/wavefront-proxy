@@ -35,6 +35,15 @@ public class MemoryBuffer extends ActiveMQBuffer {
             new NamedThreadFactory("memory-buffer-receiver"));
   }
 
+  public String getName() {
+    return "Memory";
+  }
+
+  @Override
+  public int getPriority() {
+    return Thread.MAX_PRIORITY;
+  }
+
   public void shutdown() {
     executor.shutdown();
     try {

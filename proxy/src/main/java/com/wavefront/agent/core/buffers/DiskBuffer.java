@@ -44,6 +44,16 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
     super.sendPoints(queue, points);
   }
 
+  @Override
+  public String getName() {
+    return "Disk";
+  }
+
+  @Override
+  public int getPriority() {
+    return Thread.NORM_PRIORITY;
+  }
+
   public boolean isFull() {
     return activeMQServer.getPagingManager().isDiskFull();
   }

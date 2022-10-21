@@ -26,7 +26,7 @@ services:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
       WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg --buffer /buffer
-      JAVA_HEAP_USAGE: 6G
+      JAVA_HEAP_USAGE: 1G
       JVM_USE_CONTAINER_OPTS: false
       JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
       TLGF_WF_URL: https://${WF_URL}

@@ -25,6 +25,15 @@ public class SQSBuffer implements Buffer {
     visibilityTimeOut = String.valueOf(cfg.vto);
   }
 
+  public String getName() {
+    return "SQS";
+  }
+
+  @Override
+  public int getPriority() {
+    return Thread.NORM_PRIORITY;
+  }
+
   @Override
   public void registerNewQueueInfo(QueueInfo queue) {
     String queueName = queue.getName();

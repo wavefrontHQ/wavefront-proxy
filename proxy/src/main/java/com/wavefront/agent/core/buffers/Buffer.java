@@ -12,4 +12,8 @@ public interface Buffer {
       QueueInfo key, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func);
 
   void sendPoints(String queue, List<String> strPoint) throws ActiveMQAddressFullException;
+
+  String getName();
+
+  int getPriority();
 }
