@@ -682,6 +682,13 @@ public class ProxyConfig extends Configuration {
   String jsonListenerPorts = "";
 
   @Parameter(
+      names = {"--grpcListenerPorts"},
+      description =
+          "Comma-separated list of ports to "
+              + "listen on for gRPC metrics data. Binds, by default, to none.")
+  String grpcListenerPorts = "50051";
+
+  @Parameter(
       names = {"--dataDogJsonPorts"},
       description =
           "Comma-separated list of ports to listen on for JSON "
@@ -1753,6 +1760,10 @@ public class ProxyConfig extends Configuration {
 
   public String getJsonListenerPorts() {
     return jsonListenerPorts;
+  }
+
+  public String getGrpcListenerPorts() {
+    return grpcListenerPorts;
   }
 
   public String getDataDogJsonPorts() {

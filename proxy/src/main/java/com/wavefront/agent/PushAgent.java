@@ -60,6 +60,7 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.grpc.GrpcHandler;
 import com.wavefront.agent.listeners.otlp.OtlpGrpcMetricsHandler;
 import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
 import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
@@ -386,6 +387,8 @@ public class PushAgent extends AbstractAgent {
         .forEach(strPort -> startJsonListener(strPort, handlerFactory));
     csvToList(proxyConfig.getWriteHttpJsonListenerPorts())
         .forEach(strPort -> startWriteHttpJsonListener(strPort, handlerFactory));
+    csvToList(proxyConfig.getGrpcListenerPorts())
+        .forEach(strPort -> startGrpcListener(strPort, handlerFactory));
 
     // Logs ingestion.
     if (proxyConfig.getFilebeatPort() > 0 || proxyConfig.getRawLogsPort() > 0) {
@@ -1128,6 +1131,30 @@ public class PushAgent extends AbstractAgent {
             + strPort
             + " for trace data "
             + "(Jaeger Protobuf format over gRPC)");
+  }
+
+  protected void startGrpcListener(
+      final String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    startAsManagedThread(
+        port,
+        () -> {
+          activeListeners.inc();
+          try {
+            GrpcHandler grpcHandler = new GrpcHandler();
+            io.grpc.Server server =
+                NettyServerBuilder.forPort(port).addService(grpcHandler).build();
+            server.start();
+          } catch (Exception e) {
+            logger.log(Level.SEVERE, "OTLP gRPC collector exception", e);
+          } finally {
+            activeListeners.dec();
+          }
+        },
+        "listener-grpc-" + strPort);
+    logger.info("listening on port: " + strPort + " for data over gRPC");
   }
 
   protected void startOtlpGrpcListener(
