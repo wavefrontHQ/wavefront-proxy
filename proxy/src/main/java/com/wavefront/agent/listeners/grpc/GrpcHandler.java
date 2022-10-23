@@ -10,8 +10,7 @@ public class GrpcHandler extends WFProxyGrpc.WFProxyImplBase {
 
   @Override
   public void reportPoints(
-          Batch request,
-      io.grpc.stub.StreamObserver<com.wavefront.grpc.Response> responseObserver) {
+      Batch request, io.grpc.stub.StreamObserver<com.wavefront.grpc.Response> responseObserver) {
     logger.info("Batch received:\n" + request);
     responseObserver.onNext(Response.getDefaultInstance());
     responseObserver.onCompleted();

@@ -52,7 +52,7 @@ public class SimpleTest {
     logger.info("Will try to send '" + name + "' metrics to WF ...");
     Point point = Point.newBuilder()
             .setName(name)
-            .setTs(System.currentTimeMillis())
+            .setTimestamp(System.currentTimeMillis())
             .setSource("sampleApp")
             .setValue((int) (Math.random() * 1000))
             .putTags("tag1", "tagv1")
@@ -72,6 +72,6 @@ public class SimpleTest {
       logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
       return;
     }
-    logger.info("Greeting: " + response.getRes());
+    logger.info("result: " + response.getRes());
   }
 }

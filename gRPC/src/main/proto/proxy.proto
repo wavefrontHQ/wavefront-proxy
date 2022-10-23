@@ -8,15 +8,40 @@ service WFProxy {
 }
 
 message Batch {
-    repeated Point points = 1;
+  int64 default_timestamp = 1;
+  string default_source = 2;
+  map<string, string> common_tags = 3;
+  repeated Point points = 4;
+  repeated Histogram Histograms = 5;
+}
+
+enum POINT_TYPE {
+  GAUGE = 0;
+  DELTA = 1;
 }
 
 message Point {
   string name = 1 ;
   int64 value = 2;
-  int64 ts = 3;
+  int64 timestamp = 3;
   string source = 4 ;
   map<string, string> tags = 5;
+  POINT_TYPE type = 6;
+}
+
+enum DURATION {
+  SECOND = 0;
+  MINUTE = 1;
+  HOUR = 2;
+}
+
+message Histogram {
+  string name = 1 ;
+  int64 timestamp = 2;
+  DURATION duration = 3;
+  string source = 4;
+  repeated double  means = 5;
+  repeated int64 counts = 6;
 }
 
 message Response {
