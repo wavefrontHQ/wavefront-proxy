@@ -35,6 +35,7 @@ echo "============="
 # package_cloud push ${1}/ubuntu/xenial ${3}/*.deb --config=${2} &
 # package_cloud push ${1}/ubuntu/trusty ${3}/*.deb --config=${2} &
 # package_cloud push ${1}/ubuntu/hirsute ${3}/*.deb --config=${2} &
+# package_cloud push ${1}/ubuntu/jammy ${3}/*.deb --config=${2} &
 
 # wait
 
