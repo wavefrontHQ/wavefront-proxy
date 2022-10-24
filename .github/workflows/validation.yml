@@ -1,0 +1,283 @@
+name: Proxy Validation
+on:
+  pull_request:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+    branches: ["**"]
+env:
+  CSP_API_URL: https://console.cloud.vmware.com
+  CSP_API_TOKEN: ${{ secrets.CSP_API_TOKEN }}
+  VIB_PUBLIC_URL: https://cp.bromelia.vmware.com
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+jobs:
+  vib-container:
+    runs-on: ubuntu-latest
+    name: Build Proxy Docker Image
+    steps:
+      # unccoment if you need a new/custom java0lib version
+      # - uses: actions/checkout@v2
+      #   name: Checkout Java-lib Repository
+      #   with:
+      #     ref: dev-proxy2
+      #     repository: wavefrontHQ/java-lib
+      # - name: Build Java-lib
+      #   run: mvn --batch-mode install
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: build application
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar cp-docker
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: "./docker"
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: "TEST=true"
+          tags: "${{ secrets.DOCKER_OWNER }}/proxy-snapshot:${{ env.BRANCH_NAME }}"
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Package Wavefront container
+        with:
+          pipeline: vib-container.json
+        env:
+          VIB_ENV_IMAGE_TAG: ${{ env.BRANCH_NAME }}
+          VIB_ENV_DOCKER_USER: ${{ secrets.DOCKER_OWNER }}
+
+  tests-multi-tenant:
+    name: Multitenamt test
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }}
+          wavefront_tenant:
+            url: ${{ secrets.WF_TENANT_URL }}
+            token: ${{ secrets.WF_TENANT_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront multi-tenant
+        with:
+          pipeline: vib-multi-tenant.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+
+  tests-disk-buffer:
+    name: Disk Buffer test
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront disk buffer
+        with:
+          pipeline: vib-disk-buffer.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+
+  tests-buffer-lock:
+    name: Buffer Lock test
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront disk buffer
+        with:
+          pipeline: vib-buffer-lock.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+
+  tests-debian:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront container
+        with:
+          pipeline: vib-deb-package-debian.json
+
+  opentel-app-docker-build:
+    name: OpenTelemetry app Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          file: tests/opentel/app/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/opentel-app:${{ env.BRANCH_NAME }}
+
+  tests-opentel:
+    name: OpenTelemetry test
+    runs-on: ubuntu-latest
+    needs: [vib-container, opentel-app-docker-build]
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            opentelapp: ${{ secrets.DOCKER_USER }}/opentel-app
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Opentel
+        with:
+          pipeline: vib-opentel.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+
+  tests-logs:
+    name: Logs ingestion test
+    runs-on: ubuntu-latest
+    needs: vib-container
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_LOGS_URL }}
+            token: ${{ secrets.WF_LOGS_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Logs
+        with:
+          pipeline: vib-logs.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
+
+  filter-docker-build:
+    name: Build Metrics Filter Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: tests/util/filter
+          file: tests/util/filter/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/filter:${{ env.BRANCH_NAME }}
+
+  tests-chain-checking:
+    name: Proxy Chain test
+    runs-on: ubuntu-latest
+    needs: [filter-docker-build, vib-container]
+    steps:
+      - id: run-params
+        name: Dinamically generate runtime_params
+        run: |
+          echo "VIB_ENV_RUN_PARAMS=$(echo \
+          "image:
+            proxy: ${{ secrets.DOCKER_OWNER }}/proxy-snapshot
+            filter: ${{ secrets.DOCKER_USER }}/filter
+            tag: ${{ env.BRANCH_NAME }}
+          wavefront:
+            url: ${{ secrets.WF_MAIN_URL }}
+            token: ${{ secrets.WF_MAIN_TOKEN }} " | base64 -w 0 )" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - uses: vmware-labs/vmware-image-builder-action@main
+        name: Verify Wavefront container
+        with:
+          pipeline: vib-chain-checking.json
+        env:
+          VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}

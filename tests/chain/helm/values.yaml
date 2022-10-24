@@ -1,0 +1,6 @@
+image:
+  user: XXXXXX
+  tag: XXXXXX
+wavefront:
+  url: https://XXXXX.wavefront.com/api/
+  token: XXXXXXXXXXXXXX

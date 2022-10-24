@@ -10,11 +10,6 @@ if [[ -z "$WAVEFRONT_TOKEN" ]]; then
   exit 0
 fi
 
-spool_dir="/var/spool/wavefront-proxy"
-mkdir -p $spool_dir
-
-chown -R wavefront:wavefront $spool_dir
-
 # Be receptive to core dumps
 ulimit -c unlimited
 
@@ -63,6 +58,6 @@ java \
 	-h $WAVEFRONT_URL \
 	-t $WAVEFRONT_TOKEN \
 	--ephemeral true \
-	--buffer ${spool_dir}/buffer \
+	--buffer /var/spool/wavefront-proxy/buffer \
 	--flushThreads 6 \
 	$WAVEFRONT_PROXY_ARGS

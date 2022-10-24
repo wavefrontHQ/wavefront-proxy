@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: disk-buffer-test-proxy
+  labels:
+    app: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+        - name: proxy
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash"]
+          args: ["-c","touch /var/log/wavefront/wavefront.log && tail -f /var/log/wavefront/wavefront.log"]
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: | 
+                --hostname disk-buffer-test-proxy
+                --pushListenerPorts 2878 
+                --ephemeral false 
+                --idFile /tmp/id
+                --pushFlushInterval 3600000 
+                --memoryBufferExpirationTime -1
+          ports: 
+            - name: push
+              containerPort: 2878
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 2878
+            initialDelaySeconds: 60
+            periodSeconds: 60
+          volumeMounts:
+            - mountPath: /scripts/
+              name: scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: scripts
+            defaultMode: 0777

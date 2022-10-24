@@ -1,0 +1,7 @@
+image:
+  name: XXXXXXXXXXXXXX
+  opentelapp: XXXXXXXXX
+  tag: XXXXXX
+wavefront:
+  url: https://XXXXX.wavefront.com/api/
+  token: XXXXXXXXXXXXXX

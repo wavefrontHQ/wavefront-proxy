@@ -4,7 +4,7 @@ VERSION := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${projec
 ARTIFACT_ID := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.artifactId}' --non-recursive exec:exec)
 REVISION ?= ${TS}
 USER ?= $(LOGNAME)
-REPO ?= proxy-dev
+REPO ?= proxy-snapshot
 PACKAGECLOUD_USER ?= wavefront
 PACKAGECLOUD_REPO ?= proxy-next
 
@@ -29,23 +29,30 @@ build-jar: .info
 #####
 # Build single docker image
 #####
-docker: .info .cp-docker
+docker: .info cp-docker
 	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/
+
+#####
+# Build single docker image for testing
+#####
+docker-test: .info cp-docker
+	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/Dockerfile-tests
+
 
 #####
 # Build single docker image
 #####
-docker-RHEL: .info .cp-docker
+docker-RHEL: .info cp-docker
 	podman build -t $(USER)/$(REPO):$(DOCKER_TAG) -f ./docker/Dockerfile-rhel docker/
 
 #####
 # Build multi arch (amd64 & arm64) docker images
 #####
-docker-multi-arch: .info .cp-docker
+docker-multi-arch: .info cp-docker
 	docker buildx create --use
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(USER)/$(REPO):$(DOCKER_TAG) --push docker/
 
-docker-multi-arch-with-latest-tag: .info .cp-docker
+docker-multi-arch-with-latest-tag: .info cp-docker
 	docker buildx create --use
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(USER)/$(REPO):$(DOCKER_TAG) -t $(USER)/$(REPO):latest --push docker/
 
@@ -71,15 +78,11 @@ pack-macos:
 
 
 #####
-# Run Proxy complex Tests
-#####
-tests: .info .cp-docker
-	$(MAKE) -C tests/chain-checking all
 
 .prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 
-.cp-docker:
+cp-docker:
 	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar docker/wavefront-proxy.jar
 	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=docker
 
