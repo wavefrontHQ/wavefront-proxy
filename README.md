@@ -32,6 +32,9 @@ Please refer to the [project page](https://github.com/wavefrontHQ/wavefront-prox
 git clone https://github.com/wavefronthq/wavefront-proxy
 cd wavefront-proxy
 mvn -f proxy clean install -DskipTests
+
+If you want to skip code formatting during build use:
+mvn -f proxy clean install -DskipTests -DskipFormatCode
 ```
 
 ## Contributing
