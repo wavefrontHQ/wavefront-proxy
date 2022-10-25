@@ -22,7 +22,7 @@ enum POINT_TYPE {
 
 message Point {
   string name = 1 ;
-  int64 value = 2;
+  double value = 2;
   int64 timestamp = 3;
   string source = 4 ;
   map<string, string> tags = 5;
@@ -35,13 +35,17 @@ enum DURATION {
   HOUR = 2;
 }
 
+message Bin{
+  double mean = 1;
+  int64 count = 2;
+}
+
 message Histogram {
   string name = 1 ;
   int64 timestamp = 2;
   DURATION duration = 3;
   string source = 4;
-  repeated double  means = 5;
-  repeated int64 counts = 6;
+  repeated Bin bins = 5;
 }
 
 message Response {

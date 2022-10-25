@@ -37,3 +37,4 @@ test/.wavefront_id
 
 dependency-reduced-pom.xml
 out/*
+tests/util/gRPCclient/src/main/proto/proxy.proto
