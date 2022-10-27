@@ -13,7 +13,7 @@
             </PatternLayout>
         </Console>
         <RollingFile name="RollingFile" fileName="${log-path}/wavefront.log"
-                     filePattern="${log-path}/wavefront-%d{yyyy-MM-dd}-%i.log" >
+            filePattern="${log-path}/wavefront-%d{yyyy-MM-dd}-%i.log">
             <PatternLayout>
                 <!-- Use the pattern below to output log in the same format as older versions
                 <pattern>%d{MMM d, yyyy h:mm:ss a} %C{10} %M%n%p{WARN=WARNING, DEBUG=FINE, ERROR=SEVERE}: %m%n</pattern>
@@ -24,8 +24,8 @@
             <!-- Log rollover and retention policies. Default settings: roll over logs once a day or every 100 MB,
                  whichever comes first; keep max 10 log files per day for no more than 31 days  -->
             <Policies>
-                <TimeBasedTriggeringPolicy interval="1"/>
-                <SizeBasedTriggeringPolicy size="100 MB"/>
+                <TimeBasedTriggeringPolicy interval="1" />
+                <SizeBasedTriggeringPolicy size="100 MB" />
             </Policies>
             <DefaultRolloverStrategy max="10">
                 <Delete basePath="${log-path}" maxDepth="1">
@@ -145,7 +145,6 @@
             -->
         </AsyncLogger>
         <Root level="INFO">
-            <AppenderRef ref="RollingFile"/>
             <AppenderRef ref="Console" />
         </Root>
     </Loggers>
