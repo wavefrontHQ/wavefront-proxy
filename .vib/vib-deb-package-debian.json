@@ -6,7 +6,9 @@
           "kind": "OVA",
           "details": {
             "name": "wordpress",
-            "url": "https://downloads.bitnami.com/files/stacks/wordpress/6.0.0-8/bitnami-wordpress-6.0.0-8-r04-linux-debian-11-x86_64-nami.ova"
+            "package": {
+               "url": "https://downloads.bitnami.com/files/stacks/wordpress/6.0.0-8/bitnami-wordpress-6.0.0-8-r04-linux-debian-11-x86_64-nami.ova"
+            }
           }
         },
         "resources": {
