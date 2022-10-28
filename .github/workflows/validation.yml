@@ -150,6 +150,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: build application
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.BRANCH_NAME }} MVN_ARGS=-DskipTests make build-jar build-linux
+      - name: copy deb
+        run: cp out/*deb .vib/linux-install/
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
