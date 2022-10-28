@@ -146,6 +146,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        name: Checkout Java-lib Repository
+        with:
+          ref: dev-proxy2
+          repository: wavefrontHQ/java-lib
+      - name: Build Java-lib
+        run: mvn --batch-mode install
+      - uses: actions/checkout@v2
         name: Checkout Repository
         with:
           ref: ${{ github.event.pull_request.head.ref }}
