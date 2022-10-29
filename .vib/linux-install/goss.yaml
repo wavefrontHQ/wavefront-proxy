@@ -1,7 +1,6 @@
 command:
   install-proxy:
-    exec: find .
+    exec: ./scripts/tests.sh
     exit-status: 0
     timeout: 120000
-    stdout: [wavefront-proxy]
-    stderr: [bad]
+    stdout: ["wavefront-proxy.jar"]
