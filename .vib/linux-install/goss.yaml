@@ -3,4 +3,4 @@ command:
     exec: ./scripts/tests.sh
     exit-status: 0
     timeout: 120000
-    stdout: ["wavefront-proxy.jar"]
+    stdout: ["wavefront-proxy"]
