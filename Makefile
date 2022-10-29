@@ -84,7 +84,7 @@ tests: .info .cp-docker
 	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=docker
 
 .cp-linux:
-	cp ${out}/${ARTIFACT_ID}-${VERSION}-jar-with-dependencies.jar pkg/wavefront-proxy.jar
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar pkg/wavefront-proxy.jar
 	# ${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
