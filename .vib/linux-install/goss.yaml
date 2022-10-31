@@ -1,6 +1,5 @@
 command:
   install-proxy:
-    exec: find . -ls
+    exec: ./scripts/test.sh
     exit-status: 0
     timeout: 120000
-    stdout: ["wavefront-proxy"]
