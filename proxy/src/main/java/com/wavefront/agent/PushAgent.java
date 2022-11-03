@@ -103,6 +103,7 @@ import wavefront.report.ReportPoint;
 /** Push-only Agent. */
 public class PushAgent extends AbstractAgent {
   private static final Logger logger = Logger.getLogger(PushAgent.class.getCanonicalName());
+  public static final Logger stats = Logger.getLogger("stats");
 
   public static boolean isMulticastingActive;
 
@@ -175,10 +176,7 @@ public class PushAgent extends AbstractAgent {
     cfg.debug = proxyConfig.debugBuffer;
 
     double maxMemory = Runtime.getRuntime().maxMemory();
-    double buffersMaxMemory = maxMemory / 2;
-    if (maxMemory > 2_000_000_000) {
-      buffersMaxMemory = maxMemory - 1_000_000_000;
-    }
+    double buffersMaxMemory = Math.min(maxMemory / 2, 1_000_000_000);
 
     cfg.memoryCfg.msgExpirationTime = proxyConfig.getMemoryBufferExpirationTime();
     if (cfg.memoryCfg.msgExpirationTime != -1) {

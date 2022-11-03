@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.buffers;
 
+import com.wavefront.agent.PushAgent;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.core.Gauge;
@@ -52,6 +53,13 @@ public class PointsGauge extends Gauge<Long> {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+    PushAgent.stats.info(
+        "[buffer."
+            + amq.getConfiguration().getName()
+            + "."
+            + queue.getName()
+            + "] points: "
+            + pointsCount);
     return pointsCount = count;
   }
 }

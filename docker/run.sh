@@ -58,6 +58,7 @@ fi
 #############
 java \
     $jvm_container_opts $JAVA_ARGS \
+    -XX:NewRatio=1 -XX:MaxMetaspaceSize=256M \
     -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
     -Dlog4j.configurationFile=${log4j} \
     -jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \

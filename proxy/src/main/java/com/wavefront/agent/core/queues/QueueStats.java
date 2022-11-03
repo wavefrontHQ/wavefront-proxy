@@ -1,5 +1,6 @@
 package com.wavefront.agent.core.queues;
 
+import com.wavefront.agent.PushAgent;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
@@ -12,7 +13,6 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 public class QueueStats {
   public final Counter dropped;
@@ -26,7 +26,6 @@ public class QueueStats {
 
   private final BurstRateTrackingCounter deliveredStats;
   private final QueueInfo queue;
-  private static final Logger log = Logger.getLogger(QueueStats.class.getCanonicalName());
 
   private static final Map<String, QueueStats> stats = new HashMap<>();
   private static final ScheduledExecutorService executor =
@@ -68,7 +67,7 @@ public class QueueStats {
 
   protected void printStats() {
     String rateUnit = queue.getEntityType().getRateUnit();
-    log.info(
+    PushAgent.stats.info(
         "["
             + queue.getName()
             + "] "
@@ -89,7 +88,7 @@ public class QueueStats {
   }
 
   protected void printTotal() {
-    log.info(
+    PushAgent.stats.info(
         "["
             + queue.getName()
             + "] "

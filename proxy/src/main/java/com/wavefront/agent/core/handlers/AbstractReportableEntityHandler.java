@@ -1,6 +1,7 @@
 package com.wavefront.agent.core.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.agent.PushAgent;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -160,7 +161,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   protected void printStats() {
-    logger.info(
+    PushAgent.stats.info(
         "["
             + this.handler
             + "] "
@@ -181,7 +182,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   protected void printTotal() {
-    logger.info(
+    PushAgent.stats.info(
         "["
             + this.handler
             + "] "

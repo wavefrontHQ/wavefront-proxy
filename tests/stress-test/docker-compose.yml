@@ -2,14 +2,14 @@ volumes:
   buffer:
     driver: local
     driver_opts:
-      o: "size=2g"
+      o: "size=100g"
       device: tmpfs
       type: tmpfs
 
 services:
 
   http-proxy:
-    image: node:18.3
+    image: node
     volumes:
       - ./resources/metrics_filter:/opt/wf/
       - ./resources/certs:/opt/certs/
@@ -26,14 +26,10 @@ services:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
       WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg --buffer /buffer
-      JAVA_HEAP_USAGE: 1G
+      JAVA_HEAP_USAGE: 4G
       JVM_USE_CONTAINER_OPTS: false
       JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
       TLGF_WF_URL: https://${WF_URL}
-    deploy:
-      resources:
-        limits:
-          memory: 4G
     ports:
       - "2878:2878"
       - "1098:1098"
