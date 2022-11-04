@@ -19,7 +19,8 @@ if (Number.isNaN(delay)) {
         https: {
             keyPath: '../certs/rootCA.key',
             certPath: '../certs/rootCA.pem'
-        }
+        },
+        recordTraffic: false
     });
 
     server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough();

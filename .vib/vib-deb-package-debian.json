@@ -18,7 +18,8 @@
           "action_id": "goss",
           "params": {
             "resources": {
-              "path": "/.vib/linux-install"
+              "path": "/.vib/linux-install",
+              "url": "{ZIP_URL}"
             }
           }
         }
