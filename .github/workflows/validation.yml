@@ -166,7 +166,7 @@ jobs:
       - name: Upload build
         uses: actions/upload-artifact@master
         with:
-          name: linux-deb-test.zip
+          name: linux-deb-test_pp.zip
           path: linux-deb-test.zip
           retention-days: 1
 
@@ -176,7 +176,7 @@ jobs:
     steps:
       - name: get url
         run: |
-          gh api -H "Accept: application/vnd.github+json" /repos/$OWNER/$REPO/actions/runs/$RUN_ID/artifacts
+          gh api -H "Accept: application/vnd.github+json" /repos/$OWNER/$REPO/actions/artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
