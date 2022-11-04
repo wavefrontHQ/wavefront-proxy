@@ -161,19 +161,21 @@ jobs:
         run: MVN_ARGS=-DskipTests REVISION=${{ env.BRANCH_NAME }} make build-jar build-linux
       - name: copy to .vib/linux-install/scripts
         run: cp -v out/*deb .vib/linux-install/scripts
-      - name: zip .vib/linux-install
-        run: zip -R linux-deb-test.zip .vib/linux-install/*
       - name: Upload build
         uses: actions/upload-artifact@master
         with:
-          name: linux-deb-test_pp.zip
-          path: linux-deb-test.zip
+          name: linux-deb-test
+          path: .vib/linux-install/**
           retention-days: 1
 
   tests-debian:
     runs-on: ubuntu-latest
     needs: build-linux
     steps:
+      - name: Download a single artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: linux-deb-test
       - name: get url
         run: |
           gh api -H "Accept: application/vnd.github+json" /repos/$OWNER/$REPO/actions/artifacts
