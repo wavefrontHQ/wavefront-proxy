@@ -161,22 +161,23 @@ jobs:
         run: MVN_ARGS=-DskipTests REVISION=${{ env.BRANCH_NAME }} make build-jar build-linux
       - name: copy to .vib/linux-install/scripts
         run: cp -v out/*deb .vib/linux-install/scripts
-      - name: zip .vib/linux-install/scripts
-        run: zip -R linux-deb-test.zip .vib/linux-install/scripts/*
+      - name: zip .vib/linux-install
+        run: zip -R linux-deb-test.zip .vib/linux-install/*
       - name: Upload build
         uses: actions/upload-artifact@master
         with:
           name: linux-deb-test.zip
           path: linux-deb-test.zip
           env-url: ZIP_URL
-      - name: Use URL for something
-        run: echo "${{ env.ZIP_URL }}"
+      - name: get url
+        run: |
+          gh api -H "Accept: application/vnd.github+json" /repos/${{ env.GITHUB_REPOSITORY }}/actions/artifacts
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
           pipeline: vib-deb-package-debian.json
         env:
-          ZIP_URL: ${{ env.ZIP_URL }}
+          VIB_ENV_ZIP_URL: ${{ env.ZIP_URL }}
 
   opentel-app-docker-build:
     name: OpenTelemetry app Docker image
