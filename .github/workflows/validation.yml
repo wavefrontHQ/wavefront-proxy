@@ -168,10 +168,14 @@ jobs:
         with:
           name: linux-deb-test.zip
           path: linux-deb-test.zip
-          env-url: ZIP_URL
+          retention-days: 1
       - name: get url
         run: |
-          gh api -H "Accept: application/vnd.github+json" /repos/${{ env.GITHUB_REPOSITORY }}/actions/artifacts
+          gh api -H "Accept: application/vnd.github+json" /repos/$OWNER/$REPO/actions/artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
