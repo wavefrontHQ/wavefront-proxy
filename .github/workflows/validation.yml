@@ -162,7 +162,7 @@ jobs:
       - name: copy to .vib/linux-install/scripts
         run: cp -v out/*deb .vib/linux-install/scripts
       - name: zip .vib/linux-install/scripts
-        run: zip -R linux-deb-test.zip .vib/linux-install/scripts
+        run: zip -R linux-deb-test.zip .vib/linux-install/scripts/*
       - name: Upload build
         uses: actions/upload-artifact@master
         with:
@@ -170,7 +170,7 @@ jobs:
           path: linux-deb-test.zip
           env-url: ZIP_URL
       - name: Use URL for something
-        run: echo "${{ env.FOOBAR }}"
+        run: echo "${{ env.ZIP_URL }}"
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
