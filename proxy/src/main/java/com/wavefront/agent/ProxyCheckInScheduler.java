@@ -284,7 +284,8 @@ public class ProxyCheckInScheduler {
       return null;
     } finally {
       synchronized (executor) {
-        // if check-in process failed (agentMetricsWorkingCopy is not null) and agent metrics have
+        // if check-in process failed (agentMetricsWorkingCopy is not null) and agent
+        // metrics have
         // not been updated yet, restore last known set of agent metrics to be retried
         if (agentMetricsWorkingCopy != null && agentMetrics == null) {
           agentMetrics = agentMetricsWorkingCopy;

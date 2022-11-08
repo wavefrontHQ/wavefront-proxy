@@ -304,7 +304,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                         hasSuccessfulPoints.set(true);
                         break;
                       default:
-                        // only apply annotator if point received on the DDI endpoint
+                        // only apply annotator if point received on the DDI
+                        // endpoint
                         message =
                             annotator != null && isDirectIngestion
                                 ? annotator.apply(ctx, message)

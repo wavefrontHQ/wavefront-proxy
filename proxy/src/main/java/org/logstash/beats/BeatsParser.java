@@ -104,7 +104,8 @@ public class BeatsParser extends ByteToMessageDecoder {
           batch.setBatchSize((int) in.readUnsignedInt());
 
           // This is unlikely to happen but I have no way to known when a frame is
-          // actually completely done other than checking the windows and the sequence number,
+          // actually completely done other than checking the windows and the sequence
+          // number,
           // If the FSM read a new window and I have still
           // events buffered I should send the current batch down to the next handler.
           if (!batch.isEmpty()) {

@@ -195,7 +195,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
-          // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
+          // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But
+          // still
           // generated tasks for each tenant in case we have other multicasting mechanism
           senderTask =
               new LineDelimitedSenderTask(
