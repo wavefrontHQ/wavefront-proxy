@@ -1,22 +1,6 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_EVENTS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_INTERVAL;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_EVENTS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-import static com.wavefront.agent.data.EntityProperties.MAX_BATCH_SIZE_LOGS_PAYLOAD;
-import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
-import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT_BYTES;
+import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static io.opentracing.tag.Tags.SPAN_KIND;
@@ -26,6 +10,8 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -38,13 +24,10 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.*;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
 
@@ -58,6 +41,76 @@ public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+
+  @Parameter(
+      names = {"--privateCertPath"},
+      description =
+          "TLS certificate path to use for securing all the ports. "
+              + "X.509 certificate chain file in PEM format.")
+  protected String privateCertPath = "";
+
+  @Parameter(
+      names = {"--privateKeyPath"},
+      description =
+          "TLS private key path to use for securing all the ports. "
+              + "PKCS#8 private key file in PEM format.")
+  protected String privateKeyPath = "";
+
+  @Parameter(
+      names = {"--tlsPorts"},
+      description =
+          "Comma-separated list of ports to be secured using TLS. "
+              + "All ports will be secured when * specified.")
+  protected String tlsPorts = "";
+
+  @Parameter(
+      names = {"--trafficShaping"},
+      description =
+          "Enables intelligent traffic shaping "
+              + "based on received rate over last 5 minutes. Default: disabled",
+      arity = 1)
+  protected boolean trafficShaping = false;
+
+  @Parameter(
+      names = {"--trafficShapingWindowSeconds"},
+      description =
+          "Sets the width "
+              + "(in seconds) for the sliding time window which would be used to calculate received "
+              + "traffic rate. Default: 600 (10 minutes)")
+  protected Integer trafficShapingWindowSeconds = 600;
+
+  @Parameter(
+      names = {"--trafficShapingHeadroom"},
+      description =
+          "Sets the headroom multiplier "
+              + " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
+  protected double trafficShapingHeadroom = 1.15;
+
+  @Parameter(
+      names = {"--corsEnabledPorts"},
+      description =
+          "Enables CORS for specified "
+              + "comma-delimited list of listening ports. Default: none (CORS disabled)")
+  protected String corsEnabledPorts = "";
+
+  @Parameter(
+      names = {"--corsOrigin"},
+      description =
+          "Allowed origin for CORS requests, " + "or '*' to allow everything. Default: none")
+  protected String corsOrigin = "";
+
+  @Parameter(
+      names = {"--corsAllowNullOrigin"},
+      description = "Allow 'null' origin for CORS " + "requests. Default: false")
+  protected boolean corsAllowNullOrigin = false;
+
+  @Parameter(
+      names = {"--multicastingTenants"},
+      description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
+  protected int multicastingTenants = 0;
+  // the multicasting tenant list is parsed separately
+  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
+  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   @Parameter(
       names = {"--help"},
@@ -108,6 +161,7 @@ public class ProxyConfig extends Configuration {
       names = {"-h", "--host"},
       description = "Server URL",
       order = 2)
+  @ProxyConfigOption(name = "Server URL", category = "General")
   String server = "http://localhost:8080/api/";
 
   @Parameter(
@@ -116,6 +170,7 @@ public class ProxyConfig extends Configuration {
           "File name prefix to use for buffering "
               + "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.",
       order = 7)
+  @ProxyConfigOption(name = "Disk Buffer Path", category = "Buffer", subCategory = "Disk")
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(
@@ -145,16 +200,19 @@ public class ProxyConfig extends Configuration {
       description =
           "The replacement pattern to use for naming the "
               + "sqs queues. e.g. wf-proxy-{{id}}-{{entity}}-{{port}} would result in a queue named wf-proxy-id-points-2878")
+  @ProxyConfigOption(name = "SQS QueueNameTemplate", category = "Buffer", subCategory = "External")
   String sqsQueueNameTemplate = "wf-proxy-{{id}}-{{entity}}-{{port}}";
 
   @Parameter(
       names = {"--sqsQueueIdentifier"},
       description = "An identifier for identifying these proxies in SQS")
+  @ProxyConfigOption(name = "SQS Queue Identifier", category = "Buffer", subCategory = "External")
   String sqsQueueIdentifier = null;
 
   @Parameter(
       names = {"--sqsQueueRegion"},
       description = "The AWS Region name the queue will live in.")
+  @ProxyConfigOption(name = "SQS Queue Region", category = "Buffer", subCategory = "External")
   String sqsQueueRegion = "us-west-2";
 
   @Parameter(
@@ -231,26 +289,31 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--pushFlushInterval"},
       description = "Milliseconds between batches. " + "Defaults to 1000 ms")
+  @ProxyConfigOption(name = "Flush Interval", category = "Output")
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(
       names = {"--pushFlushIntervalLogs"},
       description = "Milliseconds between batches. Defaults to 1000 ms")
+  @ProxyConfigOption(category = "Output", subCategory = "Logs")
   int pushFlushIntervalLogs = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(
       names = {"--pushFlushMaxPoints"},
       description = "Maximum allowed points " + "in a single flush. Defaults: 40000")
+  @ProxyConfigOption(category = "Output", subCategory = "Max")
   int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
 
   @Parameter(
       names = {"--pushFlushMaxHistograms"},
       description = "Maximum allowed histograms " + "in a single flush. Default: 10000")
+  @ProxyConfigOption(category = "Output", subCategory = "Max")
   int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
 
   @Parameter(
       names = {"--pushFlushMaxSourceTags"},
       description = "Maximum allowed source tags " + "in a single flush. Default: 50")
+  @ProxyConfigOption(category = "Output", subCategory = "Max")
   int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 
   @Parameter(
@@ -759,7 +822,6 @@ public class ProxyConfig extends Configuration {
           "If true, includes the following application-related resource attributes on "
               + "metrics: application, service.name, shard, cluster (Default: true)")
   boolean otlpAppTagsOnMetricsIncluded = true;
-
   // logs ingestion
   @Parameter(
       names = {"--filebeatPort"},
@@ -787,7 +849,6 @@ public class ProxyConfig extends Configuration {
       names = {"--logsIngestionConfigFile"},
       description = "Location of logs ingestions config yaml file.")
   String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
-
   /**
    * Deprecated property, please use proxyname config field to set proxy name. Default hostname to
    * FQDN of machine. Sent as internal metric tag with checkin.
@@ -796,7 +857,6 @@ public class ProxyConfig extends Configuration {
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
   String hostname = getLocalHostName();
-
   /** This property holds the proxy name. Default proxyname to FQDN of machine. */
   @Parameter(
       names = {"--proxyname"},
@@ -1234,68 +1294,6 @@ public class ProxyConfig extends Configuration {
   String deltaCountersAggregationListenerPorts = "";
 
   @Parameter(
-      names = {"--privateCertPath"},
-      description =
-          "TLS certificate path to use for securing all the ports. "
-              + "X.509 certificate chain file in PEM format.")
-  protected String privateCertPath = "";
-
-  @Parameter(
-      names = {"--privateKeyPath"},
-      description =
-          "TLS private key path to use for securing all the ports. "
-              + "PKCS#8 private key file in PEM format.")
-  protected String privateKeyPath = "";
-
-  @Parameter(
-      names = {"--tlsPorts"},
-      description =
-          "Comma-separated list of ports to be secured using TLS. "
-              + "All ports will be secured when * specified.")
-  protected String tlsPorts = "";
-
-  @Parameter(
-      names = {"--trafficShaping"},
-      description =
-          "Enables intelligent traffic shaping "
-              + "based on received rate over last 5 minutes. Default: disabled",
-      arity = 1)
-  protected boolean trafficShaping = false;
-
-  @Parameter(
-      names = {"--trafficShapingWindowSeconds"},
-      description =
-          "Sets the width "
-              + "(in seconds) for the sliding time window which would be used to calculate received "
-              + "traffic rate. Default: 600 (10 minutes)")
-  protected Integer trafficShapingWindowSeconds = 600;
-
-  @Parameter(
-      names = {"--trafficShapingHeadroom"},
-      description =
-          "Sets the headroom multiplier "
-              + " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
-  protected double trafficShapingHeadroom = 1.15;
-
-  @Parameter(
-      names = {"--corsEnabledPorts"},
-      description =
-          "Enables CORS for specified "
-              + "comma-delimited list of listening ports. Default: none (CORS disabled)")
-  protected String corsEnabledPorts = "";
-
-  @Parameter(
-      names = {"--corsOrigin"},
-      description =
-          "Allowed origin for CORS requests, " + "or '*' to allow everything. Default: none")
-  protected String corsOrigin = "";
-
-  @Parameter(
-      names = {"--corsAllowNullOrigin"},
-      description = "Allow 'null' origin for CORS " + "requests. Default: false")
-  protected boolean corsAllowNullOrigin = false;
-
-  @Parameter(
       names = {"--customTimestampTags"},
       description =
           "Comma separated list of log tag "
@@ -1343,15 +1341,7 @@ public class ProxyConfig extends Configuration {
               + "tag named `level`. Default: level, log_level")
   String customLevelTags = "";
 
-  @Parameter(
-      names = {"--multicastingTenants"},
-      description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
-  protected int multicastingTenants = 0;
-  // the multicasting tenant list is parsed separately
-  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
-  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
-
-  @Parameter() List<String> unparsed_params;
+  List<String> unparsed_params;
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
@@ -2804,6 +2794,7 @@ public class ProxyConfig extends Configuration {
    */
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
+
     JCommander jCommander =
         JCommander.newBuilder()
             .programName(programName)
@@ -2811,6 +2802,62 @@ public class ProxyConfig extends Configuration {
             .allowParameterOverwriting(true)
             .build();
     jCommander.parse(args);
+
+    ProxyConfigDescriptor cfg = new ProxyConfigDescriptor();
+    for (Field field : this.getClass().getDeclaredFields()) {
+      Optional<ProxyConfigOption> option =
+          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+      Optional<Parameter> parameter =
+          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+      if (parameter.isPresent()) {
+        PRoxyConfigOptionDescriptor data = new PRoxyConfigOptionDescriptor();
+        data.name =
+            Arrays.stream(parameter.get().names())
+                .max(Comparator.comparingInt(String::length))
+                .orElseGet(() -> field.getName());
+        data.name = data.name.replaceAll("--", "");
+        data.description = parameter.get().description();
+        try {
+          Object val = field.get(this);
+          data.value = val != null ? val.toString() : "null";
+        } catch (IllegalAccessException e) {
+          logger.severe(e.toString());
+        }
+
+        if (option.isPresent()) {
+          if (!option.get().name().equals("")) {
+            data.name = option.get().name();
+          }
+          String category = option.get().category();
+          String subCategory = option.get().subCategory();
+          ProxyConfigDescriptor cat =
+              cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
+          if (subCategory.equals("")) {
+            cat.options.add(data);
+          } else {
+            ProxyConfigDescriptor subCat =
+                cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
+            subCat.options.add(data);
+          }
+        } else {
+          data.name = Arrays.stream(parameter.get().names()).findFirst().orElse("no name");
+          ProxyConfigDescriptor cat =
+              cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
+          cat.options.add(data);
+        }
+      }
+    }
+
+    String home = System.getProperty("user.home");
+    File file = new File(new File(home, "tmp"), "proxy.json");
+    ObjectMapper mapper = new ObjectMapper();
+    try {
+      mapper.writeValue(file, cfg);
+    } catch (IOException e) {
+      logger.severe(e.toString());
+    }
+
+    System.exit(-1);
     if (this.isVersion()) {
       System.out.println(versionStr);
       return false;
@@ -2844,5 +2891,15 @@ public class ProxyConfig extends Configuration {
       }
       return convertedValue;
     }
+  }
+
+  public class PRoxyConfigOptionDescriptor {
+    public String name, description, value;
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public class ProxyConfigDescriptor {
+    public Map<String, ProxyConfigDescriptor> categories = new HashMap<>();
+    public List<PRoxyConfigOptionDescriptor> options = new ArrayList<>();
   }
 }
