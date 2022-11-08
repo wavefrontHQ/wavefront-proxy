@@ -340,6 +340,9 @@ public class PushAgent extends AbstractAgent {
 
     startOtlpListeners(spanSampler);
 
+    csvToList(proxyConfig.getSyslogListenerPorts())
+        .forEach(strPort -> startSyslogListener(strPort, handlerFactory));
+
     csvToList(proxyConfig.getPushRelayListenerPorts())
         .forEach(strPort -> startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     csvToList(proxyConfig.getJsonListenerPorts())
@@ -1570,6 +1573,42 @@ public class PushAgent extends AbstractAgent {
             .withChildChannelOptions(childChannelOptions),
         "listener-logs-raw-" + port);
     logger.info("listening on port: " + strPort + " for raw logs");
+  }
+
+  @VisibleForTesting
+  protected void startSyslogListener(
+      String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler =
+        new SyslogPortUnificationHandler(
+            strPort,
+            tokenAuthenticator,
+            new SyslogDecoder(
+                () -> "unknown",
+                proxyConfig.getCustomSourceTags(),
+                proxyConfig.getCustomTimestampTags(),
+                proxyConfig.getCustomMessageTags(),
+                proxyConfig.getCustomApplicationTags(),
+                proxyConfig.getCustomServiceTags(),
+                proxyConfig.getCustomLevelTags(),
+                proxyConfig.getCustomExceptionTags()),
+            handlerFactory,
+            preprocessors.get(strPort),
+            healthCheckManager);
+    startAsManagedThread(
+        port,
+        new TcpIngester(
+                createInitializer(
+                    channelHandler,
+                    port,
+                    Integer.MAX_VALUE, // proxyConfig.getRawLogsMaxReceivedLength(),
+                    0, // proxyConfig.getRawLogsHttpBufferSize(),
+                    0, // proxyConfig.getListenerIdleConnectionTimeout(),
+                    getSslContext(strPort),
+                    getCorsConfig(strPort)),
+                port)
+            .withChildChannelOptions(childChannelOptions),
+        "listener-syslog-" + strPort);
   }
 
   @VisibleForTesting

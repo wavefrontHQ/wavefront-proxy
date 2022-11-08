@@ -90,12 +90,16 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.rules.Timeout;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportEvent;
+import wavefront.report.ReportLog;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
@@ -132,6 +136,9 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private ReportableEntityHandler<ReportEvent, Event> mockEventHandler =
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
+
+  private ReportableEntityHandler<ReportLog, String> mockLogHandler =
+      MockReportableEntityHandlerFactory.getMockLogHandler();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Map<String, Collection<SenderTask<String>>> mockSenderTaskMap =
@@ -166,7 +173,8 @@ public class PushAgentTest {
           mockHistogramHandler,
           mockTraceHandler,
           mockTraceSpanLogsHandler,
-          mockEventHandler);
+          mockEventHandler,
+          mockLogHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
   @Rule public Timeout globalTimeout = Timeout.seconds(5);
@@ -2291,6 +2299,40 @@ public class PushAgentTest {
     proxy.startOtlpGrpcListener(
         String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler);
     waitUntilListenerIsOnline(port);
+  }
+
+  @Test
+  public void testSyslogHandlerCanListen() throws Exception {
+    port = findAvailablePort(6514);
+    proxy.startSyslogListener(String.valueOf(port), mockHandlerFactory);
+    waitUntilListenerIsOnline(port);
+
+    reset(mockLogHandler);
+    mockLogHandler.report(
+        ReportLog.newBuilder()
+            .setTimestamp(1356080887000L)
+            .setMessage("some-message")
+            .setHost("some-ip")
+            .setAnnotations(
+                Arrays.asList(
+                    new Annotation("syslog_host", "some-ip"),
+                    new Annotation("empty", ""),
+                    new Annotation("something", "else")))
+            .build());
+    expectLastCall();
+
+    replay(mockLogHandler);
+    String payloadStr =
+        "<14>1 2012-12-21T09:08:07Z some-ip app-name procid msgid [test@12345 empty=\"\" "
+            + "something=\"else\"] "
+            + "some-message\n";
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+
+    verifyWithTimeout(500, mockLogHandler);
   }
 
   @Test

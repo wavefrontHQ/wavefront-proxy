@@ -622,6 +622,10 @@ public class ProxyConfig extends ProxyConfigDef {
     return pushRelayListenerPorts;
   }
 
+  public String getSyslogListenerPorts() {
+    return syslogListenerPorts;
+  }
+
   public boolean isPushRelayHistogramAggregator() {
     return pushRelayHistogramAggregator;
   }
