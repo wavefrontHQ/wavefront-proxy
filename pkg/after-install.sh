@@ -7,7 +7,6 @@ spool_dir="/var/spool/wavefront-proxy"
 wavefront_dir="/opt/wavefront"
 conf_dir="/etc/wavefront"
 log_dir="/var/log/wavefront"
-jre_dir="$wavefront_dir/$service_name/proxy-jre"
 
 if [[ -f /etc/photon-release ]]; then
   echo "Photon OS installs are container-only - skipping configuring service" >&2
@@ -34,6 +33,7 @@ chown $user:$group $log_dir/wavefront-daemon.log
 chown $user:$group $log_dir/wavefront-error.log
 chmod 644 $log_dir/wavefront-daemon.log
 chmod 644 $log_dir/wavefront-error.log
+chmod a+x /etc/init.d/${service_name}
 
 # Configure agent to start on reboot.
 if [[ -f /etc/debian_version ]]; then
@@ -98,8 +98,6 @@ if [[ -f $old_pid_file ]]; then
 	    rm $old_pid_file
 	fi
 fi
-
-[[ -d $jre_dir ]] || mkdir -p $jre_dir
 
 service $service_name condrestart
 
