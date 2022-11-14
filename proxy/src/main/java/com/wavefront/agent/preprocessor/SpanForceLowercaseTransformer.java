@@ -52,7 +52,8 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
           span.setName(span.getName().toLowerCase());
           ruleMetrics.incrementRuleAppliedCounter();
           break;
-        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
+        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do
+          // it anyway
           if (compiledMatchPattern != null
               && !compiledMatchPattern.matcher(span.getSource()).matches()) {
             break;

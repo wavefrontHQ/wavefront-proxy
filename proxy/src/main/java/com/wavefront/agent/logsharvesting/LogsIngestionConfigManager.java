@@ -51,7 +51,8 @@ public class LogsIngestionConfigManager {
                     logger.warning("Unable to reload logs ingestion config file!");
                     failedConfigReloads.inc();
                   } else if (!lastParsedConfig.equals(nextConfig)) {
-                    nextConfig.verifyAndInit(); // If it throws, we keep the last (good) config.
+                    nextConfig.verifyAndInit(); // If it throws, we keep the last
+                    // (good) config.
                     processConfigChange(nextConfig);
                     logger.info("Loaded new config: " + lastParsedConfig.toString());
                     configReloads.inc();

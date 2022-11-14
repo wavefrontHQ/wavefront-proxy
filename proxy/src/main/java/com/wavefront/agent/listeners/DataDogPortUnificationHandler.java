@@ -221,7 +221,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           httpStatusCounterCache.get(httpStatusCode).inc();
 
           if (httpStatusCode < 200 || httpStatusCode >= 300) {
-            // anything that is not 2xx is relayed as is to the client, don't process the payload
+            // anything that is not 2xx is relayed as is to the client, don't process
+            // the payload
             writeHttpResponse(
                 ctx,
                 HttpResponseStatus.valueOf(httpStatusCode),
@@ -402,7 +403,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       if (deviceNode != null) {
         tags.put("device", deviceNode.textValue());
       }
-      // If the metric is of type rate its value needs to be multiplied by the specified interval
+      // If the metric is of type rate its value needs to be multiplied by the specified
+      // interval
       int interval = 1;
       JsonNode type = metric.get("type");
       if (type != null) {

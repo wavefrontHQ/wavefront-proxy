@@ -64,7 +64,8 @@ public class ProxyConfigTest {
   public void testOtlpAppTagsOnMetricsIncluded() {
     ProxyConfig config = new ProxyConfig();
 
-    // include application, shard, cluster, service.name resource attributes by default on metrics
+    // include application, shard, cluster, service.name resource attributes by default on
+    // metrics
     assertTrue(config.isOtlpAppTagsOnMetricsIncluded());
 
     // do not include the above-mentioned resource attributes

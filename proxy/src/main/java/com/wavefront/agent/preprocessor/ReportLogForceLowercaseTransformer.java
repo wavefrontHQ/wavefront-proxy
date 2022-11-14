@@ -49,7 +49,8 @@ public class ReportLogForceLowercaseTransformer implements Function<ReportLog, R
           reportLog.setMessage(reportLog.getMessage().toLowerCase());
           ruleMetrics.incrementRuleAppliedCounter();
           break;
-        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
+        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do
+          // it anyway
           if (compiledMatchPattern != null
               && !compiledMatchPattern.matcher(reportLog.getHost()).matches()) {
             break;

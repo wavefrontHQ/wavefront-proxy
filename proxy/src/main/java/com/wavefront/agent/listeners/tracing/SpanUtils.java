@@ -123,7 +123,8 @@ public final class SpanUtils {
     for (SpanLogs spanLogs : spanLogsOutput) {
       String spanMessage = spanLogs.getSpan();
       if (spanMessage == null) {
-        // For backwards compatibility, report the span logs if span line data is not included
+        // For backwards compatibility, report the span logs if span line data is not
+        // included
         addSpanLine(null, spanLogs);
         handler.report(spanLogs);
       } else {

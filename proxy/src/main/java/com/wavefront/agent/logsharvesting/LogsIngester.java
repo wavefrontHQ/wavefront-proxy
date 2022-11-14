@@ -109,7 +109,8 @@ public class LogsIngester {
     this.metricsReporter.start(interval, TimeUnit.SECONDS);
     // check for expired cached items and trigger evictions every 2x aggregationIntervalSeconds
     // but no more than once a minute. This is a workaround for the issue that surfaces mostly
-    // during testing, when there are no matching log messages at all for more than expiryMillis,
+    // during testing, when there are no matching log messages at all for more than
+    // expiryMillis,
     // which means there is no cache access and no time-based evictions are performed.
     Executors.newSingleThreadScheduledExecutor()
         .scheduleWithFixedDelay(

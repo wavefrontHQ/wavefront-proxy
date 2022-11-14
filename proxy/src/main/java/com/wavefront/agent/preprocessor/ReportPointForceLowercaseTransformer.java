@@ -48,7 +48,8 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
           reportPoint.setMetric(reportPoint.getMetric().toLowerCase());
           ruleMetrics.incrementRuleAppliedCounter();
           break;
-        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
+        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do
+          // it anyway
           if (compiledMatchPattern != null
               && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
             break;

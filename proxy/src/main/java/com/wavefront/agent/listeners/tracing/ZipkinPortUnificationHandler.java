@@ -414,7 +414,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     }
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
-      // Set post preprocessor rule values and report converted metrics/histograms from the span
+      // Set post preprocessor rule values and report converted metrics/histograms from the
+      // span
       List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
       for (Annotation processedAnnotation : processedAnnotations) {
         switch (processedAnnotation.getKey()) {
