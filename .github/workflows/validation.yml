@@ -177,7 +177,7 @@ jobs:
         with:
           pipeline: vib-deb-package-debian.json
         env:
-          VIB_ENV_ZIP_URL: https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/actions/artifacts/${{ github.run_id }}/linux-deb-test
+          VIB_ENV_ZIP_URL: https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/actions/artifacts/${{ github.run_id }}/linux-deb-test/zip
 
   opentel-app-docker-build:
     name: OpenTelemetry app Docker image
