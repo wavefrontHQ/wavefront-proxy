@@ -1,0 +1,15 @@
+[Unit]
+Description=Wavefront Proxy
+DefaultDependencies=no
+After=network.target
+
+[Service]
+Type=simple
+User=wavefront
+Group=wavefront
+ExecStart=/opt/wavefront/wavefront-proxy/bin/run.sh
+TimeoutStartSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
