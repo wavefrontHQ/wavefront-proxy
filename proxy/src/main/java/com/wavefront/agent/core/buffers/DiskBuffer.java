@@ -35,6 +35,11 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
     }
   }
 
+//  @Override
+//  protected String getUrl() {
+//    return "tcp://localhost:61616";
+//  }
+
   @Override
   public void sendPoints(String queue, List<String> points) throws ActiveMQAddressFullException {
     if (isFull()) {

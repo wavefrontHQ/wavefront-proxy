@@ -166,7 +166,8 @@ public class MetricMatcher extends Configuration {
         StringUtils.isBlank(hostName)
             ? logsMessage.hostOrDefault("parsed-logs")
             : expandTemplate(hostName, matches);
-    // Important to use a tree map for tags, since we need a stable ordering for the serialization
+    // Important to use a tree map for tags, since we need a stable ordering for the
+    // serialization
     // into the LogsIngester.metricsCache.
     Map<String, String> tags = Maps.newTreeMap();
     for (int i = 0; i < tagKeys.size(); i++) {

@@ -7,7 +7,7 @@ ifndef WF_TOKEN
 endif
 
 .setup: .check-env
-	cd resources/metrics_filter && npm install
+	cd docker/filter/metrics_filter && npm install
 	cp ../../docker/wavefront-proxy.jar docker/proxy/
 
 stress-local-loadgen: .setup

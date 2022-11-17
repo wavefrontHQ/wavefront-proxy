@@ -99,6 +99,9 @@
             </goals>
           </execution>
         </executions>
+        <configuration>
+            <skip>${skipFormatCode}</skip>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -465,7 +468,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>wavefront-internal-reporter-java</artifactId>
-      <version>1.7.10</version>
+      <version>1.7.13</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

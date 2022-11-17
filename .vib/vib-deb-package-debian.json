@@ -7,7 +7,7 @@
           "details": {
             "name": "wordpress",
             "package": {
-               "url": "https://downloads.bitnami.com/tmp/wordpress-6-debian-11.ova"
+              "url": "https://downloads.bitnami.com/tmp/wordpress-6-debian-11.ova"
             }
           }
         },
@@ -18,8 +18,12 @@
           "action_id": "goss",
           "params": {
             "resources": {
-              "path": "/.vib/linux-install",
-              "url": "{SHA_ARCHIVE}"
+              "path": "/",
+              "url": "{VIB_ENV_ZIP_URL}",
+              "authn": {
+                "header": "Authorization",
+                "token": "Bearer {VIB_ENV_GITHUB_PAT}"
+              }
             }
           }
         }

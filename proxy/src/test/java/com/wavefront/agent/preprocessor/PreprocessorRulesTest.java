@@ -400,7 +400,8 @@ public class PreprocessorRulesTest {
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=bar123 foo=bar boo=baz");
     assertFalse(config.get(2878).get().forReportPoint().filter(testPoint4));
 
-    // in this test we are confirming that the rule sets for different ports are in fact different
+    // in this test we are confirming that the rule sets for different ports are in fact
+    // different
     // on port 2878 we add "newtagkey=1", on port 4242 we don't
     ReportPoint testPoint1a =
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");

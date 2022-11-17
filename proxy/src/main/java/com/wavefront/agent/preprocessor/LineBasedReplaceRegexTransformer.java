@@ -48,8 +48,8 @@ public class LineBasedReplaceRegexTransformer implements Function<String, String
       if (!patternMatcher.find()) {
         return pointLine;
       }
-      ruleMetrics
-          .incrementRuleAppliedCounter(); // count the rule only once regardless of the number of
+      ruleMetrics.incrementRuleAppliedCounter(); // count the rule only once regardless of the
+      // number of
       // iterations
 
       int currentIteration = 0;

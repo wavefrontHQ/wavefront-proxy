@@ -17,9 +17,10 @@ if (Number.isNaN(delay)) {
 
     const server = mockttp.getLocal({
         https: {
-            keyPath: '../certs/rootCA.key',
-            certPath: '../certs/rootCA.pem'
-        }
+            keyPath: '/opt/certs/rootCA.key',
+            certPath: '/opt/certs/rootCA.pem'
+        },
+        recordTraffic: false
     });
 
     server.forPost("/api/v2/wfproxy/config/processed").thenPassThrough();

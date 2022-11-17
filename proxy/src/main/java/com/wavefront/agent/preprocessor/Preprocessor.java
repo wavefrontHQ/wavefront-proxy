@@ -58,7 +58,8 @@ public class Preprocessor<T> {
    */
   public boolean filter(@Nonnull T item, @Nullable String[] messageHolder) {
     if (messageHolder != null) {
-      // empty the container to prevent previous call's results from leaking into the current one
+      // empty the container to prevent previous call's results from leaking into the current
+      // one
       messageHolder[0] = null;
     }
     for (final AnnotatedPredicate<T> predicate : filters) {

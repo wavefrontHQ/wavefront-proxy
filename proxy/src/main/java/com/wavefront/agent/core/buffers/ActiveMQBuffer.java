@@ -29,6 +29,7 @@ import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.impl.ConfigurationImpl;
 import org.apache.activemq.artemis.core.server.ActiveMQServer;
+import org.apache.activemq.artemis.core.server.JournalType;
 import org.apache.activemq.artemis.core.server.impl.ActiveMQServerImpl;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.apache.activemq.artemis.spi.core.security.ActiveMQJAASSecurityManager;
@@ -49,6 +50,8 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   final String name;
   private final int serverID;
+  private final ClientSessionFactory factory;
+  private final ServerLocator serverLocator;
   protected Buffer nextBuffer;
 
   public ActiveMQBuffer(
@@ -79,6 +82,7 @@ public abstract class ActiveMQBuffer implements Buffer {
       config.setCreateBindingsDir(true);
       config.setCreateJournalDir(true);
       config.setJournalLockAcquisitionTimeout(10);
+      config.setJournalType(JournalType.NIO);
     }
 
     ActiveMQJAASSecurityManager securityManager = new ActiveMQJAASSecurityManager();
@@ -118,6 +122,18 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
 
     activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
+
+    try {
+      String url = getUrl();
+      serverLocator = ActiveMQClient.createServerLocator(url);
+      factory = serverLocator.createSessionFactory();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected String getUrl() {
+    return "vm://" + serverID;
   }
 
   @Override
@@ -205,9 +221,6 @@ public abstract class ActiveMQBuffer implements Buffer {
             sessionKey,
             s -> {
               try {
-                ServerLocator serverLocator =
-                    ActiveMQClient.createServerLocator("vm://" + serverID);
-                ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue);
                 return new Session(session, producer, serverLocator);
@@ -244,9 +257,6 @@ public abstract class ActiveMQBuffer implements Buffer {
             sessionKey,
             s -> {
               try {
-                ServerLocator serverLocator =
-                    ActiveMQClient.createServerLocator("vm://" + serverID);
-                ClientSessionFactory factory = serverLocator.createSessionFactory();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
                 return new Session(session, consumer, serverLocator);
@@ -340,15 +350,12 @@ public abstract class ActiveMQBuffer implements Buffer {
   }
 
   private void createQueue(String queueName, int i) {
-    try {
-      QueueConfiguration queue =
-          new QueueConfiguration(queueName + (i < 0 ? "" : ("." + i)))
-              .setAddress(queueName)
-              .setRoutingType(RoutingType.ANYCAST);
+    QueueConfiguration queue =
+        new QueueConfiguration(queueName + (i < 0 ? "" : ("." + i)))
+            .setAddress(queueName)
+            .setRoutingType(RoutingType.ANYCAST);
 
-      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + serverID);
-      ClientSessionFactory factory = serverLocator.createSessionFactory();
-      ClientSession session = factory.createSession();
+    try (ClientSession session = factory.createSession()) {
       ClientSession.QueueQuery q = session.queueQuery(queue.getName());
       if (!q.isExists()) {
         session.createQueue(queue);

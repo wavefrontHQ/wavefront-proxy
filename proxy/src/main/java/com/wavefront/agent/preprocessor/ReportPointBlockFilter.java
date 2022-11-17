@@ -39,7 +39,8 @@ public class ReportPointBlockFilter implements AnnotatedPredicate<ReportPoint> {
       Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
       isV1PredicatePresent = true;
     } else {
-      // If v2 predicate is present, verify all or none of v1 predicate parameters are present.
+      // If v2 predicate is present, verify all or none of v1 predicate parameters are
+      // present.
       boolean bothV1PredicatesValid =
           !Strings.isNullOrEmpty(scope) && !Strings.isNullOrEmpty(patternMatch);
       boolean bothV1PredicatesNull = scope == null && patternMatch == null;
@@ -47,7 +48,8 @@ public class ReportPointBlockFilter implements AnnotatedPredicate<ReportPoint> {
       if (bothV1PredicatesValid) {
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
-        // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
+        // Specifying any one of the v1Predicates and leaving it blank in considered
+        // invalid.
         throw new IllegalArgumentException(
             "[match], [scope] for rule should both be valid non "
                 + "null/blank values or both null.");

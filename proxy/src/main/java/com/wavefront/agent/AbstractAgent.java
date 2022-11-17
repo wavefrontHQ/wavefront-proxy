@@ -108,7 +108,8 @@ public abstract class AbstractAgent {
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.
-    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and picklePorts
+    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and
+    // picklePorts
     String allPorts =
         StringUtils.join(
             new String[] {

@@ -65,8 +65,10 @@ public class Server {
           .channel(NioServerSocketChannel.class)
           .childOption(
               ChannelOption.SO_LINGER,
-              0) // Since the protocol doesn't support yet a remote close from the server and we
-          // don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to
+              0) // Since the protocol doesn't support yet a remote close from the
+          // server and we
+          // don't want to have 'unclosed' socket lying around we have to use `SO_LINGER`
+          // to
           // force the close of the socket.
           .childHandler(beatsInitializer);
 
@@ -127,7 +129,8 @@ public class Server {
         IMessageListener messageListener,
         int clientInactivityTimeoutSeconds,
         int beatsHandlerThread) {
-      // Keeps a local copy of Server settings, so they can't be modified once it starts listening
+      // Keeps a local copy of Server settings, so they can't be modified once it starts
+      // listening
       this.localEnableSSL = enableSSL;
       this.localMessageListener = messageListener;
       this.localClientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;

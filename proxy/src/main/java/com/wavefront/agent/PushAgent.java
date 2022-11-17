@@ -1461,7 +1461,8 @@ public class PushAgent extends AbstractAgent {
           } catch (InterruptedException e) {
             logger.info("Filebeat server on port " + port + " shut down");
           } catch (Exception e) {
-            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+            // ChannelFuture throws undeclared checked exceptions, so we need to
+            // handle it
             // noinspection ConstantConditions
             if (e instanceof BindException) {
               bindErrors.inc();

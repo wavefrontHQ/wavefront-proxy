@@ -1,5 +1,8 @@
 FROM eclipse-temurin:11
 
+RUN apt-get -qq -o=Dpkg::Use-Pty=0 update && \
+    apt-get -qq -o=Dpkg::Use-Pty=0 install -y libaio1
+
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
 #  WAVEFRONT_URL           (required)

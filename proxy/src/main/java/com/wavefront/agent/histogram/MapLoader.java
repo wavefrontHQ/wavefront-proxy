@@ -141,7 +141,8 @@ public class MapLoader<
                       }
 
                       logger.fine("Restoring accumulator state from " + file.getAbsolutePath());
-                      // Note: this relies on an uncorrupted header, which according to the docs
+                      // Note: this relies on an uncorrupted header, which
+                      // according to the docs
                       // would be due to a hardware error or fs bug.
                       ChronicleMap<K, V> result =
                           ChronicleMap.of(keyClass, valueClass)
@@ -151,7 +152,8 @@ public class MapLoader<
                               .recoverPersistedTo(file, false);
 
                       if (result.isEmpty()) {
-                        // Create a new map with the supplied settings to be safe.
+                        // Create a new map with the supplied settings to be
+                        // safe.
                         result.close();
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();

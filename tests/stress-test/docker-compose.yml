@@ -1,22 +1,17 @@
-volumes:
-  buffer:
-    driver: local
-    driver_opts:
-      o: "size=100g"
-      device: tmpfs
-      type: tmpfs
+# volumes:
+#   buffer:
+#     driver: local
+#     driver_opts:
+#       o: "size=100g"
+#       device: tmpfs
+#       type: tmpfs
 
 services:
 
   http-proxy:
-    image: node
-    volumes:
-      - ./resources/metrics_filter:/opt/wf/
-      - ./resources/certs:/opt/certs/
+    build: docker/filter
     ports:
       - "8001:8001"
-    working_dir: /opt/wf/
-    command: [ "node", "filter.js", "0" ]
 
   wf-proxy:
     hostname: stress-test-wfproxy
@@ -25,7 +20,7 @@ services:
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
-      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /opt/proxy/proxy.cfg --buffer /buffer
+      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /etc/proxy.cfg
       JAVA_HEAP_USAGE: 4G
       JVM_USE_CONTAINER_OPTS: false
       JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
@@ -33,11 +28,6 @@ services:
     ports:
       - "2878:2878"
       - "1098:1098"
-    volumes:
-      - ./resources/certs:/tmp/ca/
-      - ./resources/proxy:/opt/proxy/
-      - ./resources/others:/opt/others/
-      - buffer:/buffer
     depends_on:
       - "http-proxy"
     command:
@@ -52,8 +42,6 @@ services:
   loadgen:
     profiles: [ "loadgen" ]
     build: docker/loadgen
-    volumes:
-      - ./resources/others:/opt/others/
     depends_on:
       - "wf-proxy"
     command:

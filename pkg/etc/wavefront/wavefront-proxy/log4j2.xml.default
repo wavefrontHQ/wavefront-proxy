@@ -6,23 +6,17 @@
                 <pattern>%d{h:mm:ss} %-5level [%c{1}:%M] %m%n</pattern>
             </PatternLayout>
         </Console>
-        <RollingFile name="RollingFile" fileName="${log-path}/wavefront.log"
-            filePattern="${log-path}/wavefront-%d{yyyy-MM-dd}-%i.log">
+        <RollingFile name="RollingFile" fileName="/var/log/wavefront/wavefront.log"
+            filePattern="/var/log/wavefront/wavefront-%d{yyyy-MM-dd}-%i.log">
             <PatternLayout>
-                <!-- Use the pattern below to output log in the same format as older versions
-                <pattern>%d{MMM d, yyyy h:mm:ss a} %C{10} %M%n%p{WARN=WARNING, DEBUG=FINE, ERROR=SEVERE}: %m%n</pattern>
-                -->
-                <pattern>%d %-5level [%c{1}:%M] %m%n</pattern>
+                <pattern>%d{h:mm:ss} %-5level [%c{1}:%M] %m%n</pattern>
             </PatternLayout>
-
-            <!-- Log rollover and retention policies. Default settings: roll over logs once a day or every 100 MB,
-                 whichever comes first; keep max 10 log files per day for no more than 31 days  -->
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1" />
                 <SizeBasedTriggeringPolicy size="100 MB" />
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="${log-path}" maxDepth="1">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
                     <IfFileName glob="wavefront-2*.log" />
                     <IfLastModified age="31d" />
                 </Delete>
@@ -30,8 +24,8 @@
         </RollingFile>
         <!-- Uncomment the RollingFile section below to log blocked points to a file -->
         <!--
-        <RollingFile name="BlockedPointsFile" fileName="${log-path}/wavefront-blocked-points.log"
-                     filePattern="${log-path}/wavefront-blocked-points-%d{yyyy-MM-dd}-%i.log" >
+        <RollingFile name="BlockedPointsFile" fileName="/var/log/wavefront/wavefront-blocked-points.log"
+                     filePattern="/var/log/wavefront/wavefront-blocked-points-%d{yyyy-MM-dd}-%i.log" >
             <PatternLayout>
                 <pattern>%m%n</pattern>
             </PatternLayout>
@@ -40,7 +34,7 @@
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="${log-path}" maxDepth="1">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
                     <IfFileName glob="wavefront-blocked*.log" />
                     <IfLastModified age="31d" />
                 </Delete>
@@ -49,8 +43,8 @@
         -->
         <!-- Uncomment the RollingFile section below to log all valid points to a file -->
         <!--
-        <RollingFile name="ValidPointsFile" fileName="${log-path}/wavefront-valid-points.log"
-                     filePattern="${log-path}/wavefront-valid-points-%d{yyyy-MM-dd}-%i.log" >
+        <RollingFile name="ValidPointsFile" fileName="/var/log/wavefront/wavefront-valid-points.log"
+                     filePattern="/var/log/wavefront/wavefront-valid-points-%d{yyyy-MM-dd}-%i.log" >
             <PatternLayout>
                 <pattern>%m%n</pattern>
             </PatternLayout>
@@ -59,7 +53,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="${log-path}" maxDepth="1">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
                     <IfFileName glob="wavefront-valid*.log" />
                     <IfLastModified age="7d" />
                 </Delete>
@@ -68,8 +62,8 @@
         -->
         <!-- Uncomment the RollingFile section below to log all Jaeger tracing spans to a file -->
         <!--
-        <RollingFile name="JaegerDataFile" fileName="${log-path}/wavefront-jaeger-data.log"
-                     filePattern="${log-path}/wavefront-jaeger-data-%d{yyyy-MM-dd}-%i.log" >
+        <RollingFile name="JaegerDataFile" fileName="/var/log/wavefront/wavefront-jaeger-data.log"
+                     filePattern="/var/log/wavefront/wavefront-jaeger-data-%d{yyyy-MM-dd}-%i.log" >
             <PatternLayout>
                 <pattern>%m%n</pattern>
             </PatternLayout>
@@ -78,7 +72,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="${log-path}" maxDepth="1">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
                     <IfFileName glob="wavefront-jaeger*.log" />
                     <IfLastModified age="7d" />
                 </Delete>
@@ -87,8 +81,8 @@
         -->
         <!-- Uncomment the RollingFile section below to log all Zipkin tracing spans to a file -->
         <!--
-        <RollingFile name="ZipkinDataFile" fileName="${log-path}/wavefront-zipkin-data.log"
-                     filePattern="${log-path}/wavefront-zipkin-data-%d{yyyy-MM-dd}-%i.log" >
+        <RollingFile name="ZipkinDataFile" fileName="/var/log/wavefront/wavefront-zipkin-data.log"
+                     filePattern="/var/log/wavefront/wavefront-zipkin-data-%d{yyyy-MM-dd}-%i.log" >
             <PatternLayout>
                 <pattern>%m%n</pattern>
             </PatternLayout>
@@ -97,7 +91,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="${log-path}" maxDepth="1">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
                     <IfFileName glob="wavefront-zipkin*.log" />
                     <IfLastModified age="7d" />
                 </Delete>
@@ -106,12 +100,30 @@
         -->
     </Appenders>
     <Loggers>
-        <AsyncLogger name="RawDroppedPoints" level="OFF" additivity="false">
-            <AppenderRef ref="Console" />
-        </AsyncLogger>
-        <Logger name="org.apache.activemq" level="OFF" additivity="false">
-            <AppenderRef ref="Console" />
-        </Logger>
+        <!-- Uncomment AppenderRef to log blocked points to a file.
+             Logger property level="WARN" logs only rejected points, level="INFO"
+             logs points filtered out by allow/block rules as well -->
+        <!-- <AsyncLogger name="RawBlockedPoints" level="WARN" additivity="false">
+            <AppenderRef ref="BlockedPointsFile"/>
+        </AsyncLogger> -->
+        <!-- Uncomment AppenderRef and set level="ALL" to log all valid points to a file -->
+        <!-- <AsyncLogger name="RawValidPoints" level="DEBUG" additivity="false">
+            <AppenderRef ref="ValidPointsFile"/>
+        </AsyncLogger> -->
+        <!-- Uncomment AppenderRef and set level="ALL" to log Jaeger data to a file -->
+        <!-- <AsyncLogger name="JaegerDataLogger" level="DEBUG" additivity="false">
+            <AppenderRef ref="JaegerDataFile"/>
+        </AsyncLogger> -->
+        <!-- Uncomment AppenderRef and set level="ALL" to log Zipkin data to a file -->
+        <!-- <AsyncLogger name="ZipkinDataLogger" level="DEBUG" additivity="false">
+            <AppenderRef ref="ZipkinDataFile"/>
+        </AsyncLogger> -->
+        <!-- Uncomment AppenderRef and set level="ALL" to log OpenTelemetry/OTLP data to a file -->
+        <!-- <AsyncLogger name="OTLPDataLogger" level="ALL" additivity="false">
+            <AppenderRef ref="OTLPDataFile"/>
+        </AsyncLogger> -->
+
+        <Logger name="org.apache.activemq" level="OFF" additivity="false" />
         <Root level="INFO">
             <AppenderRef ref="RollingFile" />
         </Root>
