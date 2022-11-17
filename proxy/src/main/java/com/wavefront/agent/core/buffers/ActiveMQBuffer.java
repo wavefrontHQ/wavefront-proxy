@@ -22,6 +22,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.activemq.artemis.api.core.*;
 import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.core.config.Configuration;
@@ -263,7 +265,14 @@ public abstract class ActiveMQBuffer implements Buffer {
       while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = mqCtx.consumer.receive(100);
         if (msg != null) {
-          List<String> points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
+          List<String> points;
+          ByteBuf buffer = msg.getBuffer();
+          if(buffer!=null) {
+            points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
+          } else {
+            points = new ArrayList<>();
+            log.warning("Empty message");
+          }
           boolean ok = rateLimiter.tryAcquire(points.size());
           if (ok) {
             toACK.add(msg);
