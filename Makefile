@@ -79,7 +79,7 @@ pack-macos:
 
 #####
 
-stress-test: .info build-jar cp-docker
+stress-test: .info # build-jar cp-docker
 	cd tests/stress-test && $(MAKE) stress-local-loadgen
 
 .prepare-builder:

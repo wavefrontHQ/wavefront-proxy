@@ -1,4 +1,16 @@
+FROM telegraf:latest AS build
+
 FROM eclipse-temurin:11
+
+COPY --from=build //usr/bin/telegraf /bin/telegraf
+ADD telegraf.conf /etc/telegraf/telegraf.conf
+ADD wait-for-it.sh /opt/others/
+ADD certs /tmp/ca/
+ADD proxy.cfg /etc/
+
+
+RUN apt-get -qq -o=Dpkg::Use-Pty=0 update && \
+    apt-get -qq -o=Dpkg::Use-Pty=0 install -y libaio1
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
