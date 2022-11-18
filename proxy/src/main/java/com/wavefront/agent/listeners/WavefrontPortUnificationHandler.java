@@ -336,6 +336,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             message, histogramDecoder, histogramHandler, preprocessorSupplier, ctx, "histogram");
         return;
       case LOGS_JSON_ARR:
+      case LOGS_JSON_LINES:
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
         ReportableEntityHandler<ReportLog, ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
