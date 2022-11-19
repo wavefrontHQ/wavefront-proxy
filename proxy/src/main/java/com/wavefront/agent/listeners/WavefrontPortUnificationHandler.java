@@ -4,6 +4,7 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
 import static com.wavefront.agent.formatter.DataFormat.SPAN;
 import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
@@ -226,7 +227,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-    } else if (format == LOGS_JSON_ARR
+    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
         && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
       receivedLogsTotal.get().inc(discardedLogs.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);

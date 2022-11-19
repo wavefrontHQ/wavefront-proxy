@@ -164,7 +164,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   protected void processBatchMetrics(
       final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
-    if (format == LOGS_JSON_ARR) {
+    if (format == LOGS_JSON_ARR || format == LOGS_JSON_LINES) {
       receivedLogsBatches.get().update(request.content().toString(CharsetUtil.UTF_8).length());
     }
   }
