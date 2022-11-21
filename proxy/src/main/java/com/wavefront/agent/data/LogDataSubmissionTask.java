@@ -17,6 +17,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * A {@link DataSubmissionTask} that handles log payloads.
@@ -26,6 +28,7 @@ import javax.ws.rs.core.Response;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSubmissionTask> {
+  private static final Logger LOGGER = LogManager.getLogger(LogDataSubmissionTask.class);
   public static final String AGENT_PREFIX = "WF-PROXY-AGENT-";
   private transient LogAPI api;
   private transient UUID proxyId;
@@ -64,6 +67,11 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
 
   @Override
   Response doExecute() {
+    if (LOGGER.isDebugEnabled()) {
+      for (Log log : logs) {
+        LOGGER.debug("Sending a log to the backend: " + log.toString());
+      }
+    }
     return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
   }
 
