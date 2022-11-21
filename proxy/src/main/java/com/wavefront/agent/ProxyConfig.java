@@ -11,6 +11,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -2803,18 +2804,31 @@ public class ProxyConfig extends Configuration {
             .build();
     jCommander.parse(args);
 
+    if (this.isVersion()) {
+      System.out.println(versionStr);
+      return false;
+    }
+    if (this.isHelp()) {
+      System.out.println(versionStr);
+      jCommander.usage();
+      return false;
+    }
+    return true;
+  }
+
+  public JsonNode getJsonConfig() {
     ProxyConfigDescriptor cfg = new ProxyConfigDescriptor();
     for (Field field : this.getClass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
-          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
       Optional<Parameter> parameter =
-          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
       if (parameter.isPresent()) {
         PRoxyConfigOptionDescriptor data = new PRoxyConfigOptionDescriptor();
         data.name =
-            Arrays.stream(parameter.get().names())
-                .max(Comparator.comparingInt(String::length))
-                .orElseGet(() -> field.getName());
+                Arrays.stream(parameter.get().names())
+                        .max(Comparator.comparingInt(String::length))
+                        .orElseGet(() -> field.getName());
         data.name = data.name.replaceAll("--", "");
         data.description = parameter.get().description();
         try {
@@ -2831,43 +2845,25 @@ public class ProxyConfig extends Configuration {
           String category = option.get().category();
           String subCategory = option.get().subCategory();
           ProxyConfigDescriptor cat =
-              cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
+                  cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
           if (subCategory.equals("")) {
             cat.options.add(data);
           } else {
             ProxyConfigDescriptor subCat =
-                cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
+                    cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
             subCat.options.add(data);
           }
         } else {
           data.name = Arrays.stream(parameter.get().names()).findFirst().orElse("no name");
           ProxyConfigDescriptor cat =
-              cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
+                  cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
           cat.options.add(data);
         }
       }
     }
-
-    String home = System.getProperty("user.home");
-    File file = new File(new File(home, "tmp"), "proxy.json");
     ObjectMapper mapper = new ObjectMapper();
-    try {
-      mapper.writeValue(file, cfg);
-    } catch (IOException e) {
-      logger.severe(e.toString());
-    }
-
-    System.exit(-1);
-    if (this.isVersion()) {
-      System.out.println(versionStr);
-      return false;
-    }
-    if (this.isHelp()) {
-      System.out.println(versionStr);
-      jCommander.usage();
-      return false;
-    }
-    return true;
+    JsonNode node = mapper.convertValue(cfg, JsonNode.class);
+    return node;
   }
 
   public static class TokenValidationMethodConverter

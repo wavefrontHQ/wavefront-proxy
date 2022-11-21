@@ -88,7 +88,10 @@ public class ProxyCheckInScheduler {
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
     updateProxyMetrics();
+
     Map<String, AgentConfiguration> configList = checkin();
+    sendConfig();
+
     if (configList == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
       // due to changing the server endpoint URL
@@ -124,6 +127,12 @@ public class ProxyCheckInScheduler {
   /** Stops regular check-ins. */
   public void shutdown() {
     executor.shutdown();
+  }
+
+  private void sendConfig(){
+    apiContainer
+            .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+            .proxySaveConfig(proxyId,proxyConfig.getJsonConfig());
   }
 
   /**
