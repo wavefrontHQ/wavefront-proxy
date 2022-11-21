@@ -129,10 +129,10 @@ public class ProxyCheckInScheduler {
     executor.shutdown();
   }
 
-  private void sendConfig(){
+  private void sendConfig() {
     apiContainer
-            .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-            .proxySaveConfig(proxyId,proxyConfig.getJsonConfig());
+        .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+        .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
   }
 
   /**

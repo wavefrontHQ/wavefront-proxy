@@ -25,8 +25,6 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.logging.Logger;
@@ -2820,15 +2818,15 @@ public class ProxyConfig extends Configuration {
     ProxyConfigDescriptor cfg = new ProxyConfigDescriptor();
     for (Field field : this.getClass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
-              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
       Optional<Parameter> parameter =
-              Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
       if (parameter.isPresent()) {
         PRoxyConfigOptionDescriptor data = new PRoxyConfigOptionDescriptor();
         data.name =
-                Arrays.stream(parameter.get().names())
-                        .max(Comparator.comparingInt(String::length))
-                        .orElseGet(() -> field.getName());
+            Arrays.stream(parameter.get().names())
+                .max(Comparator.comparingInt(String::length))
+                .orElseGet(() -> field.getName());
         data.name = data.name.replaceAll("--", "");
         data.description = parameter.get().description();
         try {
@@ -2845,18 +2843,18 @@ public class ProxyConfig extends Configuration {
           String category = option.get().category();
           String subCategory = option.get().subCategory();
           ProxyConfigDescriptor cat =
-                  cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
+              cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
           if (subCategory.equals("")) {
             cat.options.add(data);
           } else {
             ProxyConfigDescriptor subCat =
-                    cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
+                cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
             subCat.options.add(data);
           }
         } else {
           data.name = Arrays.stream(parameter.get().names()).findFirst().orElse("no name");
           ProxyConfigDescriptor cat =
-                  cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
+              cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
           cat.options.add(data);
         }
       }
