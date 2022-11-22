@@ -36,21 +36,17 @@ public abstract class ActiveMQBuffer implements Buffer {
   private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
   private static final Logger slowLog =
       new MessageDedupingLogger(Logger.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000, 1);
-
+  protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
   final ActiveMQServer activeMQServer;
-
+  final String name;
   private final Map<String, Session> producers = new ConcurrentHashMap<>();
   private final Map<String, Session> consumers = new ConcurrentHashMap<>();
-
-  protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
   private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>(); // TODO review
   private final Map<String, Histogram> timeMetrics = new HashMap<>();
-
-  final String name;
   private final int serverID;
-  private final ClientSessionFactory factory;
-  private final ServerLocator serverLocator;
   protected Buffer nextBuffer;
+  private ServerLocator serverLocator;
+  private ClientSessionFactory factory;
 
   public ActiveMQBuffer(
       int serverID, String name, boolean persistenceEnabled, File buffer, long maxMemory) {
@@ -120,14 +116,6 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
 
     activeMQServer.getAddressSettingsRepository().setDefault(addressSetting);
-
-    try {
-      String url = getUrl();
-      serverLocator = ActiveMQClient.createServerLocator(url);
-      factory = serverLocator.createSessionFactory();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   protected String getUrl() {
@@ -219,10 +207,12 @@ public abstract class ActiveMQBuffer implements Buffer {
             sessionKey,
             s -> {
               try {
+                checkConnection();
                 ClientSession session = factory.createSession();
                 ClientProducer producer = session.createProducer(queue);
-                return new Session(session, producer, serverLocator);
+                return new Session(session, producer);
               } catch (Exception e) {
+                checkException(e);
                 throw new RuntimeException(e);
               }
             });
@@ -246,6 +236,12 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
   }
 
+  private void checkConnection() throws Exception {
+    if ((serverLocator == null) || (serverLocator.isClosed()))
+      serverLocator = ActiveMQClient.createServerLocator(getUrl());
+    if ((factory == null) || (factory.isClosed())) factory = serverLocator.createSessionFactory();
+  }
+
   @Override
   public void onMsgBatch(
       QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
@@ -255,10 +251,15 @@ public abstract class ActiveMQBuffer implements Buffer {
             sessionKey,
             s -> {
               try {
+                checkConnection();
                 ClientSession session = factory.createSession(false, false);
                 ClientConsumer consumer = session.createConsumer(queue.getName() + "." + idx);
-                return new Session(session, consumer, serverLocator);
+                return new Session(session, consumer);
               } catch (Exception e) {
+                checkException(e);
+                if (e instanceof ActiveMQConnectionTimedOutException) {
+                  createQueue(queue.getName(), idx);
+                }
                 throw new RuntimeException(e);
               }
             });
@@ -340,13 +341,22 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
   }
 
+  private void checkException(Exception e) {
+    if (e instanceof ActiveMQNotConnectedException) {
+      serverLocator = null;
+      factory = null;
+    }
+  }
+
   private void createQueue(String queueName, int i) {
     QueueConfiguration queue =
         new QueueConfiguration(queueName + (i < 0 ? "" : ("." + i)))
             .setAddress(queueName)
             .setRoutingType(RoutingType.ANYCAST);
 
-    try (ClientSession session = factory.createSession()) {
+    try (ServerLocator sl = ActiveMQClient.createServerLocator(getUrl());
+        ClientSessionFactory f = sl.createSessionFactory();
+        ClientSession session = f.createSession()) {
       ClientSession.QueueQuery q = session.queueQuery(queue.getName());
       if (!q.isExists()) {
         session.createQueue(queue);
@@ -363,19 +373,16 @@ public abstract class ActiveMQBuffer implements Buffer {
   private class Session {
     ClientSession session;
     ClientConsumer consumer;
-    ServerLocator serverLocator;
     ClientProducer producer;
 
-    Session(ClientSession session, ClientConsumer consumer, ServerLocator serverLocator) {
+    Session(ClientSession session, ClientConsumer consumer) {
       this.session = session;
       this.consumer = consumer;
-      this.serverLocator = serverLocator;
     }
 
-    public Session(ClientSession session, ClientProducer producer, ServerLocator serverLocator) {
+    public Session(ClientSession session, ClientProducer producer) {
       this.session = session;
       this.producer = producer;
-      this.serverLocator = serverLocator;
     }
 
     void close() {
@@ -388,12 +395,6 @@ public abstract class ActiveMQBuffer implements Buffer {
       if (consumer != null) {
         try {
           consumer.close();
-        } catch (Throwable e) {
-        }
-      }
-      if (serverLocator != null) {
-        try {
-          serverLocator.close();
         } catch (Throwable e) {
         }
       }
