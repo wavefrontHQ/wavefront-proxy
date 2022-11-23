@@ -173,7 +173,7 @@ jobs:
           aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
           url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/)
           echo url=${url}
-          echo "VIB_ENV_DEB_PACKAGE=${url} >> $GITHUB_ENV
+          echo "VIB_ENV_DEB_PACKAGE=${url}" >> $GITHUB_ENV
       - uses: vmware-labs/vmware-image-builder-action@main
         name: tests debian package
         with:
