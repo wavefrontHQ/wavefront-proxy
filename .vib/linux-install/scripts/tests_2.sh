@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 DEB_FILE=$(find . -name "wavefront-proxy*deb")
 JAR_FILE="/opt/wavefront/wavefront-proxy/bin/wavefront-proxy.jar"
