@@ -1,5 +1,5 @@
 command:
   install-proxy:
-    exec: /tmp/linux-install/scripts/tests.sh
+    exec: /scripts/tests.sh
     exit-status: 0
     timeout: 120000
