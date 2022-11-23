@@ -143,7 +143,13 @@ jobs:
           VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
 
   build-linux:
+    name: Build Linux Package
     runs-on: ubuntu-latest
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v2
         name: Checkout Java-lib Repository
@@ -151,7 +157,7 @@ jobs:
           ref: dev-proxy2
           repository: wavefrontHQ/java-lib
       - name: Build Java-lib
-        run: mvn --batch-mode install
+        run: mvn -DskipTests --batch-mode install
       - uses: actions/checkout@v2
         name: Checkout Repository
         with:
@@ -163,7 +169,7 @@ jobs:
         run: cp -v out/*deb .vib/linux-install/scripts
       - name: zip and upload
         run: |
-          zip -R deb_script.zip .vib/linux-install/scripts
+          zip -r deb_script.zip .vib/linux-install/scripts
           aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
           url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/)
           echo url=${url}
