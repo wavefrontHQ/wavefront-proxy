@@ -171,7 +171,7 @@ jobs:
         run: |
           zip -r deb_script.zip .vib/linux-install/scripts
           aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
-          url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/)
+          url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/deb_script.zip)
           echo url=${url}
           echo "VIB_ENV_DEB_PACKAGE=${url}" >> $GITHUB_ENV
       - uses: vmware-labs/vmware-image-builder-action@main
