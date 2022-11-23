@@ -169,8 +169,16 @@ jobs:
         run: cp -v out/*deb .vib/linux-install/scripts
       - name: zip and upload
         run: |
-          zip -r deb_script.zip .vib/linux-install/
+          cd .vib/linux-install/ && zip -r ../../deb_script.zip . && cd -
           aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
+
+  test-debian:
+    name: Test Debian
+    runs-on: ubuntu-latest
+    needs: [build-linux]
+    steps:
+      - name: zip and upload
+        run: |
           url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/deb_script.zip)
           echo url=${url}
           echo "VIB_ENV_DEB_PACKAGE=${url}" >> $GITHUB_ENV
