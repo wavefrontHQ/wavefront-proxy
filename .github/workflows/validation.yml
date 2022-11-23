@@ -173,12 +173,13 @@ jobs:
           aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
           url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/)
           echo url=${url}
+          echo "VIB_ENV_DEB_PACKAGE=${url} >> $GITHUB_ENV
       - uses: vmware-labs/vmware-image-builder-action@main
-        name: Verify Wavefront container
+        name: tests debian package
         with:
           pipeline: vib-deb-package-debian.json
         env:
-          VIB_ENV_ZIP_URL: https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/actions/artifacts/${{ github.run_id }}/linux-deb-test/zip
+          VIB_ENV_ZIP_URL: ${{ env.VIB_ENV_DEB_PACKAGE }}
 
   opentel-app-docker-build:
     name: OpenTelemetry app Docker image

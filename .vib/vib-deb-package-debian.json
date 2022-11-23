@@ -19,11 +19,7 @@
           "params": {
             "resources": {
               "path": "/",
-              "url": "{VIB_ENV_ZIP_URL}",
-              "authn": {
-                "header": "Authorization",
-                "token": "Bearer {VIB_ENV_GITHUB_PAT}"
-              }
+              "url": "{VIB_ENV_ZIP_URL}"
             }
           }
         }
