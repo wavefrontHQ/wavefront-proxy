@@ -161,22 +161,12 @@ jobs:
         run: MVN_ARGS=-DskipTests REVISION=${{ env.BRANCH_NAME }} make build-jar build-linux
       - name: copy to .vib/linux-install/scripts
         run: cp -v out/*deb .vib/linux-install/scripts
-      - name: Upload build
-        uses: actions/upload-artifact@master
-        with:
-          name: linux-deb-test
-          path: .vib/linux-install/**
-          retention-days: 1
-
-  tests-debian:
-    runs-on: ubuntu-latest
-    needs: build-linux
-    steps:
-      - uses: actions/checkout@v2
-        name: Checkout Proxy Repository
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: zip and upload
+        run: |
+          zip -R deb_script.zip .vib/linux-install/scripts
+          aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
+          url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/)
+          echo url=${url}
       - uses: vmware-labs/vmware-image-builder-action@main
         name: Verify Wavefront container
         with:
