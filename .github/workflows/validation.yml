@@ -24,7 +24,7 @@ jobs:
           ref: dev-proxy2
           repository: wavefrontHQ/java-lib
       - name: Build Java-lib
-        run: mvn --batch-mode install
+        run: mvn -DskipTests --batch-mode install
       - uses: actions/checkout@v2
         name: Checkout Proxy Repository
         with:
