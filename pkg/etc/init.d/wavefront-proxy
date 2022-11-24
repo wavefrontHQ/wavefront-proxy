@@ -102,12 +102,12 @@ jsvc_exec()
     setupEnv
 
     nohup ${JAVA_HOME}/bin/java \
+		$java_args \
 		-Xss2049k \
 		-XX:OnOutOfMemoryError="kill -1 %p" \
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 		-jar $proxy_jar \
-		$java_args \
 		$app_args >> ${log_file} 2>&1 &
     
     echo $! > $pid_file
