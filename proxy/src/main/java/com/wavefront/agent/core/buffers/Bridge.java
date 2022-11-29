@@ -47,7 +47,6 @@ public class Bridge implements ActiveMQServerMessagePlugin {
       throws ActiveMQException {
     if (reason == AckReason.KILLED || reason == AckReason.EXPIRED) {
       String queue = ref.getQueue().getAddress().toString();
-      //      log.info("-> queue:" + queue + " - " + reason + " - " + diskBuffer.isFull());
       CoreMessage msg = (CoreMessage) ref.getMessage().copy();
       String stringBody = msg.getReadOnlyBodyBuffer().readString();
       List<String> points = Arrays.asList(stringBody.split("\n"));
@@ -63,7 +62,7 @@ public class Bridge implements ActiveMQServerMessagePlugin {
             break;
         }
       } catch (ActiveMQAddressFullException e) {
-        // disk buffer full, we put the metrics bach to memory
+        // disk buffer full, we put the metrics back to memory
         // and disable this.
         memoryBuffer.sendPoints(queue, points);
         memoryBuffer.disableBridge();

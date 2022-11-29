@@ -30,7 +30,6 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     if (strSpanLogs != null) {
       getReceivedCounter().inc();
       BuffersManager.sendMsg(queue, strSpanLogs);
-      getReceivedCounter().inc();
     }
   }
 }

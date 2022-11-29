@@ -229,7 +229,12 @@ public abstract class ActiveMQBuffer implements Buffer {
       log.log(Level.FINE, "connection close: " + e.getMessage());
       mqCtx.close();
       producers.remove(sessionKey);
-      sendPoints(queue, points);
+      QueueStats.get(queue).internalError.inc();
+      if (nextBuffer != null) {
+        nextBuffer.sendPoints(queue, points);
+      } else {
+        sendPoints(queue, points);
+      }
     } catch (Exception e) {
       log.log(Level.SEVERE, "error", e);
       throw new RuntimeException(e);

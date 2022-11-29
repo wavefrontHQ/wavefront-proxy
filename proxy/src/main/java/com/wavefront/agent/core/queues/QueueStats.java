@@ -23,6 +23,7 @@ public class QueueStats {
   public final Counter queuedExpired;
   public final Histogram msgLength;
   public final Counter queuedFull;
+  public final Counter internalError;
 
   private final BurstRateTrackingCounter deliveredStats;
   private final QueueInfo queue;
@@ -59,7 +60,10 @@ public class QueueStats {
         Metrics.newCounter(new TaggedMetricName(queue.getName(), "queued", "reason", "expired"));
 
     queuedFull =
-        Metrics.newCounter(new TaggedMetricName(queue.getName(), "queued", "reason", "queue-full"));
+            Metrics.newCounter(new TaggedMetricName(queue.getName(), "queued", "reason", "queue-full"));
+
+    internalError =
+            Metrics.newCounter(new TaggedMetricName(queue.getName(), "queued", "reason", "internal-error"));
 
     scheduler.scheduleAtFixedRate(() -> printStats(), 10, 10, TimeUnit.SECONDS);
     scheduler.scheduleAtFixedRate(() -> printTotal(), 1, 1, TimeUnit.MINUTES);

@@ -98,6 +98,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void reject(@Nullable T item, @Nullable String message) {
     rejectedCounter.inc();
+    blockedCounter.inc();
     if (item != null && blockedItemsLogger != null) {
       blockedItemsLogger.warning(serializer.apply(item));
     }
@@ -109,6 +110,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void reject(@Nonnull String line, @Nullable String message) {
     rejectedCounter.inc();
+    blockedCounter.inc();
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
     //noinspection UnstableApiUsage
     if (message != null) {
