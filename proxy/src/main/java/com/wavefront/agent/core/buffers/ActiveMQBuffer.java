@@ -6,17 +6,17 @@ import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessageP
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityRateLimiter;
-import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.apache.activemq.artemis.api.core.*;
@@ -28,11 +28,16 @@ import org.apache.activemq.artemis.core.server.JournalType;
 import org.apache.activemq.artemis.core.server.impl.ActiveMQServerImpl;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.apache.activemq.artemis.spi.core.security.ActiveMQJAASSecurityManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ActiveMQBuffer implements Buffer {
-  private static final Logger log = Logger.getLogger(ActiveMQBuffer.class.getCanonicalName());
-  private static final Logger slowLog =
-      new MessageDedupingLogger(Logger.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000, 1);
+  private static final Logger log =
+      LoggerFactory.getLogger(ActiveMQBuffer.class.getCanonicalName());
+  private static final Logger slowLog = log;
+  //      new
+  // MessageDedupingLogger(LoggerFactory.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000,
+  // 1);
   protected final Map<String, PointsGauge> countMetrics = new HashMap<>();
   final ActiveMQServer activeMQServer;
   final String name;
@@ -73,7 +78,7 @@ public abstract class ActiveMQBuffer implements Buffer {
     activeMQServer = new ActiveMQServerImpl(config, securityManager);
     activeMQServer.registerActivationFailureListener(
         exception ->
-            log.severe(
+            log.error(
                 "error creating buffer, "
                     + exception.getMessage()
                     + ". Review if there is another Proxy running."));
@@ -82,7 +87,7 @@ public abstract class ActiveMQBuffer implements Buffer {
       config.addAcceptorConfiguration("in-vm", "vm://" + serverID);
       activeMQServer.start();
     } catch (Exception e) {
-      log.log(Level.SEVERE, "error creating buffer", e);
+      log.error("error creating buffer", e);
       System.exit(-1);
     }
 
@@ -121,7 +126,7 @@ public abstract class ActiveMQBuffer implements Buffer {
     try {
       registerQueueMetrics(queue);
     } catch (MalformedObjectNameException e) {
-      log.log(Level.SEVERE, "error", e);
+      log.error("error", e);
     }
   }
 
@@ -177,9 +182,9 @@ public abstract class ActiveMQBuffer implements Buffer {
     try {
       doSendPoints(queue, points);
     } catch (ActiveMQAddressFullException e) {
-      slowLog.log(Level.SEVERE, "Memory Queue full");
-      if (slowLog.isLoggable(Level.FINER)) {
-        slowLog.log(Level.SEVERE, "", e);
+      slowLog.error("Memory Queue full");
+      if (slowLog.isDebugEnabled()) {
+        slowLog.error("", e);
       }
       if (nextBuffer != null) {
         nextBuffer.sendPoints(queue, points);
@@ -213,10 +218,10 @@ public abstract class ActiveMQBuffer implements Buffer {
       message.putIntProperty("points", points.size());
       mqCtx.producer.send(message);
     } catch (ActiveMQAddressFullException e) {
-      log.log(Level.FINE, "queue full: " + e.getMessage());
+      log.info("queue full: " + e.getMessage());
       throw e;
     } catch (ActiveMQObjectClosedException e) {
-      log.log(Level.FINE, "connection close: " + e.getMessage());
+      log.info("connection close: " + e.getMessage());
       mqCtx.close();
       producers.remove(sessionKey);
       QueueStats.get(queue).internalError.inc();
@@ -226,15 +231,18 @@ public abstract class ActiveMQBuffer implements Buffer {
         sendPoints(queue, points);
       }
     } catch (Exception e) {
-      log.log(Level.SEVERE, "error", e);
+      log.error("error", e);
       throw new RuntimeException(e);
     }
   }
 
   private void checkConnection() throws Exception {
-    if ((serverLocator == null) || (serverLocator.isClosed()))
+    if ((serverLocator == null) || (serverLocator.isClosed())) {
       serverLocator = ActiveMQClient.createServerLocator(getUrl());
-    if ((factory == null) || (factory.isClosed())) factory = serverLocator.createSessionFactory();
+    }
+    if ((factory == null) || (factory.isClosed())) {
+      factory = serverLocator.createSessionFactory();
+    }
   }
 
   @Override
@@ -304,9 +312,9 @@ public abstract class ActiveMQBuffer implements Buffer {
           mqCtx.session.rollback();
         }
       } catch (Exception e) {
-        log.log(Level.SEVERE, e.toString());
-        if (log.isLoggable(Level.FINER)) {
-          log.log(Level.SEVERE, "error", e);
+        log.error(e.toString());
+        if (log.isDebugEnabled()) {
+          log.error("error", e);
         }
         // ACK all messages and then rollback so fail count go up
         toACK.forEach(
@@ -320,7 +328,7 @@ public abstract class ActiveMQBuffer implements Buffer {
         mqCtx.session.rollback();
       }
     } catch (Throwable e) {
-      log.log(Level.SEVERE, "error", e);
+      log.error("error", e);
       mqCtx.close();
       consumers.remove(sessionKey);
     } finally {
@@ -329,7 +337,7 @@ public abstract class ActiveMQBuffer implements Buffer {
           mqCtx.session.stop();
         }
       } catch (ActiveMQException e) {
-        log.log(Level.SEVERE, "error", e);
+        log.error("error", e);
         mqCtx.close();
         consumers.remove(sessionKey);
       }
@@ -357,7 +365,7 @@ public abstract class ActiveMQBuffer implements Buffer {
         session.createQueue(queue);
       }
     } catch (Exception e) {
-      log.log(Level.SEVERE, "error", e);
+      log.error("error", e);
     }
   }
 

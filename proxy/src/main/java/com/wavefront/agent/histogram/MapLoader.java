@@ -6,8 +6,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.io.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import net.openhft.chronicle.hash.serialization.BytesReader;
 import net.openhft.chronicle.hash.serialization.BytesWriter;
@@ -15,6 +13,8 @@ import net.openhft.chronicle.hash.serialization.SizedReader;
 import net.openhft.chronicle.hash.serialization.SizedWriter;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.VanillaChronicleMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Loader for {@link ChronicleMap}. If a file already exists at the given location, will make an
@@ -23,7 +23,7 @@ import net.openhft.chronicle.map.VanillaChronicleMap;
  */
 public class MapLoader<
     K, V, KM extends BytesReader<K> & BytesWriter<K>, VM extends SizedReader<V> & SizedWriter<V>> {
-  private static final Logger logger = Logger.getLogger(MapLoader.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(MapLoader.class.getCanonicalName());
 
   /**
    * Allow ChronicleMap to grow beyond initially allocated size instead of crashing. Since it makes
@@ -83,8 +83,7 @@ public class MapLoader<
                 @Override
                 public ChronicleMap<K, V> load(@Nonnull File file) throws Exception {
                   if (!doPersist) {
-                    logger.log(
-                        Level.WARNING,
+                    logger.warn(
                         "Accumulator persistence is disabled, unflushed histograms "
                             + "will be lost on proxy shutdown.");
                     return newInMemoryMap();
@@ -140,7 +139,7 @@ public class MapLoader<
                         }
                       }
 
-                      logger.fine("Restoring accumulator state from " + file.getAbsolutePath());
+                      logger.info("Restoring accumulator state from " + file.getAbsolutePath());
                       // Note: this relies on an uncorrupted header, which
                       // according to the docs
                       // would be due to a hardware error or fs bug.
@@ -157,12 +156,12 @@ public class MapLoader<
                         result.close();
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
-                        logger.fine("Empty accumulator - reinitializing: " + file.getName());
+                        logger.info("Empty accumulator - reinitializing: " + file.getName());
                         result = newPersistedMap(file);
                       } else {
                         // Note: as of 3.10 all instances are.
                         if (result instanceof VanillaChronicleMap) {
-                          logger.fine("Accumulator map restored from " + file.getAbsolutePath());
+                          logger.info("Accumulator map restored from " + file.getAbsolutePath());
                           VanillaChronicleMap vcm = (VanillaChronicleMap) result;
                           if (!vcm.keyClass().equals(keyClass)
                               || !vcm.valueClass().equals(valueClass)) {
@@ -185,13 +184,12 @@ public class MapLoader<
                       return result;
 
                     } else {
-                      logger.fine("Accumulator map initialized as " + file.getName());
+                      logger.info("Accumulator map initialized as " + file.getName());
                       saveSettings(newSettings, settingsFile);
                       return newPersistedMap(file);
                     }
                   } catch (Exception e) {
-                    logger.log(
-                        Level.SEVERE,
+                    logger.error(
                         "Failed to load/create map from '"
                             + file.getAbsolutePath()
                             + "'. Please move or delete the file and restart the proxy! Reason: ",

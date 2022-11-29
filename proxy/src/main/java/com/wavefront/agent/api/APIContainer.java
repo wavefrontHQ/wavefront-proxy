@@ -16,7 +16,6 @@ import java.net.PasswordAuthentication;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.ext.WriterInterceptor;
 import org.apache.commons.lang.StringUtils;
@@ -37,13 +36,16 @@ import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Container for all Wavefront back-end API objects (proxy, source tag, event) */
 public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
   public static final String API_SERVER = "server";
   public static final String API_TOKEN = "token";
-  private static final Logger logger = Logger.getLogger(APIContainer.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(APIContainer.class.getCanonicalName());
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
@@ -165,7 +167,7 @@ public class APIContainer {
       String logServerEndpointUrl, String logServerToken) {
     // if one of the values is blank but not the other, something has gone wrong
     if (StringUtils.isBlank(logServerEndpointUrl) != StringUtils.isBlank(logServerToken)) {
-      logger.warning("mismatch between logServerEndPointUrl and logServerToken during checkin");
+      logger.warn("mismatch between logServerEndPointUrl and logServerToken during checkin");
     }
     // if either are null or empty, just return
     if (StringUtils.isBlank(logServerEndpointUrl) || StringUtils.isBlank(logServerToken)) {

@@ -14,16 +14,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Factory for {@link SenderTask} objects. */
 public class SenderTasksManager {
   private static final Map<String, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
   private static APIContainer apiContainer;
   private static UUID proxyId;
-  private static final Logger log = Logger.getLogger(SenderTasksManager.class.getCanonicalName());
+  private static final Logger log =
+      LoggerFactory.getLogger(SenderTasksManager.class.getCanonicalName());
 
   /**
    * @param apiContainer handles interaction with Wavefront servers as well as queueing.

@@ -11,11 +11,13 @@ import com.wavefront.api.SourceTagAPI;
 import com.wavefront.dto.SourceTag;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Logger;
 import javax.ws.rs.core.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SourceTagSenderTask extends SenderTask {
-  private static final Logger log = Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());
+  private static final Logger log =
+      LoggerFactory.getLogger(SourceTagSenderTask.class.getCanonicalName());
 
   private final QueueInfo queue;
   private final SourceTagAPI proxyAPI;
@@ -49,7 +51,7 @@ public class SourceTagSenderTask extends SenderTask {
           iterator.forEachRemaining(s -> BuffersManager.sendMsg(queue, s));
         }
       } catch (JsonProcessingException e) {
-        log.severe("Error parsing a SourceTag point. " + e);
+        log.error("Error parsing a SourceTag point. " + e);
       }
     }
     return Response.ok().build();

@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BeatsParser extends ByteToMessageDecoder {
-  private static final Logger logger = LogManager.getLogger(BeatsParser.class);
+  private static final Logger logger = LoggerFactory.getLogger(BeatsParser.class);
 
   private Batch batch;
   private States currentState = States.READ_HEADER;

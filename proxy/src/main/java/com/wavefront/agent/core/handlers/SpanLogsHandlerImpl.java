@@ -3,8 +3,8 @@ package com.wavefront.agent.core.handlers;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.ingester.SpanLogsSerializer;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
 import wavefront.report.SpanLogs;
 
 /**

@@ -16,14 +16,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.ObjectUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Centrally manages healthcheck statuses (for controlling load balancers). */
 public class HealthCheckManagerImpl implements HealthCheckManager {
-  private static final Logger log = Logger.getLogger(HealthCheckManager.class.getCanonicalName());
+  private static final Logger log =
+      LoggerFactory.getLogger(HealthCheckManager.class.getCanonicalName());
 
   private final Map<Integer, Boolean> statusMap;
   private final Set<Integer> enabledPorts;

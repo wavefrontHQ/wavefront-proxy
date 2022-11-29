@@ -8,14 +8,15 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportEvent;
 
 /** This class will validate parsed events and distribute them among SenderTask threads. */
 public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, Event> {
   private static final Logger logger =
-      Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   private static final Function<ReportEvent, String> EVENT_SERIALIZER =
       value -> new Event(value).toString();
 

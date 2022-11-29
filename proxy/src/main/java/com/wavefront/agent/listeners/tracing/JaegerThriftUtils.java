@@ -19,11 +19,11 @@ import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -32,11 +32,11 @@ import wavefront.report.SpanLogs;
 /** Utility methods for processing Jaeger Thrift trace data. */
 public abstract class JaegerThriftUtils {
   protected static final Logger logger =
-      Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerThriftUtils.class.getCanonicalName());
 
   // TODO: support sampling
   private static final Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
+  private static final Logger JAEGER_DATA_LOGGER = LoggerFactory.getLogger("JaegerDataLogger");
 
   private JaegerThriftUtils() {}
 
@@ -251,7 +251,7 @@ public abstract class JaegerThriftUtils {
             .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
-    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (JAEGER_DATA_LOGGER.isDebugEnabled()) {
       JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span);
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }

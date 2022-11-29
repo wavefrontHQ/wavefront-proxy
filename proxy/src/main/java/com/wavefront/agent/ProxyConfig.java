@@ -21,13 +21,15 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.common.TimeProvider;
 import java.util.*;
-import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Proxy configuration (refactored from {@link AbstractAgent}). */
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends Configuration {
-  private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
@@ -1723,8 +1725,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customSourceTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customSourceTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -1740,7 +1741,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customTimestampTags config setting");
               }
             });
@@ -1757,7 +1758,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customMessageTags config setting");
               }
             });
@@ -1774,7 +1775,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customApplicationTags config setting");
               }
             });
@@ -1791,7 +1792,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customServiceTags config setting");
               }
             });
@@ -1807,7 +1808,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customExceptionTags config setting");
               }
             });
@@ -1824,8 +1825,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customLevelTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customLevelTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -2039,7 +2039,7 @@ public class ProxyConfig extends Configuration {
       hostname = config.getString("hostname", hostname);
       proxyname = config.getString("proxyname", proxyname);
       if (!hostname.equals(FQDN)) {
-        logger.warning(
+        logger.warn(
             "Deprecated field hostname specified in config setting. Please use "
                 + "proxyname config field to set proxy name.");
         if (proxyname.equals(FQDN)) proxyname = hostname;
@@ -2472,7 +2472,7 @@ public class ProxyConfig extends Configuration {
           config.getInteger("memoryBufferExpirationTime", memoryBufferExpirationTime);
       disableBuffer = config.getBoolean("disable_buffer", disableBuffer);
     } catch (Throwable exception) {
-      logger.severe("Could not load configuration file " + pushConfigFile);
+      logger.error("Could not load configuration file " + pushConfigFile);
       throw new RuntimeException(exception.getMessage());
     }
     if (httpUserAgent == null) {

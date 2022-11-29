@@ -1,10 +1,11 @@
 package com.wavefront.agent.channel;
 
 import java.io.IOException;
-import java.util.logging.Logger;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.ext.WriterInterceptor;
 import javax.ws.rs.ext.WriterInterceptorContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This RESTEasy interceptor allows disabling GZIP compression even for methods annotated with @GZIP
@@ -16,13 +17,13 @@ import javax.ws.rs.ext.WriterInterceptorContext;
  */
 public class DisableGZIPEncodingInterceptor implements WriterInterceptor {
   private static final Logger logger =
-      Logger.getLogger(DisableGZIPEncodingInterceptor.class.getCanonicalName());
+      LoggerFactory.getLogger(DisableGZIPEncodingInterceptor.class.getCanonicalName());
 
   public DisableGZIPEncodingInterceptor() {}
 
   public void aroundWriteTo(WriterInterceptorContext context)
       throws IOException, WebApplicationException {
-    logger.fine("Interceptor : " + this.getClass().getName() + ",  Method : aroundWriteTo");
+    logger.info("Interceptor : " + this.getClass().getName() + ",  Method : aroundWriteTo");
     Object encoding = context.getHeaders().getFirst("Content-Encoding");
     if (encoding != null && encoding.toString().equalsIgnoreCase("gzip")) {
       context.getHeaders().remove("Content-Encoding");

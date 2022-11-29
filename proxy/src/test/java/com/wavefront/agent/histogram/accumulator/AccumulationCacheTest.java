@@ -12,15 +12,16 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
 import net.openhft.chronicle.map.ChronicleMap;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Unit tests around {@link AccumulationCache} */
 public class AccumulationCacheTest {
   private static final Logger logger =
-      Logger.getLogger(AccumulationCacheTest.class.getCanonicalName());
+      LoggerFactory.getLogger(AccumulationCacheTest.class.getCanonicalName());
 
   private static final long CAPACITY = 2L;
   private static final short COMPRESSION = 100;

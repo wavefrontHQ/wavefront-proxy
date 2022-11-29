@@ -13,8 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 import javax.net.SocketFactory;
 import org.apache.commons.io.FileUtils;
@@ -26,10 +24,12 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.message.BasicHeader;
 import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 
 public class TestUtils {
-  private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(TestUtils.class.getCanonicalName());
 
   public static <T extends HttpRequestBase> T httpEq(HttpRequestBase request) {
     EasyMock.reportMatcher(
@@ -79,7 +79,7 @@ public class TestUtils {
       ServerSocket socket = new ServerSocket(0);
       int portNum = socket.getLocalPort();
       socket.close();
-      logger.log(Level.INFO, "Found available port: " + portNum);
+      logger.info("Found available port: " + portNum);
       return portNum;
     } catch (IOException exc) {
       throw new RuntimeException(exc);
@@ -186,7 +186,7 @@ public class TestUtils {
           break;
         } catch (AssertionError e) {
           if (millisLeft <= 0) {
-            logger.warning("verify() failed after : " + (timeout - millisLeft) + "ms");
+            logger.warn("verify() failed after : " + (timeout - millisLeft) + "ms");
             throw e;
           }
           try {

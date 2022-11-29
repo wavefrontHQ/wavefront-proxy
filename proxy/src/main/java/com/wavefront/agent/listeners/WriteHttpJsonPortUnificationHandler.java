@@ -24,15 +24,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 
 /** This class handles incoming messages in write_http format. */
 @ChannelHandler.Sharable
 public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and
@@ -138,7 +139,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
     try {
       JsonNode metrics = jsonParser.readTree(requestBody);
       if (!metrics.isArray()) {
-        logger.warning("metrics is not an array!");
+        logger.warn("metrics is not an array!");
         pointHandler.reject((ReportPoint) null, "[metrics] is not an array!");
         status = HttpResponseStatus.BAD_REQUEST;
         writeHttpResponse(ctx, status, "", request);
@@ -177,7 +178,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
       JsonNode values = metric.get("values");
       if (values == null) {
         pointHandler.reject((ReportPoint) null, "[values] missing in JSON object");
-        logger.warning("Skipping - [values] missing in JSON object.");
+        logger.warn("Skipping - [values] missing in JSON object.");
         continue;
       }
       int index = 0;

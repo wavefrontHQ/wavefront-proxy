@@ -16,8 +16,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLEngine;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Created by ph on 2016-05-27. */
 public class SslSimpleBuilder {
@@ -38,7 +38,7 @@ public class SslSimpleBuilder {
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
         "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
       };
-  private static final Logger logger = LogManager.getLogger(SslSimpleBuilder.class);
+  private static final Logger logger = LoggerFactory.getLogger(SslSimpleBuilder.class);
 
   private final File sslKeyFile;
   private final File sslCertificateFile;

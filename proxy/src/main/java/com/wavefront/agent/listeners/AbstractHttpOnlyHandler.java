@@ -6,15 +6,16 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.URISyntaxException;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Base class for HTTP-only listeners. */
 @ChannelHandler.Sharable
 public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHandler {
   private static final Logger logger =
-      Logger.getLogger(AbstractHttpOnlyHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractHttpOnlyHandler.class.getCanonicalName());
 
   /**
    * Create new instance.
@@ -38,6 +39,6 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
   protected void handlePlainTextMessage(
       final ChannelHandlerContext ctx, @Nonnull final String message) {
     pointsDiscarded.get().inc();
-    logger.warning("Input discarded: plaintext protocol is not supported on port " + port);
+    logger.warn("Input discarded: plaintext protocol is not supported on port " + port);
   }
 }

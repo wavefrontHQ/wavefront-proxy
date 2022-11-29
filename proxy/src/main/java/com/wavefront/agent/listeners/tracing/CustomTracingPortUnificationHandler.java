@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
@@ -39,7 +39,7 @@ import wavefront.report.SpanLogs;
 @ChannelHandler.Sharable
 public class CustomTracingPortUnificationHandler extends TracePortUnificationHandler {
   private static final Logger logger =
-      Logger.getLogger(CustomTracingPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(CustomTracingPortUnificationHandler.class.getCanonicalName());
   @Nullable private final WavefrontSender wfSender;
   private final WavefrontInternalReporter wfInternalReporter;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
@@ -172,7 +172,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       }
     }
     if (applicationName == null || serviceName == null) {
-      logger.warning(
+      logger.warn(
           "Ingested spans discarded because span application/service name is " + "missing.");
       discardedSpans.inc();
       return;
@@ -204,7 +204,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       try {
         reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "wavefront-generated");
       } catch (IOException e) {
-        logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+        logger.warn("Cannot report heartbeat metric to wavefront");
       }
     }
   }

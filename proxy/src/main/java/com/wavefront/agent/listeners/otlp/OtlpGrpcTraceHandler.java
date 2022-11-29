@@ -32,15 +32,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
     implements Closeable, Runnable {
   protected static final Logger logger =
-      Logger.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
   private final ReportableEntityHandler<Span> spanHandler;
   private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
@@ -154,7 +155,7 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "otlp");
     } catch (IOException e) {
-      logger.warning("Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

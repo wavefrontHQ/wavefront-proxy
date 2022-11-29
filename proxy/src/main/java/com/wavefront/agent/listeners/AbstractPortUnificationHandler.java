@@ -26,13 +26,13 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a base class for the majority of proxy's listeners. Handles an incoming message of either
@@ -44,7 +44,7 @@ import org.apache.http.client.utils.URLEncodedUtils;
 @ChannelHandler.Sharable
 public abstract class AbstractPortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger =
-      Logger.getLogger(AbstractPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractPortUnificationHandler.class.getCanonicalName());
 
   protected final Supplier<Histogram> httpRequestHandleDuration;
   protected final Supplier<Counter> requestsDiscarded;
@@ -156,7 +156,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       return;
     }
     logWarning("Handler failed", cause, ctx);
-    logger.log(Level.WARNING, "Unexpected error: ", cause);
+    logger.warn("Unexpected error: ", cause);
   }
 
   protected String extractToken(final FullHttpRequest request) {
@@ -199,7 +199,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
         if (tokenAuthenticator.authRequired()) {
           // plaintext is disabled with auth enabled
           pointsDiscarded.get().inc();
-          logger.warning(
+          logger.warn(
               "Input discarded: plaintext protocol is not supported on port "
                   + port
                   + " (authentication enabled)");
@@ -220,7 +220,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
         }
         if (!getHttpEnabled()) {
           requestsDiscarded.get().inc();
-          logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + port);
+          logger.warn("Inbound HTTP request discarded: HTTP disabled on port " + port);
           return;
         }
         if (authorized(ctx, request)) {
@@ -245,7 +245,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       } catch (URISyntaxException e) {
         writeHttpResponse(
             ctx, HttpResponseStatus.BAD_REQUEST, errorMessageWithRootCause(e), request);
-        logger.warning(
+        logger.warn(
             formatErrorMessage(
                 "WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx));
       } catch (final Exception e) {
@@ -281,6 +281,10 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       final String message,
       @Nullable final Throwable e,
       @Nullable final ChannelHandlerContext ctx) {
-    logger.warning(formatErrorMessage(message, e, ctx));
+    if (logger.isDebugEnabled() && (e != null)) {
+      logger.warn(formatErrorMessage(message, e, ctx), e);
+    } else {
+      logger.warn(formatErrorMessage(message, e, ctx));
+    }
   }
 }

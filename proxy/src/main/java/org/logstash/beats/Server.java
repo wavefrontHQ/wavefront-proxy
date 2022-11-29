@@ -12,12 +12,12 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.logstash.netty.SslSimpleBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Server {
-  private static final Logger logger = LogManager.getLogger(Server.class);
+  private static final Logger logger = LoggerFactory.getLogger(Server.class);
 
   private final int port;
   private final String host;

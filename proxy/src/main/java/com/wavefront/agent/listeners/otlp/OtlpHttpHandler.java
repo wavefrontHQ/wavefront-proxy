@@ -41,14 +41,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeable, Runnable {
-  private static final Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(OtlpHttpHandler.class.getCanonicalName());
   private final String defaultSource;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   @Nullable private final WavefrontInternalReporter internalReporter;
@@ -186,7 +188,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     try {
       reportHeartbeats(sender, discoveredHeartbeatMetrics, "otlp");
     } catch (IOException e) {
-      logger.warning("Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

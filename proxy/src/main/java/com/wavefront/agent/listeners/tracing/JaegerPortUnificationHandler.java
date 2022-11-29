@@ -39,11 +39,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.thrift.TDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -53,7 +53,7 @@ import wavefront.report.SpanLogs;
 public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
 
   private static final String JAEGER_COMPONENT = "jaeger";
   private static final String DEFAULT_SOURCE = "jaeger";
@@ -217,7 +217,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
       failedBatches.inc();
       output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
-      logger.log(Level.WARNING, "Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
+      logger.warn("Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
     }
     writeHttpResponse(ctx, status, output, request);
   }
@@ -227,7 +227,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

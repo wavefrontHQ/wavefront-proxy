@@ -5,21 +5,21 @@ import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessageP
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.common.logger.MessageDedupingLogger;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MemoryBuffer extends ActiveMQBuffer {
-  private static final Logger log = Logger.getLogger(MemoryBuffer.class.getCanonicalName());
-  private static final Logger slowLog =
-      new MessageDedupingLogger(Logger.getLogger(MemoryBuffer.class.getCanonicalName()), 1000, 1);
-  private static final Logger droppedPointsLogger = Logger.getLogger("RawDroppedPoints");
+  private static final Logger log = LoggerFactory.getLogger(MemoryBuffer.class.getCanonicalName());
+  private static final Logger slowLog = log;
+  //      new MessageDedupingLogger(LoggerFactory.getLogger(MemoryBuffer.class.getCanonicalName()),
+  // 1000, 1);
+  private static final Logger droppedPointsLogger = LoggerFactory.getLogger("RawDroppedPoints");
 
   private static final Map<String, LinkedTransferQueue<String>> midBuffers =
       new ConcurrentHashMap<>();
@@ -49,7 +49,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
     try {
       executor.awaitTermination(1, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
-      log.severe("Error during MemoryBuffer shutdown. " + e);
+      log.error("Error during MemoryBuffer shutdown. " + e);
     }
 
     // TODO: implement dump to external queue
@@ -142,14 +142,13 @@ public class MemoryBuffer extends ActiveMQBuffer {
             try {
               sendPoints(queue.getName(), metrics);
             } catch (ActiveMQAddressFullException e) {
-              slowLog.log(Level.SEVERE, "All Queues full, dropping " + metrics.size() + " points.");
-              if (slowLog.isLoggable(Level.FINER)) {
-                slowLog.log(Level.SEVERE, "", e);
+              slowLog.error("All Queues full, dropping " + metrics.size() + " points.");
+              if (slowLog.isDebugEnabled()) {
+                slowLog.error("", e);
               }
               QueueStats.get(queue.getName()).dropped.inc(metrics.size());
-              if (droppedPointsLogger.isLoggable(Level.INFO)) {
-                metrics.forEach(
-                    point -> droppedPointsLogger.log(Level.INFO, point, queue.getEntityType()));
+              if (droppedPointsLogger.isInfoEnabled()) {
+                metrics.forEach(point -> droppedPointsLogger.info(point, queue.getEntityType()));
               }
             }
           } else {

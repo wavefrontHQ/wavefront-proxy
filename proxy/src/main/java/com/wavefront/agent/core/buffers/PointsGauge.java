@@ -8,14 +8,15 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.management.AddressControl;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.api.core.management.ResourceNames;
 import org.apache.activemq.artemis.core.server.ActiveMQServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PointsGauge extends Gauge<Long> {
-  private static final Logger log = Logger.getLogger(PointsGauge.class.getCanonicalName());
+  private static final Logger log = LoggerFactory.getLogger(PointsGauge.class.getCanonicalName());
   private static final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("PointsGauge"));
   private Long pointsCount = 0L;

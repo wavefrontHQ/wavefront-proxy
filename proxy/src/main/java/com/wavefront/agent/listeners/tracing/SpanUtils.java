@@ -19,14 +19,15 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 /** Utility methods for handling Span and SpanLogs. */
 public final class SpanUtils {
-  private static final Logger logger = Logger.getLogger(SpanUtils.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(SpanUtils.class.getCanonicalName());
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
   private SpanUtils() {}

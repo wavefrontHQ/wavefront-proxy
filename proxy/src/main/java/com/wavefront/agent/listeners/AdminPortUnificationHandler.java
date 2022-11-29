@@ -12,12 +12,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's IP address
@@ -30,7 +31,7 @@ import org.apache.commons.lang.math.NumberUtils;
 @ChannelHandler.Sharable
 public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(AdminPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AdminPortUnificationHandler.class.getCanonicalName());
 
   private static final Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
 
@@ -60,7 +61,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
         ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
     if (remoteIpAllowRegex != null
         && !Pattern.compile(remoteIpAllowRegex).matcher(remoteIp).matches()) {
-      logger.warning("Incoming request from non-allowed remote address " + remoteIp + " rejected!");
+      logger.warn("Incoming request from non-allowed remote address " + remoteIp + " rejected!");
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;
     }
