@@ -173,7 +173,6 @@ public class PushAgent extends AbstractAgent {
     /***** Setup Buffers *****/
 
     BuffersManagerConfig cfg = new BuffersManagerConfig();
-    cfg.debug = proxyConfig.debugBuffer;
 
     double maxMemory = Runtime.getRuntime().maxMemory();
     double buffersMaxMemory = Math.min(maxMemory / 2, 1_000_000_000);

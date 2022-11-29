@@ -13,9 +13,6 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -59,13 +56,6 @@ public abstract class ActiveMQBuffer implements Buffer {
     config.setPersistenceEnabled(persistenceEnabled);
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
     config.setGlobalMaxSize(maxMemory);
-
-    try {
-      Path tmpBuffer = Files.createTempDirectory("wfproxy");
-      config.setPagingDirectory(tmpBuffer.toString());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
 
     if (persistenceEnabled) {
       config.setMaxDiskUsage(70);

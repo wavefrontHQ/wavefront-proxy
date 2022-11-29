@@ -2471,7 +2471,6 @@ public class ProxyConfig extends Configuration {
       memoryBufferExpirationTime =
           config.getInteger("memoryBufferExpirationTime", memoryBufferExpirationTime);
       disableBuffer = config.getBoolean("disable_buffer", disableBuffer);
-      debugBuffer = config.getBoolean("debug_buffer", debugBuffer);
     } catch (Throwable exception) {
       logger.severe("Could not load configuration file " + pushConfigFile);
       throw new RuntimeException(exception.getMessage());
@@ -2546,12 +2545,6 @@ public class ProxyConfig extends Configuration {
   public boolean getDisableBuffer() {
     return disableBuffer;
   }
-
-  @Parameter(
-      names = {"--debug_buffer"},
-      hidden = true,
-      order = 7)
-  boolean debugBuffer = false;
 
   public static class TokenValidationMethodConverter
       implements IStringConverter<TokenValidationMethod> {
