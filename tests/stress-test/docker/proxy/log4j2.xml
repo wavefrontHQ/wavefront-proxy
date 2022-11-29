@@ -13,11 +13,12 @@
         </File>
     </Appenders>
     <Loggers>
-        <AsyncLogger name="RawDroppedPoints" level="OFF" additivity="false">
+        <Logger name="RawDroppedPoints" level="OFF" additivity="false">
             <AppenderRef ref="Console" />
-        </AsyncLogger>
+        </Logger>
         <Logger name="org.apache.activemq" level="OFF" additivity="false">
             <AppenderRef ref="Console" />
+            <AppenderRef ref="LogToFile" />
         </Logger>
         <Root level="INFO">
             <AppenderRef ref="Console" />

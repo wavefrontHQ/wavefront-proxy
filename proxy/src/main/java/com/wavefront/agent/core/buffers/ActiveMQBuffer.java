@@ -62,6 +62,13 @@ public abstract class ActiveMQBuffer implements Buffer {
     config.setMessageExpiryScanPeriod(persistenceEnabled ? 0 : 1_000);
     config.setGlobalMaxSize(maxMemory);
 
+    try {
+      Path tmpBuffer = Files.createTempDirectory("wfproxy");
+      config.setPagingDirectory(tmpBuffer.toString());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     if (persistenceEnabled) {
       config.setMaxDiskUsage(70);
       config.setJournalDirectory(new File(buffer, "journal").getAbsolutePath());
