@@ -72,6 +72,7 @@ abstract class SenderTask implements Runnable {
       queueStats.sent.inc(batch.size());
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
         queueStats.delivered.inc(batch.size());
+        queueStats.deliveredBytes.inc(batch.stream().mapToInt(value -> value.length()).sum());
       } else {
         queueStats.failed.inc(batch.size());
         switch (response.getStatusInfo().toEnum()) {

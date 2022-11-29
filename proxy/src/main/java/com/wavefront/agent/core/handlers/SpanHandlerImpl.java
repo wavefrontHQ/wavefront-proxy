@@ -102,7 +102,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     }
     final String strSpan = serializer.apply(span);
 
-    getReceivedCounter().inc();
+    incrementReceivedCounters(strSpan.length());
     BuffersManager.sendMsg(queue, strSpan);
 
     if (isMulticastingActive

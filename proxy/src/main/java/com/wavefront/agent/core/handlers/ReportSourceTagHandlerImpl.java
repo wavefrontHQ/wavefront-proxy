@@ -40,7 +40,7 @@ class ReportSourceTagHandlerImpl
     try {
       ObjectWriter ow = new ObjectMapper().writer();
       String json = ow.writeValueAsString(new SourceTag(sourceTag));
-      getReceivedCounter().inc();
+      incrementReceivedCounters(json.length());
       BuffersManager.sendMsg(queue, json);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);

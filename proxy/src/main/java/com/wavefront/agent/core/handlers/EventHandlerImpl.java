@@ -48,8 +48,9 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
 
-    getReceivedCounter().inc();
-    BuffersManager.sendMsg(queue, event.toString());
+    String strEvent = event.toString();
+    incrementReceivedCounters(strEvent.length());
+    BuffersManager.sendMsg(queue, strEvent);
 
     if (isMulticastingActive
         && event.getAnnotations() != null
@@ -60,7 +61,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       for (String tenant : multicastingTenantNames) {
         QueueInfo tenantQueue = queue.getTenantQueue(tenant);
         if (tenantQueue != null) {
-          BuffersManager.sendMsg(tenantQueue, event.toString());
+          BuffersManager.sendMsg(tenantQueue, strEvent);
         } else {
           logger.info("Tenant '" + tenant + "' invalid");
         }

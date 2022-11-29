@@ -32,6 +32,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final BurstRateTrackingCounter receivedStats;
   private final Logger blockedItemsLogger;
   private final Counter receivedCounter;
+  private final Counter receivedBytesCounter;
   private final Counter blockedCounter;
   private final Counter rejectedCounter;
   private final Timer timer;
@@ -61,6 +62,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     String metricPrefix = queue.getName() + "." + this.handler;
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     this.receivedCounter = registry.newCounter(receivedMetricName);
+    this.receivedBytesCounter =
+        registry.newCounter(new MetricName(metricPrefix, "", "received.bytes"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
@@ -158,9 +161,17 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   abstract void reportInternal(T item);
 
-  protected Counter getReceivedCounter() {
-    return receivedCounter;
+  protected void incrementReceivedCounters(int b) {
+    receivedCounter.inc();
+    receivedBytesCounter.inc(b);
   }
+  //  protected Counter getReceivedCounter() {
+  //    return receivedCounter;
+  //  }
+  //
+  //  protected Counter getReceivedBytesCounter() {
+  //    return receivedBytesCounter;
+  //  }
 
   protected void printStats() {
     PushAgent.stats.info(

@@ -28,7 +28,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   protected void reportInternal(SpanLogs spanLogs) {
     String strSpanLogs = serializer.apply(spanLogs);
     if (strSpanLogs != null) {
-      getReceivedCounter().inc();
+      incrementReceivedCounters(strSpanLogs.length());
       BuffersManager.sendMsg(queue, strSpanLogs);
     }
   }

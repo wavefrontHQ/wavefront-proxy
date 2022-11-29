@@ -80,7 +80,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     }
     final String strPoint = serializer.apply(point);
 
-    getReceivedCounter().inc();
+    incrementReceivedCounters(strPoint.length());
     BuffersManager.sendMsg(queue, strPoint);
 
     if (isMulticastingActive

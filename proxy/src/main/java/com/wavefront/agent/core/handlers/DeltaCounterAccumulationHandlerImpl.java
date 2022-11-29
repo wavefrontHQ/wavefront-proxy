@@ -133,7 +133,7 @@ public class DeltaCounterAccumulationHandlerImpl
             hostMetricTagsPair.getTags(),
             "wavefront-proxy");
 
-    getReceivedCounter().inc();
+    incrementReceivedCounters(strPoint.length());
     BuffersManager.sendMsg(queue, strPoint);
 
     if (isMulticastingActive
@@ -162,7 +162,6 @@ public class DeltaCounterAccumulationHandlerImpl
         discardedCounterSupplier.get().inc();
         return;
       }
-      getReceivedCounter().inc();
       double deltaValue = (double) point.getValue();
       receivedPointLag.update(Clock.now() - point.getTimestamp());
       HostMetricTagsPair hostMetricTagsPair =
