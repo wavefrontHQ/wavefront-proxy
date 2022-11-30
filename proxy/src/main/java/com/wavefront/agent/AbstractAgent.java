@@ -157,7 +157,8 @@ public abstract class AbstractAgent {
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.
-    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and picklePorts
+    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and
+    // picklePorts
     String allPorts =
         StringUtils.join(
             new String[] {
@@ -201,7 +202,7 @@ public abstract class AbstractAgent {
     //     setLevel(org.apache.log4j.Level.WARN);
     // Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
-    if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
+    if (StringUtils.isBlank(proxyConfig.getHostname())) {
       throw new IllegalArgumentException(
           "hostname cannot be blank! Please correct your configuration settings.");
     }
@@ -222,24 +223,14 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void parseArguments(String[] args) {
     // read build information and print version.
-    String versionStr =
-        "Wavefront Proxy version "
-            + getBuildVersion()
-            + " (pkg:"
-            + getPackage()
-            + ")"
-            + ", runtime: "
-            + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
       }
     } catch (ParameterException e) {
-      logger.info(versionStr);
       logger.severe("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
-    logger.info(versionStr);
     logger.info(
         "Arguments: "
             + IntStream.range(0, args.length)

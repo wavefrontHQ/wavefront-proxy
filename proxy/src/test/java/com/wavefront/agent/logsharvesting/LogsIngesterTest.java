@@ -601,7 +601,8 @@ public class LogsIngesterTest {
         contains(
             PointMatchers.matches(
                 1L, MetricConstants.DELTA_PREFIX + "plainCounter", ImmutableMap.of())));
-    // once the counter has been reported, the counter is reset because it is now treated as delta
+    // once the counter has been reported, the counter is reset because it is now treated as
+    // delta
     // counter. Hence we check that plainCounter has value 1 below.
     assertThat(
         getPoints(1, "plainCounter"),

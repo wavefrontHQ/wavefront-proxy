@@ -62,7 +62,8 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     Event eventToAdd = new Event(event);
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(eventToAdd);
     getReceivedCounter().inc();
-    // check if event annotations contains the tag key indicating this event should be multicasted
+    // check if event annotations contains the tag key indicating this event should be
+    // multicasted
     if (isMulticastingActive
         && event.getAnnotations() != null
         && event.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {

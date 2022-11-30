@@ -100,7 +100,8 @@ public abstract class JaegerProtobufUtils {
         }
 
         // source tag precedence :
-        // "source" in span tag > "source" in process tag > "hostname" in process tag > DEFAULT
+        // "source" in span tag > "source" in process tag > "hostname" in process tag >
+        // DEFAULT
         if (tag.getKey().equals("hostname") && tag.getVType() == Model.ValueType.STRING) {
           if (!isSourceProcessTagPresent) {
             sourceName = tag.getVStr();
@@ -325,7 +326,8 @@ public abstract class JaegerProtobufUtils {
 
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
-      // Set post preprocessor rule values and report converted metrics/histograms from the span
+      // Set post preprocessor rule values and report converted metrics/histograms from the
+      // span
       List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
       for (Annotation processedAnnotation : processedAnnotations) {
         switch (processedAnnotation.getKey()) {

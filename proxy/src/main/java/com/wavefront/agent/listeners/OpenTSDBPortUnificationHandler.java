@@ -88,7 +88,8 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
           } else {
             // TODO: improve error message
             // http://opentsdb.net/docs/build/html/api_http/put.html#response
-            // User should understand that successful points are processed and the reason
+            // User should understand that successful points are processed and the
+            // reason
             // for BAD_REQUEST is due to at least one failure point.
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");

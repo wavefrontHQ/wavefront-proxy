@@ -5,16 +5,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -30,6 +30,8 @@ public abstract class Utils {
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
   private static final ResourceBundle buildProps = ResourceBundle.getBundle("build");
   private static final List<Integer> UUID_SEGMENTS = ImmutableList.of(8, 4, 4, 4, 12);
+
+  private static final Logger log = Logger.getLogger(Utils.class.getCanonicalName());
 
   /**
    * A lazy initialization wrapper for {@code Supplier}
@@ -155,6 +157,27 @@ public abstract class Utils {
    * @return name for localhost
    */
   public static String getLocalHostName() {
+    for (String env : Arrays.asList("COMPUTERNAME", "HOSTNAME", "PROXY_HOSTNAME")) {
+      String hostname = System.getenv(env);
+      if (StringUtils.isNotBlank(hostname)) {
+        log.info("Hostname: '" + hostname + "' (detected using '" + env + "' env variable)");
+        return hostname;
+      }
+    }
+
+    try {
+      String hostname =
+          new BufferedReader(
+                  new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))
+              .readLine();
+      if (StringUtils.isNotBlank(hostname)) {
+        log.info("Hostname: '" + hostname + "' (detected using 'hostname' command)");
+        return hostname;
+      }
+    } catch (IOException e) {
+      log.fine("Error running 'hostname' command. " + e.getMessage());
+    }
+
     InetAddress localAddress = null;
     try {
       Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
@@ -184,8 +207,12 @@ public abstract class Utils {
       // ignore
     }
     if (localAddress != null) {
-      return localAddress.getCanonicalHostName();
+      String hostname = localAddress.getCanonicalHostName();
+      log.info("Hostname: '" + hostname + "' (detected using network interfaces)");
+      return hostname;
     }
+
+    log.info("Hostname not detected, using 'localhost')");
     return "localhost";
   }
 

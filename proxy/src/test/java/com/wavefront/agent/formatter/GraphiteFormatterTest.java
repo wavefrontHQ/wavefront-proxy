@@ -16,7 +16,8 @@ public class GraphiteFormatterTest {
   @Test
   public void testCollectdGraphiteParsing() {
     String format =
-        "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that
+        "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in
+    // that
     // order
     String format2 = "2";
     String delimiter = "_";
@@ -77,10 +78,8 @@ public class GraphiteFormatterTest {
     long nsPerOps = (end - start) / formatter.getOps();
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
     assertTrue(formatter.getOps() >= 1000 * 1000); // make sure we actually ran it 1M times
-    assertTrue(
-        nsPerOps
-            < 10
-                * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+    assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1
+    // μs on my machine
 
     // new addition to test the point tags inside the metric names
     formatter = new GraphiteFormatter(format2, delimiter, "");

@@ -272,8 +272,10 @@ public class APIContainer {
     }
     factory.register(AcceptEncodingGZIPFilter.class);
     // add authorization header for all proxy endpoints, except for /checkin - since it's also
-    // passed as a parameter, it's creating duplicate headers that cause the entire request to be
-    // rejected by nginx. unfortunately, RESTeasy is not smart enough to handle that automatically.
+    // passed as a parameter, it's creating duplicate headers that cause the entire request to
+    // be
+    // rejected by nginx. unfortunately, RESTeasy is not smart enough to handle that
+    // automatically.
     factory.register(
         (ClientRequestFilter)
             context -> {
@@ -307,7 +309,8 @@ public class APIContainer {
                 new DefaultHttpRequestRetryHandler(proxyConfig.getHttpAutoRetries(), true) {
                   @Override
                   protected boolean handleAsIdempotent(HttpRequest request) {
-                    // by default, retry all http calls (submissions are idempotent).
+                    // by default, retry all http calls (submissions are
+                    // idempotent).
                     return true;
                   }
                 })

@@ -1817,7 +1817,8 @@ public class PushAgentTest {
         "http://localhost:" + ddPort + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
     verify(mockPointHandler);
 
-    // test 6: post to /api/v1/series including a /api/v1/intake call to ensure system host-tags are
+    // test 6: post to /api/v1/series including a /api/v1/intake call to ensure system host-tags
+    // are
     // propogated
     reset(mockPointHandler);
     mockPointHandler.report(

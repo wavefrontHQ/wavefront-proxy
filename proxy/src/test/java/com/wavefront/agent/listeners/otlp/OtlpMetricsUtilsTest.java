@@ -707,7 +707,8 @@ public class OtlpMetricsUtilsTest {
     Metric otlpMetric =
         OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
 
-    // actual buckets: -4, -1, -0.25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and upper
+    // actual buckets: -4, -1, -0.25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and
+    // upper
     // bound of
     // each bucket when doing delta histogram centroids.
     List<Double> bins = Arrays.asList(-2.5, -0.625, 7.875, 40.0, 160.0, 640.0);
