@@ -24,7 +24,6 @@ jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 build-jar: .info
 	mvn -f proxy --batch-mode clean package ${MVN_ARGS}
 	cp proxy/target/${ARTIFACT_ID}-${VERSION}-spring-boot.jar ${out}
-	cp proxy/target/${ARTIFACT_ID}-${VERSION}-jar-with-dependencies.jar ${out}
 
 #####
 # Build single docker image
