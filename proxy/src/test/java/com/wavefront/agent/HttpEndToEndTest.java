@@ -602,7 +602,7 @@ public class HttpEndToEndTest {
   }
 
   @Test
-  public void testEndToEndLogs() throws Exception {
+  public void testEndToEndLogArray() throws Exception {
     long time = Clock.now() / 1000;
     waitUntilListenerIsOnline(pushPort);
 

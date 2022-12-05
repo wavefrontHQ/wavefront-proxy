@@ -109,7 +109,8 @@ public abstract class AbstractAgent {
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.
-    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and
+    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts
+    // and
     // picklePorts
     String allPorts =
         StringUtils.join(
@@ -140,15 +141,19 @@ public abstract class AbstractAgent {
   }
 
   private void postProcessConfig() {
-    // disable useless info messages when httpClient has to retry a request due to a stale
-    // connection. the alternative is to always validate connections before reuse, but since
-    // it happens fairly infrequently, and connection re-validation performance penalty is
-    // incurred every time, suppressing that message seems to be a more reasonable approach.
+    // disable useless info messages when httpClient has to retry a request due to a
+    // stale
+    // connection. the alternative is to always validate connections before reuse,
+    // but since
+    // it happens fairly infrequently, and connection re-validation performance
+    // penalty is
+    // incurred every time, suppressing that message seems to be a more reasonable
+    // approach.
     // org.apache.log4j.LoggerFactory.getLogger("org.apache.http.impl.execchain.RetryExec").
-    //     setLevel(org.apache.log4j.Level.WARN);
+    // setLevel(org.apache.log4j.Level.WARN);
     // LoggerFactory.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
-    if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
+    if (StringUtils.isBlank(proxyConfig.getHostname())) {
       throw new IllegalArgumentException(
           "hostname cannot be blank! Please correct your configuration settings.");
     }
@@ -157,24 +162,14 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void parseArguments(String[] args) {
     // read build information and print version.
-    String versionStr =
-        "Wavefront Proxy version "
-            + getBuildVersion()
-            + " (pkg:"
-            + getPackage()
-            + ")"
-            + ", runtime: "
-            + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
       }
     } catch (ParameterException e) {
-      logger.info(versionStr);
       logger.error("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
-    logger.info(versionStr);
     logger.info(
         "Arguments: "
             + IntStream.range(0, args.length)
@@ -192,9 +187,13 @@ public abstract class AbstractAgent {
   public void start(String[] args) {
     try {
 
-      /* ------------------------------------------------------------------------------------
+      /*
+       * -----------------------------------------------------------------------------
+       * -------
        * Configuration Setup.
-       * ------------------------------------------------------------------------------------ */
+       * -----------------------------------------------------------------------------
+       * -------
+       */
 
       // Parse commandline arguments and load configuration file
       parseArguments(args);
@@ -229,7 +228,7 @@ public abstract class AbstractAgent {
         } else {
           throw new IllegalStateException();
         }
-        //noinspection StatementWithEmptyBody
+        // noinspection StatementWithEmptyBody
         while (interactiveTester.interactiveTest()) {
           // empty
         }
@@ -295,7 +294,7 @@ public abstract class AbstractAgent {
           5000);
     } catch (Exception e) {
       logger.error(e.getMessage(), e);
-      //      logger.error(e.getMessage());
+      // logger.error(e.getMessage());
       System.exit(1);
     }
   }

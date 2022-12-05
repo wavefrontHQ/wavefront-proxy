@@ -325,7 +325,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-    } else if (format == LOGS_JSON_ARR
+    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
         && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
       receivedLogsTotal.get().inc(discardedLogs.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
@@ -433,6 +433,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             message, histogramDecoder, histogramHandler, preprocessorSupplier, ctx, "histogram");
         return;
       case LOGS_JSON_ARR:
+      case LOGS_JSON_LINES:
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
         ReportableEntityHandler<ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
