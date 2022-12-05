@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.common.Utils.getLocalHostName;
@@ -15,7 +16,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -24,10 +24,17 @@ import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.TimeProvider;
+import com.yammer.metrics.core.MetricName;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
 /**
@@ -40,6 +47,10 @@ public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+
+  private final List<Field> modifyByArgs = new ArrayList<>();
+  private final List<Field> modifyByFile = new ArrayList<>();
+  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   @Parameter(
       names = {"--privateCertPath"},
@@ -76,7 +87,7 @@ public class ProxyConfig extends Configuration {
           "Sets the width "
               + "(in seconds) for the sliding time window which would be used to calculate received "
               + "traffic rate. Default: 600 (10 minutes)")
-  protected Integer trafficShapingWindowSeconds = 600;
+  protected int trafficShapingWindowSeconds = 600;
 
   @Parameter(
       names = {"--trafficShapingHeadroom"},
@@ -104,14 +115,6 @@ public class ProxyConfig extends Configuration {
   protected boolean corsAllowNullOrigin = false;
 
   @Parameter(
-      names = {"--multicastingTenants"},
-      description = "The number of tenants to data " + "points" + " multicasting. Default: 0")
-  protected int multicastingTenants = 0;
-  // the multicasting tenant list is parsed separately
-  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
-  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
-
-  @Parameter(
       names = {"--help"},
       help = true)
   boolean help = false;
@@ -125,7 +128,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"-f", "--file"},
       description = "Proxy configuration file",
-      order = 1)
+      order = 2)
   String pushConfigFile = null;
 
   @Parameter(
@@ -136,8 +139,9 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"-t", "--token"},
       description = "Token to auto-register proxy with an account",
-      order = 3)
-  String token = null;
+      order = 1)
+  @ProxyConfigOption(name = "Server Token", category = "General", hide = true)
+  String token = "undefined";
 
   @Parameter(
       names = {"--testLogs"},
@@ -157,9 +161,9 @@ public class ProxyConfig extends Configuration {
   String testSpanPreprocessorForPort = null;
 
   @Parameter(
-      names = {"-h", "--host"},
+      names = {"--server", "-h", "--host"},
       description = "Server URL",
-      order = 2)
+      order = 0)
   @ProxyConfigOption(name = "Server URL", category = "General")
   String server = "http://localhost:8080/api/";
 
@@ -168,7 +172,7 @@ public class ProxyConfig extends Configuration {
       description =
           "File name prefix to use for buffering "
               + "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.",
-      order = 7)
+      order = 4)
   @ProxyConfigOption(name = "Disk Buffer Path", category = "Buffer", subCategory = "Disk")
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
@@ -256,9 +260,8 @@ public class ProxyConfig extends Configuration {
       description =
           "Number of threads that flush data to the server. Defaults to"
               + "the number of processors (min. 4). Setting this value too large will result in sending batches that are too "
-              + "small to the server and wasting connections. This setting is per listening port.",
-      order = 5)
-  Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+              + "small to the server and wasting connections. This setting is per listening port.")
+  int flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(
       names = {"--flushThreadsSourceTags"},
@@ -277,7 +280,7 @@ public class ProxyConfig extends Configuration {
               + "the server. Defaults to the number of processors (min. 4). Setting this value too large "
               + "will result in sending batches that are too small to the server and wasting connections. This setting is per listening port.",
       order = 5)
-  Integer flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+  int flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(
       names = {"--purgeBuffer"},
@@ -381,7 +384,7 @@ public class ProxyConfig extends Configuration {
       description =
           "Max number of burst seconds to allow "
               + "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
-  Integer pushRateLimitMaxBurstSeconds = 10;
+  int pushRateLimitMaxBurstSeconds = 10;
 
   @Parameter(
       names = {"--pushMemoryBufferLimit"},
@@ -405,7 +408,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--pushBlockedSamples"},
       description = "Max number of blocked samples to print to log. Defaults" + " to 5.")
-  Integer pushBlockedSamples = 5;
+  int pushBlockedSamples = 5;
 
   @Parameter(
       names = {"--blockedPointsLoggerName"},
@@ -429,8 +432,7 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(
       names = {"--pushListenerPorts"},
-      description = "Comma-separated list of ports to listen on. Defaults to " + "2878.",
-      order = 4)
+      description = "Comma-separated list of ports to listen on. Defaults to " + "2878.")
   String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(
@@ -438,26 +440,26 @@ public class ProxyConfig extends Configuration {
       description =
           "Maximum line length for received points in"
               + " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
-  Integer pushListenerMaxReceivedLength = 32768;
+  int pushListenerMaxReceivedLength = 32768;
 
   @Parameter(
       names = {"--pushListenerHttpBufferSize"},
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
-  Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
+  int pushListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--traceListenerMaxReceivedLength"},
       description = "Maximum line length for received spans and" + " span logs (Default: 1MB)")
-  Integer traceListenerMaxReceivedLength = 1024 * 1024;
+  int traceListenerMaxReceivedLength = 1024 * 1024;
 
   @Parameter(
       names = {"--traceListenerHttpBufferSize"},
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests on tracing ports (Default: 16MB)")
-  Integer traceListenerHttpBufferSize = 16 * 1024 * 1024;
+  int traceListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--listenerIdleConnectionTimeout"},
@@ -490,31 +492,31 @@ public class ProxyConfig extends Configuration {
       description =
           "Interval to write-back accumulation changes from memory cache to disk in "
               + "millis (only applicable when memory cache is enabled")
-  Long histogramAccumulatorResolveInterval = 5000L;
+  long histogramAccumulatorResolveInterval = 5000L;
 
   @Parameter(
       names = {"--histogramAccumulatorFlushInterval"},
       description =
           "Interval to check for histograms to send to Wavefront in millis. " + "(Default: 10000)")
-  Long histogramAccumulatorFlushInterval = 10000L;
+  long histogramAccumulatorFlushInterval = 10000L;
 
   @Parameter(
       names = {"--histogramAccumulatorFlushMaxBatchSize"},
       description =
           "Max number of histograms to send to Wavefront in one flush " + "(Default: no limit)")
-  Integer histogramAccumulatorFlushMaxBatchSize = -1;
+  int histogramAccumulatorFlushMaxBatchSize = -1;
 
   @Parameter(
       names = {"--histogramMaxReceivedLength"},
       description = "Maximum line length for received histogram data (Default: 65536)")
-  Integer histogramMaxReceivedLength = 64 * 1024;
+  int histogramMaxReceivedLength = 64 * 1024;
 
   @Parameter(
       names = {"--histogramHttpBufferSize"},
       description =
           "Maximum allowed request size (in bytes) for incoming HTTP requests on "
               + "histogram ports (Default: 16MB)")
-  Integer histogramHttpBufferSize = 16 * 1024 * 1024;
+  int histogramHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--histogramMinuteListenerPorts"},
@@ -525,31 +527,31 @@ public class ProxyConfig extends Configuration {
       names = {"--histogramMinuteFlushSecs"},
       description =
           "Number of seconds to keep a minute granularity accumulator open for " + "new samples.")
-  Integer histogramMinuteFlushSecs = 70;
+  int histogramMinuteFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramMinuteCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  Short histogramMinuteCompression = 32;
+  short histogramMinuteCompression = 32;
 
   @Parameter(
       names = {"--histogramMinuteAvgKeyBytes"},
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
-  Integer histogramMinuteAvgKeyBytes = 150;
+  int histogramMinuteAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramMinuteAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  Integer histogramMinuteAvgDigestBytes = 500;
+  int histogramMinuteAvgDigestBytes = 500;
 
   @Parameter(
       names = {"--histogramMinuteAccumulatorSize"},
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
-  Long histogramMinuteAccumulatorSize = 100000L;
+  long histogramMinuteAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramMinuteAccumulatorPersisted"},
@@ -574,31 +576,31 @@ public class ProxyConfig extends Configuration {
       names = {"--histogramHourFlushSecs"},
       description =
           "Number of seconds to keep an hour granularity accumulator open for " + "new samples.")
-  Integer histogramHourFlushSecs = 4200;
+  int histogramHourFlushSecs = 4200;
 
   @Parameter(
       names = {"--histogramHourCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  Short histogramHourCompression = 32;
+  short histogramHourCompression = 32;
 
   @Parameter(
       names = {"--histogramHourAvgKeyBytes"},
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + " corresponds to a metric, source and tags concatenation.")
-  Integer histogramHourAvgKeyBytes = 150;
+  int histogramHourAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramHourAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  Integer histogramHourAvgDigestBytes = 500;
+  int histogramHourAvgDigestBytes = 500;
 
   @Parameter(
       names = {"--histogramHourAccumulatorSize"},
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
-  Long histogramHourAccumulatorSize = 100000L;
+  long histogramHourAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramHourAccumulatorPersisted"},
@@ -622,31 +624,31 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  Integer histogramDayFlushSecs = 18000;
+  int histogramDayFlushSecs = 18000;
 
   @Parameter(
       names = {"--histogramDayCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  Short histogramDayCompression = 32;
+  short histogramDayCompression = 32;
 
   @Parameter(
       names = {"--histogramDayAvgKeyBytes"},
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
-  Integer histogramDayAvgKeyBytes = 150;
+  int histogramDayAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramDayAvgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  Integer histogramDayAvgDigestBytes = 500;
+  int histogramDayAvgDigestBytes = 500;
 
   @Parameter(
       names = {"--histogramDayAccumulatorSize"},
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
-  Long histogramDayAccumulatorSize = 100000L;
+  long histogramDayAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramDayAccumulatorPersisted"},
@@ -670,31 +672,31 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
-  Integer histogramDistFlushSecs = 70;
+  int histogramDistFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramDistCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  Short histogramDistCompression = 32;
+  short histogramDistCompression = 32;
 
   @Parameter(
       names = {"--histogramDistAvgKeyBytes"},
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
-  Integer histogramDistAvgKeyBytes = 150;
+  int histogramDistAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramDistAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  Integer histogramDistAvgDigestBytes = 500;
+  int histogramDistAvgDigestBytes = 500;
 
   @Parameter(
       names = {"--histogramDistAccumulatorSize"},
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
-  Long histogramDistAccumulatorSize = 100000L;
+  long histogramDistAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramDistAccumulatorPersisted"},
@@ -825,24 +827,24 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--filebeatPort"},
       description = "Port on which to listen for filebeat data.")
-  Integer filebeatPort = 0;
+  int filebeatPort = 0;
 
   @Parameter(
       names = {"--rawLogsPort"},
       description = "Port on which to listen for raw logs data.")
-  Integer rawLogsPort = 0;
+  int rawLogsPort = 0;
 
   @Parameter(
       names = {"--rawLogsMaxReceivedLength"},
       description = "Maximum line length for received raw logs (Default: 4096)")
-  Integer rawLogsMaxReceivedLength = 4096;
+  int rawLogsMaxReceivedLength = 4096;
 
   @Parameter(
       names = {"--rawLogsHttpBufferSize"},
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests with raw logs (Default: 16MB)")
-  Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
+  int rawLogsHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--logsIngestionConfigFile"},
@@ -990,7 +992,7 @@ public class ProxyConfig extends Configuration {
           "Sample spans by duration in "
               + "milliseconds. "
               + "Defaults to 0 (ignore duration based sampling).")
-  Integer traceSamplingDuration = 0;
+  int traceSamplingDuration = 0;
 
   @Parameter(
       names = {"--traceDerivedCustomTagKeys"},
@@ -1022,19 +1024,19 @@ public class ProxyConfig extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
-  Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
+  long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--pushRelayHistogramAggregatorFlushSecs"},
       description = "Number of seconds to keep accumulator open for new samples.")
-  Integer pushRelayHistogramAggregatorFlushSecs = 70;
+  int pushRelayHistogramAggregatorFlushSecs = 70;
 
   @Parameter(
       names = {"--pushRelayHistogramAggregatorCompression"},
       description =
           "Controls allowable number of centroids per histogram. Must be in [20;1000] "
               + "range. Default: 32")
-  Short pushRelayHistogramAggregatorCompression = 32;
+  short pushRelayHistogramAggregatorCompression = 32;
 
   @Parameter(
       names = {"--splitPushWhenRateLimited"},
@@ -1102,7 +1104,7 @@ public class ProxyConfig extends Configuration {
       names = {"--soLingerTime"},
       description =
           "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
-  Integer soLingerTime = -1;
+  int soLingerTime = -1;
 
   @Parameter(
       names = {"--proxyHost"},
@@ -1112,18 +1114,24 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--proxyPort"},
       description = "Proxy port for routing traffic through a http proxy")
-  Integer proxyPort = 0;
+  int proxyPort = 0;
 
   @Parameter(
       names = {"--proxyUser"},
       description =
           "If proxy authentication is necessary, this is the username that will be passed along")
+  @ProxyConfigOption(name = "Http Proxy username", category = "General", subCategory = "Http Proxy")
   String proxyUser = null;
 
   @Parameter(
       names = {"--proxyPassword"},
       description =
           "If proxy authentication is necessary, this is the password that will be passed along")
+  @ProxyConfigOption(
+      name = "Http Proxy password",
+      category = "General",
+      subCategory = "Http Proxy",
+      hide = true)
   String proxyPassword = null;
 
   @Parameter(
@@ -1134,28 +1142,28 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--httpConnectTimeout"},
       description = "Connect timeout in milliseconds (default: 5000)")
-  Integer httpConnectTimeout = 5000;
+  int httpConnectTimeout = 5000;
 
   @Parameter(
       names = {"--httpRequestTimeout"},
       description = "Request timeout in milliseconds (default: 10000)")
-  Integer httpRequestTimeout = 10000;
+  int httpRequestTimeout = 10000;
 
   @Parameter(
       names = {"--httpMaxConnTotal"},
       description = "Max connections to keep open (default: 200)")
-  Integer httpMaxConnTotal = 200;
+  int httpMaxConnTotal = 200;
 
   @Parameter(
       names = {"--httpMaxConnPerRoute"},
       description = "Max connections per route to keep open (default: 100)")
-  Integer httpMaxConnPerRoute = 100;
+  int httpMaxConnPerRoute = 100;
 
   @Parameter(
       names = {"--httpAutoRetries"},
       description =
           "Number of times to retry http requests before queueing, set to 0 to disable (default: 3)")
-  Integer httpAutoRetries = 3;
+  int httpAutoRetries = 3;
 
   @Parameter(
       names = {"--preprocessorConfigFile"},
@@ -1221,7 +1229,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--adminApiListenerPort"},
       description = "Enables admin port to control " + "healthcheck status per port. Default: none")
-  Integer adminApiListenerPort = 0;
+  int adminApiListenerPort = 0;
 
   @Parameter(
       names = {"--adminApiRemoteIpAllowRegex"},
@@ -1340,8 +1348,6 @@ public class ProxyConfig extends Configuration {
               + "tag named `level`. Default: level, log_level")
   String customLevelTags = "";
 
-  List<String> unparsed_params;
-
   TimeProvider timeProvider = System::currentTimeMillis;
 
   public boolean isHelp() {
@@ -1424,7 +1430,7 @@ public class ProxyConfig extends Configuration {
     return useNoopSender;
   }
 
-  public Integer getFlushThreads() {
+  public int getFlushThreads() {
     return flushThreads;
   }
 
@@ -1520,7 +1526,7 @@ public class ProxyConfig extends Configuration {
     return pushMemoryBufferLimitLogs;
   }
 
-  public Integer getPushBlockedSamples() {
+  public int getPushBlockedSamples() {
     return pushBlockedSamples;
   }
 
@@ -1544,19 +1550,19 @@ public class ProxyConfig extends Configuration {
     return pushListenerPorts;
   }
 
-  public Integer getPushListenerMaxReceivedLength() {
+  public int getPushListenerMaxReceivedLength() {
     return pushListenerMaxReceivedLength;
   }
 
-  public Integer getPushListenerHttpBufferSize() {
+  public int getPushListenerHttpBufferSize() {
     return pushListenerHttpBufferSize;
   }
 
-  public Integer getTraceListenerMaxReceivedLength() {
+  public int getTraceListenerMaxReceivedLength() {
     return traceListenerMaxReceivedLength;
   }
 
-  public Integer getTraceListenerHttpBufferSize() {
+  public int getTraceListenerHttpBufferSize() {
     return traceListenerHttpBufferSize;
   }
 
@@ -1576,23 +1582,23 @@ public class ProxyConfig extends Configuration {
     return histogramStateDirectory;
   }
 
-  public Long getHistogramAccumulatorResolveInterval() {
+  public long getHistogramAccumulatorResolveInterval() {
     return histogramAccumulatorResolveInterval;
   }
 
-  public Long getHistogramAccumulatorFlushInterval() {
+  public long getHistogramAccumulatorFlushInterval() {
     return histogramAccumulatorFlushInterval;
   }
 
-  public Integer getHistogramAccumulatorFlushMaxBatchSize() {
+  public int getHistogramAccumulatorFlushMaxBatchSize() {
     return histogramAccumulatorFlushMaxBatchSize;
   }
 
-  public Integer getHistogramMaxReceivedLength() {
+  public int getHistogramMaxReceivedLength() {
     return histogramMaxReceivedLength;
   }
 
-  public Integer getHistogramHttpBufferSize() {
+  public int getHistogramHttpBufferSize() {
     return histogramHttpBufferSize;
   }
 
@@ -1600,23 +1606,23 @@ public class ProxyConfig extends Configuration {
     return histogramMinuteListenerPorts;
   }
 
-  public Integer getHistogramMinuteFlushSecs() {
+  public int getHistogramMinuteFlushSecs() {
     return histogramMinuteFlushSecs;
   }
 
-  public Short getHistogramMinuteCompression() {
+  public short getHistogramMinuteCompression() {
     return histogramMinuteCompression;
   }
 
-  public Integer getHistogramMinuteAvgKeyBytes() {
+  public int getHistogramMinuteAvgKeyBytes() {
     return histogramMinuteAvgKeyBytes;
   }
 
-  public Integer getHistogramMinuteAvgDigestBytes() {
+  public int getHistogramMinuteAvgDigestBytes() {
     return histogramMinuteAvgDigestBytes;
   }
 
-  public Long getHistogramMinuteAccumulatorSize() {
+  public long getHistogramMinuteAccumulatorSize() {
     return histogramMinuteAccumulatorSize;
   }
 
@@ -1632,23 +1638,23 @@ public class ProxyConfig extends Configuration {
     return histogramHourListenerPorts;
   }
 
-  public Integer getHistogramHourFlushSecs() {
+  public int getHistogramHourFlushSecs() {
     return histogramHourFlushSecs;
   }
 
-  public Short getHistogramHourCompression() {
+  public short getHistogramHourCompression() {
     return histogramHourCompression;
   }
 
-  public Integer getHistogramHourAvgKeyBytes() {
+  public int getHistogramHourAvgKeyBytes() {
     return histogramHourAvgKeyBytes;
   }
 
-  public Integer getHistogramHourAvgDigestBytes() {
+  public int getHistogramHourAvgDigestBytes() {
     return histogramHourAvgDigestBytes;
   }
 
-  public Long getHistogramHourAccumulatorSize() {
+  public long getHistogramHourAccumulatorSize() {
     return histogramHourAccumulatorSize;
   }
 
@@ -1664,23 +1670,23 @@ public class ProxyConfig extends Configuration {
     return histogramDayListenerPorts;
   }
 
-  public Integer getHistogramDayFlushSecs() {
+  public int getHistogramDayFlushSecs() {
     return histogramDayFlushSecs;
   }
 
-  public Short getHistogramDayCompression() {
+  public short getHistogramDayCompression() {
     return histogramDayCompression;
   }
 
-  public Integer getHistogramDayAvgKeyBytes() {
+  public int getHistogramDayAvgKeyBytes() {
     return histogramDayAvgKeyBytes;
   }
 
-  public Integer getHistogramDayAvgDigestBytes() {
+  public int getHistogramDayAvgDigestBytes() {
     return histogramDayAvgDigestBytes;
   }
 
-  public Long getHistogramDayAccumulatorSize() {
+  public long getHistogramDayAccumulatorSize() {
     return histogramDayAccumulatorSize;
   }
 
@@ -1696,23 +1702,23 @@ public class ProxyConfig extends Configuration {
     return histogramDistListenerPorts;
   }
 
-  public Integer getHistogramDistFlushSecs() {
+  public int getHistogramDistFlushSecs() {
     return histogramDistFlushSecs;
   }
 
-  public Short getHistogramDistCompression() {
+  public short getHistogramDistCompression() {
     return histogramDistCompression;
   }
 
-  public Integer getHistogramDistAvgKeyBytes() {
+  public int getHistogramDistAvgKeyBytes() {
     return histogramDistAvgKeyBytes;
   }
 
-  public Integer getHistogramDistAvgDigestBytes() {
+  public int getHistogramDistAvgDigestBytes() {
     return histogramDistAvgDigestBytes;
   }
 
-  public Long getHistogramDistAccumulatorSize() {
+  public long getHistogramDistAccumulatorSize() {
     return histogramDistAccumulatorSize;
   }
 
@@ -1788,19 +1794,19 @@ public class ProxyConfig extends Configuration {
     return otlpAppTagsOnMetricsIncluded;
   }
 
-  public Integer getFilebeatPort() {
+  public int getFilebeatPort() {
     return filebeatPort;
   }
 
-  public Integer getRawLogsPort() {
+  public int getRawLogsPort() {
     return rawLogsPort;
   }
 
-  public Integer getRawLogsMaxReceivedLength() {
+  public int getRawLogsMaxReceivedLength() {
     return rawLogsMaxReceivedLength;
   }
 
-  public Integer getRawLogsHttpBufferSize() {
+  public int getRawLogsHttpBufferSize() {
     return rawLogsHttpBufferSize;
   }
 
@@ -1888,7 +1894,7 @@ public class ProxyConfig extends Configuration {
     return traceSamplingRate;
   }
 
-  public Integer getTraceSamplingDuration() {
+  public int getTraceSamplingDuration() {
     return traceSamplingDuration;
   }
 
@@ -1915,15 +1921,15 @@ public class ProxyConfig extends Configuration {
     return pushRelayHistogramAggregator;
   }
 
-  public Long getPushRelayHistogramAggregatorAccumulatorSize() {
+  public long getPushRelayHistogramAggregatorAccumulatorSize() {
     return pushRelayHistogramAggregatorAccumulatorSize;
   }
 
-  public Integer getPushRelayHistogramAggregatorFlushSecs() {
+  public int getPushRelayHistogramAggregatorFlushSecs() {
     return pushRelayHistogramAggregatorFlushSecs;
   }
 
-  public Short getPushRelayHistogramAggregatorCompression() {
+  public short getPushRelayHistogramAggregatorCompression() {
     return pushRelayHistogramAggregatorCompression;
   }
 
@@ -2080,7 +2086,7 @@ public class ProxyConfig extends Configuration {
     return gzipCompressionLevel;
   }
 
-  public Integer getSoLingerTime() {
+  public int getSoLingerTime() {
     return soLingerTime;
   }
 
@@ -2088,7 +2094,7 @@ public class ProxyConfig extends Configuration {
     return proxyHost;
   }
 
-  public Integer getProxyPort() {
+  public int getProxyPort() {
     return proxyPort;
   }
 
@@ -2104,23 +2110,23 @@ public class ProxyConfig extends Configuration {
     return httpUserAgent;
   }
 
-  public Integer getHttpConnectTimeout() {
+  public int getHttpConnectTimeout() {
     return httpConnectTimeout;
   }
 
-  public Integer getHttpRequestTimeout() {
+  public int getHttpRequestTimeout() {
     return httpRequestTimeout;
   }
 
-  public Integer getHttpMaxConnTotal() {
+  public int getHttpMaxConnTotal() {
     return httpMaxConnTotal;
   }
 
-  public Integer getHttpMaxConnPerRoute() {
+  public int getHttpMaxConnPerRoute() {
     return httpMaxConnPerRoute;
   }
 
-  public Integer getHttpAutoRetries() {
+  public int getHttpAutoRetries() {
     return httpAutoRetries;
   }
 
@@ -2160,7 +2166,7 @@ public class ProxyConfig extends Configuration {
     return authStaticToken;
   }
 
-  public Integer getAdminApiListenerPort() {
+  public int getAdminApiListenerPort() {
     return adminApiListenerPort;
   }
 
@@ -2229,16 +2235,12 @@ public class ProxyConfig extends Configuration {
     return trafficShaping;
   }
 
-  public Integer getTrafficShapingWindowSeconds() {
+  public int getTrafficShapingWindowSeconds() {
     return trafficShapingWindowSeconds;
   }
 
   public double getTrafficShapingHeadroom() {
     return trafficShapingHeadroom;
-  }
-
-  public int getMulticastingTenants() {
-    return multicastingTenants;
   }
 
   public Map<String, Map<String, String>> getMulticastingTenantList() {
@@ -2259,528 +2261,163 @@ public class ProxyConfig extends Configuration {
 
   @Override
   public void verifyAndInit() {
-    if (unparsed_params != null) {
-      logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
-    }
+    throw new UnsupportedOperationException("not implemented");
+  }
 
-    ReportableConfig config;
-    // If they've specified a push configuration file, override the command line values
-    try {
-      if (pushConfigFile != null) {
-        config = new ReportableConfig(pushConfigFile);
-      } else {
-        config = new ReportableConfig(); // dummy config
+  // TODO: review this options that are only available on the config file.
+  private void configFileExtraArguments(ReportableConfig config) {
+    // Multicasting configurations
+    int multicastingTenants = Integer.parseInt(config.getProperty("multicastingTenants", "0"));
+    for (int i = 1; i <= multicastingTenants; i++) {
+      String tenantName = config.getProperty(String.format("multicastingTenantName_%d", i), "");
+      if (tenantName.equals(APIContainer.CENTRAL_TENANT_NAME)) {
+        throw new IllegalArgumentException(
+            "Error in multicasting endpoints initiation: "
+                + "\"central\" is the reserved tenant name.");
       }
-      prefix = Strings.emptyToNull(config.getString("prefix", prefix));
-      // don't track token in proxy config metrics
-      token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
-      server = config.getString("server", server);
-
-      String FQDN = getLocalHostName();
-      hostname = config.getString("hostname", hostname);
-      proxyname = config.getString("proxyname", proxyname);
-      if (!hostname.equals(FQDN)) {
-        logger.warning(
-            "Deprecated field hostname specified in config setting. Please use "
-                + "proxyname config field to set proxy name.");
-        if (proxyname.equals(FQDN)) proxyname = hostname;
-      }
-      logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
-
-      idFile = config.getString("idFile", idFile);
-      pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
-      pushRateLimitHistograms =
-          config.getInteger("pushRateLimitHistograms", pushRateLimitHistograms);
-      pushRateLimitSourceTags =
-          config.getDouble("pushRateLimitSourceTags", pushRateLimitSourceTags);
-      pushRateLimitSpans = config.getInteger("pushRateLimitSpans", pushRateLimitSpans);
-      pushRateLimitSpanLogs = config.getInteger("pushRateLimitSpanLogs", pushRateLimitSpanLogs);
-      pushRateLimitLogs = config.getInteger("pushRateLimitLogs", pushRateLimitLogs);
-      pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
-      pushRateLimitMaxBurstSeconds =
-          config.getInteger("pushRateLimitMaxBurstSeconds", pushRateLimitMaxBurstSeconds);
-      pushBlockedSamples = config.getInteger("pushBlockedSamples", pushBlockedSamples);
-      blockedPointsLoggerName =
-          config.getString("blockedPointsLoggerName", blockedPointsLoggerName);
-      blockedHistogramsLoggerName =
-          config.getString("blockedHistogramsLoggerName", blockedHistogramsLoggerName);
-      blockedSpansLoggerName = config.getString("blockedSpansLoggerName", blockedSpansLoggerName);
-      blockedLogsLoggerName = config.getString("blockedLogsLoggerName", blockedLogsLoggerName);
-      pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
-      pushListenerMaxReceivedLength =
-          config.getInteger("pushListenerMaxReceivedLength", pushListenerMaxReceivedLength);
-      pushListenerHttpBufferSize =
-          config.getInteger("pushListenerHttpBufferSize", pushListenerHttpBufferSize);
-      traceListenerMaxReceivedLength =
-          config.getInteger("traceListenerMaxReceivedLength", traceListenerMaxReceivedLength);
-      traceListenerHttpBufferSize =
-          config.getInteger("traceListenerHttpBufferSize", traceListenerHttpBufferSize);
-      listenerIdleConnectionTimeout =
-          config.getInteger("listenerIdleConnectionTimeout", listenerIdleConnectionTimeout);
-      memGuardFlushThreshold = config.getInteger("memGuardFlushThreshold", memGuardFlushThreshold);
-
-      // Histogram: global settings
-      histogramPassthroughRecompression =
-          config.getBoolean("histogramPassthroughRecompression", histogramPassthroughRecompression);
-      histogramStateDirectory =
-          config.getString("histogramStateDirectory", histogramStateDirectory);
-      histogramAccumulatorResolveInterval =
-          config.getLong(
-              "histogramAccumulatorResolveInterval", histogramAccumulatorResolveInterval);
-      histogramAccumulatorFlushInterval =
-          config.getLong("histogramAccumulatorFlushInterval", histogramAccumulatorFlushInterval);
-      histogramAccumulatorFlushMaxBatchSize =
-          config.getInteger(
-              "histogramAccumulatorFlushMaxBatchSize", histogramAccumulatorFlushMaxBatchSize);
-      histogramMaxReceivedLength =
-          config.getInteger("histogramMaxReceivedLength", histogramMaxReceivedLength);
-      histogramHttpBufferSize =
-          config.getInteger("histogramHttpBufferSize", histogramHttpBufferSize);
-
-      deltaCountersAggregationListenerPorts =
-          config.getString(
-              "deltaCountersAggregationListenerPorts", deltaCountersAggregationListenerPorts);
-      deltaCountersAggregationIntervalSeconds =
-          config.getLong(
-              "deltaCountersAggregationIntervalSeconds", deltaCountersAggregationIntervalSeconds);
-
-      customTracingListenerPorts =
-          config.getString("customTracingListenerPorts", customTracingListenerPorts);
-
-      // Histogram: deprecated settings - fall back for backwards compatibility
-      if (config.isDefined("avgHistogramKeyBytes")) {
-        histogramMinuteAvgKeyBytes =
-            histogramHourAvgKeyBytes =
-                histogramDayAvgKeyBytes =
-                    histogramDistAvgKeyBytes = config.getInteger("avgHistogramKeyBytes", 150);
-      }
-      if (config.isDefined("avgHistogramDigestBytes")) {
-        histogramMinuteAvgDigestBytes =
-            histogramHourAvgDigestBytes =
-                histogramDayAvgDigestBytes =
-                    histogramDistAvgDigestBytes = config.getInteger("avgHistogramDigestBytes", 500);
-      }
-      if (config.isDefined("histogramAccumulatorSize")) {
-        histogramMinuteAccumulatorSize =
-            histogramHourAccumulatorSize =
-                histogramDayAccumulatorSize =
-                    histogramDistAccumulatorSize =
-                        config.getLong("histogramAccumulatorSize", 100000);
-      }
-      if (config.isDefined("histogramCompression")) {
-        histogramMinuteCompression =
-            histogramHourCompression =
-                histogramDayCompression =
-                    histogramDistCompression =
-                        config.getNumber("histogramCompression", null, 20, 1000).shortValue();
-      }
-      if (config.isDefined("persistAccumulator")) {
-        histogramMinuteAccumulatorPersisted =
-            histogramHourAccumulatorPersisted =
-                histogramDayAccumulatorPersisted =
-                    histogramDistAccumulatorPersisted =
-                        config.getBoolean("persistAccumulator", false);
-      }
-
-      // Histogram: minute accumulator settings
-      histogramMinuteListenerPorts =
-          config.getString("histogramMinuteListenerPorts", histogramMinuteListenerPorts);
-      histogramMinuteFlushSecs =
-          config.getInteger("histogramMinuteFlushSecs", histogramMinuteFlushSecs);
-      histogramMinuteCompression =
-          config
-              .getNumber("histogramMinuteCompression", histogramMinuteCompression, 20, 1000)
-              .shortValue();
-      histogramMinuteAvgKeyBytes =
-          config.getInteger("histogramMinuteAvgKeyBytes", histogramMinuteAvgKeyBytes);
-      histogramMinuteAvgDigestBytes = 32 + histogramMinuteCompression * 7;
-      histogramMinuteAvgDigestBytes =
-          config.getInteger("histogramMinuteAvgDigestBytes", histogramMinuteAvgDigestBytes);
-      histogramMinuteAccumulatorSize =
-          config.getLong("histogramMinuteAccumulatorSize", histogramMinuteAccumulatorSize);
-      histogramMinuteAccumulatorPersisted =
-          config.getBoolean(
-              "histogramMinuteAccumulatorPersisted", histogramMinuteAccumulatorPersisted);
-      histogramMinuteMemoryCache =
-          config.getBoolean("histogramMinuteMemoryCache", histogramMinuteMemoryCache);
-
-      // Histogram: hour accumulator settings
-      histogramHourListenerPorts =
-          config.getString("histogramHourListenerPorts", histogramHourListenerPorts);
-      histogramHourFlushSecs = config.getInteger("histogramHourFlushSecs", histogramHourFlushSecs);
-      histogramHourCompression =
-          config
-              .getNumber("histogramHourCompression", histogramHourCompression, 20, 1000)
-              .shortValue();
-      histogramHourAvgKeyBytes =
-          config.getInteger("histogramHourAvgKeyBytes", histogramHourAvgKeyBytes);
-      histogramHourAvgDigestBytes = 32 + histogramHourCompression * 7;
-      histogramHourAvgDigestBytes =
-          config.getInteger("histogramHourAvgDigestBytes", histogramHourAvgDigestBytes);
-      histogramHourAccumulatorSize =
-          config.getLong("histogramHourAccumulatorSize", histogramHourAccumulatorSize);
-      histogramHourAccumulatorPersisted =
-          config.getBoolean("histogramHourAccumulatorPersisted", histogramHourAccumulatorPersisted);
-      histogramHourMemoryCache =
-          config.getBoolean("histogramHourMemoryCache", histogramHourMemoryCache);
-
-      // Histogram: day accumulator settings
-      histogramDayListenerPorts =
-          config.getString("histogramDayListenerPorts", histogramDayListenerPorts);
-      histogramDayFlushSecs = config.getInteger("histogramDayFlushSecs", histogramDayFlushSecs);
-      histogramDayCompression =
-          config
-              .getNumber("histogramDayCompression", histogramDayCompression, 20, 1000)
-              .shortValue();
-      histogramDayAvgKeyBytes =
-          config.getInteger("histogramDayAvgKeyBytes", histogramDayAvgKeyBytes);
-      histogramDayAvgDigestBytes = 32 + histogramDayCompression * 7;
-      histogramDayAvgDigestBytes =
-          config.getInteger("histogramDayAvgDigestBytes", histogramDayAvgDigestBytes);
-      histogramDayAccumulatorSize =
-          config.getLong("histogramDayAccumulatorSize", histogramDayAccumulatorSize);
-      histogramDayAccumulatorPersisted =
-          config.getBoolean("histogramDayAccumulatorPersisted", histogramDayAccumulatorPersisted);
-      histogramDayMemoryCache =
-          config.getBoolean("histogramDayMemoryCache", histogramDayMemoryCache);
-
-      // Histogram: dist accumulator settings
-      histogramDistListenerPorts =
-          config.getString("histogramDistListenerPorts", histogramDistListenerPorts);
-      histogramDistFlushSecs = config.getInteger("histogramDistFlushSecs", histogramDistFlushSecs);
-      histogramDistCompression =
-          config
-              .getNumber("histogramDistCompression", histogramDistCompression, 20, 1000)
-              .shortValue();
-      histogramDistAvgKeyBytes =
-          config.getInteger("histogramDistAvgKeyBytes", histogramDistAvgKeyBytes);
-      histogramDistAvgDigestBytes = 32 + histogramDistCompression * 7;
-      histogramDistAvgDigestBytes =
-          config.getInteger("histogramDistAvgDigestBytes", histogramDistAvgDigestBytes);
-      histogramDistAccumulatorSize =
-          config.getLong("histogramDistAccumulatorSize", histogramDistAccumulatorSize);
-      histogramDistAccumulatorPersisted =
-          config.getBoolean("histogramDistAccumulatorPersisted", histogramDistAccumulatorPersisted);
-      histogramDistMemoryCache =
-          config.getBoolean("histogramDistMemoryCache", histogramDistMemoryCache);
-
-      // hyperlogs global settings
-      customTimestampTags = config.getString("customTimestampTags", customTimestampTags);
-      customMessageTags = config.getString("customMessageTags", customMessageTags);
-      customApplicationTags = config.getString("customApplicationTags", customApplicationTags);
-      customServiceTags = config.getString("customServiceTags", customServiceTags);
-
-      exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
-      exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
-      exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
-      useNoopSender = config.getBoolean("useNoopSender", useNoopSender);
-      flushThreads = config.getInteger("flushThreads", flushThreads);
-      flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
-      flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
-      flushThreadsLogs = config.getInteger("flushThreadsLogs", flushThreadsLogs);
-      jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
-      writeHttpJsonListenerPorts =
-          config.getString("writeHttpJsonListenerPorts", writeHttpJsonListenerPorts);
-      dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
-      dataDogRequestRelayTarget =
-          config.getString("dataDogRequestRelayTarget", dataDogRequestRelayTarget);
-      dataDogRequestRelayAsyncThreads =
-          config.getInteger("dataDogRequestRelayAsyncThreads", dataDogRequestRelayAsyncThreads);
-      dataDogRequestRelaySyncMode =
-          config.getBoolean("dataDogRequestRelaySyncMode", dataDogRequestRelaySyncMode);
-      dataDogProcessSystemMetrics =
-          config.getBoolean("dataDogProcessSystemMetrics", dataDogProcessSystemMetrics);
-      dataDogProcessServiceChecks =
-          config.getBoolean("dataDogProcessServiceChecks", dataDogProcessServiceChecks);
-      graphitePorts = config.getString("graphitePorts", graphitePorts);
-      graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
-      graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);
-      graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
-      otlpGrpcListenerPorts = config.getString("otlpGrpcListenerPorts", otlpGrpcListenerPorts);
-      otlpHttpListenerPorts = config.getString("otlpHttpListenerPorts", otlpHttpListenerPorts);
-      otlpResourceAttrsOnMetricsIncluded =
-          config.getBoolean(
-              "otlpResourceAttrsOnMetricsIncluded", otlpResourceAttrsOnMetricsIncluded);
-      otlpAppTagsOnMetricsIncluded =
-          config.getBoolean("otlpAppTagsOnMetricsIncluded", otlpAppTagsOnMetricsIncluded);
-      allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
-      blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
-      opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
-      opentsdbAllowRegex =
-          config.getString(
-              "opentsdbAllowRegex", config.getString("opentsdbWhitelistRegex", opentsdbAllowRegex));
-      opentsdbBlockRegex =
-          config.getString(
-              "opentsdbBlockRegex", config.getString("opentsdbBlacklistRegex", opentsdbBlockRegex));
-      proxyHost = config.getString("proxyHost", proxyHost);
-      proxyPort = config.getInteger("proxyPort", proxyPort);
-      proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
-      proxyUser = config.getString("proxyUser", proxyUser);
-      httpUserAgent = config.getString("httpUserAgent", httpUserAgent);
-      httpConnectTimeout = config.getInteger("httpConnectTimeout", httpConnectTimeout);
-      httpRequestTimeout = config.getInteger("httpRequestTimeout", httpRequestTimeout);
-      httpMaxConnTotal = Math.min(200, config.getInteger("httpMaxConnTotal", httpMaxConnTotal));
-      httpMaxConnPerRoute =
-          Math.min(100, config.getInteger("httpMaxConnPerRoute", httpMaxConnPerRoute));
-      httpAutoRetries = config.getInteger("httpAutoRetries", httpAutoRetries);
-      gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
-      gzipCompressionLevel =
-          config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).intValue();
-      soLingerTime = config.getInteger("soLingerTime", soLingerTime);
-      splitPushWhenRateLimited =
-          config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
-      customSourceTags = config.getString("customSourceTags", customSourceTags);
-      customLevelTags = config.getString("customLevelTags", customLevelTags);
-      customExceptionTags = config.getString("customExceptionTags", customExceptionTags);
-      agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
-      ephemeral = config.getBoolean("ephemeral", ephemeral);
-      disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
-      picklePorts = config.getString("picklePorts", picklePorts);
-      traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
-      traceJaegerListenerPorts =
-          config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
-      traceJaegerHttpListenerPorts =
-          config.getString("traceJaegerHttpListenerPorts", traceJaegerHttpListenerPorts);
-      traceJaegerGrpcListenerPorts =
-          config.getString("traceJaegerGrpcListenerPorts", traceJaegerGrpcListenerPorts);
-      traceJaegerApplicationName =
-          config.getString("traceJaegerApplicationName", traceJaegerApplicationName);
-      traceZipkinListenerPorts =
-          config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
-      traceZipkinApplicationName =
-          config.getString("traceZipkinApplicationName", traceZipkinApplicationName);
-      customTracingListenerPorts =
-          config.getString("customTracingListenerPorts", customTracingListenerPorts);
-      customTracingApplicationName =
-          config.getString("customTracingApplicationName", customTracingApplicationName);
-      customTracingServiceName =
-          config.getString("customTracingServiceName", customTracingServiceName);
-      traceSamplingRate = config.getDouble("traceSamplingRate", traceSamplingRate);
-      traceSamplingDuration = config.getInteger("traceSamplingDuration", traceSamplingDuration);
-      traceDerivedCustomTagKeys =
-          config.getString("traceDerivedCustomTagKeys", traceDerivedCustomTagKeys);
-      backendSpanHeadSamplingPercentIgnored =
-          config.getBoolean(
-              "backendSpanHeadSamplingPercentIgnored", backendSpanHeadSamplingPercentIgnored);
-      pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
-      pushRelayHistogramAggregator =
-          config.getBoolean("pushRelayHistogramAggregator", pushRelayHistogramAggregator);
-      pushRelayHistogramAggregatorAccumulatorSize =
-          config.getLong(
-              "pushRelayHistogramAggregatorAccumulatorSize",
-              pushRelayHistogramAggregatorAccumulatorSize);
-      pushRelayHistogramAggregatorFlushSecs =
-          config.getInteger(
-              "pushRelayHistogramAggregatorFlushSecs", pushRelayHistogramAggregatorFlushSecs);
-      pushRelayHistogramAggregatorCompression =
-          config
-              .getNumber(
-                  "pushRelayHistogramAggregatorCompression",
-                  pushRelayHistogramAggregatorCompression)
-              .shortValue();
-      bufferFile = config.getString("buffer", bufferFile);
-      bufferShardSize = config.getInteger("bufferShardSize", bufferShardSize);
-      disableBufferSharding = config.getBoolean("disableBufferSharding", disableBufferSharding);
-      taskQueueLevel =
-          TaskQueueLevel.fromString(
-              config.getString("taskQueueStrategy", taskQueueLevel.toString()));
-      purgeBuffer = config.getBoolean("purgeBuffer", purgeBuffer);
-      preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
-      dataBackfillCutoffHours =
-          config.getInteger("dataBackfillCutoffHours", dataBackfillCutoffHours);
-      dataPrefillCutoffHours = config.getInteger("dataPrefillCutoffHours", dataPrefillCutoffHours);
-      filebeatPort = config.getInteger("filebeatPort", filebeatPort);
-      rawLogsPort = config.getInteger("rawLogsPort", rawLogsPort);
-      rawLogsMaxReceivedLength =
-          config.getInteger("rawLogsMaxReceivedLength", rawLogsMaxReceivedLength);
-      rawLogsHttpBufferSize = config.getInteger("rawLogsHttpBufferSize", rawLogsHttpBufferSize);
-      logsIngestionConfigFile =
-          config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
-
-      sqsQueueBuffer = config.getBoolean("sqsBuffer", sqsQueueBuffer);
-      sqsQueueNameTemplate = config.getString("sqsQueueNameTemplate", sqsQueueNameTemplate);
-      sqsQueueRegion = config.getString("sqsQueueRegion", sqsQueueRegion);
-      sqsQueueIdentifier = config.getString("sqsQueueIdentifier", sqsQueueIdentifier);
-
-      // auth settings
-      authMethod =
-          TokenValidationMethod.fromString(config.getString("authMethod", authMethod.toString()));
-      authTokenIntrospectionServiceUrl =
-          config.getString("authTokenIntrospectionServiceUrl", authTokenIntrospectionServiceUrl);
-      authTokenIntrospectionAuthorizationHeader =
-          config.getString(
-              "authTokenIntrospectionAuthorizationHeader",
-              authTokenIntrospectionAuthorizationHeader);
-      authResponseRefreshInterval =
-          config.getInteger("authResponseRefreshInterval", authResponseRefreshInterval);
-      authResponseMaxTtl = config.getInteger("authResponseMaxTtl", authResponseMaxTtl);
-      authStaticToken = config.getString("authStaticToken", authStaticToken);
-
-      // health check / admin API settings
-      adminApiListenerPort = config.getInteger("adminApiListenerPort", adminApiListenerPort);
-      adminApiRemoteIpAllowRegex =
-          config.getString("adminApiRemoteIpWhitelistRegex", adminApiRemoteIpAllowRegex);
-      httpHealthCheckPorts = config.getString("httpHealthCheckPorts", httpHealthCheckPorts);
-      httpHealthCheckAllPorts = config.getBoolean("httpHealthCheckAllPorts", false);
-      httpHealthCheckPath = config.getString("httpHealthCheckPath", httpHealthCheckPath);
-      httpHealthCheckResponseContentType =
-          config.getString(
-              "httpHealthCheckResponseContentType", httpHealthCheckResponseContentType);
-      httpHealthCheckPassStatusCode =
-          config.getInteger("httpHealthCheckPassStatusCode", httpHealthCheckPassStatusCode);
-      httpHealthCheckPassResponseBody =
-          config.getString("httpHealthCheckPassResponseBody", httpHealthCheckPassResponseBody);
-      httpHealthCheckFailStatusCode =
-          config.getInteger("httpHealthCheckFailStatusCode", httpHealthCheckFailStatusCode);
-      httpHealthCheckFailResponseBody =
-          config.getString("httpHealthCheckFailResponseBody", httpHealthCheckFailResponseBody);
-
-      // Multicasting configurations
+      String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
+      String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
       multicastingTenantList.put(
-          APIContainer.CENTRAL_TENANT_NAME,
-          ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
-      multicastingTenants = config.getInteger("multicastingTenants", multicastingTenants);
-      String tenantName;
-      String tenantServer;
-      String tenantToken;
-      for (int i = 1; i <= multicastingTenants; i++) {
-        tenantName = config.getString(String.format("multicastingTenantName_%d", i), "");
-        if (tenantName.equals(APIContainer.CENTRAL_TENANT_NAME)) {
-          throw new IllegalArgumentException(
-              "Error in multicasting endpoints initiation: "
-                  + "\"central\" is the reserved tenant name.");
-        }
-        tenantServer = config.getString(String.format("multicastingServer_%d", i), "");
-        tenantToken = config.getString(String.format("multicastingToken_%d", i), "");
-        multicastingTenantList.put(
-            tenantName,
-            ImmutableMap.of(
-                APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
-      }
-
-      // TLS configurations
-      privateCertPath = config.getString("privateCertPath", privateCertPath);
-      privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
-      tlsPorts = config.getString("tlsPorts", tlsPorts);
-
-      // Traffic shaping config
-      trafficShaping = config.getBoolean("trafficShaping", trafficShaping);
-      trafficShapingWindowSeconds =
-          config.getInteger("trafficShapingWindowSeconds", trafficShapingWindowSeconds);
-      trafficShapingHeadroom = config.getDouble("trafficShapingHeadroom", trafficShapingHeadroom);
-
-      // CORS configuration
-      corsEnabledPorts = config.getString("corsEnabledPorts", corsEnabledPorts);
-      corsOrigin = config.getString("corsOrigin", corsOrigin);
-      corsAllowNullOrigin = config.getBoolean("corsAllowNullOrigin", corsAllowNullOrigin);
-
-      // clamp values for pushFlushMaxPoints/etc between min split size
-      // (or 1 in case of source tags and events) and default batch size.
-      // also make sure it is never higher than the configured rate limit.
-      pushFlushMaxPoints =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxPoints", pushFlushMaxPoints),
-                      DEFAULT_BATCH_SIZE),
-                  (int) pushRateLimit),
-              DEFAULT_MIN_SPLIT_BATCH_SIZE);
-      pushFlushMaxHistograms =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxHistograms", pushFlushMaxHistograms),
-                      DEFAULT_BATCH_SIZE_HISTOGRAMS),
-                  (int) pushRateLimitHistograms),
-              DEFAULT_MIN_SPLIT_BATCH_SIZE);
-      pushFlushMaxSourceTags =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxSourceTags", pushFlushMaxSourceTags),
-                      DEFAULT_BATCH_SIZE_SOURCE_TAGS),
-                  (int) pushRateLimitSourceTags),
-              1);
-      pushFlushMaxSpans =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxSpans", pushFlushMaxSpans),
-                      DEFAULT_BATCH_SIZE_SPANS),
-                  (int) pushRateLimitSpans),
-              DEFAULT_MIN_SPLIT_BATCH_SIZE);
-      pushFlushMaxSpanLogs =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxSpanLogs", pushFlushMaxSpanLogs),
-                      DEFAULT_BATCH_SIZE_SPAN_LOGS),
-                  (int) pushRateLimitSpanLogs),
-              DEFAULT_MIN_SPLIT_BATCH_SIZE);
-      pushFlushMaxEvents =
-          Math.min(
-              Math.min(
-                  Math.max(config.getInteger("pushFlushMaxEvents", pushFlushMaxEvents), 1),
-                  DEFAULT_BATCH_SIZE_EVENTS),
-              (int) (pushRateLimitEvents + 1));
-
-      pushFlushMaxLogs =
-          Math.max(
-              Math.min(
-                  Math.min(
-                      config.getInteger("pushFlushMaxLogs", pushFlushMaxLogs),
-                      MAX_BATCH_SIZE_LOGS_PAYLOAD),
-                  (int) pushRateLimitLogs),
-              DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
-      pushMemoryBufferLimitLogs =
-          Math.max(
-              config.getInteger("pushMemoryBufferLimitLogs", pushMemoryBufferLimitLogs),
-              pushFlushMaxLogs);
-
-      /*
-       default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of
-       available heap memory. 25% is chosen heuristically as a safe number for scenarios with
-       limited system resources (4 CPU cores or less, heap size less than 4GB) to prevent OOM.
-       this is a conservative estimate, budgeting 200 characters (400 bytes) per per point line.
-       Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
-      */
-      int listeningPorts =
-          Iterables.size(
-              Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
-      long calculatedMemoryBufferLimit =
-          Math.max(
-              Math.min(
-                  16 * pushFlushMaxPoints,
-                  Runtime.getRuntime().maxMemory()
-                      / Math.max(0, listeningPorts)
-                      / 4
-                      / flushThreads
-                      / 400),
-              pushFlushMaxPoints);
-      logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit =
-          Math.max(
-              config.getInteger("pushMemoryBufferLimit", pushMemoryBufferLimit),
-              pushFlushMaxPoints);
-      logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
-      pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
-      pushFlushIntervalLogs = config.getInteger("pushFlushIntervalLogs", pushFlushIntervalLogs);
-      retryBackoffBaseSeconds =
-          Math.max(
-              Math.min(
-                  config.getDouble("retryBackoffBaseSeconds", retryBackoffBaseSeconds),
-                  MAX_RETRY_BACKOFF_BASE_SECONDS),
-              1.0);
-    } catch (Throwable exception) {
-      logger.severe("Could not load configuration file " + pushConfigFile);
-      throw new RuntimeException(exception.getMessage());
+          tenantName,
+          ImmutableMap.of(
+              APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
     }
-    if (httpUserAgent == null) {
-      httpUserAgent = "Wavefront-Proxy/" + getBuildVersion();
+
+    if (config.isDefined("avgHistogramKeyBytes")) {
+      histogramMinuteAvgKeyBytes =
+          histogramHourAvgKeyBytes =
+              histogramDayAvgKeyBytes =
+                  histogramDistAvgKeyBytes = config.getInteger("avgHistogramKeyBytes", 150);
     }
-    if (pushConfigFile != null) {
-      logger.info("Loaded configuration file " + pushConfigFile);
+
+    if (config.isDefined("avgHistogramDigestBytes")) {
+      histogramMinuteAvgDigestBytes =
+          histogramHourAvgDigestBytes =
+              histogramDayAvgDigestBytes =
+                  histogramDistAvgDigestBytes = config.getInteger("avgHistogramDigestBytes", 500);
     }
+    if (config.isDefined("histogramAccumulatorSize")) {
+      histogramMinuteAccumulatorSize =
+          histogramHourAccumulatorSize =
+              histogramDayAccumulatorSize =
+                  histogramDistAccumulatorSize = config.getLong("histogramAccumulatorSize", 100000);
+    }
+    if (config.isDefined("histogramCompression")) {
+      histogramMinuteCompression =
+          histogramHourCompression =
+              histogramDayCompression =
+                  histogramDistCompression =
+                      config.getNumber("histogramCompression", null, 20, 1000).shortValue();
+    }
+    if (config.isDefined("persistAccumulator")) {
+      histogramMinuteAccumulatorPersisted =
+          histogramHourAccumulatorPersisted =
+              histogramDayAccumulatorPersisted =
+                  histogramDistAccumulatorPersisted =
+                      config.getBoolean("persistAccumulator", false);
+    }
+
+    histogramMinuteCompression =
+        config
+            .getNumber("histogramMinuteCompression", histogramMinuteCompression, 20, 1000)
+            .shortValue();
+    histogramMinuteAvgDigestBytes = 32 + histogramMinuteCompression * 7;
+
+    histogramHourCompression =
+        config
+            .getNumber("histogramHourCompression", histogramHourCompression, 20, 1000)
+            .shortValue();
+    histogramHourAvgDigestBytes = 32 + histogramHourCompression * 7;
+
+    histogramDayCompression =
+        config.getNumber("histogramDayCompression", histogramDayCompression, 20, 1000).shortValue();
+    histogramDayAvgDigestBytes = 32 + histogramDayCompression * 7;
+
+    histogramDistCompression =
+        config
+            .getNumber("histogramDistCompression", histogramDistCompression, 20, 1000)
+            .shortValue();
+    histogramDistAvgDigestBytes = 32 + histogramDistCompression * 7;
+
+    proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
+    httpMaxConnTotal = Math.min(200, config.getInteger("httpMaxConnTotal", httpMaxConnTotal));
+    httpMaxConnPerRoute =
+        Math.min(100, config.getInteger("httpMaxConnPerRoute", httpMaxConnPerRoute));
+    gzipCompressionLevel =
+        config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).intValue();
+
+    // clamp values for pushFlushMaxPoints/etc between min split size
+    // (or 1 in case of source tags and events) and default batch size.
+    // also make sure it is never higher than the configured rate limit.
+    pushFlushMaxPoints =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxPoints", pushFlushMaxPoints),
+                    DEFAULT_BATCH_SIZE),
+                (int) pushRateLimit),
+            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+    pushFlushMaxHistograms =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxHistograms", pushFlushMaxHistograms),
+                    DEFAULT_BATCH_SIZE_HISTOGRAMS),
+                (int) pushRateLimitHistograms),
+            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+    pushFlushMaxSourceTags =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxSourceTags", pushFlushMaxSourceTags),
+                    DEFAULT_BATCH_SIZE_SOURCE_TAGS),
+                (int) pushRateLimitSourceTags),
+            1);
+    pushFlushMaxSpans =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxSpans", pushFlushMaxSpans),
+                    DEFAULT_BATCH_SIZE_SPANS),
+                (int) pushRateLimitSpans),
+            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+    pushFlushMaxSpanLogs =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxSpanLogs", pushFlushMaxSpanLogs),
+                    DEFAULT_BATCH_SIZE_SPAN_LOGS),
+                (int) pushRateLimitSpanLogs),
+            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+    pushFlushMaxEvents =
+        Math.min(
+            Math.min(
+                Math.max(config.getInteger("pushFlushMaxEvents", pushFlushMaxEvents), 1),
+                DEFAULT_BATCH_SIZE_EVENTS),
+            (int) (pushRateLimitEvents + 1));
+
+    pushFlushMaxLogs =
+        Math.max(
+            Math.min(
+                Math.min(
+                    config.getInteger("pushFlushMaxLogs", pushFlushMaxLogs),
+                    MAX_BATCH_SIZE_LOGS_PAYLOAD),
+                (int) pushRateLimitLogs),
+            DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
+    pushMemoryBufferLimitLogs =
+        Math.max(
+            config.getInteger("pushMemoryBufferLimitLogs", pushMemoryBufferLimitLogs),
+            pushFlushMaxLogs);
+
+    pushMemoryBufferLimit =
+        Math.max(
+            config.getInteger("pushMemoryBufferLimit", pushMemoryBufferLimit), pushFlushMaxPoints);
+    retryBackoffBaseSeconds =
+        Math.max(
+            Math.min(
+                config.getDouble("retryBackoffBaseSeconds", retryBackoffBaseSeconds),
+                MAX_RETRY_BACKOFF_BASE_SECONDS),
+            1.0);
   }
 
   /**
@@ -2794,13 +2431,93 @@ public class ProxyConfig extends Configuration {
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
 
-    JCommander jCommander =
+    JCommander jc =
         JCommander.newBuilder()
             .programName(programName)
             .addObject(this)
             .allowParameterOverwriting(true)
+            .acceptUnknownOptions(true)
             .build();
-    jCommander.parse(args);
+
+    // Command line arguments
+    jc.parse(args);
+
+    detectModifiedOptions(Arrays.stream(args).filter(s -> s.startsWith("-")), modifyByArgs);
+    logger.info("modifyByArgs: " + Joiner.on(", ").join(modifyByArgs));
+
+    // Config file
+    if (pushConfigFile != null) {
+      ReportableConfig confFile = new ReportableConfig();
+      List<String> fileArgs = new ArrayList<>();
+      try {
+        confFile.load(Files.newInputStream(Paths.get(pushConfigFile)));
+      } catch (Throwable exception) {
+        logger.severe("Could not load configuration file " + pushConfigFile);
+        throw new RuntimeException(exception.getMessage());
+      }
+
+      confFile.entrySet().stream()
+          .filter(entry -> !entry.getKey().toString().startsWith("multicasting"))
+          .forEach(
+              entry -> {
+                fileArgs.add("--" + entry.getKey().toString());
+                fileArgs.add(entry.getValue().toString());
+              });
+
+      jc.parse(fileArgs.toArray(new String[0]));
+      detectModifiedOptions(fileArgs.stream().filter(s -> s.startsWith("-")), modifyByFile);
+      modifyByArgs.removeAll(modifyByFile); // argument are override by the config file
+      configFileExtraArguments(confFile);
+    }
+
+    multicastingTenantList.put(
+        APIContainer.CENTRAL_TENANT_NAME,
+        ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
+
+    logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
+
+    String FQDN = getLocalHostName();
+    if (!hostname.equals(FQDN)) {
+      logger.warning(
+          "Deprecated field hostname specified in config setting. Please use "
+              + "proxyname config field to set proxy name.");
+      if (proxyname.equals(FQDN)) proxyname = hostname;
+    }
+    logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
+
+    if (httpUserAgent == null) {
+      httpUserAgent = "Wavefront-Proxy/" + getBuildVersion();
+    }
+
+    // TODO: deprecate this
+    createConfigMetrics();
+
+    List<String> cfgStrs = new ArrayList<>();
+    List<Field> cfg = new ArrayList<>();
+    cfg.addAll(modifyByArgs);
+    cfg.addAll(modifyByFile);
+    cfg.stream()
+        .forEach(
+            field -> {
+              Optional<ProxyConfigOption> option =
+                  Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+              boolean hide = option.isPresent() && option.get().hide();
+              try {
+                boolean arg = !modifyByFile.contains(field);
+                cfgStrs.add(
+                    "\t"
+                        + (arg ? "* " : "  ")
+                        + field.getName()
+                        + " = "
+                        + (hide ? "<HIDDEN>" : field.get(this)));
+              } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    logger.info("Config: (* command line argument)");
+    for (String cfgStr : cfgStrs) {
+      logger.info(cfgStr);
+    }
 
     if (this.isVersion()) {
       System.out.println(versionStr);
@@ -2808,10 +2525,77 @@ public class ProxyConfig extends Configuration {
     }
     if (this.isHelp()) {
       System.out.println(versionStr);
-      jCommander.usage();
+      jc.usage();
       return false;
     }
     return true;
+  }
+
+  private void createConfigMetrics() {
+    Field[] fields = this.getClass().getDeclaredFields();
+    for (Field field : fields) {
+      Optional<Parameter> parameter =
+          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+      Optional<ProxyConfigOption> option =
+          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+      boolean hide = option.isPresent() && option.get().hide();
+      if (parameter.isPresent() && !hide) {
+        MetricName name = new MetricName("config", "", field.getName());
+        try {
+          Class<?> type = (Class<?>) field.getGenericType();
+          if (type.isAssignableFrom(String.class)) {
+            String val = (String) field.get(this);
+            if (StringUtils.isNotBlank(val)) {
+              name = new TaggedMetricName(name.getGroup(), name.getName(), "value", val);
+              reportGauge(1, name);
+            } else {
+              reportGauge(0, name);
+            }
+          } else if (type.isEnum()) {
+            String val = field.get(this).toString();
+            name = new TaggedMetricName(name.getGroup(), name.getName(), "value", val);
+            reportGauge(1, name);
+          } else if (type.isAssignableFrom(boolean.class)) {
+            Boolean val = (Boolean) field.get(this);
+            reportGauge(val.booleanValue() ? 1 : 0, name);
+          } else if (type.isAssignableFrom(int.class)) {
+            reportGauge((int) field.get(this), name);
+          } else if (type.isAssignableFrom(double.class)) {
+            reportGauge((double) field.get(this), name);
+          } else if (type.isAssignableFrom(long.class)) {
+            reportGauge((long) field.get(this), name);
+          } else if (type.isAssignableFrom(short.class)) {
+            reportGauge((short) field.get(this), name);
+          } else {
+            throw new RuntimeException("--- " + field.getType());
+          }
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
+
+  private void detectModifiedOptions(Stream<String> args, List<Field> list) {
+    args.forEach(
+        arg -> {
+          Field[] fields = this.getClass().getDeclaredFields();
+          list.addAll(
+              Arrays.stream(fields)
+                  .filter(
+                      field -> {
+                        Optional<Parameter> parameter =
+                            Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+                        if (parameter.isPresent()) {
+                          String[] names = parameter.get().names();
+                          if (Arrays.asList(names).contains(arg)) {
+                            return true;
+                          }
+                        }
+                        return false;
+                      })
+                  .collect(Collectors.toList()));
+        });
   }
 
   public JsonNode getJsonConfig() {

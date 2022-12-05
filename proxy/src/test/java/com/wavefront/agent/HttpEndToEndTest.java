@@ -792,6 +792,9 @@ public class HttpEndToEndTest {
       } else if (path.endsWith("/config/processed")) {
         writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
         return;
+      } else if (path.endsWith("/wfproxy/saveConfig")) {
+        writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
+        return;
       }
       HttpResponse response = func.apply(request);
       logger.fine("Responding with HTTP " + response.status());

@@ -12,7 +12,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
@@ -42,7 +41,6 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -51,8 +49,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.net.ssl.SSLException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -67,10 +63,8 @@ public abstract class AbstractAgent {
   final Counter activeListeners =
       Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
   /** A set of commandline parameters to hide when echoing command line arguments */
-  protected static final Set<String> PARAMETERS_TO_HIDE =
-      ImmutableSet.of("-t", "--token", "--proxyPassword");
-
   protected final ProxyConfig proxyConfig = new ProxyConfig();
+
   protected APIContainer apiContainer;
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
@@ -231,6 +225,7 @@ public abstract class AbstractAgent {
             + ")"
             + ", runtime: "
             + getJavaVersion();
+    logger.info(versionStr);
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
@@ -240,14 +235,6 @@ public abstract class AbstractAgent {
       logger.severe("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
-    logger.info(versionStr);
-    logger.info(
-        "Arguments: "
-            + IntStream.range(0, args.length)
-                .mapToObj(
-                    i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i])
-                .collect(Collectors.joining(" ")));
-    proxyConfig.verifyAndInit();
   }
 
   /**

@@ -14,4 +14,6 @@ public @interface ProxyConfigOption {
   String category();
 
   String subCategory() default "";
+
+  boolean hide() default false;
 }

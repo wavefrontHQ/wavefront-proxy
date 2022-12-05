@@ -54,17 +54,15 @@ public class ProxyCheckInScheduler {
   private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
   private final Runnable truncateBacklog;
-  private String hostname;
-  private String serverEndpointUrl = null;
-
-  private volatile JsonNode agentMetrics;
   private final AtomicInteger retries = new AtomicInteger(0);
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
-  private boolean retryImmediately = false;
-
   /** Executors for support tasks. */
   private final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
+
+  private String serverEndpointUrl = null;
+  private volatile JsonNode agentMetrics;
+  private boolean retryImmediately = false;
 
   /**
    * @param proxyId Proxy UUID.
@@ -87,6 +85,7 @@ public class ProxyCheckInScheduler {
     this.agentConfigurationConsumer = agentConfigurationConsumer;
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
+
     updateProxyMetrics();
 
     Map<String, AgentConfiguration> configList = checkin();
@@ -105,7 +104,6 @@ public class ProxyCheckInScheduler {
         successfulCheckIns.incrementAndGet();
       }
     }
-    hostname = proxyConfig.getHostname();
   }
 
   /** Set up and schedule regular check-ins. */
@@ -130,9 +128,13 @@ public class ProxyCheckInScheduler {
   }
 
   private void sendConfig() {
-    apiContainer
-        .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-        .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
+    try {
+      apiContainer
+          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+          .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
+    } catch (javax.ws.rs.NotFoundException ex) {
+      logger.debug("'proxySaveConfig' api end point not found", ex);
+    }
   }
 
   /**
@@ -354,8 +356,7 @@ public class ProxyCheckInScheduler {
     try {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", ID);
-      // MONIT-27856 Adds real hostname (fqdn if possible) as internal metric tag
-      pointTags.put("hostname", hostname);
+      pointTags.put("hostname", proxyConfig.getHostname());
       synchronized (executor) {
         agentMetrics =
             JsonMetricsGenerator.generateJsonMetrics(
