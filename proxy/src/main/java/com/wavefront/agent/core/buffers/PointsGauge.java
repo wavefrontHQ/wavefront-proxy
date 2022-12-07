@@ -1,5 +1,7 @@
 package com.wavefront.agent.core.buffers;
 
+import static com.wavefront.agent.core.buffers.ActiveMQBuffer.MSG_ITEMS;
+
 import com.wavefront.agent.PushAgent;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.common.NamedThreadFactory;
@@ -47,7 +49,7 @@ public class PointsGauge extends Gauge<Long> {
             (QueueControl) amq.getManagementService().getResource(ResourceNames.QUEUE + queueName);
         Map<String, Object>[] messages = queueControl.listMessages("");
         for (Map<String, Object> message : messages) {
-          int p = (int) message.get("points");
+          int p = (int) message.get(MSG_ITEMS);
           count += p;
         }
       }

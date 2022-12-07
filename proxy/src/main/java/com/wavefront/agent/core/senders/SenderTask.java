@@ -3,6 +3,7 @@ package com.wavefront.agent.core.senders;
 import static com.wavefront.common.Utils.isWavefrontResponse;
 
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.buffers.OnMsgDelegate;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
@@ -22,7 +23,7 @@ import org.apache.logging.log4j.core.util.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class SenderTask implements Runnable {
+abstract class SenderTask implements Runnable, OnMsgDelegate {
   private static final Logger log = LoggerFactory.getLogger(SenderTask.class.getCanonicalName());
   //      new MessageDedupingLogger(LoggerFactory.getLogger(SenderTask.class.getCanonicalName()),
   // 1000, 1);
@@ -45,18 +46,24 @@ abstract class SenderTask implements Runnable {
   @Override
   public void run() {
     try {
-      buffer.onMsgBatch(
-          queue,
-          idx,
-          properties.getDataPerBatch(),
-          properties.getRateLimiter(),
-          this::processBatch);
+      buffer.onMsgBatch(queue, idx, this);
     } catch (Throwable e) {
       log.error("error sending " + queue.getEntityType().name(), e);
     }
   }
 
-  private void processBatch(List<String> batch) throws SenderTaskException {
+  @Override
+  public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+    return items + newItems <= properties.getDataPerBatch();
+  }
+
+  @Override
+  public boolean checkRates(int newItems, int newBytes) {
+    return properties.getRateLimiter().tryAcquire(newItems);
+  }
+
+  @Override
+  public void processBatch(List<String> batch) throws SenderTaskException {
     TimerContext timer =
         Metrics.newTimer(
                 new MetricName("push." + queue.getName(), "", "duration"),

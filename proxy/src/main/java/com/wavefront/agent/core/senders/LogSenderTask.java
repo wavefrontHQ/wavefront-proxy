@@ -21,6 +21,7 @@ public class LogSenderTask extends SenderTask {
   private final QueueInfo queue;
   private final LogAPI logAPI;
   private final UUID proxyId;
+  private EntityProperties properties;
 
   /**
    * @param queue handler key, that serves as an identifier of the log pipeline.
@@ -40,6 +41,11 @@ public class LogSenderTask extends SenderTask {
     this.queue = queue;
     this.logAPI = logAPI;
     this.proxyId = proxyId;
+    this.properties = properties;
+  }
+
+  public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+    return bytes + newBytes <= properties.getDataPerBatch();
   }
 
   protected Response submit(List<String> logs) {

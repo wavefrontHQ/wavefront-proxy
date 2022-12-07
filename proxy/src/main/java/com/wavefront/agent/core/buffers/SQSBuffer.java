@@ -5,7 +5,6 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.data.EntityRateLimiter;
 import java.util.*;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
 import org.slf4j.Logger;
@@ -71,15 +70,14 @@ public class SQSBuffer implements Buffer {
   }
 
   @Override
-  public void onMsgBatch(
-      QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
+  public void onMsgBatch(QueueInfo queue, int idx, OnMsgDelegate func) {
 
     String queueUrl = queuesUrls.get(queue.getName());
     long start = System.currentTimeMillis();
-    List<String> batch = new ArrayList<>(batchSize);
+    List<String> batch = new ArrayList<>();
     List<Message> messagesToDelete = new ArrayList<>();
     boolean done = false;
-    while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
+    while (!done && ((System.currentTimeMillis() - start) < 1000)) {
       ReceiveMessageRequest receiveRequest = new ReceiveMessageRequest(queueUrl);
       receiveRequest.setMaxNumberOfMessages(1);
       receiveRequest.setWaitTimeSeconds(1);
@@ -89,6 +87,7 @@ public class SQSBuffer implements Buffer {
         List<String> points = Arrays.asList(messages.get(0).getBody().split("\n"));
         batch.addAll(points);
         messagesToDelete.addAll(messages);
+        done = !func.checkBatchSize(batch.size(), 0,0,0);
       } else {
         done = true;
       }
@@ -96,7 +95,7 @@ public class SQSBuffer implements Buffer {
 
     try {
       if (batch.size() > 0) {
-        func.run(batch);
+        func.processBatch(batch);
       }
       messagesToDelete.forEach(
           message -> {

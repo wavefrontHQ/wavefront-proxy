@@ -5,7 +5,6 @@ import static org.apache.activemq.artemis.core.settings.impl.AddressFullMessageP
 
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
-import com.wavefront.agent.data.EntityRateLimiter;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -35,6 +34,8 @@ public abstract class ActiveMQBuffer implements Buffer {
   private static final Logger log =
       LoggerFactory.getLogger(ActiveMQBuffer.class.getCanonicalName());
   private static final Logger slowLog = log;
+  public static final String MSG_ITEMS = "items";
+  public static final String MSG_BYTES = "bytes";
   //      new
   // MessageDedupingLogger(LoggerFactory.getLogger(ActiveMQBuffer.class.getCanonicalName()), 1000,
   // 1);
@@ -221,8 +222,10 @@ public abstract class ActiveMQBuffer implements Buffer {
 
     try {
       ClientMessage message = mqCtx.session.createMessage(true);
-      message.writeBodyBufferString(String.join("\n", points));
-      message.putIntProperty("points", points.size());
+      String str = String.join("\n", points);
+      message.writeBodyBufferString(str);
+      message.putIntProperty(MSG_ITEMS, points.size());
+      message.putIntProperty(MSG_BYTES, str.length());
       mqCtx.producer.send(message);
     } catch (ActiveMQAddressFullException e) {
       log.info("queue full: " + e.getMessage());
@@ -253,8 +256,7 @@ public abstract class ActiveMQBuffer implements Buffer {
   }
 
   @Override
-  public void onMsgBatch(
-      QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
+  public void onMsgBatch(QueueInfo queue, int idx, OnMsgDelegate delegate) {
     String sessionKey = "onMsgBatch." + queue.getName() + "." + Thread.currentThread().getName();
     Session mqCtx =
         consumers.computeIfAbsent(
@@ -277,20 +279,29 @@ public abstract class ActiveMQBuffer implements Buffer {
     try {
       long start = System.currentTimeMillis();
       mqCtx.session.start();
-      List<String> batch = new ArrayList<>(batchSize);
+      List<String> batch = new ArrayList<>();
       List<ClientMessage> toACK = new ArrayList<>();
       boolean done = false;
       boolean needRollBack = false;
-      while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
+      int batchBytes = 0;
+      while (!done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = mqCtx.consumer.receive(100);
         if (msg != null) {
           List<String> points = Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
-          boolean ok = rateLimiter.tryAcquire(points.size());
-          if (ok) {
+          boolean ok_size =
+              delegate.checkBatchSize(
+                  batch.size(), batchBytes, points.size(), msg.getIntProperty(MSG_BYTES));
+          boolean ok_rate = delegate.checkRates(points.size(), batchBytes);
+          if (ok_size && ok_rate) {
             toACK.add(msg);
             batch.addAll(points);
+            batchBytes += msg.getIntProperty(MSG_BYTES);
           } else {
-            slowLog.info("rate limit reached on queue '" + queue.getName() + "'");
+            if (!ok_rate) {
+              slowLog.info("rate limit reached on queue '" + queue.getName() + "'");
+            } else {
+              slowLog.info("payload limit reached on queue '" + queue.getName() + "'");
+            }
             done = true;
             needRollBack = true;
           }
@@ -301,7 +312,7 @@ public abstract class ActiveMQBuffer implements Buffer {
 
       try {
         if (batch.size() > 0) {
-          func.run(batch);
+          delegate.processBatch(batch);
         }
         // commit all messages ACKed
         toACK.forEach(

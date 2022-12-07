@@ -1,5 +1,7 @@
 package com.wavefront.agent.core.buffers;
 
+import static com.wavefront.agent.core.buffers.ActiveMQBuffer.MSG_ITEMS;
+
 import com.wavefront.agent.core.queues.QueueStats;
 import java.util.Arrays;
 import java.util.List;
@@ -55,10 +57,10 @@ public class Bridge implements ActiveMQServerMessagePlugin {
         diskBuffer.sendPoints(queue, points);
         switch (reason) {
           case KILLED:
-            stats.queuedFailed.inc(ref.getMessage().getIntProperty("points"));
+            stats.queuedFailed.inc(ref.getMessage().getIntProperty(MSG_ITEMS));
             break;
           case EXPIRED:
-            stats.queuedExpired.inc(ref.getMessage().getIntProperty("points"));
+            stats.queuedExpired.inc(ref.getMessage().getIntProperty(MSG_ITEMS));
             break;
         }
       } catch (ActiveMQAddressFullException e) {

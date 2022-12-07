@@ -76,10 +76,9 @@ public class BuffersManager {
   public static void onMsgBatch(
       QueueInfo handler,
       int idx,
-      int batchSize,
       EntityRateLimiter rateLimiter,
-      OnMsgFunction func) {
-    memoryBuffer.onMsgBatch(handler, idx, batchSize, rateLimiter, func);
+      OnMsgDelegate func) {
+    memoryBuffer.onMsgBatch(handler, idx, func);
   }
 
   public static void truncateBacklog() {
