@@ -87,7 +87,7 @@ public class SQSBuffer implements Buffer {
         List<String> points = Arrays.asList(messages.get(0).getBody().split("\n"));
         batch.addAll(points);
         messagesToDelete.addAll(messages);
-        done = !func.checkBatchSize(batch.size(), 0,0,0);
+        done = !func.checkBatchSize(batch.size(), 0, 0, 0);
       } else {
         done = true;
       }

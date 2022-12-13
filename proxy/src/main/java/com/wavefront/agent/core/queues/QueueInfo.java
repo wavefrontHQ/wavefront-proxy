@@ -15,4 +15,6 @@ public interface QueueInfo {
   String getName();
 
   int getNumberThreads();
+
+  int getMaxItemsPerMessage();
 }

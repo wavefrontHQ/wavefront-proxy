@@ -65,7 +65,6 @@ public class MemoryBuffer extends ActiveMQBuffer {
       for (Object obj : queues) {
         QueueControl queue = (QueueControl) obj;
         int c = queue.expireMessages("");
-        System.out.println("-> queue: " + queue.getName() + " - " + c);
         counter += c;
       }
     } catch (Exception e) {
@@ -138,7 +137,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
         boolean done = false;
         while (!done) {
           ArrayList<String> metrics = new ArrayList<>();
-          if (midBuffer.drainTo(metrics, 100) != 0) {
+          if (midBuffer.drainTo(metrics, queue.getMaxItemsPerMessage()) != 0) {
             try {
               sendPoints(queue.getName(), metrics);
             } catch (ActiveMQAddressFullException e) {

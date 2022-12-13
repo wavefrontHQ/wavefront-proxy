@@ -8,19 +8,31 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestQueue implements QueueInfo {
-  private final int idx;
   private static AtomicInteger i = new AtomicInteger(0);
+  private final int idx;
   private final int threads;
-  private ReportableEntityType entityType;
+  private final ReportableEntityType entityType;
+  private final boolean index; // index is used to have different names to allow multiple tests
+  public int itemsPM;
 
   public TestQueue(ReportableEntityType entityType) {
-    this(1, entityType);
+    this(1, entityType, true);
+  }
+
+  public TestQueue(ReportableEntityType entityType, boolean index) {
+    this(1, entityType, index);
   }
 
   public TestQueue(int threads, ReportableEntityType entityType) {
+    this(threads, entityType, true);
+  }
+
+  public TestQueue(int threads, ReportableEntityType entityType, boolean index) {
     this.entityType = entityType;
     idx = i.getAndIncrement();
     this.threads = threads;
+    this.index = index;
+    itemsPM = 1;
     QueueStats.register(this);
   }
 
@@ -46,11 +58,15 @@ public class TestQueue implements QueueInfo {
 
   @Override
   public String getName() {
-    return getEntityType().name() + "_" + idx;
+    return getEntityType().name() + (index ? "_" + idx : "");
   }
 
   @Override
   public int getNumberThreads() {
     return threads;
+  }
+
+  public int getMaxItemsPerMessage() {
+    return itemsPM;
   }
 }

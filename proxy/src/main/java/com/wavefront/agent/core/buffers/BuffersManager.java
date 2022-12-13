@@ -74,10 +74,7 @@ public class BuffersManager {
   }
 
   public static void onMsgBatch(
-      QueueInfo handler,
-      int idx,
-      EntityRateLimiter rateLimiter,
-      OnMsgDelegate func) {
+      QueueInfo handler, int idx, EntityRateLimiter rateLimiter, OnMsgDelegate func) {
     memoryBuffer.onMsgBatch(handler, idx, func);
   }
 

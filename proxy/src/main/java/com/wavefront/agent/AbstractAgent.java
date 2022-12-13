@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.buffers.Exporter;
 import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
@@ -236,9 +237,17 @@ public abstract class AbstractAgent {
       }
 
       // If we are exporting data from the queue, run export and exit
-      // TODO: queue exporter
-      if (proxyConfig.getExportQueueOutputFile() != null
-          && proxyConfig.getExportQueuePorts() != null) {
+      if (proxyConfig.getExportQueueOutputDir() != null
+          && proxyConfig.getExportQueueAtoms() != null) {
+        try {
+          Exporter.export(
+              proxyConfig.getBufferFile(),
+              proxyConfig.getExportQueueOutputDir(),
+              proxyConfig.getExportQueueAtoms(),
+              proxyConfig.isExportQueueRetainData());
+        } catch (Throwable e) {
+          System.out.println(e.getMessage());
+        }
         System.exit(0);
       }
 

@@ -12,12 +12,23 @@ class Queue implements QueueInfo {
   private final String tenant;
   private final int threads;
   private final Map<String, QueueInfo> tenants = new HashMap<>();
+  private final int midBufferItems;
 
   Queue(ReportableEntityType entityType, String tenant, int threads) {
     this.name = entityType + (tenant.equalsIgnoreCase(CENTRAL_TENANT_NAME) ? "" : "." + tenant);
     this.entityType = entityType;
     this.tenant = tenant;
     this.threads = threads;
+    switch (entityType) {
+      case LOGS:
+        midBufferItems = 10;
+        break;
+      case POINT:
+        midBufferItems = 255;
+        break;
+      default:
+        midBufferItems = 100;
+    }
     QueueStats.register(this);
   }
 
@@ -46,6 +57,11 @@ class Queue implements QueueInfo {
   @Override
   public int getNumberThreads() {
     return threads;
+  }
+
+  @Override
+  public int getMaxItemsPerMessage() {
+    return midBufferItems;
   }
 
   public void addTenant(String tenant, Queue queue) {

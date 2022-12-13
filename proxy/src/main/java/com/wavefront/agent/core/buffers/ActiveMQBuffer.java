@@ -44,7 +44,7 @@ public abstract class ActiveMQBuffer implements Buffer {
   final String name;
   private final Map<String, Session> producers = new ConcurrentHashMap<>();
   private final Map<String, Session> consumers = new ConcurrentHashMap<>();
-  private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>(); // TODO review
+  private final Map<String, Gauge<Object>> sizeMetrics = new HashMap<>();
   private final Map<String, Histogram> timeMetrics = new HashMap<>();
   private final int serverID;
   protected Buffer nextBuffer;

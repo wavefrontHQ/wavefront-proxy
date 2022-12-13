@@ -165,19 +165,19 @@ public class ProxyConfig extends Configuration {
 
   // TODO: review export buffer
   @Parameter(
-      names = {"--exportQueuePorts"},
+      names = {"--exportQueueAtoms"},
       description =
           "Export queued data in plaintext "
-              + "format for specified ports (comma-delimited list) and exit. Set to 'all' to export "
-              + "everything. Default: none")
-  String exportQueuePorts = null;
+              + "format for specified atoms (comma-delimited list) and exit. Set to 'all' to export "
+              + "everything. Default: none, valid values: points, deltaCounters, histograms, sourceTags, spans, spanLogs, events, logs")
+  String exportQueueAtoms = null;
 
   @Parameter(
-      names = {"--exportQueueOutputFile"},
+      names = {"--exportQueueOutputDir"},
       description =
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Default: none")
-  String exportQueueOutputFile = null;
+  String exportQueueOutputDir = null;
 
   @Parameter(
       names = {"--exportQueueRetainData"},
@@ -1236,12 +1236,12 @@ public class ProxyConfig extends Configuration {
     return sqsQueueIdentifier;
   }
 
-  public String getExportQueuePorts() {
-    return exportQueuePorts;
+  public String getExportQueueAtoms() {
+    return exportQueueAtoms;
   }
 
-  public String getExportQueueOutputFile() {
-    return exportQueueOutputFile;
+  public String getExportQueueOutputDir() {
+    return exportQueueOutputDir;
   }
 
   public boolean isExportQueueRetainData() {
@@ -2233,8 +2233,8 @@ public class ProxyConfig extends Configuration {
       customApplicationTags = config.getString("customApplicationTags", customApplicationTags);
       customServiceTags = config.getString("customServiceTags", customServiceTags);
 
-      exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
-      exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
+      exportQueueAtoms = config.getString("exportQueueAtoms", exportQueueAtoms);
+      exportQueueOutputDir = config.getString("exportQueueOutputDir", exportQueueOutputDir);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
