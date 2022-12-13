@@ -8,14 +8,15 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportEvent;
 
 /** This class will validate parsed events and distribute them among SenderTask threads. */
 public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, Event> {
   private static final Logger logger =
-      Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   private static final Function<ReportEvent, String> EVENT_SERIALIZER =
       value -> new Event(value).toString();
 
@@ -48,8 +49,9 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
 
-    getReceivedCounter().inc();
-    BuffersManager.sendMsg(queue, event.toString());
+    String strEvent = event.toString();
+    incrementReceivedCounters(strEvent.length());
+    BuffersManager.sendMsg(queue, strEvent);
 
     if (isMulticastingActive
         && event.getAnnotations() != null
@@ -60,7 +62,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       for (String tenant : multicastingTenantNames) {
         QueueInfo tenantQueue = queue.getTenantQueue(tenant);
         if (tenantQueue != null) {
-          BuffersManager.sendMsg(tenantQueue, event.toString());
+          BuffersManager.sendMsg(tenantQueue, strEvent);
         } else {
           logger.info("Tenant '" + tenant + "' invalid");
         }

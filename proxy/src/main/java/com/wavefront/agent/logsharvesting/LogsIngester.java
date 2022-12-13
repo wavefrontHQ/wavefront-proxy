@@ -15,8 +15,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.TimeSeries;
 
 /**
@@ -24,7 +24,8 @@ import wavefront.report.TimeSeries;
  * flush of consumed metric data to Wavefront.
  */
 public class LogsIngester {
-  protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(LogsIngester.class.getCanonicalName());
   private static final ReadProcessor readProcessor = new ReadProcessor();
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting final LogsIngestionConfigManager logsIngestionConfigManager;
@@ -164,7 +165,7 @@ public class LogsIngester {
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(output[0]));
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Could not process metric " + metricName, e);
+      logger.error("Could not process metric " + metricName, e);
     }
     return true;
   }

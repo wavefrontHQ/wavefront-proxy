@@ -13,14 +13,15 @@ import com.yammer.metrics.reporting.AbstractPollingReporter;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
 public class MetricsReporter extends AbstractPollingReporter {
 
-  protected static final Logger logger = Logger.getLogger(MetricsReporter.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(MetricsReporter.class.getCanonicalName());
   private final FlushProcessor flushProcessor;
   private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
@@ -53,7 +54,7 @@ public class MetricsReporter extends AbstractPollingReporter {
         getMetricsRegistry().groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> entry : group.getValue().entrySet()) {
         if (entry.getValue() == null || entry.getKey() == null) {
-          logger.severe("Application Error! Pulled null value from metrics registry.");
+          logger.error("Application Error! Pulled null value from metrics registry.");
         }
         MetricName metricName = entry.getKey();
         Metric metric = entry.getValue();
@@ -65,7 +66,7 @@ public class MetricsReporter extends AbstractPollingReporter {
               new FlushProcessorContext(
                   timeSeries, prefix, pointHandlerSupplier, histogramHandlerSupplier));
         } catch (Exception e) {
-          logger.log(Level.SEVERE, "Uncaught exception in MetricsReporter", e);
+          logger.error("Uncaught exception in MetricsReporter", e);
         }
       }
     }

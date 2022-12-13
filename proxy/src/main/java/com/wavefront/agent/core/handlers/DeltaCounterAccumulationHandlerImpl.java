@@ -25,9 +25,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 
 /**
@@ -39,7 +40,7 @@ public class DeltaCounterAccumulationHandlerImpl
     extends AbstractReportableEntityHandler<ReportPoint, String> {
 
   private static final Logger log =
-      Logger.getLogger(DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
+      LoggerFactory.getLogger(DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
 
   final Histogram receivedPointLag;
   private final ValidationConfiguration validationConfig;
@@ -133,7 +134,7 @@ public class DeltaCounterAccumulationHandlerImpl
             hostMetricTagsPair.getTags(),
             "wavefront-proxy");
 
-    getReceivedCounter().inc();
+    incrementReceivedCounters(strPoint.length());
     BuffersManager.sendMsg(queue, strPoint);
 
     if (isMulticastingActive
@@ -162,7 +163,6 @@ public class DeltaCounterAccumulationHandlerImpl
         discardedCounterSupplier.get().inc();
         return;
       }
-      getReceivedCounter().inc();
       double deltaValue = (double) point.getValue();
       receivedPointLag.update(Clock.now() - point.getTimestamp());
       HostMetricTagsPair hostMetricTagsPair =

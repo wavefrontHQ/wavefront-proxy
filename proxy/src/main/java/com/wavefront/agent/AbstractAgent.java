@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.core.buffers.BuffersManager;
+import com.wavefront.agent.core.buffers.Exporter;
 import com.wavefront.agent.core.senders.SenderTasksManager;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
@@ -33,17 +34,18 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.net.ssl.SSLException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Agent that runs remotely on a server collecting metrics. */
 public abstract class AbstractAgent {
-  private static final Logger logger = Logger.getLogger(AbstractAgent.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(AbstractAgent.class.getCanonicalName());
   /** A set of commandline parameters to hide when echoing command line arguments */
   protected static final Set<String> PARAMETERS_TO_HIDE =
       ImmutableSet.of("-t", "--token", "--proxyPassword");
@@ -108,7 +110,8 @@ public abstract class AbstractAgent {
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.
-    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and
+    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts
+    // and
     // picklePorts
     String allPorts =
         StringUtils.join(
@@ -131,23 +134,27 @@ public abstract class AbstractAgent {
       return objectMapper.readValue(
           new File(proxyConfig.getLogsIngestionConfigFile()), LogsIngestionConfig.class);
     } catch (UnrecognizedPropertyException e) {
-      logger.severe("Unable to load logs ingestion config: " + e.getMessage());
+      logger.error("Unable to load logs ingestion config: " + e.getMessage());
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Could not load logs ingestion config", e);
+      logger.error("Could not load logs ingestion config", e);
     }
     return null;
   }
 
   private void postProcessConfig() {
-    // disable useless info messages when httpClient has to retry a request due to a stale
-    // connection. the alternative is to always validate connections before reuse, but since
-    // it happens fairly infrequently, and connection re-validation performance penalty is
-    // incurred every time, suppressing that message seems to be a more reasonable approach.
-    // org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
-    //     setLevel(org.apache.log4j.Level.WARN);
-    // Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
+    // disable useless info messages when httpClient has to retry a request due to a
+    // stale
+    // connection. the alternative is to always validate connections before reuse,
+    // but since
+    // it happens fairly infrequently, and connection re-validation performance
+    // penalty is
+    // incurred every time, suppressing that message seems to be a more reasonable
+    // approach.
+    // org.apache.log4j.LoggerFactory.getLogger("org.apache.http.impl.execchain.RetryExec").
+    // setLevel(org.apache.log4j.Level.WARN);
+    // LoggerFactory.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
-    if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
+    if (StringUtils.isBlank(proxyConfig.getHostname())) {
       throw new IllegalArgumentException(
           "hostname cannot be blank! Please correct your configuration settings.");
     }
@@ -156,24 +163,14 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void parseArguments(String[] args) {
     // read build information and print version.
-    String versionStr =
-        "Wavefront Proxy version "
-            + getBuildVersion()
-            + " (pkg:"
-            + getPackage()
-            + ")"
-            + ", runtime: "
-            + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
       }
     } catch (ParameterException e) {
-      logger.info(versionStr);
-      logger.severe("Parameter exception: " + e.getMessage());
+      logger.error("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
-    logger.info(versionStr);
     logger.info(
         "Arguments: "
             + IntStream.range(0, args.length)
@@ -191,9 +188,13 @@ public abstract class AbstractAgent {
   public void start(String[] args) {
     try {
 
-      /* ------------------------------------------------------------------------------------
+      /*
+       * -----------------------------------------------------------------------------
+       * -------
        * Configuration Setup.
-       * ------------------------------------------------------------------------------------ */
+       * -----------------------------------------------------------------------------
+       * -------
+       */
 
       // Parse commandline arguments and load configuration file
       parseArguments(args);
@@ -228,7 +229,7 @@ public abstract class AbstractAgent {
         } else {
           throw new IllegalStateException();
         }
-        //noinspection StatementWithEmptyBody
+        // noinspection StatementWithEmptyBody
         while (interactiveTester.interactiveTest()) {
           // empty
         }
@@ -236,9 +237,17 @@ public abstract class AbstractAgent {
       }
 
       // If we are exporting data from the queue, run export and exit
-      // TODO: queue exporter
-      if (proxyConfig.getExportQueueOutputFile() != null
-          && proxyConfig.getExportQueuePorts() != null) {
+      if (proxyConfig.getExportQueueOutputDir() != null
+          && proxyConfig.getExportQueueAtoms() != null) {
+        try {
+          Exporter.export(
+              proxyConfig.getBufferFile(),
+              proxyConfig.getExportQueueOutputDir(),
+              proxyConfig.getExportQueueAtoms(),
+              proxyConfig.isExportQueueRetainData());
+        } catch (Throwable e) {
+          System.out.println(e.getMessage());
+        }
         System.exit(0);
       }
 
@@ -271,11 +280,11 @@ public abstract class AbstractAgent {
             public void run() {
               // exit if no active listeners
               if (activeListeners.count() == 0) {
-                logger.severe(
+                logger.error(
                     "**** All listener threads failed to start - there is already a "
                         + "running instance listening on configured ports, or no listening ports "
                         + "configured!");
-                logger.severe("Aborting start-up");
+                logger.error("Aborting start-up");
                 System.exit(1);
               }
 
@@ -293,8 +302,8 @@ public abstract class AbstractAgent {
           },
           5000);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, e.getMessage(), e);
-      //      logger.severe(e.getMessage());
+      logger.error(e.getMessage(), e);
+      // logger.error(e.getMessage());
       System.exit(1);
     }
   }
@@ -351,7 +360,7 @@ public abstract class AbstractAgent {
       System.out.println("Shutdown complete.");
     } catch (Throwable t) {
       try {
-        logger.log(Level.SEVERE, "Error during shutdown: ", t);
+        logger.error("Error during shutdown: ", t);
       } catch (Throwable loggingError) {
         t.addSuppressed(loggingError);
         t.printStackTrace();

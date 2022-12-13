@@ -1,10 +1,10 @@
-# volumes:
-#   buffer:
-#     driver: local
-#     driver_opts:
-#       o: "size=100g"
-#       device: tmpfs
-#       type: tmpfs
+volumes:
+  buffer:
+    driver: local
+    driver_opts:
+      o: "size=20g"
+      device: tmpfs
+      type: tmpfs
 
 services:
 
@@ -20,7 +20,7 @@ services:
     environment:
       WAVEFRONT_URL: https://${WF_URL}/api/
       WAVEFRONT_TOKEN: ${WF_TOKEN}
-      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /etc/proxy.cfg
+      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /etc/proxy.cfg --buffer /buffer
       JAVA_HEAP_USAGE: 4G
       JVM_USE_CONTAINER_OPTS: false
       JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
@@ -28,6 +28,8 @@ services:
     ports:
       - "2878:2878"
       - "1098:1098"
+    volumes:
+      - buffer:/buffer
     depends_on:
       - "http-proxy"
     command:

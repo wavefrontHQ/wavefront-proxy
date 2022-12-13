@@ -42,11 +42,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -59,7 +59,7 @@ import zipkin2.codec.BytesDecoder;
 public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger =
-      Logger.getLogger(ZipkinPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(ZipkinPortUnificationHandler.class.getCanonicalName());
   private static final Set<String> ZIPKIN_VALID_PATHS =
       ImmutableSet.of("/api/v1/spans/", "/api/v2/spans/");
   private static final String ZIPKIN_VALID_HTTP_METHOD = "POST";
@@ -68,7 +68,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private static final String DEFAULT_SERVICE = "defaultService";
   private static final String DEFAULT_SPAN_NAME = "defaultOperation";
   private static final String SPAN_TAG_ERROR = "error";
-  private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
+  private static final Logger ZIPKIN_DATA_LOGGER = LoggerFactory.getLogger("ZipkinDataLogger");
   private final ReportableEntityHandler<Span> spanHandler;
   private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
@@ -219,7 +219,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       failedBatches.inc();
       output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
-      logger.log(Level.WARNING, "Zipkin batch processing failed", Throwables.getRootCause(e));
+      logger.warn("Zipkin batch processing failed", Throwables.getRootCause(e));
     }
     writeHttpResponse(ctx, status, output, request);
   }
@@ -231,7 +231,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   }
 
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
-    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
       ZIPKIN_DATA_LOGGER.info("Inbound Zipkin span: " + zipkinSpan.toString());
     }
     // Add application tags, span references, span kind and http uri, responses etc.
@@ -356,7 +356,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
             .build();
 
     if (zipkinSpan.tags().containsKey(SPAN_TAG_ERROR)) {
-      if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINER)) {
+      if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
         ZIPKIN_DATA_LOGGER.info(
             "Span id :: "
                 + spanId
@@ -367,7 +367,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
-    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
       ZIPKIN_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 
@@ -466,7 +466,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, ZIPKIN_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

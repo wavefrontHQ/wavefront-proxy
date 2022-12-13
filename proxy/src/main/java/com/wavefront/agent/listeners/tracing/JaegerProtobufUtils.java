@@ -20,11 +20,11 @@ import com.yammer.metrics.core.Counter;
 import io.opentelemetry.exporter.jaeger.proto.api_v2.Model;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -33,11 +33,11 @@ import wavefront.report.SpanLogs;
 /** Utility methods for processing Jaeger Protobuf trace data. */
 public abstract class JaegerProtobufUtils {
   protected static final Logger logger =
-      Logger.getLogger(JaegerProtobufUtils.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerProtobufUtils.class.getCanonicalName());
 
   // TODO: support sampling
   private static final Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
+  private static final Logger JAEGER_DATA_LOGGER = LoggerFactory.getLogger("JaegerDataLogger");
 
   private JaegerProtobufUtils() {}
 
@@ -243,7 +243,7 @@ public abstract class JaegerProtobufUtils {
             .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
-    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (JAEGER_DATA_LOGGER.isDebugEnabled()) {
       JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span);
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }

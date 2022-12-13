@@ -16,9 +16,10 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -28,7 +29,7 @@ import wavefront.report.ReportPoint;
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
   private static final Logger logger =
-      Logger.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
+      LoggerFactory.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
 
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
@@ -80,7 +81,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     }
     final String strPoint = serializer.apply(point);
 
-    getReceivedCounter().inc();
+    incrementReceivedCounters(strPoint.length());
     BuffersManager.sendMsg(queue, strPoint);
 
     if (isMulticastingActive

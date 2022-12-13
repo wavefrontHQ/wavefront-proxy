@@ -32,15 +32,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpEndToEndTest {
-  private static final Logger logger = Logger.getLogger("test");
+  private static final Logger logger = LoggerFactory.getLogger("test");
 
   public static int HTTP_timeout_tests = 1000;
 
@@ -143,7 +144,7 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           List<String> points = Arrays.asList(content.split("\n"));
           points.stream()
               .filter(s -> s.length() > 0)
@@ -195,7 +196,7 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
           ok.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
@@ -210,7 +211,7 @@ public class HttpEndToEndTest {
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
           logger.info("testCounter=" + testCounter.incrementAndGet());
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           switch (testCounter.get()) {
             case 1:
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
@@ -284,7 +285,7 @@ public class HttpEndToEndTest {
             throw new RuntimeException(e);
           }
           String path = uri.getPath();
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           assertEquals(HttpMethod.POST, req.method());
           assertEquals("/api/v2/wfproxy/event", path);
           System.out.println("testCounter: " + testCounter.incrementAndGet());
@@ -526,7 +527,7 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           if (content.equals(expectedSpan)) gotSpan.set(true);
           if (content.equals(expectedSpanLog)) gotSpanLog.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
@@ -590,7 +591,7 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
+          logger.info("Content received: " + content);
           if (content.equals(expectedSpan)) gotSpan.set(true);
           if (content.equals(expectedSpanLog)) gotSpanLog.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
@@ -601,7 +602,7 @@ public class HttpEndToEndTest {
   }
 
   @Test
-  public void testEndToEndLogs() throws Exception {
+  public void testEndToEndLogArray() throws Exception {
     long time = Clock.now() / 1000;
     waitUntilListenerIsOnline(pushPort);
 
@@ -624,7 +625,7 @@ public class HttpEndToEndTest {
     server.update(
         req -> {
           result.set(req.content().toString(CharsetUtil.UTF_8));
-          logger.fine("Content received: " + result);
+          logger.info("Content received: " + result);
           gotLog.set(true);
           return makeResponse(HttpResponseStatus.OK, "");
         });
@@ -687,7 +688,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      logger.fine("Incoming HTTP request: " + uri.getPath());
+      logger.info("Incoming HTTP request: " + uri.getPath());
       if (path.endsWith("/checkin")
           && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
         // simulate checkin response for proxy chaining
@@ -703,7 +704,7 @@ public class HttpEndToEndTest {
         return;
       }
       HttpResponse response = func.apply(request);
-      logger.fine("Responding with HTTP " + response.status());
+      logger.info("Responding with HTTP " + response.status());
       writeHttpResponse(ctx, response, request);
     }
   }

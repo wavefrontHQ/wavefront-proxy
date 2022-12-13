@@ -3,11 +3,11 @@ package com.wavefront.agent.core.senders;
 import static com.wavefront.common.Utils.isWavefrontResponse;
 
 import com.wavefront.agent.core.buffers.Buffer;
+import com.wavefront.agent.core.buffers.OnMsgDelegate;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.common.TaggedMetricName;
-import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.TimerContext;
@@ -16,16 +16,17 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.core.util.Throwables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-abstract class SenderTask implements Runnable {
-  private static final Logger log =
-      new MessageDedupingLogger(Logger.getLogger(SenderTask.class.getCanonicalName()), 1000, 1);
+abstract class SenderTask implements Runnable, OnMsgDelegate {
+  private static final Logger log = LoggerFactory.getLogger(SenderTask.class.getCanonicalName());
+  //      new MessageDedupingLogger(LoggerFactory.getLogger(SenderTask.class.getCanonicalName()),
+  // 1000, 1);
 
   private final QueueInfo queue;
   private final int idx;
@@ -45,18 +46,24 @@ abstract class SenderTask implements Runnable {
   @Override
   public void run() {
     try {
-      buffer.onMsgBatch(
-          queue,
-          idx,
-          properties.getDataPerBatch(),
-          properties.getRateLimiter(),
-          this::processBatch);
+      buffer.onMsgBatch(queue, idx, this);
     } catch (Throwable e) {
-      log.log(Level.SEVERE, "error sending " + queue.getEntityType().name(), e);
+      log.error("error sending " + queue.getEntityType().name(), e);
     }
   }
 
-  private void processBatch(List<String> batch) throws SenderTaskException {
+  @Override
+  public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+    return items + newItems <= properties.getDataPerBatch();
+  }
+
+  @Override
+  public boolean checkRates(int newItems, int newBytes) {
+    return properties.getRateLimiter().tryAcquire(newItems);
+  }
+
+  @Override
+  public void processBatch(List<String> batch) throws SenderTaskException {
     TimerContext timer =
         Metrics.newTimer(
                 new MetricName("push." + queue.getName(), "", "duration"),
@@ -72,6 +79,7 @@ abstract class SenderTask implements Runnable {
       queueStats.sent.inc(batch.size());
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
         queueStats.delivered.inc(batch.size());
+        queueStats.deliveredBytes.inc(batch.stream().mapToInt(value -> value.length()).sum());
       } else {
         queueStats.failed.inc(batch.size());
         switch (response.getStatusInfo().toEnum()) {
@@ -81,7 +89,7 @@ abstract class SenderTask implements Runnable {
             properties.getRateLimiter().pause();
             break;
           case FORBIDDEN:
-            log.warning(
+            log.warn(
                 "["
                     + queue.getName()
                     + "] HTTP "
@@ -94,14 +102,14 @@ abstract class SenderTask implements Runnable {
           case PROXY_AUTHENTICATION_REQUIRED:
           case REQUEST_TIMEOUT:
             if (isWavefrontResponse(response)) {
-              log.warning(
+              log.warn(
                   "["
                       + queue.getName()
                       + "] HTTP "
                       + response.getStatus()
                       + " (Unregistered proxy) received while sending data to Wavefront - please verify that your token is valid and has Proxy Management permissions!");
             } else {
-              log.warning(
+              log.warn(
                   "["
                       + queue.getName()
                       + "] HTTP "
@@ -121,7 +129,7 @@ abstract class SenderTask implements Runnable {
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        log.warning(
+        log.warn(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: Unknown host "
@@ -129,34 +137,34 @@ abstract class SenderTask implements Runnable {
                 + ", please check your network!");
       } else if (rootCause instanceof ConnectException
           || rootCause instanceof SocketTimeoutException) {
-        log.warning(
+        log.warn(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + rootCause.getMessage()
                 + ", please verify your network/HTTP proxy settings!");
       } else if (ex.getCause() instanceof SSLHandshakeException) {
-        log.warning(
+        log.warn(
             "["
                 + queue.getName()
                 + "] Error sending data to Wavefront: "
                 + ex.getCause()
                 + ", please verify that your environment has up-to-date root certificates!");
       } else {
-        log.warning("[" + queue.getName() + "] Error sending data to Wavefront: " + rootCause);
+        log.warn("[" + queue.getName() + "] Error sending data to Wavefront: " + rootCause);
       }
-      if (log.isLoggable(Level.FINE)) {
-        log.log(Level.FINE, "Full stacktrace: ", ex);
+      if (log.isDebugEnabled()) {
+        log.info("Full stacktrace: ", ex);
       }
       throw new SenderTaskException(rootCause.getMessage());
     } catch (Exception ex) {
-      log.warning(
+      log.warn(
           "["
               + queue.getName()
               + "] Error sending data to Wavefront: "
               + Throwables.getRootCause(ex));
-      if (log.isLoggable(Level.FINE)) {
-        log.log(Level.FINE, "Full stacktrace: ", ex);
+      if (log.isDebugEnabled()) {
+        log.info("Full stacktrace: ", ex);
       }
       throw new SenderTaskException(ex.getMessage());
     } finally {

@@ -41,12 +41,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
@@ -61,7 +61,7 @@ import wavefront.report.SpanLogs;
 @ChannelHandler.Sharable
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(RelayPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(RelayPortUnificationHandler.class.getCanonicalName());
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
@@ -181,8 +181,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       try {
         agentMetrics = JSON_PARSER.readTree(agentMetricsStr);
       } catch (JsonProcessingException e) {
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         agentMetrics = JsonNodeFactory.instance.objectNode();
       }
@@ -203,9 +203,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         JsonNode node = JSON_PARSER.valueToTree(agentConfiguration);
         writeHttpResponse(ctx, HttpResponseStatus.OK, node, request);
       } catch (javax.ws.rs.ProcessingException e) {
-        logger.warning("Problem while checking a chained proxy: " + e);
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        logger.warn("Problem while checking a chained proxy: " + e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         Throwable rootCause = Throwables.getRootCause(e);
         String error =
@@ -215,9 +215,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 + rootCause;
         writeHttpResponse(ctx, new HttpResponseStatus(444, error), error, request);
       } catch (Throwable e) {
-        logger.warning("Problem while checking a chained proxy: " + e);
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        logger.warn("Problem while checking a chained proxy: " + e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         String error =
             "Request processing error: Unable to retrieve proxy configuration from '"
@@ -381,7 +381,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
       default:
         status = HttpResponseStatus.BAD_REQUEST;
-        logger.warning("Unexpected format for incoming HTTP request: " + format);
+        logger.warn("Unexpected format for incoming HTTP request: " + format);
     }
     writeHttpResponse(ctx, status, output, request);
   }

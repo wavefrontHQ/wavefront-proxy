@@ -3,8 +3,8 @@ package com.wavefront.agent.core.handlers;
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.ingester.SpanLogsSerializer;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
 import wavefront.report.SpanLogs;
 
 /**
@@ -28,9 +28,8 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   protected void reportInternal(SpanLogs spanLogs) {
     String strSpanLogs = serializer.apply(spanLogs);
     if (strSpanLogs != null) {
-      getReceivedCounter().inc();
+      incrementReceivedCounters(strSpanLogs.length());
       BuffersManager.sendMsg(queue, strSpanLogs);
-      getReceivedCounter().inc();
     }
   }
 }

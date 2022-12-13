@@ -48,10 +48,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -66,7 +67,7 @@ public class OtlpTraceUtils {
   public static final String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private static final String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private static final String DEFAULT_SERVICE_NAME = "defaultService";
-  private static final Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
+  private static final Logger OTLP_DATA_LOGGER = LoggerFactory.getLogger("OTLPDataLogger");
   private static final String SPAN_EVENT_TAG_KEY = "name";
   private static final String SPAN_KIND_TAG_KEY = "span.kind";
   private static final HashMap<SpanKind, Annotation> SPAN_KIND_ANNOTATION_HASH_MAP =
@@ -160,14 +161,14 @@ public class OtlpTraceUtils {
 
     for (ResourceSpans rSpans : request.getResourceSpansList()) {
       Resource resource = rSpans.getResource();
-      OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
+      OTLP_DATA_LOGGER.debug("Inbound OTLP Resource: " + resource);
 
       for (ScopeSpans scopeSpans : rSpans.getScopeSpansList()) {
         InstrumentationScope scope = scopeSpans.getScope();
-        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Scope: " + scope);
+        OTLP_DATA_LOGGER.debug("Inbound OTLP Instrumentation Scope: " + scope);
 
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : scopeSpans.getSpansList()) {
-          OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Span: " + otlpSpan);
+          OTLP_DATA_LOGGER.debug("Inbound OTLP Span: " + otlpSpan);
 
           wfSpansAndLogs.add(
               transformAll(
@@ -213,9 +214,9 @@ public class OtlpTraceUtils {
       span.getAnnotations().add(new Annotation(SPAN_LOG_KEY, "true"));
     }
 
-    OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Span: " + span);
+    OTLP_DATA_LOGGER.debug("Converted Wavefront Span: " + span);
     if (!logs.getLogs().isEmpty()) {
-      OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront SpanLogs: " + logs);
+      OTLP_DATA_LOGGER.debug("Converted Wavefront SpanLogs: " + logs);
     }
 
     return new WavefrontSpanAndLogs(span, logs);
@@ -493,7 +494,7 @@ public class OtlpTraceUtils {
           .map(OtlpTraceUtils::fromAnyValue)
           .collect(Collectors.joining(", ", "[", "]"));
     } else if (anyValue.hasKvlistValue()) {
-      OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
+      OTLP_DATA_LOGGER.debug("Encountered KvlistValue but cannot convert to String");
     } else if (anyValue.hasBytesValue()) {
       return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
     }

@@ -41,8 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.http.HttpResponse;
@@ -50,6 +48,8 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 
 /**
@@ -58,8 +58,8 @@ import wavefront.report.ReportPoint;
 @ChannelHandler.Sharable
 public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(DataDogPortUnificationHandler.class.getCanonicalName());
-  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+      LoggerFactory.getLogger(DataDogPortUnificationHandler.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = LoggerFactory.getLogger("RawBlockedPoints");
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
@@ -213,8 +213,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         outgoingRequest.setEntity(new StringEntity(requestBody));
         if (synchronousMode) {
-          if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Relaying incoming HTTP request to " + outgoingUrl);
+          if (logger.isDebugEnabled()) {
+            logger.info("Relaying incoming HTTP request to " + outgoingUrl);
           }
           HttpResponse response = requestRelayClient.execute(outgoingRequest);
           int httpStatusCode = response.getStatusLine().getStatusCode();
@@ -234,15 +234,15 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           threadpool.submit(
               () -> {
                 try {
-                  if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Relaying incoming HTTP request (async) to " + outgoingUrl);
+                  if (logger.isDebugEnabled()) {
+                    logger.info("Relaying incoming HTTP request (async) to " + outgoingUrl);
                   }
                   HttpResponse response = requestRelayClient.execute(outgoingRequest);
                   int httpStatusCode = response.getStatusLine().getStatusCode();
                   httpStatusCounterCache.get(httpStatusCode).inc();
                   EntityUtils.consumeQuietly(response.getEntity());
                 } catch (IOException e) {
-                  logger.warning(
+                  logger.warn(
                       "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
                   Metrics.newCounter(
                           new TaggedMetricName(
@@ -252,7 +252,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
               });
         }
       } catch (IOException e) {
-        logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
+        logger.warn("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
         Metrics.newCounter(
                 new TaggedMetricName(
                     "listeners", "http-relay.failed", "port", String.valueOf(port)))
@@ -436,7 +436,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       }
       return HttpResponseStatus.ACCEPTED;
     } catch (final Exception e) {
-      logger.log(Level.WARNING, "Failed to add metric", e);
+      logger.warn("Failed to add metric", e);
       outputConsumer.accept("Failed to add metric");
       return HttpResponseStatus.BAD_REQUEST;
     }
@@ -491,7 +491,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           check.get("timestamp") == null ? Clock.now() : check.get("timestamp").asLong() * 1000;
       reportValue(metricName, hostName, tags, check.get("status"), timestamp, pointCounter);
     } catch (final Exception e) {
-      logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
+      logger.warn("WF-300: Failed to add metric", e);
     }
   }
 
@@ -516,8 +516,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       extractTags(metrics.get("host-tags").get("system"), systemTags);
       // cache even if map is empty so we know how many unique hosts report metrics.
       tagsCache.put(hostName, systemTags);
-      if (logger.isLoggable(Level.FINE)) {
-        logger.fine("Cached system tags for " + hostName + ": " + systemTags);
+      if (logger.isDebugEnabled()) {
+        logger.info("Cached system tags for " + hostName + ": " + systemTags);
       }
     } else {
       Map<String, String> cachedTags = tagsCache.getIfPresent(hostName);
@@ -654,7 +654,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       preprocessor.forReportPoint().transform(point);
       if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
         if (messageHolder[0] != null) {
-          blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
+          blockedPointsLogger.warn(ReportPointSerializer.pointToString(point));
           pointHandler.reject(point, messageHolder[0]);
         } else {
           blockedPointsLogger.info(ReportPointSerializer.pointToString(point));

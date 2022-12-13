@@ -16,8 +16,9 @@ import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import java.util.List;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class handles 2 different protocols on a single port. Supported protocols include HTTP and a
@@ -31,7 +32,7 @@ import javax.annotation.Nullable;
 public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 
   protected static final Logger logger =
-      Logger.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
+      LoggerFactory.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
   private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
   private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
   /** The object for handling requests of either protocol */
@@ -130,7 +131,7 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
     final ChannelPipeline pipeline = ctx.pipeline();
 
     if (detectGzip && isGzip(firstByte, secondByte)) {
-      logger.fine("Inbound gzip stream detected");
+      logger.info("Inbound gzip stream detected");
       pipeline
           .addLast("gzipdeflater", ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP))
           .addLast("gzipinflater", ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP))
@@ -139,7 +140,7 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
               new PlainTextOrHttpFrameDecoder(
                   handler, corsConfig, maxLengthPlaintext, maxLengthHttp, false));
     } else if (isHttp(firstByte, secondByte)) {
-      logger.fine("Switching to HTTP protocol");
+      logger.info("Switching to HTTP protocol");
       pipeline
           .addLast("decoder", new HttpRequestDecoder())
           .addLast("inflater", new HttpContentDecompressor())
@@ -150,11 +151,11 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
       }
       pipeline.addLast("handler", this.handler);
     } else {
-      logger.fine("Switching to plaintext TCP protocol");
+      logger.info("Switching to plaintext TCP protocol");
       pipeline
           .addLast(
               "line",
-              new IncompleteLineDetectingLineBasedFrameDecoder(logger::warning, maxLengthPlaintext))
+              new IncompleteLineDetectingLineBasedFrameDecoder(logger::warn, maxLengthPlaintext))
           .addLast("decoder", STRING_DECODER)
           .addLast("encoder", STRING_ENCODER)
           .addLast("handler", this.handler);

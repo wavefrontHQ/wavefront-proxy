@@ -17,12 +17,14 @@ import java.util.concurrent.TimeUnit;
 public class QueueStats {
   public final Counter dropped;
   public final Counter delivered;
+  public final Counter deliveredBytes;
   public final Counter failed;
   public final Counter sent;
   public final Counter queuedFailed;
   public final Counter queuedExpired;
   public final Histogram msgLength;
   public final Counter queuedFull;
+  public final Counter internalError;
 
   private final BurstRateTrackingCounter deliveredStats;
   private final QueueInfo queue;
@@ -42,6 +44,8 @@ public class QueueStats {
   private QueueStats(QueueInfo queue, ScheduledExecutorService scheduler) {
     this.queue = queue;
     MetricName deliveredMetricName = new MetricName(queue.getName(), "", "delivered");
+    this.deliveredBytes =
+        Metrics.newCounter(new MetricName(queue.getName(), "", "delivered.bytes"));
     this.delivered = Metrics.newCounter(deliveredMetricName);
     this.deliveredStats =
         new BurstRateTrackingCounter(deliveredMetricName, Metrics.defaultRegistry(), 1000);
@@ -60,6 +64,10 @@ public class QueueStats {
 
     queuedFull =
         Metrics.newCounter(new TaggedMetricName(queue.getName(), "queued", "reason", "queue-full"));
+
+    internalError =
+        Metrics.newCounter(
+            new TaggedMetricName(queue.getName(), "queued", "reason", "internal-error"));
 
     scheduler.scheduleAtFixedRate(() -> printStats(), 10, 10, TimeUnit.SECONDS);
     scheduler.scheduleAtFixedRate(() -> printTotal(), 1, 1, TimeUnit.MINUTES);

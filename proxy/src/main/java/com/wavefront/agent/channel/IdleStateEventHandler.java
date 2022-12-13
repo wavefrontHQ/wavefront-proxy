@@ -7,14 +7,15 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import java.net.InetSocketAddress;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Disconnect idle clients (handle READER_IDLE events triggered by IdleStateHandler) */
 @ChannelHandler.Sharable
 public class IdleStateEventHandler extends ChannelInboundHandlerAdapter {
   private static final Logger logger =
-      Logger.getLogger(IdleStateEventHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(IdleStateEventHandler.class.getCanonicalName());
 
   private final Counter idleClosedConnections;
 

@@ -1,7 +1,7 @@
 package com.wavefront.agent.core.buffers;
 
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import com.wavefront.agent.TestUtils;
 import com.wavefront.agent.core.queues.QueueInfo;
@@ -9,6 +9,9 @@ import com.wavefront.agent.core.queues.QueueStats;
 import com.wavefront.agent.core.queues.TestQueue;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,14 +54,7 @@ public class BufferManagerTest {
 
     sqs.sendPoints(points.getName(), Collections.singletonList("tururu"));
 
-    sqs.onMsgBatch(
-        points,
-        0,
-        100,
-        new TestUtils.RateLimiter(),
-        batch -> {
-          throw new RuntimeException("force fail");
-        });
+    sqs.onMsgBatch(points, 0, new FailCallBack());
 
     sqs.sendPoints(points.getName(), Collections.singletonList("tururu"));
 
@@ -68,12 +64,13 @@ public class BufferManagerTest {
     sqs.onMsgBatch(
         points,
         0,
-        100,
-        new TestUtils.RateLimiter(),
-        batch -> {
-          assertEquals(1, batch.size());
-          assertEquals("tururu", batch.get(0));
-          done.set(true);
+        new NoLimitCallBack() {
+          @Override
+          public void processBatch(List<String> batch) throws Exception {
+            assertEquals(1, batch.size());
+            assertEquals("tururu", batch.get(0));
+            done.set(true);
+          }
         });
     assertTrueWithTimeout(10000, done::get);
   }
@@ -175,14 +172,7 @@ public class BufferManagerTest {
     memory.flush(points);
     Thread.sleep(1_000);
 
-    memory.onMsgBatch(
-        points,
-        0,
-        1000,
-        new TestUtils.RateLimiter(),
-        batch -> {
-          throw new RuntimeException("force fail");
-        });
+    memory.onMsgBatch(points, 0, new FailCallBack());
   }
 
   @Test
@@ -220,9 +210,12 @@ public class BufferManagerTest {
         .onMsgBatch(
             points,
             0,
-            1000,
-            new TestUtils.RateLimiter(),
-            batch -> ok.set(batch.get(0).equals("tururu")));
+            new NoLimitCallBack() {
+              @Override
+              public void processBatch(List<String> batch) throws Exception {
+                ok.set(batch.get(0).equals("tururu"));
+              }
+            });
     assertTrueWithTimeout(3000, ok::get);
 
     assertEquals("queuedFailed", 0, QueueStats.get(points.getName()).queuedFailed.count());
@@ -257,14 +250,7 @@ public class BufferManagerTest {
     assertEquals("MessageCount", 1, memory.countMetrics.get(points.getName()).doCount());
 
     for (int i = 0; i < 4; i++) {
-      BuffersManager.onMsgBatch(
-          points,
-          0,
-          1000,
-          new TestUtils.RateLimiter(),
-          batch -> {
-            throw new RuntimeException("error 500");
-          });
+      BuffersManager.onMsgBatch(points, 0, new TestUtils.RateLimiter(), new FailCallBack());
     }
     assertTrueWithTimeout(1000, () -> memory.countMetrics.get(points.getName()).doCount() == 0);
     assertTrueWithTimeout(1000, () -> disk.countMetrics.get(points.getName()).doCount() == 1);
@@ -285,7 +271,7 @@ public class BufferManagerTest {
     cfg.diskCfg.buffer = buffer.toFile();
     cfg.memoryCfg.msgRetry = -1;
     cfg.memoryCfg.msgExpirationTime = -1;
-    cfg.memoryCfg.maxMemory = 500;
+    cfg.memoryCfg.maxMemory = 2000;
     BuffersManager.init(cfg);
 
     QueueInfo points = new TestQueue(ReportableEntityType.POINT);
@@ -296,27 +282,212 @@ public class BufferManagerTest {
     assertEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
     assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
-    // 20 messages are around 619 bytes, that should go in the queue
-    // and then mark the queue as full
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 100; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
 
     memory.flush(points);
     Thread.sleep(1_000);
 
-    assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
-    assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
+    assertNotEquals("MessageCount", 0, memory.countMetrics.get(points.getName()).doCount());
+    assertNotEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
     // the queue is already full, so this ones go directly to disk
     for (int i = 0; i < 20; i++) {
       BuffersManager.sendMsg(points, "tururu");
     }
+  }
 
+  @Test
+  public void exporter() throws IOException, InterruptedException {
+    Path buffer = Files.createTempDirectory("wfproxy");
+    int nMsgs = 100_000;
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.disk = true;
+    cfg.diskCfg.buffer = buffer.toFile();
+    TestQueue points = new TestQueue(5, ReportableEntityType.POINT, false);
+    points.itemsPM = 100;
+    TestQueue logs = new TestQueue(5, ReportableEntityType.LOGS, false);
+
+    BuffersManager.init(cfg);
+    BuffersManager.registerNewQueueIfNeedIt(logs);
+    List<Buffer> buffers = BuffersManager.registerNewQueueIfNeedIt(points);
+    MemoryBuffer memory = (MemoryBuffer) buffers.get(0);
+    DiskBuffer disk = (DiskBuffer) buffers.get(1);
+
+    for (int i = 0; i < 10; i++) {
+      BuffersManager.sendMsg(logs, "tururu");
+    }
+    for (int i = 0; i < nMsgs; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
     memory.flush(points);
-    Thread.sleep(1_000);
+    Thread.sleep(1000);
+    assertEquals("MessageCount", nMsgs, memory.countMetrics.get(points.getName()).doCount());
+    assertEquals("MessageCount", 0, disk.countMetrics.get(points.getName()).doCount());
 
-    assertEquals("MessageCount", 20, memory.countMetrics.get(points.getName()).doCount());
-    assertEquals("MessageCount", 20, disk.countMetrics.get(points.getName()).doCount());
+    BuffersManager.shutdown();
+
+    Path exportPath = Files.createTempDirectory("export");
+
+    // Export RetainData = true
+    Exporter.export(buffer.toString(), exportPath.toFile().getAbsolutePath(), "points,logs", true);
+    int c = 0;
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader(new File(exportPath.toFile(), "points.txt")))) {
+      String line = reader.readLine();
+      while (line != null) {
+        c++;
+        assertEquals("tururu", line);
+        line = reader.readLine();
+      }
+    }
+    assertEquals(nMsgs, c);
+
+    c = 0;
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader(new File(exportPath.toFile(), "logs.txt")))) {
+      String line = reader.readLine();
+      while (line != null) {
+        c++;
+        assertEquals("tururu", line);
+        line = reader.readLine();
+      }
+    }
+    assertEquals(10, c);
+
+    // Export RetainData = false
+    Exporter.export(buffer.toString(), exportPath.toFile().getAbsolutePath(), "points", false);
+    c = 0;
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader(new File(exportPath.toFile(), "points.txt")))) {
+      String line = reader.readLine();
+      while (line != null) {
+        c++;
+        assertEquals("tururu", line);
+        line = reader.readLine();
+      }
+    }
+    assertEquals(nMsgs, c);
+
+    // Export but the buffer is empty
+    Exporter.export(buffer.toString(), exportPath.toFile().getAbsolutePath(), "points", true);
+    c = 0;
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader(new File(exportPath.toFile(), "points.txt")))) {
+      String line = reader.readLine();
+      while (line != null) {
+        c++;
+        assertEquals("tururu", line);
+        line = reader.readLine();
+      }
+    }
+    assertEquals(0, c);
+  }
+
+  @Test
+  public void checkBatchSize() {
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.disk = false;
+    BuffersManager.init(cfg);
+
+    QueueInfo points = new TestQueue(1, ReportableEntityType.POINT);
+    MemoryBuffer memory = (MemoryBuffer) BuffersManager.registerNewQueueIfNeedIt(points).get(0);
+
+    for (int i = 0; i < 4_321; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
+    memory.flush(points);
+
+    final boolean[] error = {false};
+
+    while (memory.countMetrics.get(points.getName()).doCount() != 0) {
+      memory.onMsgBatch(
+          points,
+          0,
+          new OnMsgDelegate() {
+            @Override
+            public void processBatch(List<String> batch) throws Exception {
+              System.out.println("Pay Load = " + batch.size());
+              error[0] = batch.size() > 250;
+              assertFalse("Pay Load size (" + batch.size() + ") overflow", error[0]);
+            }
+
+            @Override
+            public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+              return items + newItems <= 250;
+            }
+
+            @Override
+            public boolean checkRates(int newItems, int newBytes) {
+              return true;
+            }
+          });
+      assertFalse(error[0]);
+    }
+  }
+
+  @Test
+  public void checkRates() {
+    BuffersManagerConfig cfg = new BuffersManagerConfig();
+    cfg.disk = false;
+    BuffersManager.init(cfg);
+
+    QueueInfo points = new TestQueue(1, ReportableEntityType.POINT);
+    MemoryBuffer memory = (MemoryBuffer) BuffersManager.registerNewQueueIfNeedIt(points).get(0);
+
+    for (int i = 0; i < 4_321; i++) {
+      BuffersManager.sendMsg(points, "tururu");
+    }
+    memory.flush(points);
+
+    final boolean[] error = {false};
+
+    while (memory.countMetrics.get(points.getName()).doCount() != 0) {
+      memory.onMsgBatch(
+          points,
+          0,
+          new OnMsgDelegate() {
+            int rate = 0;
+
+            @Override
+            public void processBatch(List<String> batch) throws Exception {
+              System.out.println("Pay Load = " + batch.size());
+              error[0] = batch.size() > 250;
+              assertFalse("Pay Load size (" + batch.size() + ") overflow", error[0]);
+            }
+
+            @Override
+            public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+              return true;
+            }
+
+            @Override
+            public boolean checkRates(int newItems, int newBytes) {
+              rate += newItems;
+              return rate < 250;
+            }
+          });
+      assertFalse(error[0]);
+    }
+  }
+
+  private abstract class NoLimitCallBack implements OnMsgDelegate {
+    @Override
+    public boolean checkBatchSize(int items, int bytes, int newItems, int newBytes) {
+      return true;
+    }
+
+    @Override
+    public boolean checkRates(int newItems, int newBytes) {
+      return true;
+    }
+  }
+
+  private class FailCallBack extends NoLimitCallBack {
+    @Override
+    public void processBatch(List<String> batch) throws Exception {
+      throw new RuntimeException("force fail");
+    }
   }
 }

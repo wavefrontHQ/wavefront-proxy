@@ -66,5 +66,3 @@ ${JAVA_HOME}/bin/java \
     -jar $proxy_jar \
     -f $config_file \
     $APP_ARGS >> ${STDOUT_LOG} 2>&1
-    
-

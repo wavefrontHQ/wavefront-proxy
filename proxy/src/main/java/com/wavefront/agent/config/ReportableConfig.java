@@ -10,16 +10,17 @@ import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper class to simplify access to .properties file + track values as metrics as they are
  * retrieved
  */
 public class ReportableConfig {
-  private static final Logger logger = Logger.getLogger(ReportableConfig.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(ReportableConfig.class.getCanonicalName());
 
   private final Properties prop = new Properties();
 
@@ -91,8 +92,7 @@ public class ReportableConfig {
           "Config setting \"" + key + "\": invalid number format \"" + property + "\"");
     }
     if (clampMinValue != null && d < clampMinValue.longValue()) {
-      logger.log(
-          Level.WARNING,
+      logger.warn(
           key
               + " ("
               + d
@@ -104,8 +104,7 @@ public class ReportableConfig {
       return clampMinValue;
     }
     if (clampMaxValue != null && d > clampMaxValue.longValue()) {
-      logger.log(
-          Level.WARNING,
+      logger.warn(
           key
               + " ("
               + d

@@ -20,12 +20,14 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Miscellaneous support methods for running Wavefront proxy. */
 public abstract class ProxyUtil {
-  protected static final Logger logger = Logger.getLogger(ProxyUtil.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(ProxyUtil.class.getCanonicalName());
 
   private ProxyUtil() {}
 

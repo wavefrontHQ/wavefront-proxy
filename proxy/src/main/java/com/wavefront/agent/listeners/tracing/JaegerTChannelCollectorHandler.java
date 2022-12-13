@@ -32,10 +32,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -47,7 +47,7 @@ public class JaegerTChannelCollectorHandler
     extends ThriftRequestHandler<Collector.submitBatches_args, Collector.submitBatches_result>
     implements Runnable, Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerTChannelCollectorHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerTChannelCollectorHandler.class.getCanonicalName());
 
   private static final String JAEGER_COMPONENT = "jaeger";
   private static final String DEFAULT_SOURCE = "jaeger";
@@ -175,8 +175,7 @@ public class JaegerTChannelCollectorHandler
         processedBatches.inc();
       } catch (Exception e) {
         failedBatches.inc();
-        logger.log(
-            Level.WARNING, "Jaeger Thrift batch processing failed", Throwables.getRootCause(e));
+        logger.warn("Jaeger Thrift batch processing failed", Throwables.getRootCause(e));
       }
     }
     return new ThriftResponse.Builder<Collector.submitBatches_result>(request)
@@ -189,7 +188,7 @@ public class JaegerTChannelCollectorHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

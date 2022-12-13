@@ -21,13 +21,15 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.common.TimeProvider;
 import java.util.*;
-import java.util.logging.Logger;
 import org.apache.commons.lang3.ObjectUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Proxy configuration (refactored from {@link AbstractAgent}). */
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends Configuration {
-  private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
@@ -163,19 +165,19 @@ public class ProxyConfig extends Configuration {
 
   // TODO: review export buffer
   @Parameter(
-      names = {"--exportQueuePorts"},
+      names = {"--exportQueueAtoms"},
       description =
           "Export queued data in plaintext "
-              + "format for specified ports (comma-delimited list) and exit. Set to 'all' to export "
-              + "everything. Default: none")
-  String exportQueuePorts = null;
+              + "format for specified atoms (comma-delimited list) and exit. Set to 'all' to export "
+              + "everything. Default: none, valid values: points, deltaCounters, histograms, sourceTags, spans, spanLogs, events, logs")
+  String exportQueueAtoms = null;
 
   @Parameter(
-      names = {"--exportQueueOutputFile"},
+      names = {"--exportQueueOutputDir"},
       description =
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Default: none")
-  String exportQueueOutputFile = null;
+  String exportQueueOutputDir = null;
 
   @Parameter(
       names = {"--exportQueueRetainData"},
@@ -747,13 +749,13 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
-  String hostname = getLocalHostName();
+  String hostname = null;
 
   /** This property holds the proxy name. Default proxyname to FQDN of machine. */
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
-  String proxyname = getLocalHostName();
+  String proxyname = null;
 
   @Parameter(
       names = {"--idFile"},
@@ -1234,12 +1236,12 @@ public class ProxyConfig extends Configuration {
     return sqsQueueIdentifier;
   }
 
-  public String getExportQueuePorts() {
-    return exportQueuePorts;
+  public String getExportQueueAtoms() {
+    return exportQueueAtoms;
   }
 
-  public String getExportQueueOutputFile() {
-    return exportQueueOutputFile;
+  public String getExportQueueOutputDir() {
+    return exportQueueOutputDir;
   }
 
   public boolean isExportQueueRetainData() {
@@ -1723,8 +1725,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customSourceTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customSourceTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -1740,7 +1741,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customTimestampTags config setting");
               }
             });
@@ -1757,7 +1758,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customMessageTags config setting");
               }
             });
@@ -1774,7 +1775,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customApplicationTags config setting");
               }
             });
@@ -1791,7 +1792,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customServiceTags config setting");
               }
             });
@@ -1807,7 +1808,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customExceptionTags config setting");
               }
             });
@@ -1824,8 +1825,7 @@ public class ProxyConfig extends Configuration {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customLevelTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customLevelTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -2035,15 +2035,21 @@ public class ProxyConfig extends Configuration {
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
 
-      String FQDN = getLocalHostName();
-      hostname = config.getString("hostname", hostname);
-      proxyname = config.getString("proxyname", proxyname);
-      if (!hostname.equals(FQDN)) {
-        logger.warning(
+      String _hostname = config.getString("hostname", hostname);
+      if (!Strings.isNullOrEmpty(_hostname)) {
+        logger.warn(
             "Deprecated field hostname specified in config setting. Please use "
                 + "proxyname config field to set proxy name.");
-        if (proxyname.equals(FQDN)) proxyname = hostname;
+        hostname = _hostname;
+      } else {
+        hostname = getLocalHostName();
       }
+
+      proxyname = config.getString("proxyname", proxyname);
+      if (Strings.isNullOrEmpty(proxyname)) {
+        proxyname = hostname;
+      }
+
       logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
 
       idFile = config.getString("idFile", idFile);
@@ -2227,8 +2233,8 @@ public class ProxyConfig extends Configuration {
       customApplicationTags = config.getString("customApplicationTags", customApplicationTags);
       customServiceTags = config.getString("customServiceTags", customServiceTags);
 
-      exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
-      exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
+      exportQueueAtoms = config.getString("exportQueueAtoms", exportQueueAtoms);
+      exportQueueOutputDir = config.getString("exportQueueOutputDir", exportQueueOutputDir);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
@@ -2471,9 +2477,8 @@ public class ProxyConfig extends Configuration {
       memoryBufferExpirationTime =
           config.getInteger("memoryBufferExpirationTime", memoryBufferExpirationTime);
       disableBuffer = config.getBoolean("disable_buffer", disableBuffer);
-      debugBuffer = config.getBoolean("debug_buffer", debugBuffer);
     } catch (Throwable exception) {
-      logger.severe("Could not load configuration file " + pushConfigFile);
+      logger.error("Could not load configuration file " + pushConfigFile);
       throw new RuntimeException(exception.getMessage());
     }
     if (httpUserAgent == null) {
@@ -2493,7 +2498,6 @@ public class ProxyConfig extends Configuration {
    * @throws ParameterException if configuration parsing failed
    */
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
-    String versionStr = "Wavefront Proxy version " + getBuildVersion();
     JCommander jCommander =
         JCommander.newBuilder()
             .programName(programName)
@@ -2502,11 +2506,9 @@ public class ProxyConfig extends Configuration {
             .build();
     jCommander.parse(args);
     if (this.isVersion()) {
-      System.out.println(versionStr);
       return false;
     }
     if (this.isHelp()) {
-      System.out.println(versionStr);
       jCommander.usage();
       return false;
     }
@@ -2546,12 +2548,6 @@ public class ProxyConfig extends Configuration {
   public boolean getDisableBuffer() {
     return disableBuffer;
   }
-
-  @Parameter(
-      names = {"--debug_buffer"},
-      hidden = true,
-      order = 7)
-  boolean debugBuffer = false;
 
   public static class TokenValidationMethodConverter
       implements IStringConverter<TokenValidationMethod> {

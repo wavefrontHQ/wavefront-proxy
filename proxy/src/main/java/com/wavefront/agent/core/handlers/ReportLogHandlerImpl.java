@@ -11,9 +11,9 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
@@ -26,7 +26,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final com.yammer.metrics.core.Histogram receivedTagCount;
   final com.yammer.metrics.core.Histogram receivedTagLength;
   final com.yammer.metrics.core.Histogram receivedMessageLength;
-  final com.yammer.metrics.core.Counter receivedByteCount;
 
   /**
    * @param handlerKey pipeline key.
@@ -52,8 +51,6 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     this.receivedMessageLength =
         registry.newHistogram(
             new MetricName(handlerKey.getName() + ".received", "", "messageLength"), false);
-    this.receivedByteCount =
-        registry.newCounter(new MetricName(handlerKey + ".received", "", "bytes"));
   }
 
   @Override
@@ -66,9 +63,8 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     validateLog(log, validationConfig);
     receivedLogLag.update(Clock.now() - log.getTimestamp());
     Log logObj = new Log(log);
-    receivedByteCount.inc(logObj.toString().getBytes().length);
-
-    getReceivedCounter().inc();
-    BuffersManager.sendMsg(queue, logObj.toString());
+    String strLog = logObj.toString();
+    incrementReceivedCounters(strLog.length());
+    BuffersManager.sendMsg(queue, strLog);
   }
 }

@@ -14,12 +14,12 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLHandshakeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
-  private static final Logger logger = LogManager.getLogger(BeatsHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(BeatsHandler.class);
   private final IMessageListener messageListener;
   private final Supplier<Counter> duplicateBatchesIgnored =
       Utils.lazySupplier(

@@ -37,17 +37,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 public class OtlpMetricsUtils {
-  public static final Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
+  public static final Logger OTLP_DATA_LOGGER = LoggerFactory.getLogger("OTLPDataLogger");
   public static final int MILLIS_IN_MINUTE = 60 * 1000;
   public static final int MILLIS_IN_HOUR = 60 * 60 * 1000;
   public static final int MILLIS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -94,7 +95,7 @@ public class OtlpMetricsUtils {
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
       Resource resource = resourceMetrics.getResource();
-      OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
+      OTLP_DATA_LOGGER.debug("Inbound OTLP Resource: " + resource);
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
       String source = sourceAndResourceAttrs._1;
@@ -107,13 +108,12 @@ public class OtlpMetricsUtils {
       }
 
       for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
-        OTLP_DATA_LOGGER.finest(
-            () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
+        OTLP_DATA_LOGGER.debug("Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
-          OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
+          OTLP_DATA_LOGGER.debug("Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
               transform(otlpMetric, resourceAttributes, preprocessor, source);
-          OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Metric: " + points);
+          OTLP_DATA_LOGGER.debug("Converted Wavefront Metric: " + points);
 
           wfPoints.addAll(points);
         }

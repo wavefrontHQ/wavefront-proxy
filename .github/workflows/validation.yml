@@ -24,7 +24,7 @@ jobs:
           ref: dev-proxy2
           repository: wavefrontHQ/java-lib
       - name: Build Java-lib
-        run: mvn --batch-mode install
+        run: mvn -DskipTests --batch-mode install
       - uses: actions/checkout@v2
         name: Checkout Proxy Repository
         with:
@@ -143,7 +143,13 @@ jobs:
           VIB_ENV_RUN_PARAMS: ${{ env.VIB_ENV_RUN_PARAMS }}
 
   build-linux:
+    name: Build Linux Package
     runs-on: ubuntu-latest
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v2
         name: Checkout Java-lib Repository
@@ -151,7 +157,7 @@ jobs:
           ref: dev-proxy2
           repository: wavefrontHQ/java-lib
       - name: Build Java-lib
-        run: mvn --batch-mode install
+        run: mvn -DskipTests --batch-mode install
       - uses: actions/checkout@v2
         name: Checkout Repository
         with:
@@ -161,28 +167,38 @@ jobs:
         run: MVN_ARGS=-DskipTests REVISION=${{ env.BRANCH_NAME }} make build-jar build-linux
       - name: copy to .vib/linux-install/scripts
         run: cp -v out/*deb .vib/linux-install/scripts
-      - name: Upload build
-        uses: actions/upload-artifact@master
-        with:
-          name: linux-deb-test
-          path: .vib/linux-install/**
-          retention-days: 1
+      - name: zip and upload
+        run: |
+          cd .vib/linux-install/ && zip -r ../../deb_script.zip . && cd -
+          aws s3 cp deb_script.zip s3://eso-wfproxy-testing/performance_test_artifacts/
 
-  tests-debian:
+  test-debian:
+    name: Test Debian
     runs-on: ubuntu-latest
-    needs: build-linux
+    needs: [build-linux]
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v2
-        name: Checkout Proxy Repository
+        name: Checkout Repository
         with:
+          fetch-depth: 1
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: zip and upload
+        run: |
+          url=$(aws s3 presign s3://eso-wfproxy-testing/performance_test_artifacts/deb_script.zip)
+          echo url=${url}
+          echo "VIB_ENV_DEB_PACKAGE=${url}" >> $GITHUB_ENV
       - uses: vmware-labs/vmware-image-builder-action@main
-        name: Verify Wavefront container
+        name: tests debian package
         with:
           pipeline: vib-deb-package-debian.json
         env:
-          VIB_ENV_ZIP_URL: https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/actions/artifacts/${{ github.run_id }}/linux-deb-test/zip
+          VIB_ENV_ZIP_URL: ${{ env.VIB_ENV_DEB_PACKAGE }}
 
   opentel-app-docker-build:
     name: OpenTelemetry app Docker image

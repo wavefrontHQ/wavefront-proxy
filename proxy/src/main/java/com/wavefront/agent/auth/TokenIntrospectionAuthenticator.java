@@ -8,10 +8,10 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link TokenAuthenticator} that uses an external webservice for validating tokens. Responses are
@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
  */
 abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
   private static final Logger logger =
-      Logger.getLogger(TokenIntrospectionAuthenticator.class.getCanonicalName());
+      LoggerFactory.getLogger(TokenIntrospectionAuthenticator.class.getCanonicalName());
 
   private final long authResponseMaxTtlMillis;
   private final Counter serviceCalls = Metrics.newCounter(new MetricName("auth", "", "api-calls"));
@@ -52,7 +52,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
                       lastSuccessfulCallTs = timeSupplier.get();
                     } catch (Exception e) {
                       errorCount.inc();
-                      logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
+                      logger.warn("Error during Token Introspection Service call", e);
                       return null;
                     }
                     return result;
@@ -67,7 +67,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
                       lastSuccessfulCallTs = timeSupplier.get();
                     } catch (Exception e) {
                       errorCount.inc();
-                      logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
+                      logger.warn("Error during Token Introspection Service call", e);
                       if (lastSuccessfulCallTs != null
                           && timeSupplier.get() - lastSuccessfulCallTs > authResponseMaxTtlMillis) {
                         return null;

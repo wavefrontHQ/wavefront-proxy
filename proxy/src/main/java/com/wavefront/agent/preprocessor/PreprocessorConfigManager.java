@@ -16,14 +16,14 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 /**
@@ -36,7 +36,7 @@ public class PreprocessorConfigManager {
   public static final String FUNC = "function";
   public static final String OPTS = "opts";
   private static final Logger logger =
-      Logger.getLogger(PreprocessorConfigManager.class.getCanonicalName());
+      LoggerFactory.getLogger(PreprocessorConfigManager.class.getCanonicalName());
   private static final Counter configReloads =
       Metrics.newCounter(new MetricName("preprocessor", "", "config-reloads.successful"));
   private static final Counter failedConfigReloads =
@@ -172,7 +172,7 @@ public class PreprocessorConfigManager {
         configReloads.inc();
       }
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
+      logger.error("Unable to load preprocessor rules", e);
       failedConfigReloads.inc();
     }
   }
@@ -199,7 +199,7 @@ public class PreprocessorConfigManager {
     try {
       Map<String, Object> rulesByPort = yaml.load(stream);
       if (rulesByPort == null || rulesByPort.isEmpty()) {
-        logger.warning("Empty preprocessor rule file detected!");
+        logger.warn("Empty preprocessor rule file detected!");
         logger.info("Total 0 rules loaded");
         synchronized (this) {
           this.userPreprocessorsTs = timeSupplier.get();
@@ -475,7 +475,7 @@ public class PreprocessorConfigManager {
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "blacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: block' instead!");
@@ -492,7 +492,7 @@ public class PreprocessorConfigManager {
                                 ruleMetrics));
                     break;
                   case "whitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: allow' instead!");
@@ -582,7 +582,7 @@ public class PreprocessorConfigManager {
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllowAnnotation' instead!");
@@ -687,7 +687,7 @@ public class PreprocessorConfigManager {
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "spanBlacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanBlock' instead!");
@@ -704,7 +704,7 @@ public class PreprocessorConfigManager {
                                 ruleMetrics));
                     break;
                   case "spanWhitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllow' instead!");
@@ -870,7 +870,7 @@ public class PreprocessorConfigManager {
                     break;
 
                   case "logBlacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: logBlock' instead!");
@@ -887,7 +887,7 @@ public class PreprocessorConfigManager {
                                 ruleMetrics));
                     break;
                   case "logWhitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllow' instead!");
@@ -911,7 +911,7 @@ public class PreprocessorConfigManager {
               }
               validRules++;
             } catch (IllegalArgumentException | NullPointerException ex) {
-              logger.warning(
+              logger.warn(
                   "Invalid rule "
                       + (rule == null ? "" : rule.getOrDefault(RULE, ""))
                       + " (port "

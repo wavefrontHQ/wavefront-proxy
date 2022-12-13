@@ -17,10 +17,11 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
@@ -32,7 +33,8 @@ public class SpanSampler {
   public static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";
   private static final int EXPIRE_AFTER_ACCESS_SECONDS = 3600;
   private static final int POLICY_BASED_SAMPLING_MOD_FACTOR = 100;
-  private static final Logger logger = Logger.getLogger(SpanSampler.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(SpanSampler.class.getCanonicalName());
   private final Sampler delegate;
   private final LoadingCache<String, Predicate<Span>> spanPredicateCache =
       Caffeine.newBuilder()
@@ -45,7 +47,7 @@ public class SpanSampler {
                   try {
                     return Predicates.fromPredicateEvalExpression(key);
                   } catch (ExpressionSyntaxException ex) {
-                    logger.severe("Policy expression " + key + " is invalid: " + ex.getMessage());
+                    logger.error("Policy expression " + key + " is invalid: " + ex.getMessage());
                     return null;
                   }
                 }

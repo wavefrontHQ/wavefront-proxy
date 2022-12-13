@@ -8,11 +8,11 @@ import com.yammer.metrics.core.*;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T> {
   protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
   private static final Logger logger =
-      Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   final QueueInfo queue;
   final String handler;
 
@@ -32,6 +32,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final BurstRateTrackingCounter receivedStats;
   private final Logger blockedItemsLogger;
   private final Counter receivedCounter;
+  private final Counter receivedBytesCounter;
   private final Counter blockedCounter;
   private final Counter rejectedCounter;
   private final Timer timer;
@@ -61,6 +62,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     String metricPrefix = queue.getName() + "." + this.handler;
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     this.receivedCounter = registry.newCounter(receivedMetricName);
+    this.receivedBytesCounter =
+        registry.newCounter(new MetricName(metricPrefix, "", "received.bytes"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
@@ -98,8 +101,9 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void reject(@Nullable T item, @Nullable String message) {
     rejectedCounter.inc();
+    blockedCounter.inc();
     if (item != null && blockedItemsLogger != null) {
-      blockedItemsLogger.warning(serializer.apply(item));
+      blockedItemsLogger.warn(serializer.apply(item));
     }
     if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
@@ -109,7 +113,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void reject(@Nonnull String line, @Nullable String message) {
     rejectedCounter.inc();
-    if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
+    blockedCounter.inc();
+    if (blockedItemsLogger != null) blockedItemsLogger.warn(line);
     //noinspection UnstableApiUsage
     if (message != null) {
       logger.info("[" + this.handler + "] blocked input: [" + message + "]");
@@ -142,10 +147,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     } catch (IllegalArgumentException e) {
       this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
     } catch (Exception ex) {
-      logger.log(
-          Level.SEVERE,
-          "WF-500 Uncaught exception when handling input (" + serializer.apply(item) + ")",
-          ex);
+      logger.error(
+          "WF-500 Uncaught exception when handling input (" + serializer.apply(item) + ")", ex);
     }
   }
 
@@ -156,8 +159,9 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   abstract void reportInternal(T item);
 
-  protected Counter getReceivedCounter() {
-    return receivedCounter;
+  protected void incrementReceivedCounters(int b) {
+    receivedCounter.inc();
+    receivedBytesCounter.inc(b);
   }
 
   protected void printStats() {

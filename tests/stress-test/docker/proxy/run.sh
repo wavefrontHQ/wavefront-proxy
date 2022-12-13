@@ -65,6 +65,4 @@ java \
     -jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
     -h $WAVEFRONT_URL \
     -t $WAVEFRONT_TOKEN \
-    --hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
-    --buffer ${spool_dir}/buffer \
     $WAVEFRONT_PROXY_ARGS

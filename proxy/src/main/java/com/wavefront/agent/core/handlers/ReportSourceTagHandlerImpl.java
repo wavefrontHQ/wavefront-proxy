@@ -9,7 +9,7 @@ import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
 import java.util.function.Function;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 
@@ -40,7 +40,7 @@ class ReportSourceTagHandlerImpl
     try {
       ObjectWriter ow = new ObjectMapper().writer();
       String json = ow.writeValueAsString(new SourceTag(sourceTag));
-      getReceivedCounter().inc();
+      incrementReceivedCounters(json.length());
       BuffersManager.sendMsg(queue, json);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);

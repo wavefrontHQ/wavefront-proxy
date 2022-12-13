@@ -1,15 +1,15 @@
 package com.wavefront.agent.data;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.logging.Level.SEVERE;
 
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EntityRateLimiter {
-  private Logger log = Logger.getLogger(this.getClass().getCanonicalName());
+  private Logger log = LoggerFactory.getLogger(this.getClass().getCanonicalName());
 
   private final RecyclableRateLimiterWithMetrics pointsLimit;
   private AtomicBoolean paused = new AtomicBoolean(false);
@@ -31,7 +31,7 @@ public class EntityRateLimiter {
         Thread.sleep(MINUTES.toMillis(1));
         paused.set(false);
       } catch (InterruptedException e) {
-        log.log(SEVERE, "error", e);
+        log.error("error", e);
         paused.set(false);
       }
     }
