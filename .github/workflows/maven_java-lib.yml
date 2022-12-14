@@ -32,6 +32,7 @@ jobs:
       - name: Build with Maven
         run: mvn -f proxy test -B --fail-at-end
       - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
           name: Test logs
           path: proxy/target/surefire-reports
