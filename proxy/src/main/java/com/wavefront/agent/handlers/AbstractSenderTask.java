@@ -243,7 +243,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         @Override
         public void run() {
           if (datumSize > properties.getMemoryBufferLimit()) {
-            // there are going to be too many points to be able to flush w/o the agent blowing up
+            // there are going to be too many points to be able to flush w/o the agent
+            // blowing up
             // drain the leftovers straight to the retry queue (i.e. to disk)
             // don't let anyone add any more to points while we're draining it.
             logger.warning(
@@ -279,7 +280,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       bufferFlushCounter.inc();
       try {
         int lastBatchSize = Integer.MIN_VALUE;
-        // roughly limit number of items to flush to the the current buffer size (+1 blockSize max)
+        // roughly limit number of items to flush to the the current buffer size (+1
+        // blockSize max)
         // if too many points arrive at the proxy while it's draining,
         // they will be taken care of in the next run
         int toFlush = datum.size();

@@ -80,7 +80,8 @@ public class EvictingMetricsRegistry {
 
   public Counter getCounter(MetricName metricName, MetricMatcher metricMatcher) {
     if (useDeltaCounters) {
-      // use delta counters instead of regular counters. It helps with load balancers present in
+      // use delta counters instead of regular counters. It helps with load balancers present
+      // in
       // front of proxy (PUB-125)
       MetricName newMetricName = DeltaCounter.getDeltaCounterMetricName(metricName);
       return put(

@@ -76,8 +76,7 @@ setupEnv(){
     echo "Using \"${conf_file}\" as config file"
     grep -q CHANGE_ME ${conf_file} && badConfig
 
-    daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront/wavefront-daemon.log}
-    err_file="/var/log/wavefront/wavefront-error.log"
+    log_file="/var/log/wavefront/wavefront.log"
     proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
     class="com.wavefront.agent.WavefrontProxyService"
     app_args=${APP_ARGS:--f $conf_file}
@@ -102,35 +101,14 @@ jsvc_exec()
 {
     setupEnv
 
-    if [[ ! $1 == "-stop" ]]; then
-        : > $daemon_log_file
-        : > $err_file
-    fi
-
-	cd "$(dirname "$proxy_jar")"
-
-    set +e
-	# We want word splitting below, as we're building up a command line.
-	# shellcheck disable=SC2086
-	$jsvc \
-		-user $user \
-		-home $JAVA_HOME \
-		-cp $proxy_jar \
+    nohup ${JAVA_HOME}/bin/java \
 		$java_args \
-		-Xss2049k \
-		-XX:OnOutOfMemoryError="kill -1 %p" \
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
-		-errfile $err_file \
-		-pidfile $pid_file \
-		-wait 20 \
-		-debug \
-		$1 \
-		$class \
-		$app_args &> $daemon_log_file
-	if [[ $? -ne 0 ]]; then
-		echo "There was a problem, see logs on '$(dirname $err_file)'" >&2
-	fi
+		-jar $proxy_jar \
+		$app_args >> ${log_file} 2>&1 &
+    
+    echo $! > $pid_file
 }
 
 start()
@@ -156,7 +134,9 @@ status()
 stop()
 {
     echo "Stopping $desc"
-    jsvc_exec "-stop"
+    PID=$(cat $pid_file);
+    kill $PID;
+    rm ${pid_file}
     echo "Done"
 }
 

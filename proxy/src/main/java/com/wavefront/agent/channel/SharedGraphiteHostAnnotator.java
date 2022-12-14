@@ -57,7 +57,8 @@ public class SharedGraphiteHostAnnotator {
     for (int i = 0; i < defaultSourceTags.size(); i++) {
       String tag = defaultSourceTags.get(i);
       int strIndex = msg.indexOf(tag);
-      // if a source tags is found and is followed by a non-whitespace tag value, add without change
+      // if a source tags is found and is followed by a non-whitespace tag value, add without
+      // change
       if (strIndex > -1
           && msg.length() - strIndex - tag.length() > 0
           && msg.charAt(strIndex + tag.length()) > ' ') {

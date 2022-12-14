@@ -6,8 +6,7 @@ import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
-import static com.wavefront.common.Utils.csvToList;
-import static com.wavefront.common.Utils.lazySupplier;
+import static com.wavefront.common.Utils.*;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -209,6 +208,15 @@ public class PushAgent extends AbstractAgent {
 
   public static void main(String[] args) {
     // Start the ssh daemon
+    String versionStr =
+        "Wavefront Proxy version "
+            + getBuildVersion()
+            + " (pkg:"
+            + getPackage()
+            + ")"
+            + ", runtime: "
+            + getJavaVersion();
+    logger.info(versionStr);
     new PushAgent().start(args);
   }
 
@@ -1301,7 +1309,8 @@ public class PushAgent extends AbstractAgent {
             handlerFactory,
             hostAnnotator,
             preprocessors.get(strPort),
-            // histogram/trace/span log feature flags consult to the central cluster configuration
+            // histogram/trace/span log feature flags consult to the central cluster
+            // configuration
             () ->
                 entityPropertiesFactoryMap
                     .get(CENTRAL_TENANT_NAME)
@@ -1560,7 +1569,8 @@ public class PushAgent extends AbstractAgent {
           } catch (InterruptedException e) {
             logger.info("Filebeat server on port " + port + " shut down");
           } catch (Exception e) {
-            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+            // ChannelFuture throws undeclared checked exceptions, so we need to handle
+            // it
             //noinspection ConstantConditions
             if (e instanceof BindException) {
               bindErrors.inc();

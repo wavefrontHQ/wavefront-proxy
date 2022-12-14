@@ -795,13 +795,13 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
-  String hostname = getLocalHostName();
+  String hostname = null;
 
   /** This property holds the proxy name. Default proxyname to FQDN of machine. */
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
-  String proxyname = getLocalHostName();
+  String proxyname = null;
 
   @Parameter(
       names = {"--idFile"},
@@ -2287,15 +2287,21 @@ public class ProxyConfig extends Configuration {
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
 
-      String FQDN = getLocalHostName();
-      hostname = config.getString("hostname", hostname);
-      proxyname = config.getString("proxyname", proxyname);
-      if (!hostname.equals(FQDN)) {
+      String _hostname = config.getString("hostname", hostname);
+      if (!Strings.isNullOrEmpty(_hostname)) {
         logger.warning(
             "Deprecated field hostname specified in config setting. Please use "
                 + "proxyname config field to set proxy name.");
-        if (proxyname.equals(FQDN)) proxyname = hostname;
+        hostname = _hostname;
+      } else {
+        hostname = getLocalHostName();
       }
+
+      proxyname = config.getString("proxyname", proxyname);
+      if (Strings.isNullOrEmpty(proxyname)) {
+        proxyname = hostname;
+      }
+
       logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
 
       idFile = config.getString("idFile", idFile);
@@ -2803,7 +2809,6 @@ public class ProxyConfig extends Configuration {
    * @throws ParameterException if configuration parsing failed
    */
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
-    String versionStr = "Wavefront Proxy version " + getBuildVersion();
     JCommander jCommander =
         JCommander.newBuilder()
             .programName(programName)
@@ -2812,11 +2817,9 @@ public class ProxyConfig extends Configuration {
             .build();
     jCommander.parse(args);
     if (this.isVersion()) {
-      System.out.println(versionStr);
       return false;
     }
     if (this.isHelp()) {
-      System.out.println(versionStr);
       jCommander.usage();
       return false;
     }
