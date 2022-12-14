@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 public class HttpEndToEndTest {
   private static final Logger logger = LoggerFactory.getLogger("test");
 
-  public static int HTTP_timeout_tests = 1000;
+  public static int HTTP_timeout_tests = 10000;
 
   private static PushAgent proxy;
   private static MutableFunc<FullHttpRequest, HttpResponse> server = new MutableFunc<>(x -> null);

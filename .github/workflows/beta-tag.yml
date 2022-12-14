@@ -2,7 +2,8 @@ name: Beta
 on:
   push:
     tags:
-      - v12.1.beta.*
+      - v*.beta.*
+      - v*.RC.*
 env:
   TAG: ${{ github.ref_name }}
 jobs:
