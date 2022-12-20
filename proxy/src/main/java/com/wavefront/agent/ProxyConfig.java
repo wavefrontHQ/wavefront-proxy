@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
@@ -140,7 +139,7 @@ public class ProxyConfig extends Configuration {
       names = {"-t", "--token"},
       description = "Token to auto-register proxy with an account",
       order = 1)
-  @ProxyConfigOption(name = "Server Token", category = "General", hide = true)
+  @ProxyConfigOption(category = "General", subCategory = "WF Server", hide = true)
   String token = "undefined";
 
   @Parameter(
@@ -164,7 +163,7 @@ public class ProxyConfig extends Configuration {
       names = {"--server", "-h", "--host"},
       description = "Server URL",
       order = 0)
-  @ProxyConfigOption(name = "Server URL", category = "General")
+  @ProxyConfigOption(category = "General", subCategory = "WF Server")
   String server = "http://localhost:8080/api/";
 
   @Parameter(
@@ -173,7 +172,7 @@ public class ProxyConfig extends Configuration {
           "File name prefix to use for buffering "
               + "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.",
       order = 4)
-  @ProxyConfigOption(name = "Disk Buffer Path", category = "Buffer", subCategory = "Disk")
+  @ProxyConfigOption(category = "Buffer", subCategory = "Disk")
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(
@@ -203,19 +202,19 @@ public class ProxyConfig extends Configuration {
       description =
           "The replacement pattern to use for naming the "
               + "sqs queues. e.g. wf-proxy-{{id}}-{{entity}}-{{port}} would result in a queue named wf-proxy-id-points-2878")
-  @ProxyConfigOption(name = "SQS QueueNameTemplate", category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = "Buffer", subCategory = "External")
   String sqsQueueNameTemplate = "wf-proxy-{{id}}-{{entity}}-{{port}}";
 
   @Parameter(
       names = {"--sqsQueueIdentifier"},
       description = "An identifier for identifying these proxies in SQS")
-  @ProxyConfigOption(name = "SQS Queue Identifier", category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = "Buffer", subCategory = "External")
   String sqsQueueIdentifier = null;
 
   @Parameter(
       names = {"--sqsQueueRegion"},
       description = "The AWS Region name the queue will live in.")
-  @ProxyConfigOption(name = "SQS Queue Region", category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = "Buffer", subCategory = "External")
   String sqsQueueRegion = "us-west-2";
 
   @Parameter(
@@ -291,7 +290,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--pushFlushInterval"},
       description = "Milliseconds between batches. " + "Defaults to 1000 ms")
-  @ProxyConfigOption(name = "Flush Interval", category = "Output")
+  @ProxyConfigOption(category = "Output", subCategory = "push")
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(
@@ -1120,18 +1119,14 @@ public class ProxyConfig extends Configuration {
       names = {"--proxyUser"},
       description =
           "If proxy authentication is necessary, this is the username that will be passed along")
-  @ProxyConfigOption(name = "Http Proxy username", category = "General", subCategory = "Http Proxy")
+  @ProxyConfigOption(category = "General", subCategory = "Http Proxy")
   String proxyUser = null;
 
   @Parameter(
       names = {"--proxyPassword"},
       description =
           "If proxy authentication is necessary, this is the password that will be passed along")
-  @ProxyConfigOption(
-      name = "Http Proxy password",
-      category = "General",
-      subCategory = "Http Proxy",
-      hide = true)
+  @ProxyConfigOption(category = "General", subCategory = "Http Proxy", hide = true)
   String proxyPassword = null;
 
   @Parameter(
@@ -2599,7 +2594,7 @@ public class ProxyConfig extends Configuration {
   }
 
   public JsonNode getJsonConfig() {
-    ProxyConfigDescriptor cfg = new ProxyConfigDescriptor();
+    Map<String, Map<String, List<PRoxyConfigOptionDescriptor>>> cfg = new HashMap<>();
     for (Field field : this.getClass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
           Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
@@ -2610,8 +2605,8 @@ public class ProxyConfig extends Configuration {
         data.name =
             Arrays.stream(parameter.get().names())
                 .max(Comparator.comparingInt(String::length))
-                .orElseGet(() -> field.getName());
-        data.name = data.name.replaceAll("--", "");
+                .orElseGet(() -> field.getName())
+                .replaceAll("--", "");
         data.description = parameter.get().description();
         try {
           Object val = field.get(this);
@@ -2620,27 +2615,22 @@ public class ProxyConfig extends Configuration {
           logger.severe(e.toString());
         }
 
-        if (option.isPresent()) {
-          if (!option.get().name().equals("")) {
-            data.name = option.get().name();
-          }
-          String category = option.get().category();
-          String subCategory = option.get().subCategory();
-          ProxyConfigDescriptor cat =
-              cfg.categories.computeIfAbsent(category, s -> new ProxyConfigDescriptor());
-          if (subCategory.equals("")) {
-            cat.options.add(data);
-          } else {
-            ProxyConfigDescriptor subCat =
-                cat.categories.computeIfAbsent(subCategory, s -> new ProxyConfigDescriptor());
-            subCat.options.add(data);
-          }
-        } else {
-          data.name = Arrays.stream(parameter.get().names()).findFirst().orElse("no name");
-          ProxyConfigDescriptor cat =
-              cfg.categories.computeIfAbsent("other", s -> new ProxyConfigDescriptor());
-          cat.options.add(data);
+        if(modifyByArgs.contains(field)) {
+          data.modifyBy="Argument";
+        } else if(modifyByFile.contains(field)) {
+          data.modifyBy="Config file";
         }
+
+        String category = "undefined";
+        String subCategory = "undefined";
+        if (option.isPresent()) {
+          category = option.get().category();
+          subCategory = option.get().subCategory();
+        }
+        List<PRoxyConfigOptionDescriptor> options =
+            cfg.computeIfAbsent(category, s -> new HashMap<>())
+                .computeIfAbsent(subCategory, s -> new ArrayList<>());
+        options.add(data);
       }
     }
     ObjectMapper mapper = new ObjectMapper();
@@ -2671,13 +2661,8 @@ public class ProxyConfig extends Configuration {
     }
   }
 
-  public class PRoxyConfigOptionDescriptor {
-    public String name, description, value;
-  }
-
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public class ProxyConfigDescriptor {
-    public Map<String, ProxyConfigDescriptor> categories = new HashMap<>();
-    public List<PRoxyConfigOptionDescriptor> options = new ArrayList<>();
+  public class PRoxyConfigOptionDescriptor {
+    public String name, description, value, modifyBy;
   }
 }

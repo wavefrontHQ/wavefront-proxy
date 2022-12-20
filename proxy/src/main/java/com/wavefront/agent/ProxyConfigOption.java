@@ -9,11 +9,9 @@ import java.lang.annotation.Target;
 @Retention(RUNTIME)
 @Target({FIELD})
 public @interface ProxyConfigOption {
-  String name() default "";
-
   String category();
 
-  String subCategory() default "";
+  String subCategory();
 
   boolean hide() default false;
 }
