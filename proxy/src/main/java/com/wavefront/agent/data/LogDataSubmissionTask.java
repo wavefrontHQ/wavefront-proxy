@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.data.ReportableEntityType;
@@ -66,9 +67,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
 
   @Override
   Response doExecute() {
-    for (Log log : logs) {
-      LOGGER.finest(() -> ("Sending a log to the backend: " + log.toString()));
-    }
+    LOGGER.finest(() -> ("Logs batch sent to vRLIC: " + new Gson().toJson(logs)));
     return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
   }
 
