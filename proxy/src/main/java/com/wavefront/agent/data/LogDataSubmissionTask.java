@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -67,7 +68,12 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
 
   @Override
   Response doExecute() {
-    LOGGER.finest(() -> ("Logs batch sent to vRLIC: " + new Gson().toJson(logs)));
+    try {
+      LOGGER.finest(() -> ("Logs batch sent to vRLIC: " + new Gson().toJson(logs)));
+    } catch (Exception e) {
+      LOGGER.log(
+          Level.WARNING, "Error occurred while logging the batch sent to vRLIC: " + e.getMessage());
+    }
     return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
   }
 
