@@ -41,6 +41,9 @@ public class NoopProxyV2API implements ProxyV2API {
   }
 
   @Override
+  public void proxySavePreprocessorRules(UUID uuid, JsonNode jsonNode) {}
+
+  @Override
   public Response proxyReport(UUID uuid, String s, String s1) {
     return Response.ok().build();
   }

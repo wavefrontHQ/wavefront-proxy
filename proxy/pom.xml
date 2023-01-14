@@ -386,7 +386,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2022-11.1</version>
+      <version>MONIT-30818-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>

@@ -5,6 +5,9 @@ import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -76,6 +79,7 @@ public class PreprocessorConfigManager {
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
   private String lastProcessedRules = "";
+  static List<Map<String, Object>> validRulesList = new ArrayList<>();
 
   @VisibleForTesting int totalInvalidRules = 0;
   @VisibleForTesting int totalValidRules = 0;
@@ -904,6 +908,10 @@ public class PreprocessorConfigManager {
                 }
               }
               validRules++;
+              Map<String, Object> validatedRule = new HashMap<>();
+              validatedRule.put("port", strPort);
+              validatedRule.putAll(rule);
+              validRulesList.add(validatedRule);
             } catch (IllegalArgumentException | NullPointerException ex) {
               logger.warning(
                   "Invalid rule "
@@ -934,5 +942,11 @@ public class PreprocessorConfigManager {
       this.userPreprocessorsTs = timeSupplier.get();
       this.userPreprocessors = portMap;
     }
+  }
+
+  public static JsonNode getJsonRules() {
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode node = mapper.convertValue(validRulesList, JsonNode.class);
+    return node;
   }
 }
