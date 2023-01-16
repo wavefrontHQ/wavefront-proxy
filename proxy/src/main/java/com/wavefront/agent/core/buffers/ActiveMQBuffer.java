@@ -10,6 +10,7 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 public abstract class ActiveMQBuffer implements Buffer {
   public static final String MSG_ITEMS = "items";
   public static final String MSG_BYTES = "bytes";
+  public static final String MSG_GZIPBYTES = "gzipbytes";
   private static final Logger log =
       LoggerFactory.getLogger(ActiveMQBuffer.class.getCanonicalName());
   private static final Logger slowLog = log;
@@ -52,6 +54,12 @@ public abstract class ActiveMQBuffer implements Buffer {
   private ServerLocator serverLocator;
   private ClientSessionFactory factory;
   private int maxMsgSize = 102400;
+  protected boolean compress = false;
+
+  private static final Histogram messageSize =
+      Metrics.newHistogram(new MetricName("buffer.message", "", "size"));
+  private static final Histogram messageGzipSize =
+      Metrics.newHistogram(new MetricName("buffer.message", "", "gzipsize"));
 
   public ActiveMQBuffer(
       int serverID, String name, boolean persistenceEnabled, File buffer, long maxMemory) {
@@ -207,7 +215,8 @@ public abstract class ActiveMQBuffer implements Buffer {
 
   public void doSendPoints(String queue, List<String> points) throws ActiveMQAddressFullException {
     String str = String.join("\n", points);
-    // if the str is too long we split points in two, to avoid "largemessages" which use disk access.
+    // if the str is too long we split points in two, to avoid "largemessages" which use disk
+    // access.
     if (str.length() > maxMsgSize) {
       doSendPoints(queue, points.subList(0, points.size() / 2));
       doSendPoints(queue, points.subList(points.size() / 2, points.size()));
@@ -231,9 +240,17 @@ public abstract class ActiveMQBuffer implements Buffer {
             });
     try {
       ClientMessage message = mqCtx.session.createMessage(true);
-      message.writeBodyBufferString(str);
       message.putIntProperty(MSG_ITEMS, points.size());
       message.putIntProperty(MSG_BYTES, str.length());
+      messageSize.update(str.length());
+      if (compress) {
+        byte[] strBuffer = GZIP.compress(str);
+        message.writeBodyBufferBytes(strBuffer);
+        message.putIntProperty(MSG_GZIPBYTES, strBuffer.length);
+        messageGzipSize.update(strBuffer.length);
+      } else {
+        message.writeBodyBufferString(str);
+      }
       mqCtx.producer.send(message);
     } catch (ActiveMQAddressFullException e) {
       log.info("queue full: " + e.getMessage());
@@ -297,7 +314,13 @@ public abstract class ActiveMQBuffer implements Buffer {
       while (!done && ((System.currentTimeMillis() - start) < 1000)) {
         ClientMessage msg = mqCtx.consumer.receive(100);
         if (msg != null) {
-          List<String> points = Arrays.asList(msg.getBodyBuffer().readString().split("\n"));
+          String str;
+          if (compress) {
+            str = GZIP.decompress(msg);
+          } else {
+            str = msg.getBodyBuffer().readString();
+          }
+          List<String> points = Arrays.asList(str.split("\n"));
           boolean ok_size =
               delegate.checkBatchSize(
                   batch.size(), batchBytes, points.size(), msg.getIntProperty(MSG_BYTES));

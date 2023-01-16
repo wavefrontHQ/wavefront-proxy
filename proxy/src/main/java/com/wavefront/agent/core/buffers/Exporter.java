@@ -1,10 +1,9 @@
 package com.wavefront.agent.core.buffers;
 
+import static com.wavefront.agent.core.buffers.ActiveMQBuffer.MSG_GZIPBYTES;
+
 import com.wavefront.data.ReportableEntityType;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,8 +50,13 @@ public class Exporter {
                       LinkedListIterator<MessageReference> it = queue.browserIterator();
                       while (it.hasNext()) {
                         CoreMessage msg = (CoreMessage) it.next().getMessage();
-                        List<String> points =
-                            Arrays.asList(msg.getReadOnlyBodyBuffer().readString().split("\n"));
+                        String str = "";
+                        if (msg.getIntProperty(MSG_GZIPBYTES) != 0) {
+                          str = GZIP.decompress(msg);
+                        } else {
+                          str = msg.getReadOnlyBodyBuffer().readString();
+                        }
+                        List<String> points = Arrays.asList(str.split("\n"));
                         try {
                           out.write(String.join("\n", points));
                           out.write("\n");

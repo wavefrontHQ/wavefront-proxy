@@ -29,6 +29,7 @@ public class MemoryBuffer extends ActiveMQBuffer {
   public MemoryBuffer(int level, String name, MemoryBufferConfig cfg) {
     super(level, name, false, null, cfg.maxMemory);
     this.cfg = cfg;
+    this.compress = false;
     executor =
         Executors.newScheduledThreadPool(
             Runtime.getRuntime().availableProcessors(),

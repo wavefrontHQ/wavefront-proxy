@@ -19,6 +19,7 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
 
   public DiskBuffer(int level, String name, DiskBufferConfig cfg) {
     super(level, name, true, cfg.buffer, cfg.maxMemory);
+    this.compress = true;
 
     try {
       ObjectName addressObjectName =
