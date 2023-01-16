@@ -69,6 +69,17 @@ public class PreprocessorConfigManager {
   public static final String OPTS = "opts";
   private static final Set<String> ALLOWED_RULE_ARGUMENTS = ImmutableSet.of(RULE, ACTION);
 
+  // rule type keywords: altering, filtering, and count
+  public static final String POINT_ALTER = "pointAltering";
+  public static final String POINT_FILTER = "pointFiltering";
+  public static final String POINT_COUNT = "pointCount";
+  public static final String SPAN_ALTER = "spanAltering";
+  public static final String SPAN_FILTER = "spanFiltering";
+  public static final String SPAN_COUNT = "spanCount";
+  public static final String LOG_ALTER = "logAltering";
+  public static final String LOG_FILTER = "logFiltering";
+  public static final String LOG_COUNT = "logCount";
+
   private final Supplier<Long> timeSupplier;
   private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
 
@@ -266,6 +277,8 @@ public class PreprocessorConfigManager {
                       Metrics.newCounter(
                           new TaggedMetricName(
                               "preprocessor." + ruleName, "checked-count", "port", strPort)));
+              Map<String, Object> saveRule = new HashMap<>();
+              saveRule.put("port", strPort);
               String scope = getString(rule, SCOPE);
               if ("pointLine".equals(scope) || "inputText".equals(scope)) {
                 if (Predicates.getPredicate(rule) != null) {
@@ -285,6 +298,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 getInteger(rule, ITERATIONS, 1),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "blacklistRegex":
                   case "block":
@@ -293,6 +307,7 @@ public class PreprocessorConfigManager {
                         .get(strPort)
                         .forPointLine()
                         .addFilter(new LineBasedBlockFilter(getString(rule, MATCH), ruleMetrics));
+                    saveRule.put("type", POINT_FILTER);
                     break;
                   case "whitelistRegex":
                   case "allow":
@@ -301,6 +316,7 @@ public class PreprocessorConfigManager {
                         .get(strPort)
                         .forPointLine()
                         .addFilter(new LineBasedAllowFilter(getString(rule, MATCH), ruleMetrics));
+                    saveRule.put("type", POINT_FILTER);
                     break;
                   default:
                     throw new IllegalArgumentException(
@@ -322,6 +338,7 @@ public class PreprocessorConfigManager {
                     MetricsFilter mf = new MetricsFilter(rule, ruleMetrics, ruleName, strPort);
                     lockMetricsFilter.put(strPort, mf);
                     portMap.get(strPort).forPointLine().addFilter(mf);
+                    saveRule.put("type", POINT_FILTER);
                     break;
 
                   case "replaceRegex":
@@ -338,6 +355,7 @@ public class PreprocessorConfigManager {
                                 getInteger(rule, ITERATIONS, 1),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "forceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
@@ -350,6 +368,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "addTag":
                     allowArguments(rule, TAG, VALUE, IF);
@@ -362,6 +381,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "addTagIfNotExists":
                     allowArguments(rule, TAG, VALUE, IF);
@@ -374,6 +394,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "dropTag":
                     allowArguments(rule, TAG, MATCH, IF);
@@ -386,6 +407,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "extractTag":
                     allowArguments(
@@ -411,6 +433,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "extractTagIfNotExists":
                     allowArguments(
@@ -436,6 +459,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "renameTag":
                     allowArguments(rule, TAG, NEWTAG, MATCH, IF);
@@ -449,6 +473,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "limitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
@@ -463,6 +488,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_ALTER);
                     break;
                   case "count":
                     allowArguments(rule, SCOPE, IF);
@@ -471,6 +497,7 @@ public class PreprocessorConfigManager {
                         .forReportPoint()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", POINT_COUNT);
                     break;
                   case "blacklistRegex":
                     logger.warning(
@@ -488,6 +515,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_FILTER);
                     break;
                   case "whitelistRegex":
                     logger.warning(
@@ -505,6 +533,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", POINT_FILTER);
                     break;
 
                     // Rules for Span objects
@@ -524,6 +553,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, FIRST_MATCH_ONLY, IF);
@@ -537,6 +567,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanAddAnnotation":
                   case "spanAddTag":
@@ -550,6 +581,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanAddAnnotationIfNotExists":
                   case "spanAddTagIfNotExists":
@@ -563,6 +595,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanDropAnnotation":
                   case "spanDropTag":
@@ -577,6 +610,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
@@ -593,6 +627,7 @@ public class PreprocessorConfigManager {
                         .addTransformer(
                             SpanAllowAnnotationTransformer.create(
                                 rule, Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", SPAN_FILTER);
                     break;
                   case "spanExtractAnnotation":
                   case "spanExtractTag":
@@ -620,6 +655,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanExtractAnnotationIfNotExists":
                   case "spanExtractTagIfNotExists":
@@ -647,6 +683,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanRenameAnnotation":
                   case "spanRenameTag":
@@ -659,6 +696,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, KEY), getString(rule, NEWKEY),
                                 getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanLimitLength":
                     allowArguments(
@@ -675,6 +713,7 @@ public class PreprocessorConfigManager {
                                 getBoolean(rule, FIRST_MATCH_ONLY, false),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_ALTER);
                     break;
                   case "spanCount":
                     allowArguments(rule, SCOPE, IF);
@@ -683,6 +722,7 @@ public class PreprocessorConfigManager {
                         .forSpan()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", SPAN_COUNT);
                     break;
                   case "spanBlacklistRegex":
                     logger.warning(
@@ -700,6 +740,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_FILTER);
                     break;
                   case "spanWhitelistRegex":
                     logger.warning(
@@ -717,6 +758,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", SPAN_FILTER);
                     break;
 
                     // Rules for Log objects
@@ -734,6 +776,7 @@ public class PreprocessorConfigManager {
                                 getInteger(rule, ITERATIONS, 1),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
@@ -746,6 +789,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logAddAnnotation":
                   case "logAddTag":
@@ -759,6 +803,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logAddAnnotationIfNotExists":
                   case "logAddTagIfNotExists":
@@ -772,6 +817,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, VALUE),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logDropAnnotation":
                   case "logDropTag":
@@ -785,6 +831,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logAllowAnnotation":
                   case "logAllowTag":
@@ -795,6 +842,7 @@ public class PreprocessorConfigManager {
                         .addTransformer(
                             ReportLogAllowTagTransformer.create(
                                 rule, Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", LOG_FILTER);
                     break;
                   case "logExtractAnnotation":
                   case "logExtractTag":
@@ -812,6 +860,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logExtractAnnotationIfNotExists":
                   case "logExtractTagIfNotExists":
@@ -829,6 +878,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logRenameAnnotation":
                   case "logRenameTag":
@@ -843,6 +893,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logLimitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
@@ -857,6 +908,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_ALTER);
                     break;
                   case "logCount":
                     allowArguments(rule, SCOPE, IF);
@@ -865,6 +917,7 @@ public class PreprocessorConfigManager {
                         .forReportLog()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    saveRule.put("type", LOG_COUNT);
                     break;
 
                   case "logBlacklistRegex":
@@ -883,6 +936,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_FILTER);
                     break;
                   case "logWhitelistRegex":
                     logger.warning(
@@ -900,6 +954,7 @@ public class PreprocessorConfigManager {
                                 getString(rule, MATCH),
                                 Predicates.getPredicate(rule),
                                 ruleMetrics));
+                    saveRule.put("type", LOG_FILTER);
                     break;
 
                   default:
@@ -908,10 +963,9 @@ public class PreprocessorConfigManager {
                 }
               }
               validRules++;
-              Map<String, Object> validatedRule = new HashMap<>();
-              validatedRule.put("port", strPort);
-              validatedRule.putAll(rule);
-              validRulesList.add(validatedRule);
+              //MONIT-30818: Add rule to validRulesList for FE preprocessor rules
+              saveRule.putAll(rule);
+              validRulesList.add(saveRule);
             } catch (IllegalArgumentException | NullPointerException ex) {
               logger.warning(
                   "Invalid rule "
