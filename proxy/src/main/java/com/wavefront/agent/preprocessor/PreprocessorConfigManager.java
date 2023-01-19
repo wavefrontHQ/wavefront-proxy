@@ -90,7 +90,7 @@ public class PreprocessorConfigManager {
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
   private String lastProcessedRules = "";
-  static List<Map<String, Object>> validRulesList = new ArrayList<>();
+  private static Map<String, Object> ruleNode = new HashMap<>();
 
   @VisibleForTesting int totalInvalidRules = 0;
   @VisibleForTesting int totalValidRules = 0;
@@ -203,7 +203,9 @@ public class PreprocessorConfigManager {
   }
 
   public void loadFile(String filename) throws FileNotFoundException {
-    loadFromStream(new FileInputStream(new File(filename)));
+    File file = new File(filename);
+    loadFromStream(new FileInputStream(file));
+    ruleNode.put("path", file.getAbsolutePath());
   }
 
   @VisibleForTesting
@@ -215,6 +217,7 @@ public class PreprocessorConfigManager {
     lockMetricsFilter.clear();
     try {
       Map<String, Object> rulesByPort = yaml.load(stream);
+      List<Map<String, Object>> validRulesList = new ArrayList<>();
       if (rulesByPort == null || rulesByPort.isEmpty()) {
         logger.warning("Empty preprocessor rule file detected!");
         logger.info("Total 0 rules loaded");
@@ -982,6 +985,7 @@ public class PreprocessorConfigManager {
         }
         logger.info("Loaded Preprocessor rules for port key :: \"" + strPortKey + "\"");
       }
+      ruleNode.put("rules", validRulesList);
       logger.info("Total Preprocessor rules loaded :: " + totalValidRules);
       if (totalInvalidRules > 0) {
         throw new RuntimeException(
@@ -1000,7 +1004,7 @@ public class PreprocessorConfigManager {
 
   public static JsonNode getJsonRules() {
     ObjectMapper mapper = new ObjectMapper();
-    JsonNode node = mapper.convertValue(validRulesList, JsonNode.class);
+    JsonNode node = mapper.valueToTree(ruleNode);
     return node;
   }
 }
