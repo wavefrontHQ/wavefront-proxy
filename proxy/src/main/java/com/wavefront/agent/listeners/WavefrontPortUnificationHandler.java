@@ -4,6 +4,7 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_CLOUDWATCH;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
 import static com.wavefront.agent.formatter.DataFormat.SPAN;
 import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
@@ -227,7 +228,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
+    } else if ((format == LOGS_JSON_ARR
+            || format == LOGS_JSON_LINES
+            || format == LOGS_JSON_CLOUDWATCH)
         && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
       receivedLogsTotal.get().inc(discardedLogs.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
@@ -338,6 +341,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         return;
       case LOGS_JSON_ARR:
       case LOGS_JSON_LINES:
+      case LOGS_JSON_CLOUDWATCH:
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
         ReportableEntityHandler<ReportLog, ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
