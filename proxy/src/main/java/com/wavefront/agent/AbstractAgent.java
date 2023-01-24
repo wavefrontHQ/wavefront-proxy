@@ -196,7 +196,7 @@ public abstract class AbstractAgent {
     //     setLevel(org.apache.log4j.Level.WARN);
     // Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
-    if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
+    if (StringUtils.isBlank(proxyConfig.getHostname())) {
       throw new IllegalArgumentException(
           "hostname cannot be blank! Please correct your configuration settings.");
     }
@@ -231,7 +231,6 @@ public abstract class AbstractAgent {
         System.exit(0);
       }
     } catch (ParameterException e) {
-      logger.info(versionStr);
       logger.severe("Parameter exception: " + e.getMessage());
       System.exit(1);
     }

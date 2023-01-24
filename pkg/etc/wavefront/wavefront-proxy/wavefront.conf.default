@@ -8,11 +8,11 @@
 # suffix -- or Wavefront provides the URL.
 server=CHANGE_ME
 
-# The hostname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
+# The proxyname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
 # We strongly recommend setting this to a name that is unique among your entire infrastructure, to make this
-# proxy easy to identify. This hostname does not need to correspond to any actual hostname or DNS entry; it's merely
+# proxy easy to identify. This proxyname does not need to correspond to any actual proxyname or DNS entry; it's merely
 # a string that we pass with the internal stats and ~proxy.* metrics.
-#hostname=my.proxy.host.com
+#proxyname=my.proxy.name.com
 
 # The Token is any valid API token for an account that has *Proxy Management* permissions. To get to the token:
 # 1. Click the gear icon at the top right in the Wavefront UI.
@@ -41,9 +41,9 @@ pushListenerPorts=2878
 #graphitePorts=2003
 ## Comma-separated list of ports to listen on for Graphite pickle formatted data (from carbon-relay) (Default: none)
 #picklePorts=2004
-## Which fields (1-based) should we extract and concatenate (with dots) as the hostname?
+## Which fields (1-based) should we extract and concatenate (with dots) as the proxyname?
 #graphiteFormat=2
-## Which characters should be replaced by dots in the hostname, after extraction? (Default: _)
+## Which characters should be replaced by dots in the proxyname, after extraction? (Default: _)
 #graphiteDelimiters=_
 ## Comma-separated list of fields (metric segments) to remove (1-based). This is an optional setting. (Default: none)
 #graphiteFieldsToRemove=3,4,5
@@ -83,7 +83,7 @@ pushListenerPorts=2878
 ## source= or host= (preferring source=) and treat that as the source/host within Wavefront.
 ## customSourceTags is a comma-separated, ordered list of additional tag keys to use if neither
 ## source= or host= is present
-#customSourceTags=fqdn, hostname
+#customSourceTags=fqdn, proxyname
 
 ## The prefix should either be left undefined, or can be any  prefix you want
 ## prepended to all data points coming through this proxy (such as `production`).

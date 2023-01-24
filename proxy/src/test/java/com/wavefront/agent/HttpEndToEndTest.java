@@ -8,6 +8,7 @@ import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
+import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -721,7 +722,7 @@ public class HttpEndToEndTest {
   }
 
   @Test
-  public void testEndToEndLogs() throws Exception {
+  public void testEndToEndLogArray() throws Exception {
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
@@ -754,6 +755,56 @@ public class HttpEndToEndTest {
     HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
+    assertTrueWithTimeout(50, gotLog::get);
+  }
+
+  @Test
+  public void testEndToEndLogLines() throws Exception {
+    long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
+    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    proxy = new PushAgent();
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.flushThreads = 1;
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
+    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.pushRateLimitLogs = 1024;
+    proxy.proxyConfig.pushFlushIntervalLogs = 50;
+
+    proxy.start(new String[] {});
+    waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
+
+    long timestamp = time * 1000 + 12345;
+    String payload =
+        "{\"source\": \"myHost1\",\n \"timestamp\": \""
+            + timestamp
+            + "\""
+            + "}\n{\"source\": \"myHost2\",\n \"timestamp\": \""
+            + timestamp
+            + "\""
+            + "}";
+    String expectedLog1 =
+        "[{\"source\":\"myHost1\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
+    String expectedLog2 =
+        "[{\"source\":\"myHost2\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
+    AtomicBoolean gotLog = new AtomicBoolean(false);
+    Set<String> actualLogs = new HashSet<>();
+    server.update(
+        req -> {
+          String content = req.content().toString(CharsetUtil.UTF_8);
+          logger.fine("Content received: " + content);
+          actualLogs.add(content);
+          return makeResponse(HttpResponseStatus.OK, "");
+        });
+    gzippedHttpPost(
+        "http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_LINES, payload);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
+    proxy.senderTaskFactory.flushNow(key);
+    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
+    assertEquals(2, actualLogs.size());
+    if (actualLogs.contains(expectedLog1) && actualLogs.contains(expectedLog2)) gotLog.set(true);
     assertTrueWithTimeout(50, gotLog::get);
   }
 

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>12.1-SNAPSHOT</version>
+  <version>12.2-SNAPSHOT</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -68,25 +70,6 @@
     </resources>
     <plugins>
       <plugin>
-        <!-- need it for linux //TODO: review-->
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
-        <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id> <!-- this is used for inheritance merges -->
-            <phase>package</phase> <!-- bind to the packaging phase -->
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>com.cosium.code</groupId>
         <artifactId>git-code-format-maven-plugin</artifactId>
         <version>3.3</version>
@@ -100,7 +83,7 @@
           </execution>
         </executions>
         <configuration>
-            <skip>${skipFormatCode}</skip>
+          <skip>${skipFormatCode}</skip>
         </configuration>
       </plugin>
       <plugin>
@@ -282,7 +265,7 @@
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-bom</artifactId>
-        <version>3.21.0</version>
+        <version>3.21.12</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

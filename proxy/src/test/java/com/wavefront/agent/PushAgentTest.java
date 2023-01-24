@@ -91,6 +91,7 @@ import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.*;
+import org.junit.rules.Timeout;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -167,6 +168,8 @@ public class PushAgentTest {
           mockTraceSpanLogsHandler,
           mockEventHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
+
+  @Rule public Timeout globalTimeout = Timeout.seconds(5);
 
   @BeforeClass
   public static void init() throws Exception {

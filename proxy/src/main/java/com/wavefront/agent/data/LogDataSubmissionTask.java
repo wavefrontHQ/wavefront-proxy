@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.data.ReportableEntityType;
@@ -14,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -26,6 +29,7 @@ import javax.ws.rs.core.Response;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSubmissionTask> {
+  private static final Logger LOGGER = Logger.getLogger("LogDataSubmission");
   public static final String AGENT_PREFIX = "WF-PROXY-AGENT-";
   private transient LogAPI api;
   private transient UUID proxyId;
@@ -64,6 +68,12 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
 
   @Override
   Response doExecute() {
+    try {
+      LOGGER.finest(() -> ("Logs batch sent to vRLIC: " + new Gson().toJson(logs)));
+    } catch (Exception e) {
+      LOGGER.log(
+          Level.WARNING, "Error occurred while logging the batch sent to vRLIC: " + e.getMessage());
+    }
     return api.proxyLogs(AGENT_PREFIX + proxyId.toString(), logs);
   }
 

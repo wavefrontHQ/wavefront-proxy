@@ -2,10 +2,7 @@ package com.wavefront.agent.listeners;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
-import static com.wavefront.agent.formatter.DataFormat.SPAN;
-import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
+import static com.wavefront.agent.formatter.DataFormat.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
@@ -226,7 +223,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-    } else if (format == LOGS_JSON_ARR
+    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
         && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
       receivedLogsTotal.get().inc(discardedLogs.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
@@ -336,6 +333,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             message, histogramDecoder, histogramHandler, preprocessorSupplier, ctx, "histogram");
         return;
       case LOGS_JSON_ARR:
+      case LOGS_JSON_LINES:
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
         ReportableEntityHandler<ReportLog, ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
