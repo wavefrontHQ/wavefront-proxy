@@ -64,7 +64,7 @@ public enum DataFormat {
         return DataFormat.LOGS_JSON_ARR;
       case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
         return DataFormat.LOGS_JSON_LINES;
-      case "logs_json_cloudwatch":
+      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
         return DataFormat.LOGS_JSON_CLOUDWATCH;
       default:
         return null;
