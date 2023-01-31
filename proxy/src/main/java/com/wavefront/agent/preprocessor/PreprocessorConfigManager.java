@@ -2,12 +2,11 @@ package com.wavefront.agent.preprocessor;
 
 import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -966,7 +965,7 @@ public class PreprocessorConfigManager {
                 }
               }
               validRules++;
-              //MONIT-30818: Add rule to validRulesList for FE preprocessor rules
+              // MONIT-30818: Add rule to validRulesList for FE preprocessor rules
               saveRule.putAll(rule);
               validRulesList.add(saveRule);
             } catch (IllegalArgumentException | NullPointerException ex) {
