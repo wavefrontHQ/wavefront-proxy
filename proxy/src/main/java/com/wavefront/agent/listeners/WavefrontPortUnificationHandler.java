@@ -1,11 +1,10 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.LogsUtil.LOGS_DATA_FORMATS;
+import static com.wavefront.agent.LogsUtil.getOrCreateLogsCounterFromRegistry;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_CLOUDWATCH;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
 import static com.wavefront.agent.formatter.DataFormat.SPAN;
 import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
@@ -96,8 +95,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> discardedSpansBySampler;
   private final Supplier<Counter> discardedSpanLogsBySampler;
-  private final Supplier<Counter> receivedLogsTotal;
-  private final Supplier<Counter> discardedLogs;
+  private Counter receivedLogsCounter;
+  private Counter discardedLogsCounter;
+
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -194,11 +194,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.receivedSpansTotal =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("spans." + handle, "", "received.total")));
-    this.discardedLogs =
-        Utils.lazySupplier(() -> Metrics.newCounter(new MetricName("logs", "", "discarded")));
-    this.receivedLogsTotal =
-        Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "received.total")));
   }
 
   @Override
@@ -228,11 +223,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-    } else if ((format == LOGS_JSON_ARR
-            || format == LOGS_JSON_LINES
-            || format == LOGS_JSON_CLOUDWATCH)
-        && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
-      receivedLogsTotal.get().inc(discardedLogs.get().count());
+    } else if ((LOGS_DATA_FORMATS.contains(format))
+        && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogsCounter, out, request)) {
+      receivedLogsCounter.inc(discardedLogsCounter.count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
     }
@@ -342,12 +335,21 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       case LOGS_JSON_ARR:
       case LOGS_JSON_LINES:
       case LOGS_JSON_CLOUDWATCH:
-        if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
+        this.receivedLogsCounter =
+            getOrCreateLogsCounterFromRegistry(
+                Metrics.defaultRegistry(), format, "logs." + handle, "received" + ".total");
+        this.discardedLogsCounter =
+            getOrCreateLogsCounterFromRegistry(
+                Metrics.defaultRegistry(), format, "logs." + handle, "discarded");
+
+        receivedLogsCounter.inc();
+        if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogsCounter)) return;
         ReportableEntityHandler<ReportLog, ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept log data!");
           return;
         }
+        logHandler.setLogFormat(format);
         message = annotator == null ? message : annotator.apply(ctx, message, true);
         preprocessAndHandleLog(message, logDecoder, logHandler, preprocessorSupplier, ctx);
         return;

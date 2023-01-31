@@ -45,6 +45,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
         true,
         receivedRateSink,
         blockedItemLogger);
+    super.initializeCounters();
     this.validItemsLogger = validItemsLogger;
   }
 
