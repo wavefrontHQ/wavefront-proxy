@@ -20,7 +20,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.config.Categories;
+import com.wavefront.agent.config.ProxyConfigOption;
 import com.wavefront.agent.config.ReportableConfig;
+import com.wavefront.agent.config.SubCategories;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.TimeProvider;
@@ -1300,9 +1303,10 @@ public class ProxyConfig extends ProxyConfigDef {
         });
   }
 
-@JsonIgnore
-public JsonNode getJsonConfig() {
-    Map<Categories, Map<SubCategories, List<PRoxyConfigOptionDescriptor>>> cfg = new HashMap<>();
+  @JsonIgnore
+  public JsonNode getJsonConfig() {
+    Map<Categories, Map<SubCategories, Set<PRoxyConfigOptionDescriptor>>> cfg =
+        new TreeMap<>(Comparator.comparingInt(Categories::getOrder));
     for (Field field : this.getClass().getSuperclass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
           Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
@@ -1323,21 +1327,23 @@ public JsonNode getJsonConfig() {
           logger.severe(e.toString());
         }
 
-        if(modifyByArgs.contains(field)) {
-          data.modifyBy="Argument";
-        } else if(modifyByFile.contains(field)) {
-          data.modifyBy="Config file";
+        if (modifyByArgs.contains(field)) {
+          data.modifyBy = "Argument";
+        } else if (modifyByFile.contains(field)) {
+          data.modifyBy = "Config file";
         }
 
         Categories category = Categories.NA;
         SubCategories subCategory = SubCategories.NA;
         if (option.isPresent()) {
-//          category = option.get().category();
-//          subCategory = option.get().subCategory();
+          category = option.get().category();
+          subCategory = option.get().subCategory();
         }
-        List<PRoxyConfigOptionDescriptor> options =
-            cfg.computeIfAbsent(category, s -> new HashMap<>())
-                .computeIfAbsent(subCategory, s -> new ArrayList<>());
+        Set<PRoxyConfigOptionDescriptor> options =
+            cfg.computeIfAbsent(
+                    category, s -> new TreeMap<>(Comparator.comparingInt(SubCategories::getOrder)))
+                .computeIfAbsent(
+                    subCategory, s -> new TreeSet<>(Comparator.comparingInt(o -> o.order)));
         options.add(data);
       }
     }
@@ -1372,5 +1378,6 @@ public JsonNode getJsonConfig() {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public class PRoxyConfigOptionDescriptor {
     public String name, description, value, modifyBy;
+    public int order = 0;
   }
 }

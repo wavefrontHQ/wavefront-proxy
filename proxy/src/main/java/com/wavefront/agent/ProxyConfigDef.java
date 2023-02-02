@@ -1,18 +1,18 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.Parameter;
-import com.wavefront.agent.auth.TokenValidationMethod;
-import com.wavefront.agent.config.Configuration;
-import com.wavefront.agent.data.TaskQueueLevel;
-
 import static com.wavefront.agent.ProxyConfig.GRAPHITE_LISTENING_PORT;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getLocalHostName;
 
-/**
- * Proxy configuration (refactored from {@link AbstractAgent}).
- */
+import com.beust.jcommander.Parameter;
+import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.config.Categories;
+import com.wavefront.agent.config.Configuration;
+import com.wavefront.agent.config.ProxyConfigOption;
+import com.wavefront.agent.config.SubCategories;
+import com.wavefront.agent.data.TaskQueueLevel;
 
+/** Proxy configuration (refactored from {@link AbstractAgent}). */
 public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--privateCertPath"},
