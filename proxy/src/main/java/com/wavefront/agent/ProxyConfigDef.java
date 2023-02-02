@@ -19,6 +19,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "TLS certificate path to use for securing all the ports. "
               + "X.509 certificate chain file in PEM format.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.TLS)
   protected String privateCertPath = "";
 
   @Parameter(
@@ -26,6 +27,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "TLS private key path to use for securing all the ports. "
               + "PKCS#8 private key file in PEM format.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.TLS)
   protected String privateKeyPath = "";
 
   @Parameter(
@@ -33,6 +35,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to be secured using TLS. "
               + "All ports will be secured when * specified.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.TLS)
   protected String tlsPorts = "";
 
   @Parameter(
@@ -63,34 +66,40 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Enables CORS for specified "
               + "comma-delimited list of listening ports. Default: none (CORS disabled)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CORS)
   protected String corsEnabledPorts = "";
 
   @Parameter(
       names = {"--corsOrigin"},
       description =
           "Allowed origin for CORS requests, " + "or '*' to allow everything. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CORS)
   protected String corsOrigin = "";
 
   @Parameter(
       names = {"--corsAllowNullOrigin"},
       description = "Allow 'null' origin for CORS " + "requests. Default: false")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CORS)
   protected boolean corsAllowNullOrigin = false;
 
   @Parameter(
       names = {"--help"},
       help = true)
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   boolean help = false;
 
   @Parameter(
       names = {"--version"},
       description = "Print version and exit.",
       order = 0)
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   boolean version = false;
 
   @Parameter(
       names = {"-f", "--file"},
       description = "Proxy configuration file",
       order = 2)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String pushConfigFile = null;
 
   @Parameter(
@@ -102,31 +111,34 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"-t", "--token"},
       description = "Token to auto-register proxy with an account",
       order = 1)
-  @ProxyConfigOption(category = "General", subCategory = "WF Server", hide = true)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String token = "undefined";
 
   @Parameter(
       names = {"--testLogs"},
       description = "Run interactive session for crafting logsIngestionConfig.yaml")
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   boolean testLogs = false;
 
   @Parameter(
       names = {"--testPreprocessorForPort"},
       description =
           "Run interactive session for " + "testing preprocessor rules for specified port")
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   String testPreprocessorForPort = null;
 
   @Parameter(
       names = {"--testSpanPreprocessorForPort"},
       description =
           "Run interactive session " + "for testing preprocessor span rules for specifierd port")
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   String testSpanPreprocessorForPort = null;
 
   @Parameter(
       names = {"--server", "-h", "--host"},
       description = "Server URL",
       order = 0)
-  @ProxyConfigOption(category = "General", subCategory = "WF Server")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String server = "http://localhost:8080/api/";
 
   @Parameter(
@@ -135,7 +147,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "File name prefix to use for buffering "
               + "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.",
       order = 4)
-  @ProxyConfigOption(category = "Buffer", subCategory = "Disk")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.DISK)
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(
@@ -145,12 +157,14 @@ public abstract class ProxyConfigDef extends Configuration {
               + "Setting this value too low may reduce the efficiency of disk space utilization, "
               + "while setting this value too high will allocate disk space in larger increments. "
               + "Default: 128")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.DISK)
   int bufferShardSize = 128;
 
   @Parameter(
       names = {"--disableBufferSharding"},
       description = "Use single-file buffer " + "(legacy functionality). Default: false",
       arity = 1)
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.DISK)
   boolean disableBufferSharding = false;
 
   @Parameter(
@@ -158,6 +172,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Use AWS SQS Based for buffering transmissions " + "to be retried. Defaults to False",
       arity = 1)
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.SQS)
   boolean sqsQueueBuffer = false;
 
   @Parameter(
@@ -165,19 +180,19 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "The replacement pattern to use for naming the "
               + "sqs queues. e.g. wf-proxy-{{id}}-{{entity}}-{{port}} would result in a queue named wf-proxy-id-points-2878")
-  @ProxyConfigOption(category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.SQS)
   String sqsQueueNameTemplate = "wf-proxy-{{id}}-{{entity}}-{{port}}";
 
   @Parameter(
       names = {"--sqsQueueIdentifier"},
       description = "An identifier for identifying these proxies in SQS")
-  @ProxyConfigOption(category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.SQS)
   String sqsQueueIdentifier = null;
 
   @Parameter(
       names = {"--sqsQueueRegion"},
       description = "The AWS Region name the queue will live in.")
-  @ProxyConfigOption(category = "Buffer", subCategory = "External")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.SQS)
   String sqsQueueRegion = "us-west-2";
 
   @Parameter(
@@ -194,6 +209,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Set to 'all' to export "
               + "everything. Default: none")
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   String exportQueuePorts = null;
 
   @Parameter(
@@ -201,12 +217,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Default: none")
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   String exportQueueOutputFile = null;
 
   @Parameter(
       names = {"--exportQueueRetainData"},
       description = "Whether to retain data in the " + "queue during export. Defaults to true.",
       arity = 1)
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   boolean exportQueueRetainData = true;
 
   @Parameter(
@@ -215,6 +233,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Run proxy in debug/performance test "
               + "mode and discard all received data. Default: false",
       arity = 1)
+  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
   boolean useNoopSender = false;
 
   @Parameter(
@@ -223,16 +242,19 @@ public abstract class ProxyConfigDef extends Configuration {
           "Number of threads that flush data to the server. Defaults to"
               + "the number of processors (min. 4). Setting this value too large will result in sending batches that are too "
               + "small to the server and wasting connections. This setting is per listening port.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.METRICS)
   int flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(
       names = {"--flushThreadsSourceTags"},
       description = "Number of threads that send " + "source tags data to the server. Default: 2")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.SOURCETAGS)
   int flushThreadsSourceTags = DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
 
   @Parameter(
       names = {"--flushThreadsEvents"},
       description = "Number of threads that send " + "event data to the server. Default: 2")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.EVENTS)
   int flushThreadsEvents = DEFAULT_FLUSH_THREADS_EVENTS;
 
   @Parameter(
@@ -242,6 +264,7 @@ public abstract class ProxyConfigDef extends Configuration {
               + "the server. Defaults to the number of processors (min. 4). Setting this value too large "
               + "will result in sending batches that are too small to the server and wasting connections. This setting is per listening port.",
       order = 5)
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.LOGS)
   int flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(
@@ -253,46 +276,49 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--pushFlushInterval"},
       description = "Milliseconds between batches. " + "Defaults to 1000 ms")
-  @ProxyConfigOption(category = "Output", subCategory = "push")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.METRICS)
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(
       names = {"--pushFlushIntervalLogs"},
       description = "Milliseconds between batches. Defaults to 1000 ms")
-  @ProxyConfigOption(category = "Output", subCategory = "Logs")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.LOGS)
   int pushFlushIntervalLogs = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(
       names = {"--pushFlushMaxPoints"},
       description = "Maximum allowed points " + "in a single flush. Defaults: 40000")
-  @ProxyConfigOption(category = "Output", subCategory = "Max")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.METRICS)
   int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
 
   @Parameter(
       names = {"--pushFlushMaxHistograms"},
       description = "Maximum allowed histograms " + "in a single flush. Default: 10000")
-  @ProxyConfigOption(category = "Output", subCategory = "Max")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
 
   @Parameter(
       names = {"--pushFlushMaxSourceTags"},
       description = "Maximum allowed source tags " + "in a single flush. Default: 50")
-  @ProxyConfigOption(category = "Output", subCategory = "Max")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.SOURCETAGS)
   int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 
   @Parameter(
       names = {"--pushFlushMaxSpans"},
       description = "Maximum allowed spans " + "in a single flush. Default: 5000")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.TRACES)
   int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
 
   @Parameter(
       names = {"--pushFlushMaxSpanLogs"},
       description = "Maximum allowed span logs " + "in a single flush. Default: 1000")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.TRACES)
   int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
 
   @Parameter(
       names = {"--pushFlushMaxEvents"},
       description = "Maximum allowed events " + "in a single flush. Default: 50")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.EVENTS)
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
   @Parameter(
@@ -300,45 +326,53 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum size of a log payload "
               + "in a single flush in bytes between 1mb (1048576) and 5mb (5242880). Default: 4mb (4194304)")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.LOGS)
   int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 
   @Parameter(
       names = {"--pushRateLimit"},
       description = "Limit the outgoing point rate at the proxy. Default: " + "do not throttle.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.METRICS)
   double pushRateLimit = NO_RATE_LIMIT;
 
   @Parameter(
       names = {"--pushRateLimitHistograms"},
       description =
           "Limit the outgoing histogram " + "rate at the proxy. Default: do not throttle.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   double pushRateLimitHistograms = NO_RATE_LIMIT;
 
   @Parameter(
       names = {"--pushRateLimitSourceTags"},
       description = "Limit the outgoing rate " + "for source tags at the proxy. Default: 5 op/s")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.SOURCETAGS)
   double pushRateLimitSourceTags = 5.0d;
 
   @Parameter(
       names = {"--pushRateLimitSpans"},
       description =
           "Limit the outgoing tracing spans " + "rate at the proxy. Default: do not throttle.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.TRACES)
   double pushRateLimitSpans = NO_RATE_LIMIT;
 
   @Parameter(
       names = {"--pushRateLimitSpanLogs"},
       description =
           "Limit the outgoing span logs " + "rate at the proxy. Default: do not throttle.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.TRACES)
   double pushRateLimitSpanLogs = NO_RATE_LIMIT;
 
   @Parameter(
       names = {"--pushRateLimitEvents"},
       description = "Limit the outgoing rate " + "for events at the proxy. Default: 5 events/s")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.EVENTS)
   double pushRateLimitEvents = 5.0d;
 
   @Parameter(
       names = {"--pushRateLimitLogs"},
       description =
           "Limit the outgoing logs " + "data rate at the proxy. Default: do not throttle.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.LOGS)
   double pushRateLimitLogs = NO_RATE_LIMIT_BYTES;
 
   @Parameter(
@@ -346,6 +380,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Max number of burst seconds to allow "
               + "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.METRICS)
   int pushRateLimitMaxBurstSeconds = 10;
 
   @Parameter(
@@ -355,6 +390,7 @@ public abstract class ProxyConfigDef extends Configuration {
               + " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this "
               + " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if "
               + " you have points arriving at the proxy in short bursts")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.METRICS)
   int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
 
   @Parameter(
@@ -365,6 +401,7 @@ public abstract class ProxyConfigDef extends Configuration {
               + "minimum size: pushFlushMaxLogs. Setting this value lower than default reduces memory usage "
               + "but will force the proxy to spool to disk more frequently if you have points arriving at the "
               + "proxy in short bursts")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.LOGS)
   int pushMemoryBufferLimitLogs = 16 * pushFlushMaxLogs;
 
   @Parameter(
@@ -375,26 +412,31 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--blockedPointsLoggerName"},
       description = "Logger Name for blocked " + "points. " + "Default: RawBlockedPoints")
+  @ProxyConfigOption(category = Categories.TRACE, subCategory = SubCategories.METRICS)
   String blockedPointsLoggerName = "RawBlockedPoints";
 
   @Parameter(
       names = {"--blockedHistogramsLoggerName"},
       description = "Logger Name for blocked " + "histograms" + "Default: RawBlockedPoints")
+  @ProxyConfigOption(category = Categories.TRACE, subCategory = SubCategories.HISTO)
   String blockedHistogramsLoggerName = "RawBlockedPoints";
 
   @Parameter(
       names = {"--blockedSpansLoggerName"},
       description = "Logger Name for blocked spans" + "Default: RawBlockedPoints")
+  @ProxyConfigOption(category = Categories.TRACE, subCategory = SubCategories.TRACES)
   String blockedSpansLoggerName = "RawBlockedPoints";
 
   @Parameter(
       names = {"--blockedLogsLoggerName"},
       description = "Logger Name for blocked logs" + "Default: RawBlockedLogs")
+  @ProxyConfigOption(category = Categories.TRACE, subCategory = SubCategories.LOGS)
   String blockedLogsLoggerName = "RawBlockedLogs";
 
   @Parameter(
       names = {"--pushListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to " + "2878.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(
@@ -402,6 +444,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum line length for received points in"
               + " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   int pushListenerMaxReceivedLength = 32768;
 
   @Parameter(
@@ -409,11 +452,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   int pushListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--traceListenerMaxReceivedLength"},
       description = "Maximum line length for received spans and" + " span logs (Default: 1MB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   int traceListenerMaxReceivedLength = 1024 * 1024;
 
   @Parameter(
@@ -421,12 +466,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests on tracing ports (Default: 16MB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   int traceListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--listenerIdleConnectionTimeout"},
       description =
           "Close idle inbound connections after " + " specified time in seconds. Default: 300")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OTHER)
   int listenerIdleConnectionTimeout = 300;
 
   @Parameter(
@@ -434,6 +481,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "If heap usage exceeds this threshold (in percent), "
               + "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.OTHER)
   int memGuardFlushThreshold = 98;
 
   @Parameter(
@@ -442,11 +490,13 @@ public abstract class ProxyConfigDef extends Configuration {
           "Whether we should recompress histograms received on pushListenerPorts. "
               + "Default: true",
       arity = 1)
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramPassthroughRecompression = true;
 
   @Parameter(
       names = {"--histogramStateDirectory"},
       description = "Directory for persistent proxy state, must be writable.")
+  @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.DISK)
   String histogramStateDirectory = "/var/spool/wavefront-proxy";
 
   @Parameter(
@@ -454,23 +504,27 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Interval to write-back accumulation changes from memory cache to disk in "
               + "millis (only applicable when memory cache is enabled")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long histogramAccumulatorResolveInterval = 5000L;
 
   @Parameter(
       names = {"--histogramAccumulatorFlushInterval"},
       description =
           "Interval to check for histograms to send to Wavefront in millis. " + "(Default: 10000)")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   long histogramAccumulatorFlushInterval = 10000L;
 
   @Parameter(
       names = {"--histogramAccumulatorFlushMaxBatchSize"},
       description =
           "Max number of histograms to send to Wavefront in one flush " + "(Default: no limit)")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   int histogramAccumulatorFlushMaxBatchSize = -1;
 
   @Parameter(
       names = {"--histogramMaxReceivedLength"},
       description = "Maximum line length for received histogram data (Default: 65536)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramMaxReceivedLength = 64 * 1024;
 
   @Parameter(
@@ -478,22 +532,26 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum allowed request size (in bytes) for incoming HTTP requests on "
               + "histogram ports (Default: 16MB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--histogramMinuteListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   String histogramMinuteListenerPorts = "";
 
   @Parameter(
       names = {"--histogramMinuteFlushSecs"},
       description =
           "Number of seconds to keep a minute granularity accumulator open for " + "new samples.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   int histogramMinuteFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramMinuteCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   short histogramMinuteCompression = 32;
 
   @Parameter(
@@ -501,11 +559,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramMinuteAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramMinuteAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramMinuteAvgDigestBytes = 500;
 
   @Parameter(
@@ -513,12 +573,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long histogramMinuteAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramMinuteAccumulatorPersisted"},
       arity = 1,
       description = "Whether the accumulator should persist to disk")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramMinuteAccumulatorPersisted = false;
 
   @Parameter(
@@ -527,22 +589,26 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Enabling memory cache reduces I/O load with fewer time series and higher "
               + "frequency data (more than 1 point per second per time series). Default: false")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramMinuteMemoryCache = false;
 
   @Parameter(
       names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   String histogramHourListenerPorts = "";
 
   @Parameter(
       names = {"--histogramHourFlushSecs"},
       description =
           "Number of seconds to keep an hour granularity accumulator open for " + "new samples.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramHourFlushSecs = 4200;
 
   @Parameter(
       names = {"--histogramHourCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   short histogramHourCompression = 32;
 
   @Parameter(
@@ -550,11 +616,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + " corresponds to a metric, source and tags concatenation.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramHourAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramHourAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramHourAvgDigestBytes = 500;
 
   @Parameter(
@@ -562,12 +630,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long histogramHourAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramHourAccumulatorPersisted"},
       arity = 1,
       description = "Whether the accumulator should persist to disk")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramHourAccumulatorPersisted = false;
 
   @Parameter(
@@ -576,21 +646,25 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Enabling memory cache reduces I/O load with fewer time series and higher "
               + "frequency data (more than 1 point per second per time series). Default: false")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramHourMemoryCache = false;
 
   @Parameter(
       names = {"--histogramDayListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   String histogramDayListenerPorts = "";
 
   @Parameter(
       names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramDayFlushSecs = 18000;
 
   @Parameter(
       names = {"--histogramDayCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   short histogramDayCompression = 32;
 
   @Parameter(
@@ -598,11 +672,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramDayAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramDayAvgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramDayAvgDigestBytes = 500;
 
   @Parameter(
@@ -610,12 +686,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long histogramDayAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramDayAccumulatorPersisted"},
       arity = 1,
       description = "Whether the accumulator should persist to disk")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramDayAccumulatorPersisted = false;
 
   @Parameter(
@@ -624,21 +702,25 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Enabling memory cache reduces I/O load with fewer time series and higher "
               + "frequency data (more than 1 point per second per time series). Default: false")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramDayMemoryCache = false;
 
   @Parameter(
       names = {"--histogramDistListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   String histogramDistListenerPorts = "";
 
   @Parameter(
       names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.HISTO)
   int histogramDistFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramDistCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   short histogramDistCompression = 32;
 
   @Parameter(
@@ -646,11 +728,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Average number of bytes in a [UTF-8] encoded histogram key. Generally "
               + "corresponds to a metric, source and tags concatenation.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramDistAvgKeyBytes = 150;
 
   @Parameter(
       names = {"--histogramDistAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int histogramDistAvgDigestBytes = 500;
 
   @Parameter(
@@ -658,12 +742,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long histogramDistAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--histogramDistAccumulatorPersisted"},
       arity = 1,
       description = "Whether the accumulator should persist to disk")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramDistAccumulatorPersisted = false;
 
   @Parameter(
@@ -672,6 +758,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Enabling memory cache reduces I/O load with fewer time series and higher "
               + "frequency data (more than 1 point per second per time series). Default: false")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean histogramDistMemoryCache = false;
 
   @Parameter(
@@ -679,6 +766,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to listen on for graphite "
               + "data. Defaults to empty list.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.GRAPHITE)
   String graphitePorts = "";
 
   @Parameter(
@@ -686,6 +774,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of metric segments to extract and "
               + "reassemble as the hostname (1-based).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.GRAPHITE)
   String graphiteFormat = "";
 
   @Parameter(
@@ -693,11 +782,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Concatenated delimiters that should be replaced in the "
               + "extracted hostname with dots. Defaults to underscores (_).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.GRAPHITE)
   String graphiteDelimiters = "_";
 
   @Parameter(
       names = {"--graphiteFieldsToRemove"},
       description = "Comma-separated list of metric segments to remove (1-based)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.GRAPHITE)
   String graphiteFieldsToRemove;
 
   @Parameter(
@@ -705,6 +796,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to "
               + "listen on for json metrics data. Binds, by default, to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.JSON)
   String jsonListenerPorts = "";
 
   @Parameter(
@@ -712,6 +804,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to listen on for JSON "
               + "metrics data in DataDog format. Binds, by default, to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   String dataDogJsonPorts = "";
 
   @Parameter(
@@ -719,6 +812,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "HTTP/HTTPS target for relaying all incoming "
               + "requests on dataDogJsonPorts to. Defaults to none (do not relay incoming requests)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   String dataDogRequestRelayTarget = null;
 
   @Parameter(
@@ -726,6 +820,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Max number of "
               + "in-flight HTTP requests being relayed to dataDogRequestRelayTarget. Default: 32")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   int dataDogRequestRelayAsyncThreads = 32;
 
   @Parameter(
@@ -733,6 +828,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Whether we should wait "
               + "until request is relayed successfully before processing metrics. Default: false")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   boolean dataDogRequestRelaySyncMode = false;
 
   @Parameter(
@@ -741,12 +837,14 @@ public abstract class ProxyConfigDef extends Configuration {
           "If true, handle system metrics as reported by "
               + "DataDog collection agent. Defaults to false.",
       arity = 1)
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   boolean dataDogProcessSystemMetrics = false;
 
   @Parameter(
       names = {"--dataDogProcessServiceChecks"},
       description = "If true, convert service checks to metrics. " + "Defaults to true.",
       arity = 1)
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.DDOG)
   boolean dataDogProcessServiceChecks = true;
 
   @Parameter(
@@ -1037,6 +1135,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "If true, this proxy is removed "
               + "from Wavefront after 24 hours of inactivity. Default: true")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   boolean ephemeral = true;
 
   @Parameter(
@@ -1071,25 +1170,27 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--proxyHost"},
       description = "Proxy host for routing traffic through a http proxy")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.HTTPPROXY)
   String proxyHost = null;
 
   @Parameter(
       names = {"--proxyPort"},
       description = "Proxy port for routing traffic through a http proxy")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.HTTPPROXY)
   int proxyPort = 0;
 
   @Parameter(
       names = {"--proxyUser"},
       description =
           "If proxy authentication is necessary, this is the username that will be passed along")
-  @ProxyConfigOption(category = "General", subCategory = "Http Proxy")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.HTTPPROXY)
   String proxyUser = null;
 
   @Parameter(
       names = {"--proxyPassword"},
       description =
           "If proxy authentication is necessary, this is the password that will be passed along")
-  @ProxyConfigOption(category = "General", subCategory = "Http Proxy", hide = true)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.HTTPPROXY)
   String proxyPassword = null;
 
   @Parameter(

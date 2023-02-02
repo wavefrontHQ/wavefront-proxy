@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
-import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TaggedMetricName;
@@ -1301,9 +1300,10 @@ public class ProxyConfig extends ProxyConfigDef {
         });
   }
 
-  public JsonNode getJsonConfig() {
-    Map<String, Map<String, List<PRoxyConfigOptionDescriptor>>> cfg = new HashMap<>();
-    for (Field field : this.getClass().getDeclaredFields()) {
+@JsonIgnore
+public JsonNode getJsonConfig() {
+    Map<Categories, Map<SubCategories, List<PRoxyConfigOptionDescriptor>>> cfg = new HashMap<>();
+    for (Field field : this.getClass().getSuperclass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
           Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
       Optional<Parameter> parameter =
@@ -1329,11 +1329,11 @@ public class ProxyConfig extends ProxyConfigDef {
           data.modifyBy="Config file";
         }
 
-        String category = "undefined";
-        String subCategory = "undefined";
+        Categories category = Categories.NA;
+        SubCategories subCategory = SubCategories.NA;
         if (option.isPresent()) {
-          category = option.get().category();
-          subCategory = option.get().subCategory();
+//          category = option.get().category();
+//          subCategory = option.get().subCategory();
         }
         List<PRoxyConfigOptionDescriptor> options =
             cfg.computeIfAbsent(category, s -> new HashMap<>())
