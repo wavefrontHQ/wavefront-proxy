@@ -1320,6 +1320,7 @@ public class ProxyConfig extends ProxyConfigDef {
                 .orElseGet(() -> field.getName())
                 .replaceAll("--", "");
         data.description = parameter.get().description();
+        data.order = parameter.get().order()==-1?99999:parameter.get().order();
         try {
           Object val = field.get(this);
           data.value = val != null ? val.toString() : "null";
