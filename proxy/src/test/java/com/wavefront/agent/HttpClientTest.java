@@ -13,6 +13,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.MediaType;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
@@ -25,7 +26,7 @@ import org.apache.http.protocol.HttpContext;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
+import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.junit.Test;
@@ -116,8 +117,8 @@ public final class HttpClientTest {
             .build();
 
     ResteasyClient client =
-        new ResteasyClientBuilder()
-            .httpEngine(new ApacheHttpClient4Engine(httpClient, true))
+        ((ResteasyClientBuilder) ClientBuilder.newBuilder())
+            .httpEngine(new ApacheHttpClient43Engine(httpClient, true))
             .providerFactory(factory)
             .build();
 
