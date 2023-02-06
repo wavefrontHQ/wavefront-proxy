@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -45,10 +46,9 @@ import org.apache.commons.lang3.ObjectUtils;
  */
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends ProxyConfigDef {
+  static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
-  static final int GRAPHITE_LISTENING_PORT = 2878;
-
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
   protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
@@ -1284,7 +1284,7 @@ public class ProxyConfig extends ProxyConfigDef {
   private void detectModifiedOptions(Stream<String> args, List<Field> list) {
     args.forEach(
         arg -> {
-          Field[] fields = this.getClass().getDeclaredFields();
+          Field[] fields = this.getClass().getSuperclass().getDeclaredFields();
           list.addAll(
               Arrays.stream(fields)
                   .filter(
@@ -1305,7 +1305,7 @@ public class ProxyConfig extends ProxyConfigDef {
 
   @JsonIgnore
   public JsonNode getJsonConfig() {
-    Map<Categories, Map<SubCategories, Set<PRoxyConfigOptionDescriptor>>> cfg =
+    Map<Categories, Map<SubCategories, Set<ProxyConfigOptionDescriptor>>> cfg =
         new TreeMap<>(Comparator.comparingInt(Categories::getOrder));
     for (Field field : this.getClass().getSuperclass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
@@ -1313,14 +1313,14 @@ public class ProxyConfig extends ProxyConfigDef {
       Optional<Parameter> parameter =
           Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
       if (parameter.isPresent()) {
-        PRoxyConfigOptionDescriptor data = new PRoxyConfigOptionDescriptor();
+        ProxyConfigOptionDescriptor data = new ProxyConfigOptionDescriptor();
         data.name =
             Arrays.stream(parameter.get().names())
                 .max(Comparator.comparingInt(String::length))
                 .orElseGet(() -> field.getName())
                 .replaceAll("--", "");
         data.description = parameter.get().description();
-        data.order = parameter.get().order()==-1?99999:parameter.get().order();
+        data.order = parameter.get().order() == -1 ? 99999 : parameter.get().order();
         try {
           Object val = field.get(this);
           data.value = val != null ? val.toString() : "null";
@@ -1334,18 +1334,20 @@ public class ProxyConfig extends ProxyConfigDef {
           data.modifyBy = "Config file";
         }
 
-        Categories category = Categories.NA;
-        SubCategories subCategory = SubCategories.NA;
         if (option.isPresent()) {
-          category = option.get().category();
-          subCategory = option.get().subCategory();
+          Categories category = option.get().category();
+          SubCategories subCategory = option.get().subCategory();
+          if (!option.get().hide()) {
+            Set<ProxyConfigOptionDescriptor> options =
+                cfg.computeIfAbsent(
+                        category,
+                        s -> new TreeMap<>(Comparator.comparingInt(SubCategories::getOrder)))
+                    .computeIfAbsent(subCategory, s -> new TreeSet<>());
+            options.add(data);
+          }
+        } else {
+          throw new RuntimeException("All options need 'ProxyConfigOption' annotation !!");
         }
-        Set<PRoxyConfigOptionDescriptor> options =
-            cfg.computeIfAbsent(
-                    category, s -> new TreeMap<>(Comparator.comparingInt(SubCategories::getOrder)))
-                .computeIfAbsent(
-                    subCategory, s -> new TreeSet<>(Comparator.comparingInt(o -> o.order)));
-        options.add(data);
       }
     }
     ObjectMapper mapper = new ObjectMapper();
@@ -1377,8 +1379,17 @@ public class ProxyConfig extends ProxyConfigDef {
   }
 
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public class PRoxyConfigOptionDescriptor {
+  public static class ProxyConfigOptionDescriptor implements Comparable {
     public String name, description, value, modifyBy;
     public int order = 0;
+
+    @Override
+    public int compareTo(@NotNull Object o) {
+      ProxyConfigOptionDescriptor other = (ProxyConfigOptionDescriptor) o;
+      if (this.order == other.order) {
+        return this.name.compareTo(other.name);
+      }
+      return Integer.compare(this.order, other.order);
+    }
   }
 }

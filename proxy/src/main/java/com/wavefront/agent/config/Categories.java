@@ -8,7 +8,7 @@ public enum Categories {
   BUFFER("Buffering", 3),
   OUTPUT("Output", 4),
   TRACE("Trace", 5),
-  NA("", 9999); // for hided options
+  NA("Others", 9999); // for hided options
 
   private final String value;
   private int order;

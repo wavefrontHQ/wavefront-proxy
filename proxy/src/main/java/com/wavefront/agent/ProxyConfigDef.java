@@ -85,14 +85,14 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--help"},
       help = true)
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   boolean help = false;
 
   @Parameter(
       names = {"--version"},
       description = "Print version and exit.",
       order = 0)
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   boolean version = false;
 
   @Parameter(
@@ -105,6 +105,7 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"-p", "--prefix"},
       description = "Prefix to prepend to all push metrics before reporting.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String prefix = null;
 
   @Parameter(
@@ -117,21 +118,21 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--testLogs"},
       description = "Run interactive session for crafting logsIngestionConfig.yaml")
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   boolean testLogs = false;
 
   @Parameter(
       names = {"--testPreprocessorForPort"},
       description =
           "Run interactive session for " + "testing preprocessor rules for specified port")
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   String testPreprocessorForPort = null;
 
   @Parameter(
       names = {"--testSpanPreprocessorForPort"},
       description =
           "Run interactive session " + "for testing preprocessor span rules for specifierd port")
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   String testSpanPreprocessorForPort = null;
 
   @Parameter(
@@ -209,7 +210,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Set to 'all' to export "
               + "everything. Default: none")
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   String exportQueuePorts = null;
 
   @Parameter(
@@ -217,14 +218,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Export queued data in plaintext "
               + "format for specified ports (comma-delimited list) and exit. Default: none")
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   String exportQueueOutputFile = null;
 
   @Parameter(
       names = {"--exportQueueRetainData"},
       description = "Whether to retain data in the " + "queue during export. Defaults to true.",
       arity = 1)
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   boolean exportQueueRetainData = true;
 
   @Parameter(
@@ -233,7 +234,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Run proxy in debug/performance test "
               + "mode and discard all received data. Default: false",
       arity = 1)
-  @ProxyConfigOption(category = Categories.NA, subCategory = SubCategories.NA, hide = true)
+  @ProxyConfigOption(hide = true)
   boolean useNoopSender = false;
 
   @Parameter(
@@ -271,6 +272,7 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"--purgeBuffer"},
       description = "Whether to purge the retry buffer on start-up. Defaults to " + "false.",
       arity = 1)
+  @ProxyConfigOption(hide = true)
   boolean purgeBuffer = false;
 
   @Parameter(
@@ -407,6 +409,7 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--pushBlockedSamples"},
       description = "Max number of blocked samples to print to log. Defaults" + " to 5.")
+  @ProxyConfigOption(category = Categories.TRACE, subCategory = SubCategories.METRICS)
   int pushBlockedSamples = 5;
 
   @Parameter(
@@ -852,6 +855,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list "
               + "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.JSON)
   String writeHttpJsonListenerPorts = "";
 
   @Parameter(
@@ -860,6 +864,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma-separated list of ports to"
               + " listen on for OpenTelemetry/OTLP Protobuf formatted data over gRPC. Binds, by default, to"
               + " none (4317 is recommended).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OPENTEL)
   String otlpGrpcListenerPorts = "";
 
   @Parameter(
@@ -868,12 +873,14 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma-separated list of ports to"
               + " listen on for OpenTelemetry/OTLP Protobuf formatted data over HTTP. Binds, by default, to"
               + " none (4318 is recommended).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OPENTEL)
   String otlpHttpListenerPorts = "";
 
   @Parameter(
       names = {"--otlpResourceAttrsOnMetricsIncluded"},
       arity = 1,
       description = "If true, includes OTLP resource attributes on metrics (Default: false)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OPENTEL)
   boolean otlpResourceAttrsOnMetricsIncluded = false;
 
   @Parameter(
@@ -882,21 +889,26 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "If true, includes the following application-related resource attributes on "
               + "metrics: application, service.name, shard, cluster (Default: true)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OPENTEL)
   boolean otlpAppTagsOnMetricsIncluded = true;
+
   // logs ingestion
   @Parameter(
       names = {"--filebeatPort"},
       description = "Port on which to listen for filebeat data.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.FILEB)
   int filebeatPort = 0;
 
   @Parameter(
       names = {"--rawLogsPort"},
       description = "Port on which to listen for raw logs data.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.RAWLOGS)
   int rawLogsPort = 0;
 
   @Parameter(
       names = {"--rawLogsMaxReceivedLength"},
       description = "Maximum line length for received raw logs (Default: 4096)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.RAWLOGS)
   int rawLogsMaxReceivedLength = 4096;
 
   @Parameter(
@@ -904,12 +916,15 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum allowed request size (in bytes) for"
               + " incoming HTTP requests with raw logs (Default: 16MB)")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.RAWLOGS)
   int rawLogsHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(
       names = {"--logsIngestionConfigFile"},
       description = "Location of logs ingestions config yaml file.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.RAWLOGS)
   String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
+
   /**
    * Deprecated property, please use proxyname config field to set proxy name. Default hostname to
    * FQDN of machine. Sent as internal metric tag with checkin.
@@ -917,11 +932,15 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--hostname"},
       description = "Hostname for the proxy. Defaults to FQDN of machine.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  @Deprecated
   String hostname = getLocalHostName();
+
   /** This property holds the proxy name. Default proxyname to FQDN of machine. */
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String proxyname = getLocalHostName();
 
   @Parameter(
@@ -929,6 +948,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "File to read proxy id from. Defaults to ~/.dshell/id."
               + "This property is ignored if ephemeral=true.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String idFile = null;
 
   @Parameter(
@@ -936,6 +956,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Regex pattern (java"
               + ".util.regex) that graphite input lines must match to be accepted")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   String allowRegex;
 
   @Parameter(
@@ -943,6 +964,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Regex pattern (java"
               + ".util.regex) that graphite input lines must NOT match to be accepted")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   String blockRegex;
 
   @Parameter(
@@ -950,6 +972,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to listen on for opentsdb data. "
               + "Binds, by default, to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TSDB)
   String opentsdbPorts = "";
 
   @Parameter(
@@ -957,6 +980,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Regex "
               + "pattern (java.util.regex) that opentsdb input lines must match to be accepted")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TSDB)
   String opentsdbAllowRegex;
 
   @Parameter(
@@ -964,6 +988,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Regex "
               + "pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TSDB)
   String opentsdbBlockRegex;
 
   @Parameter(
@@ -971,12 +996,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports to listen on for pickle protocol "
               + "data. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.OTHER)
   String picklePorts;
 
   @Parameter(
       names = {"--traceListenerPorts"},
       description =
           "Comma-separated list of ports to listen on for trace " + "data. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   String traceListenerPorts;
 
   @Parameter(
@@ -984,6 +1011,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports on which to listen "
               + "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_JAEGER)
   String traceJaegerListenerPorts;
 
   @Parameter(
@@ -991,6 +1019,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports on which to listen "
               + "on for jaeger thrift formatted data over HTTP. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_JAEGER)
   String traceJaegerHttpListenerPorts;
 
   @Parameter(
@@ -998,11 +1027,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports on which to listen "
               + "on for jaeger Protobuf formatted data over gRPC. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_JAEGER)
   String traceJaegerGrpcListenerPorts;
 
   @Parameter(
       names = {"--traceJaegerApplicationName"},
       description = "Application name for Jaeger. Defaults to Jaeger.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_JAEGER)
   String traceJaegerApplicationName;
 
   @Parameter(
@@ -1010,11 +1041,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports on which to listen "
               + "on for zipkin trace data over HTTP. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_JAEGER)
   String traceZipkinListenerPorts;
 
   @Parameter(
       names = {"--traceZipkinApplicationName"},
       description = "Application name for Zipkin. Defaults to Zipkin.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES_ZIPKIN)
   String traceZipkinApplicationName;
 
   @Parameter(
@@ -1023,6 +1056,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma-separated list of ports to listen on spans from level 1 SDK. Helps "
               + "derive RED metrics and for the span and heartbeat for corresponding application at "
               + "proxy. Defaults: none")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   String customTracingListenerPorts = "";
 
   @Parameter(
@@ -1031,6 +1065,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Application name to use "
               + "for spans sent to customTracingListenerPorts when span doesn't have application tag. "
               + "Defaults to defaultApp.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   String customTracingApplicationName;
 
   @Parameter(
@@ -1039,11 +1074,13 @@ public abstract class ProxyConfigDef extends Configuration {
           "Service name to use for spans"
               + " sent to customTracingListenerPorts when span doesn't have service tag. "
               + "Defaults to defaultService.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   String customTracingServiceName;
 
   @Parameter(
       names = {"--traceSamplingRate"},
       description = "Value between 0.0 and 1.0. " + "Defaults to 1.0 (allow all spans).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   double traceSamplingRate = 1.0d;
 
   @Parameter(
@@ -1052,11 +1089,13 @@ public abstract class ProxyConfigDef extends Configuration {
           "Sample spans by duration in "
               + "milliseconds. "
               + "Defaults to 0 (ignore duration based sampling).")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   int traceSamplingDuration = 0;
 
   @Parameter(
       names = {"--traceDerivedCustomTagKeys"},
       description = "Comma-separated " + "list of custom tag keys for trace derived RED metrics.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   String traceDerivedCustomTagKeys;
 
   @Parameter(
@@ -1069,6 +1108,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Comma-separated list of ports on which to listen "
               + "on for proxy chaining data. For internal use. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   String pushRelayListenerPorts;
 
   @Parameter(
@@ -1077,6 +1117,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "If true, aggregate "
               + "histogram distributions received on the relay port. Default: false",
       arity = 1)
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   boolean pushRelayHistogramAggregator = false;
 
   @Parameter(
@@ -1084,11 +1125,13 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel "
               + "reporting bins")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--pushRelayHistogramAggregatorFlushSecs"},
       description = "Number of seconds to keep accumulator open for new samples.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   int pushRelayHistogramAggregatorFlushSecs = 70;
 
   @Parameter(
@@ -1096,6 +1139,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Controls allowable number of centroids per histogram. Must be in [20;1000] "
               + "range. Default: 32")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.HISTO)
   short pushRelayHistogramAggregatorCompression = 32;
 
   @Parameter(
@@ -1104,6 +1148,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Whether to split the push "
               + "batch size when the push is rejected by Wavefront due to rate limit.  Default false.",
       arity = 1)
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.OTHER)
   boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
 
   @Parameter(
@@ -1111,6 +1156,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "For exponential backoff "
               + "when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.OTHER)
   double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 
   @Parameter(
@@ -1119,6 +1165,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of point tag "
               + "keys that should be treated as the source in Wavefront in the absence of a tag named "
               + "`source` or `host`. Default: fqdn")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.SOURCETAGS)
   String customSourceTags = "fqdn";
 
   @Parameter(
@@ -1127,6 +1174,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Additional point tags and their "
               + " respective values to be included into internal agent's metrics "
               + "(comma-separated list, ex: dc=west,env=prod). Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String agentMetricsPointTags = null;
 
   @Parameter(
@@ -1145,6 +1193,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "When receiving"
               + " Wavefront-formatted data without source/host specified, use remote IP address as source "
               + "instead of trying to resolve the DNS name. Default false.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   boolean disableRdnsLookup = false;
 
   @Parameter(
@@ -1152,6 +1201,7 @@ public abstract class ProxyConfigDef extends Configuration {
       arity = 1,
       description =
           "If true, enables gzip " + "compression for traffic sent to Wavefront (Default: true)")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.CONF)
   boolean gzipCompression = true;
 
   @Parameter(
@@ -1159,12 +1209,14 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "If gzipCompression is enabled, "
               + "sets compression level (1-9). Higher compression levels use more CPU. Default: 4")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.CONF)
   int gzipCompressionLevel = 4;
 
   @Parameter(
       names = {"--soLingerTime"},
       description =
           "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
+  @ProxyConfigOption(category = Categories.OUTPUT, subCategory = SubCategories.CONF)
   int soLingerTime = -1;
 
   @Parameter(
@@ -1196,50 +1248,59 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--httpUserAgent"},
       description = "Override User-Agent in request headers")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpUserAgent = null;
 
   @Parameter(
       names = {"--httpConnectTimeout"},
       description = "Connect timeout in milliseconds (default: 5000)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpConnectTimeout = 5000;
 
   @Parameter(
       names = {"--httpRequestTimeout"},
       description = "Request timeout in milliseconds (default: 10000)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpRequestTimeout = 10000;
 
   @Parameter(
       names = {"--httpMaxConnTotal"},
       description = "Max connections to keep open (default: 200)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpMaxConnTotal = 200;
 
   @Parameter(
       names = {"--httpMaxConnPerRoute"},
       description = "Max connections per route to keep open (default: 100)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpMaxConnPerRoute = 100;
 
   @Parameter(
       names = {"--httpAutoRetries"},
       description =
           "Number of times to retry http requests before queueing, set to 0 to disable (default: 3)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpAutoRetries = 3;
 
   @Parameter(
       names = {"--preprocessorConfigFile"},
       description =
           "Optional YAML file with additional configuration options for filtering and pre-processing points")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String preprocessorConfigFile = null;
 
   @Parameter(
       names = {"--dataBackfillCutoffHours"},
       description =
           "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int dataBackfillCutoffHours = 8760;
 
   @Parameter(
       names = {"--dataPrefillCutoffHours"},
       description =
           "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int dataPrefillCutoffHours = 24;
 
   @Parameter(
@@ -1248,6 +1309,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Authenticate all incoming HTTP requests and disables TCP streams when set to a value "
               + "other than NONE. Allowed values are: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   TokenValidationMethod authMethod = TokenValidationMethod.NONE;
 
   @Parameter(
@@ -1257,11 +1319,13 @@ public abstract class ProxyConfigDef extends Configuration {
               + "used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2 (endpoint must be "
               + "RFC7662-compliant) and authMethod = HTTP_GET (use {{token}} placeholder in the URL to pass token to the "
               + "service, endpoint must return any 2xx status for valid tokens, any other response code is a fail)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String authTokenIntrospectionServiceUrl = null;
 
   @Parameter(
       names = {"--authTokenIntrospectionAuthorizationHeader"},
       description = "Optional credentials for use " + "with the token introspection endpoint.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String authTokenIntrospectionAuthorizationHeader = null;
 
   @Parameter(
@@ -1269,6 +1333,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Cache TTL (in seconds) for token validation "
               + "results (re-authenticate when expired). Default: 600 seconds")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int authResponseRefreshInterval = 600;
 
   @Parameter(
@@ -1276,6 +1341,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Maximum allowed cache TTL (in seconds) for token "
               + "validation results when token introspection service is unavailable. Default: 86400 seconds (1 day)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int authResponseMaxTtl = 86400;
 
   @Parameter(
@@ -1283,16 +1349,19 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Static token that is considered valid "
               + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String authStaticToken = null;
 
   @Parameter(
       names = {"--adminApiListenerPort"},
       description = "Enables admin port to control " + "healthcheck status per port. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int adminApiListenerPort = 0;
 
   @Parameter(
       names = {"--adminApiRemoteIpAllowRegex"},
       description = "Remote IPs must match " + "this regex to access admin API")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String adminApiRemoteIpAllowRegex = null;
 
   @Parameter(
@@ -1301,6 +1370,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma-delimited list of ports "
               + "to function as standalone healthchecks. May be used independently of "
               + "--httpHealthCheckAllPorts parameter. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpHealthCheckPorts = null;
 
   @Parameter(
@@ -1310,11 +1380,13 @@ public abstract class ProxyConfigDef extends Configuration {
               + "support HTTP protocol also respond to healthcheck requests. May be used independently of "
               + "--httpHealthCheckPorts parameter. Default: false",
       arity = 1)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   boolean httpHealthCheckAllPorts = false;
 
   @Parameter(
       names = {"--httpHealthCheckPath"},
       description = "Healthcheck's path, for example, " + "'/health'. Default: '/'")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpHealthCheckPath = "/";
 
   @Parameter(
@@ -1322,33 +1394,39 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Optional "
               + "Content-Type to use in healthcheck response, for example, 'application/json'. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpHealthCheckResponseContentType = null;
 
   @Parameter(
       names = {"--httpHealthCheckPassStatusCode"},
       description = "HTTP status code for " + "'pass' health checks. Default: 200")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpHealthCheckPassStatusCode = 200;
 
   @Parameter(
       names = {"--httpHealthCheckPassResponseBody"},
       description =
           "Optional response " + "body to return with 'pass' health checks. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpHealthCheckPassResponseBody = null;
 
   @Parameter(
       names = {"--httpHealthCheckFailStatusCode"},
       description = "HTTP status code for " + "'fail' health checks. Default: 503")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   int httpHealthCheckFailStatusCode = 503;
 
   @Parameter(
       names = {"--httpHealthCheckFailResponseBody"},
       description =
           "Optional response " + "body to return with 'fail' health checks. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String httpHealthCheckFailResponseBody = null;
 
   @Parameter(
       names = {"--deltaCountersAggregationIntervalSeconds"},
       description = "Delay time for delta counter reporter. Defaults to 30 seconds.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   long deltaCountersAggregationIntervalSeconds = 30;
 
   @Parameter(
@@ -1357,6 +1435,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma-separated list of ports to listen on Wavefront-formatted delta "
               + "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy."
               + " Defaults: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String deltaCountersAggregationListenerPorts = "";
 
   @Parameter(
@@ -1365,6 +1444,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the timestamp in Wavefront in the absence of a tag named "
               + "`timestamp` or `log_timestamp`. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customTimestampTags = "";
 
   @Parameter(
@@ -1373,6 +1453,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the source in Wavefront in the absence of a tag named "
               + "`message` or `text`. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customMessageTags = "";
 
   @Parameter(
@@ -1381,6 +1462,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the application in Wavefront in the absence of a tag named "
               + "`application`. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customApplicationTags = "";
 
   @Parameter(
@@ -1389,6 +1471,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the service in Wavefront in the absence of a tag named "
               + "`service`. Default: none")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customServiceTags = "";
 
   @Parameter(
@@ -1397,6 +1480,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the exception in Wavefront in the absence of a "
               + "tag named `exception`. Default: exception, error_name")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customExceptionTags = "";
 
   @Parameter(
@@ -1405,5 +1489,6 @@ public abstract class ProxyConfigDef extends Configuration {
           "Comma separated list of log tag "
               + "keys that should be treated as the log level in Wavefront in the absence of a "
               + "tag named `level`. Default: level, log_level")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customLevelTags = "";
 }

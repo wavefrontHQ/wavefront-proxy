@@ -20,7 +20,13 @@ public enum SubCategories {
   SQS("External SQS", 3),
   CONF("Configuration", 0),
   HTTPPROXY("HTTP/S Proxy", 3),
-  NA("", 9999); // for hided options
+  NA("Others", 9999),
+  OPENTEL("Open Telemetry", 8),
+  FILEB("Filebeat logs", 10),
+  RAWLOGS("Raw logs", 11),
+  TSDB("OpenTSDB", 12),
+  TRACES_JAEGER("Jaeger", 13),
+  TRACES_ZIPKIN("Zipkin", 14); // for hided options
 
   private final String value;
   private int order;
