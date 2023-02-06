@@ -44,6 +44,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Enables intelligent traffic shaping "
               + "based on received rate over last 5 minutes. Default: disabled",
       arity = 1)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   protected boolean trafficShaping = false;
 
   @Parameter(
@@ -52,6 +53,7 @@ public abstract class ProxyConfigDef extends Configuration {
           "Sets the width "
               + "(in seconds) for the sliding time window which would be used to calculate received "
               + "traffic rate. Default: 600 (10 minutes)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   protected int trafficShapingWindowSeconds = 600;
 
   @Parameter(
@@ -59,6 +61,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Sets the headroom multiplier "
               + " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   protected double trafficShapingHeadroom = 1.15;
 
   @Parameter(
@@ -202,6 +205,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. "
               + "Default: ANY_ERROR")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
 
   @Parameter(
@@ -1101,6 +1105,7 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--backendSpanHeadSamplingPercentIgnored"},
       description = "Ignore " + "spanHeadSamplingPercent config in backend CustomerSettings")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
   boolean backendSpanHeadSamplingPercentIgnored = false;
 
   @Parameter(
