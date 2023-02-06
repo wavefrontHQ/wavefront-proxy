@@ -1346,7 +1346,8 @@ public class ProxyConfig extends ProxyConfigDef {
             options.add(data);
           }
         } else {
-          throw new RuntimeException("All options need 'ProxyConfigOption' annotation ("+data.name+") !!");
+          throw new RuntimeException(
+              "All options need 'ProxyConfigOption' annotation (" + data.name + ") !!");
         }
       }
     }
