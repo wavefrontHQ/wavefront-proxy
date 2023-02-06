@@ -35,6 +35,7 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
 import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.jboss.resteasy.plugins.interceptors.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
@@ -350,7 +351,7 @@ public class APIContainer {
       Class<T> apiClass,
       ResteasyProviderFactory resteasyProviderFactory) {
     ResteasyClient client =
-        ((ResteasyClientBuilder) ClientBuilder.newBuilder())
+        new ResteasyClientBuilderImpl()
             .httpEngine(clientHttpEngine)
             .providerFactory(resteasyProviderFactory)
             .build();
