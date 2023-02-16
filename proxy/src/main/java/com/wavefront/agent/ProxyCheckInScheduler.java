@@ -85,7 +85,6 @@ public class ProxyCheckInScheduler {
     this.agentConfigurationConsumer = agentConfigurationConsumer;
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
-    this.hostname = proxyConfig.getHostname();
 
     updateProxyMetrics();
 
