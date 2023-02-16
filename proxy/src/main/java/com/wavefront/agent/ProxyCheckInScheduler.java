@@ -87,6 +87,7 @@ public class ProxyCheckInScheduler {
     this.agentConfigurationConsumer = agentConfigurationConsumer;
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
+    this.hostname = proxyConfig.getHostname();
     updateProxyMetrics();
     Map<String, AgentConfiguration> configList = checkin();
     if (configList == null && retryImmediately) {
@@ -102,7 +103,6 @@ public class ProxyCheckInScheduler {
         successfulCheckIns.incrementAndGet();
       }
     }
-    hostname = proxyConfig.getHostname();
   }
 
   /** Set up and schedule regular check-ins. */
