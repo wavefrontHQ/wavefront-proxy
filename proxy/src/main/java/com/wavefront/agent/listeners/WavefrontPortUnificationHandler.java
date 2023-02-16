@@ -204,16 +204,15 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
                         new TaggedMetricName(
                             "logs." + handle,
                             "received" + ".total",
-                            "format", format.name().toLowerCase())));
+                            "format",
+                            format.name().toLowerCase())));
     this.discardedLogsCounter =
         Caffeine.newBuilder()
             .build(
                 format ->
                     Metrics.newCounter(
                         new TaggedMetricName(
-                            "logs." + handle,
-                            "discarded",
-                            "format", format.name().toLowerCase())));
+                            "logs." + handle, "discarded", "format", format.name().toLowerCase())));
   }
 
   @Override
