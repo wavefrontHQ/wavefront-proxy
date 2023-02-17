@@ -9,6 +9,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
@@ -96,6 +97,7 @@ public class ProxyCheckInScheduler {
       // due to changing the server endpoint URL
       updateProxyMetrics();
       configList = checkin();
+      sendPreprocessorRules();
     }
     if (configList != null && !configList.isEmpty()) {
       logger.info("initial configuration is available, setting up proxy");
@@ -134,6 +136,17 @@ public class ProxyCheckInScheduler {
           .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
     } catch (javax.ws.rs.NotFoundException ex) {
       logger.debug("'proxySaveConfig' api end point not found", ex);
+    }
+  }
+
+  /** Send preprocessor rules */
+  private void sendPreprocessorRules() {
+    try {
+      apiContainer
+          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+          .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
+    } catch (javax.ws.rs.NotFoundException ex) {
+      logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
     }
   }
 
@@ -318,6 +331,7 @@ public class ProxyCheckInScheduler {
   void updateConfiguration() {
     try {
       Map<String, AgentConfiguration> configList = checkin();
+      sendPreprocessorRules();
       if (configList != null && !configList.isEmpty()) {
         AgentConfiguration config;
         for (Map.Entry<String, AgentConfiguration> configEntry : configList.entrySet()) {
