@@ -2,11 +2,7 @@ package com.wavefront.agent.listeners;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
-import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
-import static com.wavefront.agent.formatter.DataFormat.SPAN;
-import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
+import static com.wavefront.agent.formatter.DataFormat.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
