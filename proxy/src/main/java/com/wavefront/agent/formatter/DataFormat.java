@@ -18,7 +18,8 @@ public enum DataFormat {
   SPAN,
   SPAN_LOG,
   LOGS_JSON_ARR,
-  LOGS_JSON_LINES;
+  LOGS_JSON_LINES,
+  LOGS_JSON_CLOUDWATCH;
 
   public static DataFormat autodetect(final String input) {
     if (input.length() < 2) return DEFAULT;
@@ -63,6 +64,8 @@ public enum DataFormat {
         return DataFormat.LOGS_JSON_ARR;
       case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
         return DataFormat.LOGS_JSON_LINES;
+      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        return DataFormat.LOGS_JSON_CLOUDWATCH;
       default:
         return null;
     }

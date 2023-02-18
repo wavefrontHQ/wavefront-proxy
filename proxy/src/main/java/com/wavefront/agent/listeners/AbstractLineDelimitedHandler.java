@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_CLOUDWATCH;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +45,7 @@ import org.jetbrains.annotations.NotNull;
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
 
   public static final ObjectMapper JSON_PARSER = new ObjectMapper();
+  public static final String LOG_EVENTS_KEY = "logEvents";
   private final Supplier<Histogram> receivedLogsBatches;
 
   /**
@@ -77,6 +79,8 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
         lines = extractLogsWithJsonArrayFormat(request);
       } else if (format == LOGS_JSON_LINES) {
         lines = extractLogsWithJsonLinesFormat(request);
+      } else if (format == LOGS_JSON_CLOUDWATCH) {
+        lines = extractLogsWithJsonCloudwatchFormat(request);
       } else {
         lines = extractLogsWithDefaultFormat(request);
       }
@@ -98,6 +102,33 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
         .split(request.content().toString(CharsetUtil.UTF_8));
   }
 
+  private Iterable<String> extractLogsWithJsonCloudwatchFormat(FullHttpRequest request)
+      throws IOException {
+    JsonNode node =
+        JSON_PARSER
+            .readerFor(JsonNode.class)
+            .readValue(request.content().toString(CharsetUtil.UTF_8));
+
+    return extractLogsFromArray(node.get(LOG_EVENTS_KEY).toString());
+  }
+
+  @NotNull
+  private static List<String> extractLogsFromArray(String content) throws JsonProcessingException {
+    return JSON_PARSER
+        .readValue(content, new TypeReference<List<Map<String, Object>>>() {})
+        .stream()
+        .map(
+            json -> {
+              try {
+                return JSON_PARSER.writeValueAsString(json);
+              } catch (JsonProcessingException e) {
+                return null;
+              }
+            })
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
+  }
+
   private Iterable<String> extractLogsWithJsonLinesFormat(FullHttpRequest request)
       throws IOException {
     List<String> lines = new ArrayList<>();
@@ -114,21 +145,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
   @NotNull
   private static Iterable<String> extractLogsWithJsonArrayFormat(FullHttpRequest request)
       throws IOException {
-    return JSON_PARSER
-        .readValue(
-            request.content().toString(CharsetUtil.UTF_8),
-            new TypeReference<List<Map<String, Object>>>() {})
-        .stream()
-        .map(
-            json -> {
-              try {
-                return JSON_PARSER.writeValueAsString(json);
-              } catch (JsonProcessingException e) {
-                return null;
-              }
-            })
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+    return extractLogsFromArray(request.content().toString(CharsetUtil.UTF_8));
   }
 
   /**
@@ -164,7 +181,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   protected void processBatchMetrics(
       final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
-    if (format == LOGS_JSON_ARR || format == LOGS_JSON_LINES) {
+    if (format == LOGS_JSON_ARR || format == LOGS_JSON_LINES || format == LOGS_JSON_CLOUDWATCH) {
       receivedLogsBatches.get().update(request.content().toString(CharsetUtil.UTF_8).length());
     }
   }
