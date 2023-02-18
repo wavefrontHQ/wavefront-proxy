@@ -1,17 +1,97 @@
 package com.wavefront.agent;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.beust.jcommander.ParameterException;
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.data.TaskQueueLevel;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Properties;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
 public class ProxyConfigTest {
+
+  @Test
+  public void testArgsAndFile() throws IOException {
+    File cfgFile = File.createTempFile("proxy", ".cfg");
+    cfgFile.deleteOnExit();
+
+    Properties props = new Properties();
+    props.setProperty("pushListenerPorts", "1234");
+
+    FileOutputStream out = new FileOutputStream(cfgFile);
+    props.store(out, "");
+    out.close();
+
+    String[] args =
+        new String[] {
+          "-f", cfgFile.getAbsolutePath(),
+          "--pushListenerPorts", "4321",
+          "--proxyname", "proxyname"
+        };
+
+    ProxyConfig cfg = new ProxyConfig();
+    assertTrue(cfg.parseArguments(args, ""));
+    assertEquals(cfg.getProxyname(), "proxyname");
+    assertEquals(cfg.getPushListenerPorts(), "1234");
+  }
+
+  @Test
+  public void testMultiTennat() throws IOException {
+    File cfgFile = File.createTempFile("proxy", ".cfg");
+    cfgFile.deleteOnExit();
+
+    Properties props = new Properties();
+    props.setProperty("pushListenerPorts", "1234");
+
+    props.setProperty("multicastingTenants", "2");
+
+    props.setProperty("multicastingTenantName_1", "name1");
+    props.setProperty("multicastingServer_1", "server1");
+    props.setProperty("multicastingToken_1", "token1");
+
+    props.setProperty("multicastingTenantName_2", "name2");
+    props.setProperty("multicastingServer_2", "server2");
+    props.setProperty("multicastingToken_2", "token2");
+
+    FileOutputStream out = new FileOutputStream(cfgFile);
+    props.store(out, "");
+    out.close();
+
+    String[] args =
+        new String[] {
+          "-f", cfgFile.getAbsolutePath(),
+          "--pushListenerPorts", "4321",
+          "--proxyname", "proxyname"
+        };
+
+    ProxyConfig cfg = new ProxyConfig();
+    assertTrue(cfg.parseArguments(args, ""));
+
+    // default values
+    Map<String, String> info =
+        cfg.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME);
+    assertNotNull(info);
+    assertEquals("http://localhost:8080/api/", info.get(APIContainer.API_SERVER));
+    assertEquals("undefined", info.get(APIContainer.API_TOKEN));
+
+    info = cfg.getMulticastingTenantList().get("name1");
+    assertNotNull(info);
+    assertEquals("server1", info.get(APIContainer.API_SERVER));
+    assertEquals("token1", info.get(APIContainer.API_TOKEN));
+
+    info = cfg.getMulticastingTenantList().get("name2");
+    assertNotNull(info);
+    assertEquals("server2", info.get(APIContainer.API_SERVER));
+    assertEquals("token2", info.get(APIContainer.API_TOKEN));
+
+    assertNull(cfg.getMulticastingTenantList().get("fake"));
+  }
 
   @Test
   public void testVersionOrHelpReturnFalse() {
