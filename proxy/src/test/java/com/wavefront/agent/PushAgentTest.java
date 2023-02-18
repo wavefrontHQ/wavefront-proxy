@@ -189,7 +189,7 @@ public class PushAgentTest {
     proxy.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
     proxy.proxyConfig.dataDogProcessServiceChecks = true;
-    assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy.proxyConfig.getFlushThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
   }
@@ -1730,7 +1730,7 @@ public class PushAgentTest {
     proxy2.proxyConfig.dataDogProcessSystemMetrics = true;
     proxy2.proxyConfig.dataDogProcessServiceChecks = false;
     proxy2.proxyConfig.dataDogRequestRelayTarget = "http://relay-to:1234";
-    assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy2.proxyConfig.getFlushThreads());
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
 
