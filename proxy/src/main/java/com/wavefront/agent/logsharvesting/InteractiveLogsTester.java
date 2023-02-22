@@ -3,6 +3,7 @@ package com.wavefront.agent.logsharvesting;
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -66,6 +67,11 @@ public class InteractiveLogsTester implements InteractiveTester {
                   @Override
                   public void reject(@Nonnull String t, @Nullable String message) {
                     System.out.println("Rejected: " + t);
+                  }
+
+                  @Override
+                  public void setLogFormat(DataFormat format) {
+                    throw new UnsupportedOperationException();
                   }
 
                   @Override

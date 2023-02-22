@@ -70,6 +70,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
         blockedItemLogger,
         validItemsLogger,
         null);
+    super.initializeCounters();
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);

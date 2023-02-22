@@ -1,5 +1,7 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.LogsUtil.LOGS_DATA_FORMATS;
+import static com.wavefront.agent.LogsUtil.getOrCreateLogsHistogramFromRegistry;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
@@ -15,10 +17,8 @@ import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,7 +45,6 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   public static final ObjectMapper JSON_PARSER = new ObjectMapper();
   public static final String LOG_EVENTS_KEY = "logEvents";
-  private final Supplier<Histogram> receivedLogsBatches;
 
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
@@ -58,9 +56,6 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
       @Nullable final HealthCheckManager healthCheckManager,
       @Nullable final String handle) {
     super(tokenAuthenticator, healthCheckManager, handle);
-    this.receivedLogsBatches =
-        Utils.lazySupplier(
-            () -> Metrics.newHistogram(new MetricName("logs." + handle, "", "received.batches")));
   }
 
   /** Handles an incoming HTTP message. Accepts HTTP POST on all paths */
@@ -181,8 +176,11 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   protected void processBatchMetrics(
       final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
-    if (format == LOGS_JSON_ARR || format == LOGS_JSON_LINES || format == LOGS_JSON_CLOUDWATCH) {
-      receivedLogsBatches.get().update(request.content().toString(CharsetUtil.UTF_8).length());
+    if (LOGS_DATA_FORMATS.contains(format)) {
+      Histogram receivedLogsBatches =
+          getOrCreateLogsHistogramFromRegistry(
+              Metrics.defaultRegistry(), format, "logs." + handle, "received" + ".batches");
+      receivedLogsBatches.update(request.content().toString(CharsetUtil.UTF_8).length());
     }
   }
 }
