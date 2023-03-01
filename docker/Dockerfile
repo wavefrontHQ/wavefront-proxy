@@ -16,6 +16,9 @@ RUN chown -R wavefront:wavefront /opt/java/openjdk/lib/security/cacerts
 RUN mkdir -p /var/spool/wavefront-proxy
 RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy
 
+RUN mkdir -p /var/log/wavefront
+RUN chown -R wavefront:wavefront /var/log/wavefront
+
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878

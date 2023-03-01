@@ -91,6 +91,7 @@ import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.*;
+import org.junit.rules.Timeout;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -168,6 +169,8 @@ public class PushAgentTest {
           mockEventHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
+  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+
   @BeforeClass
   public static void init() throws Exception {
     TrustManager[] tm = new TrustManager[] {new NaiveTrustManager()};
@@ -186,7 +189,7 @@ public class PushAgentTest {
     proxy.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
     proxy.proxyConfig.dataDogProcessServiceChecks = true;
-    assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy.proxyConfig.getFlushThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
   }
@@ -1727,7 +1730,7 @@ public class PushAgentTest {
     proxy2.proxyConfig.dataDogProcessSystemMetrics = true;
     proxy2.proxyConfig.dataDogProcessServiceChecks = false;
     proxy2.proxyConfig.dataDogRequestRelayTarget = "http://relay-to:1234";
-    assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy2.proxyConfig.getFlushThreads());
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
 

@@ -1,12 +1,18 @@
 package com.wavefront.agent.handlers;
 
+import static com.wavefront.agent.LogsUtil.getOrCreateLogsCounterFromRegistry;
+import static com.wavefront.agent.LogsUtil.getOrCreateLogsHistogramFromRegistry;
 import static com.wavefront.data.Validation.validateLog;
 
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.dto.Log;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.BurstRateTrackingCounter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.Collection;
@@ -31,12 +37,8 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
 
   private final Logger validItemsLogger;
   final ValidationConfiguration validationConfig;
-  final com.yammer.metrics.core.Histogram receivedLogLag;
-  final com.yammer.metrics.core.Histogram receivedTagCount;
-  final com.yammer.metrics.core.Histogram receivedTagLength;
-  final com.yammer.metrics.core.Histogram receivedMessageLength;
-  final com.yammer.metrics.core.Counter receivedByteCount;
-
+  private final MetricsRegistry registry;
+  private DataFormat format;
   /**
    * @param senderTaskMap sender tasks.
    * @param handlerKey pipeline key.
@@ -67,38 +69,67 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         blockedLogsLogger);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
-    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    this.receivedLogLag =
-        registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "lag"), false);
-    this.receivedTagCount =
-        registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "tagCount"), false);
-    this.receivedTagLength =
-        registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "tagLength"), false);
-    this.receivedMessageLength =
-        registry.newHistogram(
-            new MetricName(handlerKey.toString() + ".received", "", "messageLength"), false);
-    this.receivedByteCount =
-        registry.newCounter(new MetricName(handlerKey.toString() + ".received", "", "bytes"));
+    registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
+  }
+
+  @Override
+  protected void initializeCounters() {
+    this.blockedCounter =
+        getOrCreateLogsCounterFromRegistry(registry, format, metricPrefix, "blocked");
+    this.rejectedCounter =
+        getOrCreateLogsCounterFromRegistry(registry, format, metricPrefix, "rejected");
+    if (format == DataFormat.LOGS_JSON_CLOUDWATCH) {
+      MetricName receivedMetricName =
+          new MetricName(metricPrefix + "." + format.name().toLowerCase(), "", "received");
+      registry.newCounter(receivedMetricName).inc();
+      BurstRateTrackingCounter receivedStats =
+          new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
+      registry.newGauge(
+          new MetricName(
+              metricPrefix + "." + format.name().toLowerCase(), "", "received.max-burst-rate"),
+          new Gauge<Double>() {
+            @Override
+            public Double value() {
+              return receivedStats.getMaxBurstRateAndClear();
+            }
+          });
+    }
   }
 
   @Override
   protected void reportInternal(ReportLog log) {
-    receivedTagCount.update(log.getAnnotations().size());
-    receivedMessageLength.update(log.getMessage().length());
+    initializeCounters();
+    getOrCreateLogsHistogramFromRegistry(registry, format, metricPrefix + ".received", "tagCount")
+        .update(log.getAnnotations().size());
+
+    getOrCreateLogsHistogramFromRegistry(
+            registry, format, metricPrefix + ".received", "messageLength")
+        .update(log.getMessage().length());
+
+    Histogram receivedTagLength =
+        getOrCreateLogsHistogramFromRegistry(
+            registry, format, metricPrefix + ".received", "tagLength");
     for (Annotation a : log.getAnnotations()) {
       receivedTagLength.update(a.getValue().length());
     }
+
     validateLog(log, validationConfig);
-    receivedLogLag.update(Clock.now() - log.getTimestamp());
+    getOrCreateLogsHistogramFromRegistry(registry, format, metricPrefix + ".received", "lag")
+        .update(Clock.now() - log.getTimestamp());
+
     Log logObj = new Log(log);
-    receivedByteCount.inc(logObj.getDataSize());
+    getOrCreateLogsCounterFromRegistry(registry, format, metricPrefix + ".received", "bytes")
+        .inc(logObj.getDataSize());
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(logObj);
     getReceivedCounter().inc();
+    attemptedCounter.inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));
     }
+  }
+
+  @Override
+  public void setLogFormat(DataFormat format) {
+    this.format = format;
   }
 }

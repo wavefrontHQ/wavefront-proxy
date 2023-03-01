@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.formatter.DataFormat;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -51,6 +52,8 @@ public interface ReportableEntityHandler<T, U> {
    * @param message more user-friendly message to write to the main log.
    */
   void reject(@Nonnull String t, @Nullable String message);
+
+  void setLogFormat(DataFormat format);
 
   /** Gracefully shutdown the pipeline. */
   void shutdown();

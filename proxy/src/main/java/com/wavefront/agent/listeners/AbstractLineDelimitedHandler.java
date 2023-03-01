@@ -1,8 +1,11 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.LogsUtil.LOGS_DATA_FORMATS;
+import static com.wavefront.agent.LogsUtil.getOrCreateLogsHistogramFromRegistry;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_CLOUDWATCH;
 import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_LINES;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -14,10 +17,8 @@ import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -28,7 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,7 +44,7 @@ import org.jetbrains.annotations.NotNull;
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
 
   public static final ObjectMapper JSON_PARSER = new ObjectMapper();
-  private final Supplier<Histogram> receivedLogsBatches;
+  public static final String LOG_EVENTS_KEY = "logEvents";
 
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
@@ -56,9 +56,6 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
       @Nullable final HealthCheckManager healthCheckManager,
       @Nullable final String handle) {
     super(tokenAuthenticator, healthCheckManager, handle);
-    this.receivedLogsBatches =
-        Utils.lazySupplier(
-            () -> Metrics.newHistogram(new MetricName("logs." + handle, "", "received.batches")));
   }
 
   /** Handles an incoming HTTP message. Accepts HTTP POST on all paths */
@@ -77,6 +74,8 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
         lines = extractLogsWithJsonArrayFormat(request);
       } else if (format == LOGS_JSON_LINES) {
         lines = extractLogsWithJsonLinesFormat(request);
+      } else if (format == LOGS_JSON_CLOUDWATCH) {
+        lines = extractLogsWithJsonCloudwatchFormat(request);
       } else {
         lines = extractLogsWithDefaultFormat(request);
       }
@@ -98,6 +97,33 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
         .split(request.content().toString(CharsetUtil.UTF_8));
   }
 
+  private Iterable<String> extractLogsWithJsonCloudwatchFormat(FullHttpRequest request)
+      throws IOException {
+    JsonNode node =
+        JSON_PARSER
+            .readerFor(JsonNode.class)
+            .readValue(request.content().toString(CharsetUtil.UTF_8));
+
+    return extractLogsFromArray(node.get(LOG_EVENTS_KEY).toString());
+  }
+
+  @NotNull
+  private static List<String> extractLogsFromArray(String content) throws JsonProcessingException {
+    return JSON_PARSER
+        .readValue(content, new TypeReference<List<Map<String, Object>>>() {})
+        .stream()
+        .map(
+            json -> {
+              try {
+                return JSON_PARSER.writeValueAsString(json);
+              } catch (JsonProcessingException e) {
+                return null;
+              }
+            })
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
+  }
+
   private Iterable<String> extractLogsWithJsonLinesFormat(FullHttpRequest request)
       throws IOException {
     List<String> lines = new ArrayList<>();
@@ -114,21 +140,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
   @NotNull
   private static Iterable<String> extractLogsWithJsonArrayFormat(FullHttpRequest request)
       throws IOException {
-    return JSON_PARSER
-        .readValue(
-            request.content().toString(CharsetUtil.UTF_8),
-            new TypeReference<List<Map<String, Object>>>() {})
-        .stream()
-        .map(
-            json -> {
-              try {
-                return JSON_PARSER.writeValueAsString(json);
-              } catch (JsonProcessingException e) {
-                return null;
-              }
-            })
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+    return extractLogsFromArray(request.content().toString(CharsetUtil.UTF_8));
   }
 
   /**
@@ -164,8 +176,11 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   protected void processBatchMetrics(
       final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
-    if (format == LOGS_JSON_ARR || format == LOGS_JSON_LINES) {
-      receivedLogsBatches.get().update(request.content().toString(CharsetUtil.UTF_8).length());
+    if (LOGS_DATA_FORMATS.contains(format)) {
+      Histogram receivedLogsBatches =
+          getOrCreateLogsHistogramFromRegistry(
+              Metrics.defaultRegistry(), format, "logs." + handle, "received" + ".batches");
+      receivedLogsBatches.update(request.content().toString(CharsetUtil.UTF_8).length());
     }
   }
 }

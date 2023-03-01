@@ -73,6 +73,11 @@ public class InteractivePreprocessorTester implements InteractiveTester {
                   }
 
                   @Override
+                  public void setLogFormat(DataFormat format) {
+                    throw new UnsupportedOperationException();
+                  }
+
+                  @Override
                   public void shutdown() {}
                 };
           }
@@ -104,6 +109,11 @@ public class InteractivePreprocessorTester implements InteractiveTester {
                 @Override
                 public void reject(@Nonnull String t, @Nullable String message) {
                   System.out.println("Rejected: " + t);
+                }
+
+                @Override
+                public void setLogFormat(DataFormat format) {
+                  throw new UnsupportedOperationException();
                 }
 
                 @Override
