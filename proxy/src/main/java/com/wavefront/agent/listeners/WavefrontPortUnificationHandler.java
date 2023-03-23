@@ -227,6 +227,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   protected void handleHttpMessage(ChannelHandlerContext ctx, FullHttpRequest request) {
     StringBuilder out = new StringBuilder();
     DataFormat format = getFormat(request);
+    System.out.println("Format is: " + format);
     if ((format == HISTOGRAM
             && isFeatureDisabled(
                 histogramDisabled, HISTO_DISABLED, discardedHistograms.get(), out, request))

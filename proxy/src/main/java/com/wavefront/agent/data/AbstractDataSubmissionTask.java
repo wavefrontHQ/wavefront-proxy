@@ -92,6 +92,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   abstract Response doExecute() throws DataSubmissionException;
 
   public TaskResult execute() {
+    System.out.println("In the execute method");
     if (enqueuedTimeMillis < Long.MAX_VALUE) {
       if (timeSpentInQueue == null) {
         timeSpentInQueue =
@@ -108,7 +109,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                 TimeUnit.MILLISECONDS,
                 TimeUnit.MINUTES)
             .time();
-    System.out.println("In the execute method");
+    System.out.println("In the execute method - 2");
     try (Response response = doExecute()) {
       Metrics.newCounter(
               new TaggedMetricName("push", handle + ".http." + response.getStatus() + ".count"))

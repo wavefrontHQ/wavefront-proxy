@@ -124,6 +124,7 @@ public abstract class ChannelUtils {
       response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
       System.out.println("Keep Alive ON: ChannelUtils");
       ctx.write(response);
+      System.out.println("Finished ctx.write");
     } else {
       System.out.println("Keep Alive OFF: ChannelUtils");
       ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
@@ -140,6 +141,7 @@ public abstract class ChannelUtils {
   public static HttpResponse makeResponse(
       final HttpResponseStatus status, final Object /* JsonNode | CharSequence */ contents) {
     final FullHttpResponse response;
+    System.out.println("Content: " + contents.toString());
     if (contents instanceof JsonNode) {
       response =
           new DefaultFullHttpResponse(
@@ -147,6 +149,7 @@ public abstract class ChannelUtils {
               status,
               Unpooled.copiedBuffer(contents.toString(), CharsetUtil.UTF_8));
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
+      System.out.println("HTTP Response" + response);
     } else if (contents instanceof CharSequence) {
       response =
           new DefaultFullHttpResponse(

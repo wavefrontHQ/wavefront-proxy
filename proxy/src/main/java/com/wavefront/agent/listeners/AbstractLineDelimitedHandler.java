@@ -89,7 +89,9 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
       output.append(errorMessageWithRootCause(e));
       logWarning("WF-300: Failed to handle HTTP POST", e, ctx);
     }
+    System.out.println("writeHttpResponse now");
     writeHttpResponse(ctx, status, output, request);
+    System.out.println("writeHttpResponse done");
   }
 
   private Iterable<String> extractLogsWithDefaultFormat(FullHttpRequest request) {
