@@ -122,8 +122,10 @@ public abstract class ChannelUtils {
       // Add keep alive header as per:
       // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
       response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+      System.out.println("Keep Alive ON: ChannelUtils");
       ctx.write(response);
     } else {
+      System.out.println("Keep Alive OFF: ChannelUtils");
       ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
   }

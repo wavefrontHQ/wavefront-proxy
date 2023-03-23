@@ -126,6 +126,9 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));
     }
+    System.out.println(
+        "We do not see a problem here: reportInternal(this is where we count "
+            + "number of logs processed)");
   }
 
   @Override

@@ -199,7 +199,9 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       reportInternal(item);
     } catch (IllegalArgumentException e) {
       this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
+      System.out.println("logs rejected because of IllegalArgumentException");
     } catch (Exception ex) {
+      System.out.println("logs rejected because of Exception");
       logger.log(
           Level.SEVERE,
           "WF-500 Uncaught exception when handling input (" + serializer.apply(item) + ")",

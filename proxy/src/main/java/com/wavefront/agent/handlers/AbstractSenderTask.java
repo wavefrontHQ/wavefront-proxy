@@ -127,7 +127,10 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     try {
       List<T> current = createBatch();
       int currentBatchSize = getDataSize(current);
+      // System.out.println("currentBatchSize: " + currentBatchSize);
       if (currentBatchSize == 0) return;
+      // System.out.println("rateLimiter: " + rateLimiter);
+      // System.out.println("rateLimiter.tryAcquire: " + rateLimiter.tryAcquire(currentBatchSize));
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
         this.attemptedCounter.inc(currentBatchSize);
@@ -146,6 +149,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       } else {
         // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
         // to introduce some degree of fairness.
+        System.out.println("rate limit exceeded rateLimiter: " + rateLimiter);
         nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
         final long willRetryIn = nextRunMillis;
         throttledLogger.log(
@@ -165,10 +169,12 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         undoBatch(current);
       }
     } catch (Throwable t) {
+      System.out.println("Got exception: " + t.toString());
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
     } finally {
       isSending = false;
       if (isRunning.get()) {
+        // System.out.println("In the finally block");
         scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
       }
     }
@@ -195,10 +201,13 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       datumSize += getObjectSize(metricString);
     }
     //noinspection UnstableApiUsage
+    System.out.println(
+        "DatumSize: " + datumSize + " MemoryBufferLimit: " + properties.getMemoryBufferLimit());
     if (datumSize >= properties.getMemoryBufferLimit()
         && !isBuffering.get()
         && drainBuffersRateLimiter.tryAcquire()) {
       try {
+        System.out.println("flushExecutor");
         flushExecutor.submit(drainBuffersToQueueTask);
       } catch (RejectedExecutionException e) {
         // ignore - another task is already being executed
@@ -242,6 +251,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       new Runnable() {
         @Override
         public void run() {
+          System.out.println("datumSize: " + datumSize);
+          System.out.println("MemoryBufferLimit: " + properties.getMemoryBufferLimit());
           if (datumSize > properties.getMemoryBufferLimit()) {
             // there are going to be too many points to be able to flush w/o the agent
             // blowing up

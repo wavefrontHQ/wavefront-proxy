@@ -321,6 +321,12 @@ public class ProxyCheckInScheduler {
     }
 
     // Always update the log server url / token in case they've changed
+    System.out.println(
+        "vRLIC URL: "
+            + configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl());
+    System.out.println(
+        "vRLIC token: "
+            + configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
     apiContainer.updateLogServerEndpointURLandToken(
         configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
         configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());

@@ -363,6 +363,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         logHandler.setLogFormat(format);
         message = annotator == null ? message : annotator.apply(ctx, message, true);
+        System.out.println("Log message received from curl cmd: " + message);
         preprocessAndHandleLog(message, logDecoder, logHandler, preprocessorSupplier, ctx);
         return;
       default:
@@ -464,8 +465,11 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
 
     for (ReportLog object : output) {
       if (preprocessor != null) {
+        System.out.println("preprocessor is not null");
         preprocessor.forReportLog().transform(object);
+        System.out.println("object transformed for preprocessor: " + preprocessor);
         if (!preprocessor.forReportLog().filter(object, messageHolder)) {
+          System.out.println("object is not filtered for preprocessor");
           if (messageHolder[0] != null) {
             handler.reject(object, messageHolder[0]);
           } else {
@@ -474,6 +478,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
           return;
         }
       }
+      System.out.println("preprocessAndHandleLog, object is: " + object.getMessage());
       handler.report(object);
     }
   }

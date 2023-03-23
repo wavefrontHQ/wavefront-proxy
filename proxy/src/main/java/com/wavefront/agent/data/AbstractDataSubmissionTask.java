@@ -108,6 +108,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                 TimeUnit.MILLISECONDS,
                 TimeUnit.MINUTES)
             .time();
+    System.out.println("In the execute method");
     try (Response response = doExecute()) {
       Metrics.newCounter(
               new TaggedMetricName("push", handle + ".http." + response.getStatus() + ".count"))
@@ -117,6 +118,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
             .inc(this.weight());
         return TaskResult.DELIVERED;
       }
+      System.out.println("Response code: " + response.getStatus());
       switch (response.getStatus()) {
         case 406:
         case 429:
@@ -185,6 +187,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           }
       }
     } catch (DataSubmissionException ex) {
+      System.out.println("Unhandled DataSubmissionException: " + ex.getMessage());
       if (ex instanceof IgnoreStatusCodeException) {
         Metrics.newCounter(new TaggedMetricName("push", handle + ".http.404.count")).inc();
         Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered"))
@@ -193,6 +196,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       }
       throw new RuntimeException("Unhandled DataSubmissionException", ex);
     } catch (ProcessingException ex) {
+      System.out.println("Unhandled ProcessingException: " + ex.getMessage());
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
         log.warning(
@@ -224,6 +228,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       }
       return checkStatusAndQueue(QueueingReason.RETRY, false);
     } catch (Exception ex) {
+      System.out.println("Unhandled Exception: " + ex.getMessage());
       log.warning(
           "[" + handle + "] Error sending data to Wavefront: " + Throwables.getRootCause(ex));
       if (log.isLoggable(Level.FINE)) {

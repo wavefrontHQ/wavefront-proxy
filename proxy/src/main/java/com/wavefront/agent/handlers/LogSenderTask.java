@@ -47,6 +47,7 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
 
   @Override
   TaskResult processSingleBatch(List<Log> batch) {
+    System.out.println("in processSingleBatch");
     LogDataSubmissionTask task =
         new LogDataSubmissionTask(
             logAPI, proxyId, properties, backlog, handlerKey.getHandle(), batch, null);
