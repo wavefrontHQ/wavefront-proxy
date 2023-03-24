@@ -67,6 +67,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         true,
         receivedRateSink,
         blockedLogsLogger);
+    System.out.println("ReportLogHandlerImpl.construct");
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
     registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;

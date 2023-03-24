@@ -106,7 +106,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     // MONIT-25479: HandlerKey(EntityType, Port) --> HandlerKey(EntityType, Port, TenantName)
     // Every SenderTask is tenant specific from this point
     for (String tenantName : apiContainer.getTenantNameList()) {
-      int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
+      int numThreads =
+          1; // entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
       HandlerKey tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
 
       scheduler =
@@ -133,12 +134,14 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       throw new IllegalArgumentException(
           "Tenant name in handlerKey should not be null when " + "generating sender task list.");
     }
+    System.out.println("generateSenderTaskList, number of threads: " + numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
     ReportableEntityType entityType = handlerKey.getEntityType();
     List<SenderTask<?>> senderTaskList = new ArrayList<>(numThreads);
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
+    System.out.println("Entity type: " + entityType);
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
@@ -222,6 +225,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case LOGS:
+          System.out.println("Creating LogSenderTask");
           senderTask =
               new LogSenderTask(
                   handlerKey,

@@ -40,6 +40,7 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
       ScheduledExecutorService scheduler,
       TaskQueue<LogDataSubmissionTask> backlog) {
     super(handlerKey, threadId, properties, scheduler);
+    System.out.println("LogSenderTask.construct");
     this.logAPI = logAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;

@@ -79,6 +79,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       int threadId,
       EntityProperties properties,
       ScheduledExecutorService scheduler) {
+    System.out.println("AbstractSenderTask.construct");
     this.handlerKey = handlerKey;
     this.threadId = threadId;
     this.properties = properties;
@@ -121,16 +122,17 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public void run() {
+    System.out.println("AbstractSenderTask.run");
     if (!isRunning.get()) return;
     long nextRunMillis = properties.getPushFlushInterval();
     isSending = true;
     try {
       List<T> current = createBatch();
       int currentBatchSize = getDataSize(current);
-      // System.out.println("currentBatchSize: " + currentBatchSize);
+      System.out.println("currentBatchSize: " + currentBatchSize);
       if (currentBatchSize == 0) return;
-      // System.out.println("rateLimiter: " + rateLimiter);
-      // System.out.println("rateLimiter.tryAcquire: " + rateLimiter.tryAcquire(currentBatchSize));
+      System.out.println("rateLimiter: " + rateLimiter);
+      System.out.println("rateLimiter.tryAcquire: " + rateLimiter.tryAcquire(currentBatchSize));
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
         this.attemptedCounter.inc(currentBatchSize);
@@ -203,9 +205,10 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     //noinspection UnstableApiUsage
     System.out.println(
         "DatumSize: " + datumSize + " MemoryBufferLimit: " + properties.getMemoryBufferLimit());
-    if (datumSize >= properties.getMemoryBufferLimit()
-        && !isBuffering.get()
-        && drainBuffersRateLimiter.tryAcquire()) {
+    //    if (datumSize >= properties.getMemoryBufferLimit()
+    //        && !isBuffering.get()
+    //        && drainBuffersRateLimiter.tryAcquire()) {
+    if (false) {
       try {
         System.out.println("flushExecutor");
         flushExecutor.submit(drainBuffersToQueueTask);

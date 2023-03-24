@@ -72,6 +72,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       String handle,
       ReportableEntityType entityType,
       @Nullable Supplier<Long> timeProvider) {
+    System.out.println("AbstractDataSubmissionTask.constructor");
     this.properties = properties;
     this.backlog = backlog;
     this.handle = handle;

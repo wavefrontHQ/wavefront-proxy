@@ -102,6 +102,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
       final Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
       final Logger blockedLogsLogger) {
+    System.out.println("ReportableEntityHandlerFactoryImpl.construct");
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -128,6 +129,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
             .computeIfAbsent(
                 handlerKey.getEntityType(),
                 k -> {
+                  System.out.println("entity type is" + handlerKey.getEntityType());
                   switch (handlerKey.getEntityType()) {
                     case POINT:
                       return new ReportPointHandlerImpl(

@@ -57,6 +57,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
       @Nonnull List<Log> logs,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, ReportableEntityType.LOGS, timeProvider);
+    System.out.println("LogDataSubmissionTask.constructor");
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs);
