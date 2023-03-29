@@ -71,6 +71,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
         setupMetrics,
         receivedRateSink,
         blockedItemLogger);
+    super.initializeCounters();
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;

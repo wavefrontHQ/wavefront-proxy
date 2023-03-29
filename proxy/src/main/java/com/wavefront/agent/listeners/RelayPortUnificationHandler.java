@@ -30,6 +30,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.Utils;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
@@ -94,8 +95,6 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> receivedSpansTotal;
-  private final Supplier<Counter> discardedLogs;
-  private final Supplier<Counter> receivedLogsTotal;
 
   private final APIContainer apiContainer;
   /**
@@ -164,13 +163,6 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     this.discardedSpanLogs =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
-    this.discardedLogs =
-        Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "discarded")));
-    this.receivedLogsTotal =
-        Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("logs." + handle, "", "received.total")));
-
     this.apiContainer = apiContainer;
   }
 
@@ -384,6 +376,14 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         status = okStatus;
         break;
       case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
+      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
+      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        Supplier<Counter> discardedLogs =
+            Utils.lazySupplier(
+                () ->
+                    Metrics.newCounter(
+                        new TaggedMetricName("logs." + handle, "discarded", "format", format)));
+
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), output, request)) {
           status = HttpResponseStatus.FORBIDDEN;
           break;

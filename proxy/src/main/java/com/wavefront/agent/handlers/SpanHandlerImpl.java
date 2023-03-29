@@ -70,6 +70,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
         true,
         receivedRateSink,
         blockedItemLogger);
+    super.initializeCounters();
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;

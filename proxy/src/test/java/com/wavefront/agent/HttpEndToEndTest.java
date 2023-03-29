@@ -808,6 +808,57 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotLog::get);
   }
 
+  @Test
+  public void testEndToEndLogCloudwatch() throws Exception {
+    long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
+    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    proxy = new PushAgent();
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.flushThreads = 1;
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
+    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.pushRateLimitLogs = 1024;
+    proxy.proxyConfig.pushFlushIntervalLogs = 50;
+
+    proxy.start(new String[] {});
+    waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
+
+    long timestamp = time * 1000 + 12345;
+    String payload =
+        "{\"someKey\": \"someVal\", "
+            + "\"logEvents\": [{\"source\": \"myHost1\", \"timestamp\": \""
+            + timestamp
+            + "\"}, "
+            + "{\"source\": \"myHost2\", \"timestamp\": \""
+            + timestamp
+            + "\"}]}";
+
+    String expectedLog1 =
+        "[{\"source\":\"myHost1\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
+    String expectedLog2 =
+        "[{\"source\":\"myHost2\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
+
+    AtomicBoolean gotLog = new AtomicBoolean(false);
+    Set<String> actualLogs = new HashSet<>();
+    server.update(
+        req -> {
+          String content = req.content().toString(CharsetUtil.UTF_8);
+          logger.fine("Content received: " + content);
+          actualLogs.add(content);
+          return makeResponse(HttpResponseStatus.OK, "");
+        });
+    gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + "logs_json_cloudwatch", payload);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
+    proxy.senderTaskFactory.flushNow(key);
+    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
+    assertEquals(2, actualLogs.size());
+    if (actualLogs.contains(expectedLog1) && actualLogs.contains(expectedLog2)) gotLog.set(true);
+    assertTrueWithTimeout(50, gotLog::get);
+  }
+
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {
     private final Function<FullHttpRequest, HttpResponse> func;
 
@@ -841,6 +892,12 @@ public class HttpEndToEndTest {
         writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
         return;
       } else if (path.endsWith("/config/processed")) {
+        writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
+        return;
+      } else if (path.endsWith("/wfproxy/saveConfig")) {
+        writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
+        return;
+      } else if (path.endsWith("/wfproxy/savePreprocessorRules")) {
         writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
         return;
       }

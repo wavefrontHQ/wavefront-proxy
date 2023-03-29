@@ -1,6 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.agent.formatter.DataFormat;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.BurstRateTrackingCounter;
 import com.yammer.metrics.core.Counter;
@@ -38,10 +39,10 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   private final Logger blockedItemsLogger;
 
   final HandlerKey handlerKey;
-  private final Counter receivedCounter;
-  private final Counter attemptedCounter;
-  private final Counter blockedCounter;
-  private final Counter rejectedCounter;
+  protected final Counter receivedCounter;
+  protected final Counter attemptedCounter;
+  protected Counter blockedCounter;
+  protected Counter rejectedCounter;
 
   @SuppressWarnings("UnstableApiUsage")
   final RateLimiter blockedItemsLimiter;
@@ -54,9 +55,10 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   final BurstRateTrackingCounter receivedStats;
   final BurstRateTrackingCounter deliveredStats;
-
   private final Timer timer;
   private final AtomicLong roundRobinCounter = new AtomicLong();
+  protected final MetricsRegistry registry;
+  protected final String metricPrefix;
 
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter noDataStatsRateLimiter = RateLimiter.create(1.0d / 60);
@@ -91,15 +93,12 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.reportReceivedStats = reportReceivedStats;
     this.rateUnit = handlerKey.getEntityType().getRateUnit();
     this.blockedItemsLogger = blockedItemsLogger;
-
-    MetricsRegistry registry = reportReceivedStats ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    String metricPrefix = handlerKey.toString();
+    this.registry = reportReceivedStats ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
+    this.metricPrefix = handlerKey.toString();
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     MetricName deliveredMetricName = new MetricName(metricPrefix, "", "delivered");
     this.receivedCounter = registry.newCounter(receivedMetricName);
     this.attemptedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "sent"));
-    this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
-    this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
     this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
     registry.newGauge(
@@ -110,7 +109,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
             return receivedStats.getMaxBurstRateAndClear();
           }
         });
-    timer = new Timer("stats-output-" + handlerKey);
+    this.timer = new Timer("stats-output-" + handlerKey);
     if (receivedRateSink != null) {
       timer.scheduleAtFixedRate(
           new TimerTask() {
@@ -144,6 +143,11 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
           60_000,
           60_000);
     }
+  }
+
+  protected void initializeCounters() {
+    this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
+    this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
   }
 
   @Override
@@ -206,6 +210,11 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void shutdown() {
     if (this.timer != null) timer.cancel();
+  }
+
+  @Override
+  public void setLogFormat(DataFormat format) {
+    throw new UnsupportedOperationException();
   }
 
   abstract void reportInternal(T item);

@@ -40,6 +40,7 @@ class ReportSourceTagHandlerImpl
         true,
         receivedRateSink,
         blockedItemLogger);
+    super.initializeCounters();
   }
 
   @Override
