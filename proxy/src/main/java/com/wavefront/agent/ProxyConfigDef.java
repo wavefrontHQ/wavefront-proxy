@@ -1496,4 +1496,20 @@ public abstract class ProxyConfigDef extends Configuration {
               + "tag named `level`. Default: level, log_level")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customLevelTags = "";
+
+  @Parameter(
+      names = {"--logServerIngestionToken"},
+      description =
+          "Static token that is considered valid "
+              + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionToken = null;
+
+  @Parameter(
+      names = {"--logServerIngestionURL"},
+      description =
+          "Static token that is considered valid "
+              + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionURL = null;
 }

@@ -389,6 +389,7 @@
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
       <version>2023-02.1</version>
+      <!--TODO - update the version after java-lib release-->
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>

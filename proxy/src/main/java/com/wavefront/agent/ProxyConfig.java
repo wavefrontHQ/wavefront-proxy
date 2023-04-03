@@ -964,6 +964,14 @@ public class ProxyConfig extends ProxyConfigDef {
     return corsAllowNullOrigin;
   }
 
+  public String getLogServerIngestionToken() {
+    return logServerIngestionToken;
+  }
+
+  public String getLogServerIngestionURL() {
+    return logServerIngestionURL;
+  }
+
   @Override
   public void verifyAndInit() {
     throw new UnsupportedOperationException("not implemented");

@@ -186,10 +186,6 @@ public class APIContainer {
    */
   public void updateLogServerEndpointURLandToken(
       String logServerEndpointUrl, String logServerToken) {
-    // if one of the values is blank but not the other, something has gone wrong
-    if (StringUtils.isBlank(logServerEndpointUrl) != StringUtils.isBlank(logServerToken)) {
-      logger.warn("mismatch between logServerEndPointUrl and logServerToken during checkin");
-    }
     // if either are null or empty, just return
     if (StringUtils.isBlank(logServerEndpointUrl) || StringUtils.isBlank(logServerToken)) {
       return;
