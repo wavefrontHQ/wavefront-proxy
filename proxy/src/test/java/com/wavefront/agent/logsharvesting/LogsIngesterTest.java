@@ -5,7 +5,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.contains;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
@@ -58,9 +57,9 @@ public class LogsIngesterTest {
   private ReportableEntityHandlerFactory mockFactory;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
   private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
-  private AtomicLong now;
-  private AtomicLong nanos;
-  private ObjectMapper objectMapper;
+  private final AtomicLong now;
+  private final AtomicLong nanos;
+  private final ObjectMapper objectMapper;
 
   public LogsIngesterTest() {
     this.now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
