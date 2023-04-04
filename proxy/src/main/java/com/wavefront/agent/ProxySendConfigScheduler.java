@@ -30,7 +30,7 @@ public class ProxySendConfigScheduler {
         successful = true;
       } catch (Throwable e) {
         logger.warn("Can't send the Proxy configuration to the server, retrying in 60 seconds. " + e.getMessage());
-        logger.log(Level.DEBUG,"Exception: ",e);
+        logger.log(Level.DEBUG, "Exception: ", e);
       }
 
       if (successful) {
