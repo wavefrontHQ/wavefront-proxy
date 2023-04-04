@@ -5,12 +5,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.contains;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactoryBuilder;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
@@ -41,6 +44,8 @@ import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Test;
 import org.logstash.beats.Message;
+import org.yaml.snakeyaml.LoaderOptions;
+
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -53,9 +58,16 @@ public class LogsIngesterTest {
   private ReportableEntityHandlerFactory mockFactory;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
   private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
-  private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
-  private AtomicLong nanos = new AtomicLong(System.nanoTime());
-  private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+  private AtomicLong now;
+  private AtomicLong nanos;
+  private ObjectMapper objectMapper;
+
+  public LogsIngesterTest() {
+    this.now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
+    this.nanos = new AtomicLong(System.nanoTime());
+    YAMLFactoryBuilder factory = new YAMLFactoryBuilder(new YAMLFactory());
+    this.objectMapper = new ObjectMapper(factory.loaderOptions(new LoaderOptions()).build());
+  }
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
     File configFile =
