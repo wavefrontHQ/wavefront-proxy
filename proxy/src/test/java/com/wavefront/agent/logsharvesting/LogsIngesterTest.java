@@ -1,18 +1,27 @@
 package com.wavefront.agent.logsharvesting;
 
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.lessThan;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactoryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactoryBuilder;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
@@ -44,12 +53,14 @@ import org.junit.After;
 import org.junit.Test;
 import org.logstash.beats.Message;
 import org.yaml.snakeyaml.LoaderOptions;
-
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 /** @author Mori Bellamy (mori@wavefront.com) */
 public class LogsIngesterTest {
+  private final AtomicLong now;
+  private final AtomicLong nanos;
+  private final ObjectMapper objectMapper;
   private LogsIngestionConfig logsIngestionConfig;
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
@@ -57,9 +68,6 @@ public class LogsIngesterTest {
   private ReportableEntityHandlerFactory mockFactory;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
   private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
-  private final AtomicLong now;
-  private final AtomicLong nanos;
-  private final ObjectMapper objectMapper;
 
   public LogsIngesterTest() {
     this.now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
