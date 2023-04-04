@@ -26,6 +26,7 @@ import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Parses preprocessor rules (organized by listening port)
@@ -211,7 +212,7 @@ public class PreprocessorConfigManager {
   void loadFromStream(InputStream stream) {
     totalValidRules = 0;
     totalInvalidRules = 0;
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, ReportableEntityPreprocessor> portMap = new HashMap<>();
     lockMetricsFilter.clear();
     try {

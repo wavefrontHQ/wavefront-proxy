@@ -10,6 +10,7 @@ import java.util.function.Predicate;
 import org.junit.Assert;
 import org.junit.Test;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
@@ -25,7 +26,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = yaml.load(stream);
     ReportPoint point = null;
     for (String comparisonOp : COMPARISON_OPS) {
@@ -91,7 +92,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
     ReportPoint point = null;
     for (String comparisonOp : COMPARISON_OPS) {
@@ -157,7 +158,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
     String spanLine =
         "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 "
@@ -237,7 +238,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
     String spanLine =
         "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 "
@@ -317,7 +318,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = yaml.load(stream);
     List<Map<String, Object>> rules =
         (List<Map<String, Object>>) rulesByPort.get("logicalop-reportpoint");
@@ -380,7 +381,7 @@ public class PreprocessorRuleV2PredicateTest {
     InputStream stream =
         PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_predicates.yaml");
     PreprocessorConfigManager config = new PreprocessorConfigManager();
-    Yaml yaml = new Yaml();
+    Yaml yaml = new Yaml(new SafeConstructor());
     Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
     List<Map<String, Object>> rules = (List<Map<String, Object>>) rulesByPort.get("logicalop-span");
     Assert.assertEquals("Expected rule size :: ", 1, rules.size());
