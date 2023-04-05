@@ -1499,17 +1499,13 @@ public abstract class ProxyConfigDef extends Configuration {
 
   @Parameter(
       names = {"--logServerIngestionToken"},
-      description =
-          "Static token that is considered valid "
-              + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
+      description = "Log insight ingestion token, required to ingest logs to the log server.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
   String logServerIngestionToken = null;
 
   @Parameter(
       names = {"--logServerIngestionURL"},
-      description =
-          "Static token that is considered valid "
-              + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
+      description = "Log insight ingestion URL, required to ingest logs to the log server.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
   String logServerIngestionURL = null;
 }
