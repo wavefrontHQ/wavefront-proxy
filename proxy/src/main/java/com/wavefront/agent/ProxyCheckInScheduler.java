@@ -91,7 +91,7 @@ public class ProxyCheckInScheduler {
     updateProxyMetrics();
 
     Map<String, AgentConfiguration> configList = checkin();
-    sendConfig();
+    new ProxySendConfigScheduler(apiContainer, proxyId, proxyConfig).start();
 
     if (configList == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
@@ -128,16 +128,6 @@ public class ProxyCheckInScheduler {
   /** Stops regular check-ins. */
   public void shutdown() {
     executor.shutdown();
-  }
-
-  private void sendConfig() {
-    try {
-      apiContainer
-          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-          .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
-    } catch (javax.ws.rs.NotFoundException ex) {
-      logger.debug("'proxySaveConfig' api end point not found", ex);
-    }
   }
 
   /** Send preprocessor rules */
