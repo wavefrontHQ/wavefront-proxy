@@ -326,7 +326,7 @@ public class ProxyCheckInScheduler {
       logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
       if (StringUtils.isBlank(logServerIngestionURL)
           || StringUtils.isBlank(logServerIngestionToken)) {
-        logger.warn(
+        logger.error(
             WARNING_MSG
                 + " To ingest logs to the log server, please provide "
                 + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
