@@ -324,10 +324,6 @@ public class ProxyCheckInScheduler {
         && StringUtils.isBlank(logServerIngestionToken)) {
       logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
       logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
-      configurationList
-          .get(APIContainer.CENTRAL_TENANT_NAME)
-          .getValidationConfiguration()
-          .setEnableHyperlogsConvergedCsp(true);
       if (StringUtils.isBlank(logServerIngestionURL)
           || StringUtils.isBlank(logServerIngestionToken)) {
         logger.warn(
