@@ -29,6 +29,7 @@ public class APIContainerTest {
     assertEquals(apiContainer.getTenantNameList().size(), 1);
     assertTrue(apiContainer.getProxyV2APIForTenant("central") instanceof NoopProxyV2API);
     assertTrue(apiContainer.getSourceTagAPIForTenant("central") instanceof NoopSourceTagAPI);
+    System.out.println(apiContainer.getEventAPIForTenant("central"));
     assertTrue(apiContainer.getEventAPIForTenant("central") instanceof NoopEventAPI);
   }
 

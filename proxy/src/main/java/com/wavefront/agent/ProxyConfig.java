@@ -525,6 +525,10 @@ public class ProxyConfig extends ProxyConfigDef {
     return hostname;
   }
 
+  public String getLeMansToken() {
+    return leMansToken;
+  }
+
   public String getProxyname() {
     return proxyname;
   }
@@ -1021,7 +1025,8 @@ public class ProxyConfig extends ProxyConfigDef {
           tenantCSPAPIToken,
           tenantToken,
           tenantServer,
-          tenantName);
+          tenantName,
+          leMansServer);
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1229,7 +1234,8 @@ public class ProxyConfig extends ProxyConfigDef {
         cspAPIToken,
         token,
         server,
-        APIContainer.CENTRAL_TENANT_NAME);
+        APIContainer.CENTRAL_TENANT_NAME,
+        leMansServer);
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 
@@ -1413,6 +1419,10 @@ public class ProxyConfig extends ProxyConfigDef {
     return node;
   }
 
+  public String getLeMansStreamName() {
+    return this.leMansStreamName;
+  }
+
   public static class TokenValidationMethodConverter
       implements IStringConverter<TokenValidationMethod> {
     @Override
@@ -1462,16 +1472,17 @@ public class ProxyConfig extends ProxyConfigDef {
    * @param wfToken the Wavefront API wfToken.
    * @param server the server url.
    * @param tenantName the name of the tenant.
+   * @param leMansServer
    * @throws IllegalArgumentException for invalid arguments.
    */
   public void constructTenantInfoObject(
-      @Nullable final String appId,
-      @Nullable final String appSecret,
-      @Nullable final String cspOrgId,
-      @Nullable final String cspAPIToken,
-      @Nonnull final String wfToken,
-      @Nonnull final String server,
-      @Nonnull final String tenantName) {
+          @Nullable final String appId,
+          @Nullable final String appSecret,
+          @Nullable final String cspOrgId,
+          @Nullable final String cspAPIToken,
+          @Nonnull final String wfToken,
+          @Nonnull final String server,
+          @Nonnull final String tenantName, String leMansServer) {
 
     final String BAD_CONFIG =
         "incorrect configuration, one (and only one) of these options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret`"

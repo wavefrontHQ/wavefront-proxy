@@ -63,6 +63,7 @@ public class QueueExporterTest {
             "wavefront",
             ReportableEntityType.POINT,
             "2878",
+            null,
             ImmutableList.of("item1", "item2", "item3"),
             () -> 12345L);
     task.enqueue(QueueingReason.RETRY);
@@ -75,6 +76,7 @@ public class QueueExporterTest {
             "wavefront",
             ReportableEntityType.POINT,
             "2878",
+            null,
             ImmutableList.of("item4", "item5"),
             () -> 12345L);
     task2.enqueue(QueueingReason.RETRY);
@@ -222,6 +224,7 @@ public class QueueExporterTest {
             "wavefront",
             ReportableEntityType.POINT,
             "2878",
+            null,
             ImmutableList.of("item1", "item2", "item3"),
             () -> 12345L);
     task.enqueue(QueueingReason.RETRY);
@@ -234,6 +237,7 @@ public class QueueExporterTest {
             "wavefront",
             ReportableEntityType.POINT,
             "2878",
+            null,
             ImmutableList.of("item4", "item5"),
             () -> 12345L);
     task2.enqueue(QueueingReason.RETRY);

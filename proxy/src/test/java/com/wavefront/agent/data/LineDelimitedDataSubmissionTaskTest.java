@@ -22,6 +22,7 @@ public class LineDelimitedDataSubmissionTaskTest {
             "graphite_v2",
             ReportableEntityType.POINT,
             "2878",
+            null,
             ImmutableList.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"),
             null);
 

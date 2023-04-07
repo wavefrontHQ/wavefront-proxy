@@ -6,7 +6,7 @@ import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
-import com.wavefront.api.ProxyV2API;
+import com.wavefront.common.LeMansAPI;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +19,8 @@ import javax.annotation.Nullable;
  */
 class LineDelimitedSenderTask extends AbstractSenderTask<String> {
 
-  private final ProxyV2API proxyAPI;
+  private final LeMansAPI proxyAPI;
+  private final String leMansStreamName;
   private final UUID proxyId;
   private final String pushFormat;
   private final TaskSizeEstimator taskSizeEstimator;
@@ -40,7 +41,8 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
   LineDelimitedSenderTask(
       HandlerKey handlerKey,
       String pushFormat,
-      ProxyV2API proxyAPI,
+      LeMansAPI proxyAPI,
+      String leMansStreamName,
       UUID proxyId,
       final EntityProperties properties,
       ScheduledExecutorService scheduler,
@@ -51,6 +53,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
+    this.leMansStreamName = leMansStreamName;
     this.taskSizeEstimator = taskSizeEstimator;
     this.backlog = backlog;
   }
@@ -66,6 +69,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
             pushFormat,
             handlerKey.getEntityType(),
             handlerKey.getHandle(),
+            leMansStreamName,
             batch,
             null);
     if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
@@ -83,6 +87,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
             pushFormat,
             handlerKey.getEntityType(),
             handlerKey.getHandle(),
+            leMansStreamName,
             batch,
             null);
     task.enqueue(reason);

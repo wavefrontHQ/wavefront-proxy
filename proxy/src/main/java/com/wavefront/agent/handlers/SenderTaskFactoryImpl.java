@@ -15,7 +15,7 @@ import com.wavefront.agent.queueing.QueueController;
 import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
-import com.wavefront.api.ProxyV2API;
+import com.wavefront.common.LeMansAPI;
 import com.wavefront.common.Managed;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
@@ -137,8 +137,9 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
     ReportableEntityType entityType = handlerKey.getEntityType();
     List<SenderTask<?>> senderTaskList = new ArrayList<>(numThreads);
-    ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
+    LeMansAPI proxyV2API = apiContainer.getLeMansAPIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
+    String leMansStreamName = apiContainer.getLeMansStreamName();
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
@@ -149,6 +150,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_WAVEFRONT,
                   proxyV2API,
+                  leMansStreamName,
                   proxyId,
                   properties,
                   scheduler,
@@ -162,6 +164,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_HISTOGRAM,
                   proxyV2API,
+                  leMansStreamName,
                   proxyId,
                   properties,
                   scheduler,
@@ -187,6 +190,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_TRACING,
                   proxyV2API,
+                  leMansStreamName,
                   proxyId,
                   properties,
                   scheduler,
@@ -203,6 +207,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_TRACING_SPAN_LOGS,
                   proxyV2API,
+                  leMansStreamName,
                   proxyId,
                   properties,
                   scheduler,

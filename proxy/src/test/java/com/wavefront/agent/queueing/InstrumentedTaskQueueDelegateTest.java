@@ -49,6 +49,7 @@ public class InstrumentedTaskQueueDelegateTest {
               "wavefront",
               ReportableEntityType.POINT,
               "2878",
+              null,
               ImmutableList.of("item1", "item2", "item3"),
               time::get);
       task.enqueue(QueueingReason.RETRY);

@@ -1,4 +1,8 @@
-FROM eclipse-temurin:11
+FROM harbor-repo.vmware.com/dockerhub-proxy-cache/library/maven:3.9.0-eclipse-temurin-11 as compile
+COPY . proxy
+RUN cd proxy; mvn -f proxy clean install -DskipTests -DskipFormatCode
+
+FROM harbor-repo.vmware.com/dockerhub-proxy-cache/library/eclipse-temurin:11
 
 # Wavefront authentication can be configured in three different ways: Customers that have been
 # onboarded by CSP can set up CSP api tokens or CSP OAuth apps (CSP_APP_ID, CSP_APP_SECRET).
@@ -32,9 +36,9 @@ EXPOSE 4242
 
 USER wavefront:wavefront
 
-ADD wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
-ADD run.sh /opt/wavefront/wavefront-proxy/run.sh
-ADD log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
-ADD LICENSE /licenses/LICENSE
+COPY --from=compile proxy/proxy/target/proxy-12.2-spring-boot.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
+ADD docker/run.sh /opt/wavefront/wavefront-proxy/run.sh
+ADD docker/log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
+ADD docker/LICENSE /licenses/LICENSE
 
 CMD ["/bin/bash", "/opt/wavefront/wavefront-proxy/run.sh"]

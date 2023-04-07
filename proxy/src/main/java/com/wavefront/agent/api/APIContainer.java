@@ -9,6 +9,7 @@ import com.wavefront.api.EventAPI;
 import com.wavefront.api.LogAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
+import com.wavefront.common.LeMansAPI;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.util.Collection;
@@ -44,6 +45,9 @@ import org.jboss.resteasy.spi.ResteasyProviderFactory;
  */
 public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
+  public static final String API_SERVER = "server";
+  public static final String LEMANS_SERVER = "le-mans-server";
+  public static final String API_TOKEN = "token";
   public static final String LE_MANS_INGESTION_PATH =
       "le-mans/v1/streams/ingestion-pipeline-stream";
 
@@ -56,6 +60,7 @@ public class APIContainer {
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
   private Map<String, EventAPI> eventAPIsForMulticasting;
+  private Map<String, LeMansAPI> leMansAPIsForMulticasting;
 
   private LogAPI logAPI;
 
@@ -82,16 +87,20 @@ public class APIContainer {
     proxyV2APIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting = Maps.newHashMap();
     eventAPIsForMulticasting = Maps.newHashMap();
+    leMansAPIsForMulticasting = Maps.newHashMap();
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;
+    String leMansServer;
     for (Map.Entry<String, TenantInfo> tenantInfoEntry :
-        TokenManager.getMulticastingTenantList().entrySet()) {
+            TokenManager.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
+      leMansServer = tenantInfoEntry.getValue().getLeMansServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
+      leMansAPIsForMulticasting.put(tenantName, createService(leMansServer, LeMansAPI.class));
     }
 
     if (discardData) {
@@ -102,6 +111,7 @@ public class APIContainer {
       this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
       this.eventAPIsForMulticasting = Maps.newHashMap();
       this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
+      this.leMansAPIsForMulticasting = Maps.newHashMap();
       this.logAPI = new NoopLogAPI();
     }
     configureHttpProxy();
@@ -121,6 +131,7 @@ public class APIContainer {
       SourceTagAPI sourceTagAPI,
       EventAPI eventAPI,
       LogAPI logAPI,
+      LeMansAPI leMansAPI,
       CSPAPI cspAPI) {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
@@ -134,6 +145,8 @@ public class APIContainer {
     sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, sourceTagAPI);
     eventAPIsForMulticasting = Maps.newHashMap();
     eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, eventAPI);
+    leMansAPIsForMulticasting = Maps.newHashMap();
+    leMansAPIsForMulticasting.put(CENTRAL_TENANT_NAME, leMansAPI);
   }
 
   /**
@@ -153,6 +166,16 @@ public class APIContainer {
    */
   public ProxyV2API getProxyV2APIForTenant(String tenantName) {
     return proxyV2APIsForMulticasting.get(tenantName);
+  }
+
+  /**
+   * Get RESTeasy proxy for {@link ProxyV2API} with given tenant name.
+   *
+   * @param tenantName tenant name
+   * @return proxy object corresponding to tenant
+   */
+  public LeMansAPI getLeMansAPIForTenant(String tenantName) {
+    return leMansAPIsForMulticasting.get(tenantName);
   }
 
   /**
@@ -315,7 +338,7 @@ public class APIContainer {
                                 .get(APIContainer.CENTRAL_TENANT_NAME)
                                 .getBearerToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
-                context.getHeaders().add("Authorization", "Bearer " + logServerToken);
+                context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getLeMansToken());
               }
             });
     return factory;
@@ -385,6 +408,14 @@ public class APIContainer {
             .build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(apiClass);
+  }
+
+  public String getLeMansStreamName() {
+    try {
+      return proxyConfig.getLeMansStreamName();
+    } catch (NullPointerException e) {
+      return null;
+    }
   }
 
   public CSPAPI getCSPApi() {

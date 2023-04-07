@@ -7,7 +7,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
-import com.wavefront.api.ProxyV2API;
+import com.wavefront.common.LeMansAPI;
 import com.wavefront.data.ReportableEntityType;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,8 @@ import javax.ws.rs.core.Response;
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
 
-  private transient ProxyV2API api;
+  private transient LeMansAPI api;
+  private transient String streamName;
   private transient UUID proxyId;
 
   @JsonProperty private String format;
@@ -48,17 +49,19 @@ public class LineDelimitedDataSubmissionTask
    * @param timeProvider Time provider (in millis)
    */
   public LineDelimitedDataSubmissionTask(
-      ProxyV2API api,
+      LeMansAPI api,
       UUID proxyId,
       EntityProperties properties,
       TaskQueue<LineDelimitedDataSubmissionTask> backlog,
       String format,
       ReportableEntityType entityType,
       String handle,
+      String leMansStreamName,
       @Nonnull List<String> payload,
       @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, entityType, timeProvider);
     this.api = api;
+    this.streamName = leMansStreamName;
     this.proxyId = proxyId;
     this.format = format;
     this.payload = new ArrayList<>(payload);
@@ -66,7 +69,8 @@ public class LineDelimitedDataSubmissionTask
 
   @Override
   Response doExecute() {
-    return api.proxyReport(proxyId, format, LineDelimitedUtils.joinPushData(payload));
+    return api.leMansProxyReport(
+        streamName, proxyId, format, LineDelimitedUtils.joinPushData(payload));
   }
 
   @Override
@@ -91,6 +95,7 @@ public class LineDelimitedDataSubmissionTask
                 format,
                 getEntityType(),
                 handle,
+                streamName,
                 payload.subList(startingIndex, endingIndex + 1),
                 timeProvider));
       }
@@ -104,14 +109,16 @@ public class LineDelimitedDataSubmissionTask
   }
 
   public void injectMembers(
-      ProxyV2API api,
+      LeMansAPI api,
       UUID proxyId,
       EntityProperties properties,
-      TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
+      TaskQueue<LineDelimitedDataSubmissionTask> backlog,
+      String streamName) {
     this.api = api;
     this.proxyId = proxyId;
     this.properties = properties;
     this.backlog = backlog;
+    this.streamName = streamName;
     this.timeProvider = System::currentTimeMillis;
   }
 }

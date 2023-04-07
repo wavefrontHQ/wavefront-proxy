@@ -92,6 +92,8 @@ public class HttpEndToEndTest {
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.token = UUID.randomUUID().toString();
+    proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/leMans/";
+    proxy.proxyConfig.leMansStreamName = "test-stream-cpo-troll-k8s-collector";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
@@ -411,6 +413,8 @@ public class HttpEndToEndTest {
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.token = UUID.randomUUID().toString();
+    proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/leMans/";
+    proxy.proxyConfig.leMansStreamName = "test-stream-cpo-troll-k8s-collector";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.histogramMinuteListenerPorts = String.valueOf(histMinPort);
     proxy.proxyConfig.histogramHourListenerPorts = String.valueOf(histHourPort);
@@ -540,7 +544,7 @@ public class HttpEndToEndTest {
           }
           String path = uri.getPath();
           assertEquals(HttpMethod.POST, req.method());
-          assertEquals("/api/v2/wfproxy/report", path);
+          assertEquals("/leMans/le-mans/v1/streams/test-stream-cpo-troll-k8s-collector", path);
           logger.fine("Content received: " + content);
           switch (testCounter.incrementAndGet()) {
             case 1:
@@ -581,6 +585,7 @@ public class HttpEndToEndTest {
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.token = UUID.randomUUID().toString();
+    proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/leMans/";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
@@ -655,6 +660,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/leMans/";
     proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);

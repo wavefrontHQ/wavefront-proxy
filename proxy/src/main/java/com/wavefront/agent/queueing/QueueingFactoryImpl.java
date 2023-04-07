@@ -136,10 +136,11 @@ public class QueueingFactoryImpl implements QueueingFactory {
         return task ->
             ((LineDelimitedDataSubmissionTask) task)
                 .injectMembers(
-                    apiContainer.getProxyV2APIForTenant(tenantName),
+                    apiContainer.getLeMansAPIForTenant(tenantName),
                     proxyId,
                     entityPropsFactoryMap.get(tenantName).get(entityType),
-                    (TaskQueue<LineDelimitedDataSubmissionTask>) queue);
+                    (TaskQueue<LineDelimitedDataSubmissionTask>) queue,
+                    apiContainer.getLeMansStreamName());
       case SOURCE_TAG:
         return task ->
             ((SourceTagSubmissionTask) task)

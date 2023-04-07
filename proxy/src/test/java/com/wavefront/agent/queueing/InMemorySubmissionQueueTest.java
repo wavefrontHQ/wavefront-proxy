@@ -85,6 +85,7 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
               "wavefront",
               ReportableEntityType.POINT,
               "2878",
+              null,
               ImmutableList.of("item1", "item2", "item3"),
               time::get);
     } else if (this.expectedTask instanceof EventDataSubmissionTask) {

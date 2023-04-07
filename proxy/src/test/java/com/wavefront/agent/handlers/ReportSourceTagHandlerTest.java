@@ -8,6 +8,7 @@ import com.wavefront.agent.data.DefaultEntityPropertiesFactoryForTesting;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.api.SourceTagAPI;
+import com.wavefront.common.LeMansAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import edu.emory.mathcs.backport.java.util.Collections;
@@ -37,6 +38,7 @@ public class ReportSourceTagHandlerTest {
   private ReportSourceTagHandlerImpl sourceTagHandler;
   private SenderTaskFactory senderTaskFactory;
   private SourceTagAPI mockAgentAPI;
+  private LeMansAPI mockLemansAPI;
   private TaskQueueFactory taskQueueFactory;
   private UUID newAgentId;
   private HandlerKey handlerKey;
@@ -45,6 +47,7 @@ public class ReportSourceTagHandlerTest {
   @Before
   public void setup() {
     mockAgentAPI = EasyMock.createMock(SourceTagAPI.class);
+    mockLemansAPI = EasyMock.createMock(LeMansAPI.class);
     taskQueueFactory =
         new TaskQueueFactory() {
           @Override
@@ -56,7 +59,7 @@ public class ReportSourceTagHandlerTest {
     newAgentId = UUID.randomUUID();
     senderTaskFactory =
         new SenderTaskFactoryImpl(
-            new APIContainer(null, mockAgentAPI, null, null, null),
+            new APIContainer(null, mockAgentAPI, null, null, null, null),
             newAgentId,
             taskQueueFactory,
             null,
