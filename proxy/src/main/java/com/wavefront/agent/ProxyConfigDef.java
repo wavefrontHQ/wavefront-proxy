@@ -1508,4 +1508,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "Log insight ingestion URL, required to ingest logs to the log server.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
   String logServerIngestionURL = null;
+
+  boolean enableHyperlogsConvergedCsp = false;
+  boolean receivedLogServerDetails = true;
 }

@@ -322,10 +322,12 @@ public class ProxyCheckInScheduler {
     String WARNING_MSG = "Missing either logServerIngestionToken/logServerIngestionURL or both.";
     if (StringUtils.isBlank(logServerIngestionURL)
         && StringUtils.isBlank(logServerIngestionToken)) {
+      proxyConfig.setEnableHyperlogsConvergedCsp(true);
       logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
       logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
       if (StringUtils.isBlank(logServerIngestionURL)
           || StringUtils.isBlank(logServerIngestionToken)) {
+        proxyConfig.setReceivedLogServerDetails(false);
         logger.error(
             WARNING_MSG
                 + " To ingest logs to the log server, please provide "
