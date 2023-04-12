@@ -8,7 +8,6 @@ import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
-import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -47,6 +46,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -59,10 +59,11 @@ public class HttpEndToEndTest {
   private int backendPort;
   private int proxyPort;
 
-  public void setup(boolean isCSPTenant) throws Exception {
+  @Before
+  public void setup() throws Exception {
     backendPort = findAvailablePort(8081);
     ChannelHandler channelHandler =
-        new WrappingHttpHandler(null, null, String.valueOf(backendPort), server, isCSPTenant);
+        new WrappingHttpHandler(null, null, String.valueOf(backendPort), server);
     thread =
         new Thread(
             new TcpIngester(
@@ -82,7 +83,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndMetrics() throws Exception {
-    setup(false);
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
@@ -187,7 +187,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndEvents() throws Exception {
-    setup(false);
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
@@ -284,7 +283,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndSourceTags() throws Exception {
-    setup(false);
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     proxyPort = findAvailablePort(2898);
@@ -396,7 +394,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndHistograms() throws Exception {
-    setup(false);
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = (Clock.now() / 1000) / 60 * 60 + 30;
@@ -572,7 +569,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndSpans() throws Exception {
-    setup(false);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     proxyPort = findAvailablePort(2898);
@@ -647,7 +643,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndSpans_SpanLogsWithSpanField() throws Exception {
-    setup(false);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     proxyPort = findAvailablePort(2898);
@@ -728,7 +723,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndLogArray() throws Exception {
-    setup(false);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
@@ -766,7 +760,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndLogLines() throws Exception {
-    setup(false);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
@@ -817,7 +810,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndLogCloudwatch() throws Exception {
-    setup(false);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
@@ -858,8 +850,7 @@ public class HttpEndToEndTest {
           actualLogs.add(content);
           return makeResponse(HttpResponseStatus.OK, "");
         });
-    gzippedHttpPost(
-        "http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_CLOUDWATCH, payload);
+    gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + "logs_json_cloudwatch", payload);
     HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
     proxy.senderTaskFactory.flushNow(key);
     ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
@@ -868,59 +859,16 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotLog::get);
   }
 
-  @Test
-  public void testEndToEndLogForConvergedCSPTenant() throws Exception {
-    setup(true);
-    long time = Clock.now() / 1000;
-    proxyPort = findAvailablePort(2898);
-    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
-    proxy = new PushAgent();
-    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
-    proxy.proxyConfig.flushThreads = 1;
-    proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.bufferFile = buffer;
-    proxy.proxyConfig.pushRateLimitLogs = 1024;
-    proxy.proxyConfig.pushFlushIntervalLogs = 50;
-    proxy.proxyConfig.logServerIngestionURL = "http://localhost:" + backendPort + "/api/";
-    proxy.proxyConfig.logServerIngestionToken = "12345";
-
-    proxy.start(new String[] {});
-    waitUntilListenerIsOnline(proxyPort);
-    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
-    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
-
-    long timestamp = time * 1000 + 12345;
-    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"" + "}]";
-    String expectedLog =
-        "[{\"source\":\"myHost\",\"timestamp\":" + timestamp + ",\"text\":\"\"" + "}]";
-    AtomicBoolean gotLog = new AtomicBoolean(false);
-    server.update(
-        req -> {
-          String content = req.content().toString(CharsetUtil.UTF_8);
-          logger.fine("Content received: " + content);
-          if (content.equals(expectedLog)) gotLog.set(true);
-          return makeResponse(HttpResponseStatus.OK, "");
-        });
-    gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
-    HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
-    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
-    assertTrueWithTimeout(50, gotLog::get);
-  }
-
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {
     private final Function<FullHttpRequest, HttpResponse> func;
-    private final boolean isCSPTenant;
 
     public WrappingHttpHandler(
         @Nullable TokenAuthenticator tokenAuthenticator,
         @Nullable HealthCheckManager healthCheckManager,
         @Nullable String handle,
-        @Nonnull Function<FullHttpRequest, HttpResponse> func,
-        boolean isCSPTenant) {
+        @Nonnull Function<FullHttpRequest, HttpResponse> func) {
       super(tokenAuthenticator, healthCheckManager, handle);
       this.func = func;
-      this.isCSPTenant = isCSPTenant;
     }
 
     @Override
@@ -939,10 +887,8 @@ public class HttpEndToEndTest {
         ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
         jsonResponse.put("currentTime", Clock.now());
         jsonResponse.put("allowAnyHostKeys", true);
-        if (!isCSPTenant) {
-          jsonResponse.put("logServerEndpointUrl", "http://localhost:" + handle + "/api/");
-          jsonResponse.put("logServerToken", "12345");
-        }
+        jsonResponse.put("logServerEndpointUrl", "http://localhost:" + handle + "/api/");
+        jsonResponse.put("logServerToken", "12345");
         writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
         return;
       } else if (path.endsWith("/config/processed")) {

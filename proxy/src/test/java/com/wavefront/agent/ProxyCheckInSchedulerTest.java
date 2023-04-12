@@ -56,8 +56,6 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
     expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
     expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
-    expect(proxyConfig.getLogServerIngestionURL()).andReturn(null);
-    expect(proxyConfig.getLogServerIngestionToken()).andReturn(null);
     apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
@@ -119,8 +117,6 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
     expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
     expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
-    expect(proxyConfig.getLogServerIngestionURL()).andReturn(null).times(2);
-    expect(proxyConfig.getLogServerIngestionToken()).andReturn(null).times(2);
     apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
@@ -186,6 +182,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getLogServerIngestionURL()).andReturn(null);
     expect(proxyConfig.getLogServerIngestionToken()).andReturn(null);
     apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    proxyConfig.setEnableHyperlogsConvergedCsp(true);
+    proxyConfig.setReceivedLogServerDetails(false);
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
@@ -360,8 +358,6 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
     expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
     expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
-    expect(proxyConfig.getLogServerIngestionURL()).andReturn(null);
-    expect(proxyConfig.getLogServerIngestionToken()).andReturn(null);
     apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
@@ -521,8 +517,6 @@ public class ProxyCheckInSchedulerTest {
     expectLastCall().anyTimes();
     expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
     expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
-    expect(proxyConfig.getLogServerIngestionURL()).andReturn(null);
-    expect(proxyConfig.getLogServerIngestionToken()).andReturn(null);
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
@@ -753,7 +747,7 @@ public class ProxyCheckInSchedulerTest {
   }
 
   @Test
-  public void testCheckinWithLogServerConfiguration() {
+  public void testCheckinConvergedCSPWithLogServerConfiguration() {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
@@ -776,12 +770,83 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getLogServerIngestionURL()).andReturn("vRLIC-URL");
     expect(proxyConfig.getLogServerIngestionToken()).andReturn("vRLIC-token");
     apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    proxyConfig.setEnableHyperlogsConvergedCsp(true);
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
     returnConfig.currentTime = System.currentTimeMillis();
-    returnConfig.setValidationConfiguration(new ValidationConfiguration());
+    ValidationConfiguration validationConfiguration = new ValidationConfiguration();
+    validationConfiguration.setEnableHyperlogsConvergedCsp(true);
+    returnConfig.setValidationConfiguration(validationConfiguration);
+    replay(proxyConfig);
+    UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
+    expect(
+            proxyV2API.proxyCheckin(
+                eq(proxyId),
+                eq(authHeader),
+                eq("proxyHost"),
+                eq("proxyName"),
+                eq(getBuildVersion()),
+                anyLong(),
+                anyObject(),
+                eq(true)))
+        .andReturn(returnConfig)
+        .once();
+    expect(apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME))
+        .andReturn(proxyV2API)
+        .anyTimes();
+    proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
+    expectLastCall();
+    replay(proxyV2API, apiContainer);
+    ProxyCheckInScheduler scheduler =
+        new ProxyCheckInScheduler(
+            proxyId,
+            proxyConfig,
+            apiContainer,
+            (tenantName, config) -> assertEquals(1234567L, config.getPointsPerBatch().longValue()),
+            () -> {},
+            () -> {});
+    scheduler.scheduleCheckins();
+    verify(proxyConfig, proxyV2API, apiContainer);
+    assertEquals(1, scheduler.getSuccessfulCheckinCount());
+    scheduler.shutdown();
+  }
+
+  @Test
+  public void testCheckinConvergedCSPWithoutLogServerConfiguration() {
+    ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
+    ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
+    APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    reset(proxyConfig, proxyV2API, proxyConfig);
+    expect(proxyConfig.getMulticastingTenantList())
+        .andReturn(
+            ImmutableMap.of(
+                APIContainer.CENTRAL_TENANT_NAME,
+                ImmutableMap.of(
+                    APIContainer.API_SERVER,
+                    "https://acme.corp/api",
+                    APIContainer.API_TOKEN,
+                    "abcde12345")))
+        .anyTimes();
+    expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
+    expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
+    expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
+    expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
+    expect(proxyConfig.getLogServerIngestionURL()).andReturn(null);
+    expect(proxyConfig.getLogServerIngestionToken()).andReturn(null);
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    proxyConfig.setEnableHyperlogsConvergedCsp(true);
+    proxyConfig.setReceivedLogServerDetails(false);
+    expectLastCall().anyTimes();
+    String authHeader = "Bearer abcde12345";
+    AgentConfiguration returnConfig = new AgentConfiguration();
+    returnConfig.setPointsPerBatch(1234567L);
+    returnConfig.currentTime = System.currentTimeMillis();
+    ValidationConfiguration validationConfiguration = new ValidationConfiguration();
+    validationConfiguration.setEnableHyperlogsConvergedCsp(true);
+    returnConfig.setValidationConfiguration(validationConfiguration);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(

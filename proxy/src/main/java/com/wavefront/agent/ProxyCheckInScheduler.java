@@ -11,6 +11,7 @@ import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
@@ -322,16 +323,21 @@ public class ProxyCheckInScheduler {
     String WARNING_MSG = "Missing either logServerIngestionToken/logServerIngestionURL or both.";
     if (StringUtils.isBlank(logServerIngestionURL)
         && StringUtils.isBlank(logServerIngestionToken)) {
-      proxyConfig.setEnableHyperlogsConvergedCsp(true);
-      logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
-      logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
-      if (StringUtils.isBlank(logServerIngestionURL)
-          || StringUtils.isBlank(logServerIngestionToken)) {
-        proxyConfig.setReceivedLogServerDetails(false);
-        logger.error(
-            WARNING_MSG
-                + " To ingest logs to the log server, please provide "
-                + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
+      ValidationConfiguration validationConfiguration =
+          configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getValidationConfiguration();
+      if (validationConfiguration != null
+          && validationConfiguration.enableHyperlogsConvergedCsp()) {
+        proxyConfig.setEnableHyperlogsConvergedCsp(true);
+        logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
+        logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
+        if (StringUtils.isBlank(logServerIngestionURL)
+            || StringUtils.isBlank(logServerIngestionToken)) {
+          proxyConfig.setReceivedLogServerDetails(false);
+          logger.error(
+              WARNING_MSG
+                  + " To ingest logs to the log server, please provide "
+                  + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
+        }
       }
     } else if (StringUtils.isBlank(logServerIngestionURL)
         || StringUtils.isBlank(logServerIngestionToken)) {

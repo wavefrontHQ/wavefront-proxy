@@ -31,7 +31,7 @@ public abstract class FeatureCheckUtils {
       "Ingested logs discarded because " + "this feature has not been enabled for your account.";
 
   public static final String LOGS_SERVER_DETAILS_MISSING =
-      "Ingested logs discarded because "
+      "Ingested logs discarded because the "
           + "configuration is missing either "
           + "logServerIngestionToken/logServerIngestionURL or both.";
 
