@@ -23,9 +23,9 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
+import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.junit.Test;
@@ -116,8 +116,8 @@ public final class HttpClientTest {
             .build();
 
     ResteasyClient client =
-        new ResteasyClientBuilder()
-            .httpEngine(new ApacheHttpClient4Engine(httpClient, true))
+        new ResteasyClientBuilderImpl()
+            .httpEngine(new ApacheHttpClient43Engine(httpClient, true))
             .providerFactory(factory)
             .build();
 

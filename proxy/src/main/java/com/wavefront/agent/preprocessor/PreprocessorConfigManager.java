@@ -11,10 +11,8 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -22,8 +20,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
-import org.apache.commons.codec.Charsets;
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
@@ -197,7 +194,7 @@ public class PreprocessorConfigManager {
     if (!rules.equals(lastProcessedRules)) {
       lastProcessedRules = rules;
       logger.info("Preprocessor rules received from remote, processing");
-      loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
+      loadFromStream(new ByteArrayInputStream(rules.getBytes(StandardCharsets.UTF_8)));
     }
   }
 

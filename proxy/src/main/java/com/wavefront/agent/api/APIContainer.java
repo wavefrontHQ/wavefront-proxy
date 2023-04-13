@@ -30,14 +30,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
+import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
 import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
-import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
-import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
+import org.jboss.resteasy.plugins.interceptors.AcceptEncodingGZIPFilter;
+import org.jboss.resteasy.plugins.interceptors.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
+import org.jboss.resteasy.spi.config.SizeUnit;
+import org.jboss.resteasy.spi.config.Threshold;
 
 /**
  * Container for all Wavefront back-end API objects (proxy, source tag, event)
@@ -323,10 +325,10 @@ public class APIContainer {
                     .setSocketTimeout(proxyConfig.getHttpRequestTimeout())
                     .build())
             .build();
-    final ApacheHttpClient4Engine httpEngine = new ApacheHttpClient4Engine(httpClient, true);
+    final ApacheHttpClient43Engine httpEngine = new ApacheHttpClient43Engine(httpClient, true);
+    Threshold threshold = Threshold.of(100, SizeUnit.MEGABYTE);
     // avoid using disk at all
-    httpEngine.setFileUploadInMemoryThresholdLimit(100);
-    httpEngine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
+    httpEngine.setFileUploadMemoryThreshold(threshold);
     return httpEngine;
   }
 
@@ -349,7 +351,7 @@ public class APIContainer {
       Class<T> apiClass,
       ResteasyProviderFactory resteasyProviderFactory) {
     ResteasyClient client =
-        new ResteasyClientBuilder()
+        new ResteasyClientBuilderImpl()
             .httpEngine(clientHttpEngine)
             .providerFactory(resteasyProviderFactory)
             .build();

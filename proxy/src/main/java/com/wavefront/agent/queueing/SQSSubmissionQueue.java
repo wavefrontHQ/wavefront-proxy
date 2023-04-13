@@ -1,7 +1,7 @@
 package com.wavefront.agent.queueing;
 
-import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
-import static javax.xml.bind.DatatypeConverter.printBase64Binary;
+import static jakarta.xml.bind.DatatypeConverter.parseBase64Binary;
+import static jakarta.xml.bind.DatatypeConverter.printBase64Binary;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.sqs.AmazonSQS;
