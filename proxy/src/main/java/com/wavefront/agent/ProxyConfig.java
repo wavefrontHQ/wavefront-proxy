@@ -1158,8 +1158,6 @@ public class ProxyConfig extends ProxyConfigDef {
    * @throws ParameterException if configuration parsing failed
    */
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
-    String versionStr = "Wavefront Proxy version " + getBuildVersion();
-
     JCommander jc =
         JCommander.newBuilder()
             .programName(programName)
@@ -1171,8 +1169,18 @@ public class ProxyConfig extends ProxyConfigDef {
     // Command line arguments
     jc.parse(args);
 
+    if (this.isVersion()) {
+      return false;
+    }
+    if (this.isHelp()) {
+      jc.usage();
+      return false;
+    }
+
     detectModifiedOptions(Arrays.stream(args).filter(s -> s.startsWith("-")), modifyByArgs);
-    logger.info("modifyByArgs: " + Joiner.on(", ").join(modifyByArgs));
+    String argsStr =
+        modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
+    logger.info("modifyByArgs: " + argsStr);
 
     // Config file
     if (pushConfigFile != null) {
@@ -1195,6 +1203,9 @@ public class ProxyConfig extends ProxyConfigDef {
 
       jc.parse(fileArgs.toArray(new String[0]));
       detectModifiedOptions(fileArgs.stream().filter(s -> s.startsWith("-")), modifyByFile);
+      String fileStr =
+          modifyByFile.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
+      logger.info("modifyByFile: " + fileStr);
       modifyByArgs.removeAll(modifyByFile); // argument are override by the config file
       configFileExtraArguments(confFile);
     }
@@ -1231,16 +1242,19 @@ public class ProxyConfig extends ProxyConfigDef {
               Optional<ProxyConfigOption> option =
                   Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
               boolean hide = option.isPresent() && option.get().hide();
-              try {
-                boolean arg = !modifyByFile.contains(field);
-                cfgStrs.add(
-                    "\t"
-                        + (arg ? "* " : "  ")
-                        + field.getName()
-                        + " = "
-                        + (hide ? "<HIDDEN>" : field.get(this)));
-              } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+              if (!hide) {
+                boolean secret = option.isPresent() && option.get().secret();
+                try {
+                  boolean arg = !modifyByFile.contains(field);
+                  cfgStrs.add(
+                      "\t"
+                          + (arg ? "* " : "  ")
+                          + field.getName()
+                          + " = "
+                          + (secret ? "******" : field.get(this)));
+                } catch (IllegalAccessException e) {
+                  throw new RuntimeException(e);
+                }
               }
             });
     logger.info("Config: (* command line argument)");
@@ -1248,15 +1262,6 @@ public class ProxyConfig extends ProxyConfigDef {
       logger.info(cfgStr);
     }
 
-    if (this.isVersion()) {
-      System.out.println(versionStr);
-      return false;
-    }
-    if (this.isHelp()) {
-      System.out.println(versionStr);
-      jc.usage();
-      return false;
-    }
     return true;
   }
 

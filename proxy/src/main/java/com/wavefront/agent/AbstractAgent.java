@@ -13,6 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
+import com.sun.management.UnixOperatingSystemMXBean;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -38,6 +39,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -216,16 +219,6 @@ public abstract class AbstractAgent {
 
   @VisibleForTesting
   void parseArguments(String[] args) {
-    // read build information and print version.
-    String versionStr =
-        "Wavefront Proxy version "
-            + getBuildVersion()
-            + " (pkg:"
-            + getPackage()
-            + ")"
-            + ", runtime: "
-            + getJavaVersion();
-    logger.info(versionStr);
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
@@ -242,6 +235,22 @@ public abstract class AbstractAgent {
    * @param args Command-line parameters passed on to JCommander to configure the daemon.
    */
   public void start(String[] args) {
+    String versionStr =
+        "Wavefront Proxy version "
+            + getBuildVersion()
+            + " (pkg:"
+            + getPackage()
+            + ")"
+            + ", runtime: "
+            + getJavaVersion();
+    logger.info(versionStr);
+
+    OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+    if (os instanceof UnixOperatingSystemMXBean) {
+      UnixOperatingSystemMXBean os1 = (UnixOperatingSystemMXBean) os;
+      logger.info("OS Max File Descriptors: " + os1.getMaxFileDescriptorCount());
+    }
+
     try {
 
       /* ------------------------------------------------------------------------------------
