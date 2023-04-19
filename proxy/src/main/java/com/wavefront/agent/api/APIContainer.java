@@ -48,6 +48,8 @@ public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
   public static final String API_SERVER = "server";
   public static final String API_TOKEN = "token";
+  public static final String LE_MANS_INGESTION_PATH =
+      "le-mans/v1/streams/ingestion-pipeline-stream";
 
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
@@ -59,6 +61,7 @@ public class APIContainer {
   private Map<String, EventAPI> eventAPIsForMulticasting;
 
   private LogAPI logAPI;
+
   private String logServerToken;
   private String logServerEndpointUrl;
 
@@ -178,6 +181,14 @@ public class APIContainer {
     return logAPI;
   }
 
+  public String getLogServerToken() {
+    return logServerToken;
+  }
+
+  public String getLogServerEndpointUrl() {
+    return logServerEndpointUrl;
+  }
+
   /**
    * Re-create RESTeasy proxies with new server endpoint URL (allows changing URL at runtime).
    *
@@ -193,13 +204,20 @@ public class APIContainer {
     // Only recreate if either the url or token have changed
     if (!StringUtils.equals(logServerEndpointUrl, this.logServerEndpointUrl)
         || !StringUtils.equals(logServerToken, this.logServerToken)) {
-      this.logServerEndpointUrl = logServerEndpointUrl;
+      this.logServerEndpointUrl = removePathFromURL(logServerEndpointUrl);
       this.logServerToken = logServerToken;
-      this.logAPI = createService(logServerEndpointUrl, LogAPI.class, createProviderFactory());
+      this.logAPI = createService(this.logServerEndpointUrl, LogAPI.class, createProviderFactory());
       if (discardData) {
         this.logAPI = new NoopLogAPI();
       }
     }
+  }
+
+  private String removePathFromURL(String completeURL) {
+    if (completeURL != null && completeURL.contains(LE_MANS_INGESTION_PATH)) {
+      return completeURL.replace(LE_MANS_INGESTION_PATH, "");
+    }
+    return completeURL;
   }
 
   /**
