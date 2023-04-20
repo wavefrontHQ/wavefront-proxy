@@ -381,11 +381,6 @@
         <artifactId>okhttp</artifactId>
         <version>4.9.3</version>
       </dependency>
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.11.0</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -602,12 +597,6 @@
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
       <version>2.0</version>
-    </dependency>
-    <dependency>
-      <groupId>net.jcip</groupId>
-      <artifactId>jcip-annotations</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
