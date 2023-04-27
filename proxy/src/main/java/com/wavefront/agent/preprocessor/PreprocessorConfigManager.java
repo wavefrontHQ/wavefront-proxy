@@ -193,14 +193,6 @@ public class PreprocessorConfigManager {
     }
   }
 
-  public void processRemoteRules(@Nonnull String rules) {
-    if (!rules.equals(lastProcessedRules)) {
-      lastProcessedRules = rules;
-      logger.info("Preprocessor rules received from remote, processing");
-      loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
-    }
-  }
-
   public void loadFile(String filename) throws FileNotFoundException {
     File file = new File(filename);
     loadFromStream(new FileInputStream(file));
