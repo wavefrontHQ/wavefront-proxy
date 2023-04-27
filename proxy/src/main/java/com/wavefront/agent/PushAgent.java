@@ -2039,7 +2039,6 @@ public class PushAgent extends AbstractAgent {
       tenantSpecificEntityProps
           .get(ReportableEntityType.LOGS)
           .setFeatureDisabled(BooleanUtils.isTrue(config.getLogsDisabled()));
-      preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die, so just log it.
