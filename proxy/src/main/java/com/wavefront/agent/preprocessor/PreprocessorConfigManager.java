@@ -22,7 +22,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
-import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
@@ -190,14 +189,6 @@ public class PreprocessorConfigManager {
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
       failedConfigReloads.inc();
-    }
-  }
-
-  public void processRemoteRules(@Nonnull String rules) {
-    if (!rules.equals(lastProcessedRules)) {
-      lastProcessedRules = rules;
-      logger.info("Preprocessor rules received from remote, processing");
-      loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
     }
   }
 
