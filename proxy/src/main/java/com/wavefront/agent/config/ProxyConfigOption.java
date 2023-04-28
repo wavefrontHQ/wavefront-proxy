@@ -14,4 +14,6 @@ public @interface ProxyConfigOption {
   SubCategories subCategory() default SubCategories.NA;
 
   boolean hide() default false;
+
+  boolean secret() default false;
 }
