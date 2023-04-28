@@ -279,6 +279,9 @@ public class APIContainer {
     factory.register(
         (ClientRequestFilter)
             context -> {
+              if (context.getUri().getPath().startsWith("/api/v2/wfproxy/")) {
+                context.getHeaders().add("Content-Encoding", "gzip");
+              }
               if ((context.getUri().getPath().contains("/v2/wfproxy")
                       || context.getUri().getPath().contains("/v2/source")
                       || context.getUri().getPath().contains("/event"))
