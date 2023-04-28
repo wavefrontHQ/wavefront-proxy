@@ -279,7 +279,7 @@ public class APIContainer {
     factory.register(
         (ClientRequestFilter)
             context -> {
-              if (context.getUri().getPath().startsWith("/api/v2/wfproxy/")) {
+              if (proxyConfig.isGzipCompression()) {
                 context.getHeaders().add("Content-Encoding", "gzip");
               }
               if ((context.getUri().getPath().contains("/v2/wfproxy")
