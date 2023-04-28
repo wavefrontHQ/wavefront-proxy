@@ -1,5 +1,13 @@
 package com.wavefront.agent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.wavefront.agent.ProxyUtil.createInitializer;
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
+import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
+import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
+import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
+import static com.wavefront.common.Utils.*;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -62,20 +70,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.ssl.SslContext;
-import net.openhft.chronicle.map.ChronicleMap;
-import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.logstash.beats.Server;
-import wavefront.report.Histogram;
-import wavefront.report.ReportPoint;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
@@ -90,14 +84,19 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.wavefront.agent.ProxyUtil.createInitializer;
-import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
-import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
-import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
-import static com.wavefront.common.Utils.*;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import net.openhft.chronicle.map.ChronicleMap;
+import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.logstash.beats.Server;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 /**
  * Push-only Agent.

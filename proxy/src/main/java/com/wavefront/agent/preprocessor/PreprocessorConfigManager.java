@@ -1,5 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -9,11 +11,6 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-import org.yaml.snakeyaml.Yaml;
-
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -24,8 +21,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
+import javax.annotation.Nonnull;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Parses preprocessor rules (organized by listening port)
