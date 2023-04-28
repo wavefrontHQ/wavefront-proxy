@@ -1331,7 +1331,9 @@ public class PushAgent extends AbstractAgent {
                 entityPropertiesFactoryMap
                     .get(CENTRAL_TENANT_NAME)
                     .get(ReportableEntityType.LOGS)
-                    .isFeatureDisabled());
+                    .isFeatureDisabled(),
+            proxyConfig.receivedLogServerDetails(),
+            proxyConfig.enableHyperlogsConvergedCsp());
 
     startAsManagedThread(
         port,
@@ -1411,7 +1413,9 @@ public class PushAgent extends AbstractAgent {
             () -> false,
             () -> false,
             sampler,
-            () -> false);
+            () -> false,
+            proxyConfig.receivedLogServerDetails(),
+            proxyConfig.enableHyperlogsConvergedCsp());
 
     startAsManagedThread(
         port,
@@ -1871,7 +1875,9 @@ public class PushAgent extends AbstractAgent {
                       entityPropertiesFactoryMap
                           .get(CENTRAL_TENANT_NAME)
                           .get(ReportableEntityType.LOGS)
-                          .isFeatureDisabled());
+                          .isFeatureDisabled(),
+                  proxyConfig.receivedLogServerDetails(),
+                  proxyConfig.enableHyperlogsConvergedCsp());
 
           startAsManagedThread(
               port,

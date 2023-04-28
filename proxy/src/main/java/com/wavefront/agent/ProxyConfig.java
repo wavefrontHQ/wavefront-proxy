@@ -964,6 +964,30 @@ public class ProxyConfig extends ProxyConfigDef {
     return corsAllowNullOrigin;
   }
 
+  public String getLogServerIngestionToken() {
+    return logServerIngestionToken;
+  }
+
+  public String getLogServerIngestionURL() {
+    return logServerIngestionURL;
+  }
+
+  public boolean enableHyperlogsConvergedCsp() {
+    return enableHyperlogsConvergedCsp;
+  }
+
+  public void setEnableHyperlogsConvergedCsp(boolean enableHyperlogsConvergedCsp) {
+    this.enableHyperlogsConvergedCsp = enableHyperlogsConvergedCsp;
+  }
+
+  public boolean receivedLogServerDetails() {
+    return receivedLogServerDetails;
+  }
+
+  public void setReceivedLogServerDetails(boolean receivedLogServerDetails) {
+    this.receivedLogServerDetails = receivedLogServerDetails;
+  }
+
   @Override
   public void verifyAndInit() {
     throw new UnsupportedOperationException("not implemented");

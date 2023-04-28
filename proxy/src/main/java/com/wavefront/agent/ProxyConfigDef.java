@@ -1496,4 +1496,19 @@ public abstract class ProxyConfigDef extends Configuration {
               + "tag named `level`. Default: level, log_level")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customLevelTags = "";
+
+  @Parameter(
+      names = {"--logServerIngestionToken"},
+      description = "Log insight ingestion token, required to ingest logs to the log server.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionToken = null;
+
+  @Parameter(
+      names = {"--logServerIngestionURL"},
+      description = "Log insight ingestion URL, required to ingest logs to the log server.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionURL = null;
+
+  boolean enableHyperlogsConvergedCsp = false;
+  boolean receivedLogServerDetails = true;
 }
