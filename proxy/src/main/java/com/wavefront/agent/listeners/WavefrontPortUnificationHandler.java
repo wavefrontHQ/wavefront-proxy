@@ -6,9 +6,11 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_SERVER_DETAILS_MISSING;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isMissingLogServerInfoForAConvergedCSPTenant;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 
@@ -86,7 +88,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<Boolean> logsDisabled;
-
+  private final boolean receivedLogServerDetails;
+  private final boolean enableHyperlogsConvergedCsp;
   private final SpanSampler sampler;
 
   private final Supplier<Counter> receivedSpansTotal;
@@ -97,6 +100,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Counter> discardedSpanLogsBySampler;
   private final LoadingCache<DataFormat, Counter> receivedLogsCounter;
   private final LoadingCache<DataFormat, Counter> discardedLogsCounter;
+  private final LoadingCache<DataFormat, Counter> discardedLogsMissingLogServerInfoCounter;
 
   /**
    * Create new instance with lazy initialization for handlers.
@@ -113,6 +117,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    * @param spanLogsDisabled supplier for backend-controlled feature flag for span logs.
    * @param sampler handles sampling of spans and span logs.
    * @param logsDisabled supplier for backend-controlled feature flag for logs.
+   * @param receivedLogServerDetails boolean that indicates availability of log server URL & token
+   * @param enableHyperlogsConvergedCsp boolean that indicates converged CSP tenant setting
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(
@@ -127,7 +133,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled,
       final SpanSampler sampler,
-      final Supplier<Boolean> logsDisabled) {
+      final Supplier<Boolean> logsDisabled,
+      final boolean receivedLogServerDetails,
+      final boolean enableHyperlogsConvergedCsp) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.wavefrontDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
@@ -174,6 +182,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
     this.logsDisabled = logsDisabled;
+    this.receivedLogServerDetails = receivedLogServerDetails;
+    this.enableHyperlogsConvergedCsp = enableHyperlogsConvergedCsp;
     this.sampler = sampler;
     this.discardedHistograms =
         Utils.lazySupplier(
@@ -211,6 +221,16 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
                     Metrics.newCounter(
                         new TaggedMetricName(
                             "logs." + handle, "discarded", "format", format.name().toLowerCase())));
+    this.discardedLogsMissingLogServerInfoCounter =
+        Caffeine.newBuilder()
+            .build(
+                format ->
+                    Metrics.newCounter(
+                        new TaggedMetricName(
+                            "logs." + handle,
+                            "discarded.log.server.info.missing",
+                            "format",
+                            format.name().toLowerCase())));
   }
 
   @Override
@@ -356,6 +376,11 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         receivedLogsCounter.get(format).inc();
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogsCounter.get(format)))
           return;
+        if (isMissingLogServerInfoForAConvergedCSPTenant(
+            receivedLogServerDetails,
+            enableHyperlogsConvergedCsp,
+            LOGS_SERVER_DETAILS_MISSING,
+            discardedLogsMissingLogServerInfoCounter.get(format))) return;
         ReportableEntityHandler<ReportLog, ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept log data!");
