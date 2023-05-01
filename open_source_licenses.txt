@@ -1,6 +1,6 @@
 open_source_license.txt
 
-Wavefront by VMware 12.4 GA
+WavefrontHQ-Proxy 12.4 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
