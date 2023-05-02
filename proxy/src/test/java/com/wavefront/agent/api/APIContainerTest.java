@@ -59,4 +59,31 @@ public class APIContainerTest {
     assertTrue(apiContainer.getSourceTagAPIForTenant("central") instanceof NoopSourceTagAPI);
     assertTrue(apiContainer.getEventAPIForTenant("central") instanceof NoopEventAPI);
   }
+
+  @Test
+  public void testUpdateLogServerEndpointURLandToken() {
+    APIContainer apiContainer = new APIContainer(this.proxyConfig, false);
+
+    apiContainer.updateLogServerEndpointURLandToken(null, null);
+    assertEquals("NOT_SET", apiContainer.getLogServerToken());
+    assertEquals("NOT_SET", apiContainer.getLogServerEndpointUrl());
+
+    apiContainer.updateLogServerEndpointURLandToken("", "");
+    assertEquals("NOT_SET", apiContainer.getLogServerToken());
+    assertEquals("NOT_SET", apiContainer.getLogServerEndpointUrl());
+
+    apiContainer.updateLogServerEndpointURLandToken("testURL", "");
+    assertEquals("NOT_SET", apiContainer.getLogServerToken());
+    assertEquals("NOT_SET", apiContainer.getLogServerEndpointUrl());
+
+    apiContainer.updateLogServerEndpointURLandToken("testURL", "testToken");
+    assertEquals("testToken", apiContainer.getLogServerToken());
+    assertEquals("testURL", apiContainer.getLogServerEndpointUrl());
+
+    apiContainer.updateLogServerEndpointURLandToken(
+        "https://data.lint-be.symphony-dev.com/le-mans/v1/streams/ingestion-pipeline-stream",
+        "testToken");
+    assertEquals("testToken", apiContainer.getLogServerToken());
+    assertEquals("https://data.lint-be.symphony-dev.com/", apiContainer.getLogServerEndpointUrl());
+  }
 }
