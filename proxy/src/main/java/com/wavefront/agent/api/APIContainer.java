@@ -38,8 +38,6 @@ import org.jboss.resteasy.plugins.interceptors.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
-import org.jboss.resteasy.spi.config.SizeUnit;
-import org.jboss.resteasy.spi.config.Threshold;
 
 /**
  * Container for all Wavefront back-end API objects (proxy, source tag, event)
@@ -326,9 +324,9 @@ public class APIContainer {
                     .build())
             .build();
     final ApacheHttpClient43Engine httpEngine = new ApacheHttpClient43Engine(httpClient, true);
-    Threshold threshold = Threshold.of(100, SizeUnit.MEGABYTE);
     // avoid using disk at all
-    httpEngine.setFileUploadMemoryThreshold(threshold);
+    httpEngine.setFileUploadInMemoryThresholdLimit(100);
+    httpEngine.setFileUploadMemoryUnit(ApacheHttpClient43Engine.MemoryUnit.MB);
     return httpEngine;
   }
 

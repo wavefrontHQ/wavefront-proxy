@@ -25,6 +25,7 @@ import org.apache.http.protocol.HttpContext;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
+import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
 import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
@@ -63,7 +64,8 @@ public final class HttpClientTest {
 
   @Test(expected = ProcessingException.class)
   public void httpClientTimeoutsWork() throws Exception {
-    ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
+    ResteasyProviderFactory factory =
+        new LocalResteasyProviderFactory(ResteasyProviderFactory.getInstance());
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJackson2Provider.class);
 
