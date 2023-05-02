@@ -115,7 +115,7 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"-t", "--token"},
       description = "Token to auto-register proxy with an account",
       order = 1)
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String token = "undefined";
 
   @Parameter(
@@ -1247,7 +1247,10 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"--proxyPassword"},
       description =
           "If proxy authentication is necessary, this is the password that will be passed along")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.HTTPPROXY)
+  @ProxyConfigOption(
+      category = Categories.GENERAL,
+      subCategory = SubCategories.HTTPPROXY,
+      secret = true)
   String proxyPassword = null;
 
   @Parameter(
@@ -1354,7 +1357,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description =
           "Static token that is considered valid "
               + "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String authStaticToken = null;
 
   @Parameter(
@@ -1496,4 +1499,19 @@ public abstract class ProxyConfigDef extends Configuration {
               + "tag named `level`. Default: level, log_level")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
   String customLevelTags = "";
+
+  @Parameter(
+      names = {"--logServerIngestionToken"},
+      description = "Log insight ingestion token, required to ingest logs to the log server.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionToken = null;
+
+  @Parameter(
+      names = {"--logServerIngestionURL"},
+      description = "Log insight ingestion URL, required to ingest logs to the log server.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  String logServerIngestionURL = null;
+
+  boolean enableHyperlogsConvergedCsp = false;
+  boolean receivedLogServerDetails = true;
 }

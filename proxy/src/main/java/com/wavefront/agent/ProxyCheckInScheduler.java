@@ -11,6 +11,7 @@ import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -311,9 +313,42 @@ public class ProxyCheckInScheduler {
     }
 
     // Always update the log server url / token in case they've changed
-    apiContainer.updateLogServerEndpointURLandToken(
-        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
-        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
+    String logServerIngestionURL =
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl();
+    String logServerIngestionToken =
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken();
+
+    // MONIT-33770 - For converged CSP tenants, a user needs to provide vRLIC Ingestion token &
+    // URL as proxy configuration.
+    String WARNING_MSG = "Missing either logServerIngestionToken/logServerIngestionURL or both.";
+    if (StringUtils.isBlank(logServerIngestionURL)
+        && StringUtils.isBlank(logServerIngestionToken)) {
+      ValidationConfiguration validationConfiguration =
+          configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getValidationConfiguration();
+      if (validationConfiguration != null
+          && validationConfiguration.enableHyperlogsConvergedCsp()) {
+        proxyConfig.setEnableHyperlogsConvergedCsp(true);
+        logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
+        logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
+        if (StringUtils.isBlank(logServerIngestionURL)
+            || StringUtils.isBlank(logServerIngestionToken)) {
+          proxyConfig.setReceivedLogServerDetails(false);
+          logger.error(
+              WARNING_MSG
+                  + " To ingest logs to the log server, please provide "
+                  + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
+        }
+      }
+    } else if (StringUtils.isBlank(logServerIngestionURL)
+        || StringUtils.isBlank(logServerIngestionToken)) {
+      logger.warn(
+          WARNING_MSG
+              + " Proxy will not be ingesting data to the log server as it did "
+              + "not receive at least one of the values during check-in.");
+    }
+
+    apiContainer.updateLogServerEndpointURLandToken(logServerIngestionURL, logServerIngestionToken);
+
     return configurationList;
   }
 
