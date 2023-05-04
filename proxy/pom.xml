@@ -348,7 +348,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-bom</artifactId>
-        <version>3.15.3.Final</version>
+        <version>5.0.6.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
