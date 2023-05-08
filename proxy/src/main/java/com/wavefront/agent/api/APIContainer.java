@@ -5,6 +5,7 @@ import com.google.common.collect.Maps;
 import com.wavefront.agent.JsonNodeWriter;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
+import com.wavefront.agent.TenantInfo;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
 import com.wavefront.api.EventAPI;
@@ -87,10 +88,10 @@ public class APIContainer {
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;
-    for (Map.Entry<String, Map<String, String>> tenantInfo :
+    for (Map.Entry<String, Map<String, TenantInfo>> tenantInfo :
         proxyConfig.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfo.getKey();
-      tenantServer = tenantInfo.getValue().get(API_SERVER);
+      tenantServer = tenantInfo.getValue().get(API_SERVER).getTenantServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));

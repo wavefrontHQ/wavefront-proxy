@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyConfig.PROXY_AUTH_METHOD.*;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -51,9 +52,21 @@ public class ProxyConfig extends ProxyConfigDef {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
-  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
+  protected Map<String, Map<String, TenantInfo>> multicastingTenantList = Maps.newHashMap();
 
   TimeProvider timeProvider = System::currentTimeMillis;
+
+  // Selecting the appropriate Wavefront proxy authentication method depending on the proxy settings.
+  enum PROXY_AUTH_METHOD {
+    CSP_API_TOKEN,
+    WAVEFRONT_API_TOKEN,
+    CSP_CLIENT_CREDENTIALS
+  }
+  // Wavefront api token is the default method of proxy authentication.
+  PROXY_AUTH_METHOD proxyAuthMethod = WAVEFRONT_API_TOKEN;
+
+  // The field must be set based on the proxy settings.
+  private String selectedToken;
 
   public boolean isHelp() {
     return help;
@@ -68,7 +81,7 @@ public class ProxyConfig extends ProxyConfigDef {
   }
 
   public String getToken() {
-    return token;
+    return selectedToken;
   }
 
   public boolean isTestLogs() {
@@ -948,7 +961,7 @@ public class ProxyConfig extends ProxyConfigDef {
     return trafficShapingHeadroom;
   }
 
-  public Map<String, Map<String, String>> getMulticastingTenantList() {
+  public Map<String, Map<String, TenantInfo>> getMulticastingTenantList() {
     return multicastingTenantList;
   }
 
@@ -1006,10 +1019,12 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
+      // We won't support CSP_CLIENT_CREDENTIALS as an authentication method for multicasting tenants.
+      TenantInfo tenantInfo = new TenantInfo(tenantToken, tenantServer, proxyAuthMethod);
       multicastingTenantList.put(
           tenantName,
           ImmutableMap.of(
-              APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
+              APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1182,6 +1197,20 @@ public class ProxyConfig extends ProxyConfigDef {
         modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
     logger.info("modifyByArgs: " + argsStr);
 
+
+    TenantInfo tenantInfo;
+    if (StringUtils.isNotBlank(serverToServiceClientId)
+            && StringUtils.isNotBlank(serverToServiceClientSecret)
+            && StringUtils.isNotBlank(cspOrgId)) {
+      proxyAuthMethod = CSP_CLIENT_CREDENTIALS;
+      tenantInfo = new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
+    } else if (StringUtils.isNotBlank(cspAPIToken)) {
+      proxyAuthMethod = CSP_API_TOKEN;
+      tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
+    } else {
+      tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
+    }
+
     // Config file
     if (pushConfigFile != null) {
       ReportableConfig confFile = new ReportableConfig();
@@ -1212,7 +1241,8 @@ public class ProxyConfig extends ProxyConfigDef {
 
     multicastingTenantList.put(
         APIContainer.CENTRAL_TENANT_NAME,
-        ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
+        ImmutableMap.of(APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
+    selectedToken = tenantInfo.getToken();
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 

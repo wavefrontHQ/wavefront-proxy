@@ -1514,4 +1514,34 @@ public abstract class ProxyConfigDef extends Configuration {
 
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;
+
+  @Parameter(
+          names = {"--csp-api-token"},
+          description = "The CSP api token.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspAPIToken = null;
+
+  /**
+   * A client is created for a service defined in CSP. Machine/Cluster can use this client id/secret
+   * to authenticate with CSP.
+   *
+   * <p>If this value is present, the csp authentication will kick in by default.
+   */
+  @Parameter(
+      names = {"--client-id"},
+      description = "App ID of an OAuth app.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String serverToServiceClientId = null;
+
+  @Parameter(
+      names = {"--client-secret"},
+      description = "App secret of an OAuth app.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String serverToServiceClientSecret = null;
+
+  @Parameter(
+      names = {"--csp-org-id"},
+      description = "The CSP organisation identifier.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspOrgId = null;
 }
