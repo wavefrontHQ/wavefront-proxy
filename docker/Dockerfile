@@ -27,6 +27,9 @@ RUN if [ ${TEST} = "true" ]; then \
     apt-get update && apt-get install -y jq vim ;\
     fi
 
+RUN mkdir -p /var/log/wavefront
+RUN chown -R wavefront:wavefront /var/log/wavefront
+
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878

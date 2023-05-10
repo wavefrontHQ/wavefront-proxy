@@ -26,6 +26,11 @@ public abstract class FeatureCheckUtils {
       LoggerFactory.getLogger(FeatureCheckUtils.class.getCanonicalName());
   //  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
 
+  public static final String LOGS_SERVER_DETAILS_MISSING =
+      "Ingested logs discarded because the "
+          + "configuration is missing either "
+          + "logServerIngestionToken/logServerIngestionURL or both.";
+
   /**
    * Check whether feature disabled flag is set, log a warning message, increment the counter by 1.
    *
@@ -124,6 +129,31 @@ public abstract class FeatureCheckUtils {
                 ? increment
                 : StringUtils.countMatches(request.content().toString(CharsetUtil.UTF_8), "\n")
                     + 1);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check whether log server details are missing for a converged CSP tenant.
+   *
+   * @param receivedLogServerDetails boolean that indicates availability of log server URL & token
+   * @param enableHyperlogsConvergedCsp boolean that indicates converged CSP tenant setting
+   * @param message Warning message to log if feature is disabled.
+   * @param discardedCounter Optional counter for discarded items.
+   * @return true if log server details are missing
+   */
+  public static boolean isMissingLogServerInfoForAConvergedCSPTenant(
+      boolean receivedLogServerDetails,
+      boolean enableHyperlogsConvergedCsp,
+      String message,
+      @Nullable Counter discardedCounter) {
+    if (enableHyperlogsConvergedCsp && !receivedLogServerDetails) {
+      // TODO: 10/5/23 review 
+//      featureDisabledLogger.warning(message);
+      if (discardedCounter != null) {
+        discardedCounter.inc();
       }
       return true;
     }

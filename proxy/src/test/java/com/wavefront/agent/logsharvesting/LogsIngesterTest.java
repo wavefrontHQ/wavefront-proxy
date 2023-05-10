@@ -1,13 +1,24 @@
 package com.wavefront.agent.logsharvesting;
 
 import static com.wavefront.agent.ProxyContext.queuesManager;
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.lessThan;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactoryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -45,10 +56,14 @@ import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.logstash.beats.Message;
+import org.yaml.snakeyaml.LoaderOptions;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 public class LogsIngesterTest {
+  private final AtomicLong now;
+  private final AtomicLong nanos;
+  private final ObjectMapper objectMapper;
   private LogsIngestionConfig logsIngestionConfig;
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
@@ -56,9 +71,13 @@ public class LogsIngesterTest {
   private ReportableEntityHandlerFactory mockFactory;
   private ReportableEntityHandler<ReportPoint> mockPointHandler;
   private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
-  private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
-  private AtomicLong nanos = new AtomicLong(System.nanoTime());
-  private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+
+  public LogsIngesterTest() {
+    this.now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
+    this.nanos = new AtomicLong(System.nanoTime());
+    YAMLFactoryBuilder factory = new YAMLFactoryBuilder(new YAMLFactory());
+    this.objectMapper = new ObjectMapper(factory.loaderOptions(new LoaderOptions()).build());
+  }
 
   @BeforeClass
   public static void init() {

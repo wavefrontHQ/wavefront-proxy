@@ -174,7 +174,7 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() throws Exception {
 
-    isMulticastingActive = proxyConfig.getMulticastingTenants() > 0;
+    isMulticastingActive = proxyConfig.getMulticastingTenantList().size() > 0;
     ProxyContext.queuesManager = new QueuesManagerDefault(proxyConfig);
     SenderTasksManager.init(apiContainer, agentId);
 
@@ -1252,7 +1252,9 @@ public class PushAgent extends AbstractAgent {
                 entityPropertiesFactoryMap
                     .get(CENTRAL_TENANT_NAME)
                     .get(ReportableEntityType.LOGS)
-                    .isFeatureDisabled());
+                    .isFeatureDisabled(),
+            proxyConfig.receivedLogServerDetails(),
+            proxyConfig.enableHyperlogsConvergedCsp());
 
     startAsManagedThread(
         port,
@@ -1319,7 +1321,9 @@ public class PushAgent extends AbstractAgent {
             () -> false,
             () -> false,
             sampler,
-            () -> false);
+            () -> false,
+            proxyConfig.receivedLogServerDetails(),
+            proxyConfig.enableHyperlogsConvergedCsp());
 
     startAsManagedThread(
         port,
@@ -1761,7 +1765,9 @@ public class PushAgent extends AbstractAgent {
                       entityPropertiesFactoryMap
                           .get(CENTRAL_TENANT_NAME)
                           .get(ReportableEntityType.LOGS)
-                          .isFeatureDisabled());
+                          .isFeatureDisabled(),
+                  proxyConfig.receivedLogServerDetails(),
+                  proxyConfig.enableHyperlogsConvergedCsp());
 
           startAsManagedThread(
               port,
@@ -1903,7 +1909,6 @@ public class PushAgent extends AbstractAgent {
       tenantSpecificEntityProps
           .get(ReportableEntityType.LOGS)
           .setFeatureDisabled(BooleanUtils.isTrue(config.getLogsDisabled()));
-      preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die, so just log it.

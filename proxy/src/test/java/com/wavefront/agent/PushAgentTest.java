@@ -42,10 +42,11 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.net.SocketFactory;
 import javax.net.ssl.*;
 import junit.framework.AssertionFailedError;
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
@@ -53,11 +54,19 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import wavefront.report.*;
+import org.junit.*;
+import org.junit.rules.Timeout;
+import wavefront.report.Annotation;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
+import wavefront.report.ReportEvent;
+import wavefront.report.ReportPoint;
+import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
+import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -94,6 +103,8 @@ public class PushAgentTest {
           mockEventHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
+  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+
   @BeforeClass
   public static void init() throws Exception {
     TrustManager[] tm = new TrustManager[] {new NaiveTrustManager()};
@@ -126,7 +137,7 @@ public class PushAgentTest {
     proxy.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
     proxy.proxyConfig.dataDogProcessServiceChecks = true;
-    assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy.proxyConfig.getFlushThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
   }
@@ -1217,7 +1228,7 @@ public class PushAgentTest {
     proxy2.proxyConfig.dataDogProcessSystemMetrics = true;
     proxy2.proxyConfig.dataDogProcessServiceChecks = false;
     proxy2.proxyConfig.dataDogRequestRelayTarget = "http://relay-to:1234";
-    assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
+    assertEquals(2, proxy2.proxyConfig.getFlushThreads());
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
 

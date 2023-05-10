@@ -156,7 +156,16 @@ public abstract class Utils {
    *
    * @return name for localhost
    */
+  private static String detectedHostName;
+
   public static String getLocalHostName() {
+    if (detectedHostName == null) {
+      detectedHostName = detectLocalHostName();
+    }
+    return detectedHostName;
+  }
+
+  public static String detectLocalHostName() {
     for (String env : Arrays.asList("COMPUTERNAME", "HOSTNAME", "PROXY_HOSTNAME")) {
       String hostname = System.getenv(env);
       if (StringUtils.isNotBlank(hostname)) {

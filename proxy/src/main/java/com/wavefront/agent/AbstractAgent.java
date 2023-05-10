@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
+import com.sun.management.UnixOperatingSystemMXBean;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.core.buffers.BuffersManager;
@@ -30,12 +30,17 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.net.ssl.SSLException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -47,10 +52,8 @@ public abstract class AbstractAgent {
   private static final Logger logger =
       LoggerFactory.getLogger(AbstractAgent.class.getCanonicalName());
   /** A set of commandline parameters to hide when echoing command line arguments */
-  protected static final Set<String> PARAMETERS_TO_HIDE =
-      ImmutableSet.of("-t", "--token", "--proxyPassword");
-
   protected final ProxyConfig proxyConfig = new ProxyConfig();
+
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
@@ -162,7 +165,6 @@ public abstract class AbstractAgent {
 
   @VisibleForTesting
   void parseArguments(String[] args) {
-    // read build information and print version.
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);
@@ -171,13 +173,6 @@ public abstract class AbstractAgent {
       logger.error("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
-    logger.info(
-        "Arguments: "
-            + IntStream.range(0, args.length)
-                .mapToObj(
-                    i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i])
-                .collect(Collectors.joining(" ")));
-    proxyConfig.verifyAndInit();
   }
 
   /**
@@ -186,6 +181,22 @@ public abstract class AbstractAgent {
    * @param args Command-line parameters passed on to JCommander to configure the daemon.
    */
   public void start(String[] args) {
+    String versionStr =
+        "Wavefront Proxy version "
+            + getBuildVersion()
+            + " (pkg:"
+            + getPackage()
+            + ")"
+            + ", runtime: "
+            + getJavaVersion();
+    logger.info(versionStr);
+
+    OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+    if (os instanceof UnixOperatingSystemMXBean) {
+      UnixOperatingSystemMXBean os1 = (UnixOperatingSystemMXBean) os;
+      logger.info("OS Max File Descriptors: " + os1.getMaxFileDescriptorCount());
+    }
+
     try {
 
       /*

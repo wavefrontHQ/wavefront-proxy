@@ -9,7 +9,9 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
@@ -28,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +56,6 @@ public class ProxyCheckInScheduler {
   private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
   private final Runnable truncateBacklog;
-  private String hostname;
   private final AtomicInteger retries = new AtomicInteger(0);
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
   /** Executors for support tasks. */
@@ -85,13 +87,18 @@ public class ProxyCheckInScheduler {
     this.agentConfigurationConsumer = agentConfigurationConsumer;
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
+
     updateProxyMetrics();
+
     Map<String, AgentConfiguration> configList = checkin();
+    new ProxySendConfigScheduler(apiContainer, proxyId, proxyConfig).start();
+
     if (configList == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
       // due to changing the server endpoint URL
       updateProxyMetrics();
       configList = checkin();
+      sendPreprocessorRules();
     }
     if (configList != null && !configList.isEmpty()) {
       logger.info("initial configuration is available, setting up proxy");
@@ -100,7 +107,6 @@ public class ProxyCheckInScheduler {
         successfulCheckIns.incrementAndGet();
       }
     }
-    hostname = proxyConfig.getHostname();
   }
 
   /** Set up and schedule regular check-ins. */
@@ -122,6 +128,18 @@ public class ProxyCheckInScheduler {
   /** Stops regular check-ins. */
   public void shutdown() {
     executor.shutdown();
+  }
+
+  /** Send preprocessor rules */
+  // TODO: review
+  private void sendPreprocessorRules() {
+//    try {
+//      apiContainer
+//          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+//          .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
+//    } catch (javax.ws.rs.NotFoundException ex) {
+//      logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
+//    }
   }
 
   /**
@@ -296,9 +314,43 @@ public class ProxyCheckInScheduler {
     }
 
     // Always update the log server url / token in case they've changed
-    apiContainer.updateLogServerEndpointURLandToken(
-        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
-        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
+    String logServerIngestionURL =
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl();
+    String logServerIngestionToken =
+        configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken();
+
+    // MONIT-33770 - For converged CSP tenants, a user needs to provide vRLIC Ingestion token &
+    // URL as proxy configuration.
+    String WARNING_MSG = "Missing either logServerIngestionToken/logServerIngestionURL or both.";
+    if (StringUtils.isBlank(logServerIngestionURL)
+        && StringUtils.isBlank(logServerIngestionToken)) {
+      ValidationConfiguration validationConfiguration =
+          configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getValidationConfiguration();
+      // TODO: review
+//      if (validationConfiguration != null
+//          && validationConfiguration.enableHyperlogsConvergedCsp()) {
+//        proxyConfig.setEnableHyperlogsConvergedCsp(true);
+//        logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
+//        logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
+//        if (StringUtils.isBlank(logServerIngestionURL)
+//            || StringUtils.isBlank(logServerIngestionToken)) {
+//          proxyConfig.setReceivedLogServerDetails(false);
+//          logger.error(
+//              WARNING_MSG
+//                  + " To ingest logs to the log server, please provide "
+//                  + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
+//        }
+//      }
+    } else if (StringUtils.isBlank(logServerIngestionURL)
+        || StringUtils.isBlank(logServerIngestionToken)) {
+      logger.warn(
+          WARNING_MSG
+              + " Proxy will not be ingesting data to the log server as it did "
+              + "not receive at least one of the values during check-in.");
+    }
+
+    apiContainer.updateLogServerEndpointURLandToken(logServerIngestionURL, logServerIngestionToken);
+
     return configurationList;
   }
 
@@ -306,6 +358,7 @@ public class ProxyCheckInScheduler {
   void updateConfiguration() {
     try {
       Map<String, AgentConfiguration> configList = checkin();
+      sendPreprocessorRules();
       if (configList != null && !configList.isEmpty()) {
         AgentConfiguration config;
         for (Map.Entry<String, AgentConfiguration> configEntry : configList.entrySet()) {
@@ -344,8 +397,7 @@ public class ProxyCheckInScheduler {
     try {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", ID);
-      // MONIT-27856 Adds real hostname (fqdn if possible) as internal metric tag
-      pointTags.put("hostname", hostname);
+      pointTags.put("hostname", proxyConfig.getHostname());
       synchronized (executor) {
         agentMetrics =
             JsonMetricsGenerator.generateJsonMetrics(

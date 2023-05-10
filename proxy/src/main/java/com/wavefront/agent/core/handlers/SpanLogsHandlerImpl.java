@@ -2,6 +2,7 @@ package com.wavefront.agent.core.handlers;
 
 import com.wavefront.agent.core.buffers.BuffersManager;
 import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.ingester.SpanLogsSerializer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
