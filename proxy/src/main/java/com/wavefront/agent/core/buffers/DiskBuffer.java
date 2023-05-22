@@ -44,7 +44,7 @@ public class DiskBuffer extends ActiveMQBuffer implements Buffer {
   @Override
   public void sendPoints(String queue, List<String> points) throws ActiveMQAddressFullException {
     if (isFull()) {
-      slowLog.error("Memory Queue full");
+      slowLog.error(getName() + " Queue full");
       throw new ActiveMQAddressFullException();
     }
     super.sendPoints(queue, points);

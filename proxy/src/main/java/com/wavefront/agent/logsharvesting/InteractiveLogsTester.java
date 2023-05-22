@@ -3,7 +3,6 @@ package com.wavefront.agent.logsharvesting;
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.core.queues.QueueInfo;

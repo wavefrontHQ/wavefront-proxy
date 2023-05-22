@@ -3,7 +3,6 @@ package com.wavefront.agent.histogram;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
@@ -74,10 +73,10 @@ public class PointHandlerDispatcherTest {
               @Override
               public void reject(@Nonnull String t, @Nullable String message) {}
 
-//              @Override
-//              public void setLogFormat(DataFormat format) {
-//                throw new UnsupportedOperationException();
-//              }
+              //              @Override
+              //              public void setLogFormat(DataFormat format) {
+              //                throw new UnsupportedOperationException();
+              //              }
 
               @Override
               public void shutdown() {}

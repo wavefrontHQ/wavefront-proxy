@@ -156,12 +156,12 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
     // TODO: 10/5/23
-//    this.discardedLogs =
-//        Utils.lazySupplier(
-//            () -> Metrics.newCounter(new MetricName("logs." + port, "", "discarded")));
-//    this.receivedLogsTotal =
-//        Utils.lazySupplier(
-//            () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
+    //    this.discardedLogs =
+    //        Utils.lazySupplier(
+    //            () -> Metrics.newCounter(new MetricName("logs." + port, "", "discarded")));
+    //    this.receivedLogsTotal =
+    //        Utils.lazySupplier(
+    //            () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
 
     this.apiContainer = apiContainer;
   }
@@ -377,8 +377,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         break;
       case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
         // TODO: 10/5/23
-//      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
-//      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
         Supplier<Counter> discardedLogs =
             Utils.lazySupplier(
                 () ->

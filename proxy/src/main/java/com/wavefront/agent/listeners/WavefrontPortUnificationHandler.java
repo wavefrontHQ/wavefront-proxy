@@ -1,17 +1,13 @@
 package com.wavefront.agent.listeners;
 
 import static com.wavefront.agent.ProxyContext.queuesManager;
-import static com.wavefront.agent.LogsUtil.LOGS_DATA_FORMATS;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_SERVER_DETAILS_MISSING;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isMissingLogServerInfoForAConvergedCSPTenant;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 
@@ -93,7 +89,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final LoadingCache<DataFormat, Counter> discardedLogsCounter;
   private final LoadingCache<DataFormat, Counter> discardedLogsMissingLogServerInfoCounter;
 
-
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -130,55 +125,55 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       final boolean enableHyperlogsConvergedCsp) {
     super(tokenAuthenticator, healthCheckManager, port);
     this.wavefrontDecoder =
-            (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
+        (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
     this.wavefrontHandler =
-            handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramDecoder =
-            (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.HISTOGRAM);
+        (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder =
-            (ReportableEntityDecoder<String, ReportSourceTag>)
-                    decoders.get(ReportableEntityType.SOURCE_TAG);
+        (ReportableEntityDecoder<String, ReportSourceTag>)
+            decoders.get(ReportableEntityType.SOURCE_TAG);
     this.spanDecoder =
-            (ReportableEntityDecoder<String, Span>) decoders.get(ReportableEntityType.TRACE);
+        (ReportableEntityDecoder<String, Span>) decoders.get(ReportableEntityType.TRACE);
     this.spanLogsDecoder =
-            (ReportableEntityDecoder<JsonNode, SpanLogs>)
-                    decoders.get(ReportableEntityType.TRACE_SPAN_LOGS);
+        (ReportableEntityDecoder<JsonNode, SpanLogs>)
+            decoders.get(ReportableEntityType.TRACE_SPAN_LOGS);
     this.eventDecoder =
-            (ReportableEntityDecoder<String, ReportEvent>) decoders.get(ReportableEntityType.EVENT);
+        (ReportableEntityDecoder<String, ReportEvent>) decoders.get(ReportableEntityType.EVENT);
     this.logDecoder =
-            (ReportableEntityDecoder<String, ReportLog>) decoders.get(ReportableEntityType.LOGS);
+        (ReportableEntityDecoder<String, ReportLog>) decoders.get(ReportableEntityType.LOGS);
     this.histogramHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.sourceTagHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.SOURCE_TAG)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.SOURCE_TAG)));
     this.spanHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.TRACE)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE)));
     this.spanLogsHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
     this.eventHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.EVENT)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.EVENT)));
     this.logHandlerSupplier =
-            Utils.lazySupplier(
-                    () ->
-                            handlerFactory.getHandler(
-                                    port, queuesManager.initQueue(ReportableEntityType.LOGS)));
+        Utils.lazySupplier(
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.LOGS)));
     this.histogramDisabled = histogramDisabled;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
@@ -187,50 +182,50 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.enableHyperlogsConvergedCsp = enableHyperlogsConvergedCsp;
     this.sampler = sampler;
     this.discardedHistograms =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("histogram", "", "discarded_points")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("histogram", "", "discarded_points")));
     this.discardedSpans =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.discardedSpanLogs =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
     this.discardedSpansBySampler =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
     this.discardedSpanLogsBySampler =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "sampler.discarded")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "sampler.discarded")));
     this.receivedSpansTotal =
-            Utils.lazySupplier(
-                    () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
+        Utils.lazySupplier(
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
     this.receivedLogsCounter =
-            Caffeine.newBuilder()
-                    .build(
-                            format ->
-                                    Metrics.newCounter(
-                                            new TaggedMetricName(
-                                                    "logs." + port,
-                                                    "received" + ".total",
-                                                    "format",
-                                                    format.name().toLowerCase())));
+        Caffeine.newBuilder()
+            .build(
+                format ->
+                    Metrics.newCounter(
+                        new TaggedMetricName(
+                            "logs." + port,
+                            "received" + ".total",
+                            "format",
+                            format.name().toLowerCase())));
     this.discardedLogsCounter =
-            Caffeine.newBuilder()
-                    .build(
-                            format ->
-                                    Metrics.newCounter(
-                                            new TaggedMetricName(
-                                                    "logs." + port, "discarded", "format", format.name().toLowerCase())));
+        Caffeine.newBuilder()
+            .build(
+                format ->
+                    Metrics.newCounter(
+                        new TaggedMetricName(
+                            "logs." + port, "discarded", "format", format.name().toLowerCase())));
     this.discardedLogsMissingLogServerInfoCounter =
-            Caffeine.newBuilder()
-                    .build(
-                            format ->
-                                    Metrics.newCounter(
-                                            new TaggedMetricName(
-                                                    "logs." + port,
-                                                    "discarded.log.server.info.missing",
-                                                    "format",
-                                                    format.name().toLowerCase())));
+        Caffeine.newBuilder()
+            .build(
+                format ->
+                    Metrics.newCounter(
+                        new TaggedMetricName(
+                            "logs." + port,
+                            "discarded.log.server.info.missing",
+                            "format",
+                            format.name().toLowerCase())));
   }
 
   public static void preprocessAndHandlePoint(
@@ -366,12 +361,13 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
-      // TODO: 10/5/23  
-//    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
-//        && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out, request)) {
-//      receivedLogsTotal.get().inc(discardedLogs.get().count());
-//      writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
-//      return;
+      // TODO: 10/5/23
+      //    } else if ((format == LOGS_JSON_ARR || format == LOGS_JSON_LINES)
+      //        && isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), out,
+      // request)) {
+      //      receivedLogsTotal.get().inc(discardedLogs.get().count());
+      //      writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
+      //      return;
     }
     super.handleHttpMessage(ctx, request);
   }
@@ -476,8 +472,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         return;
       case LOGS_JSON_ARR:
       case LOGS_JSON_LINES:
-        // TODO: 10/5/23  
-//        if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
+        // TODO: 10/5/23
+        //        if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get())) return;
         ReportableEntityHandler<ReportLog> logHandler = logHandlerSupplier.get();
         if (logHandler == null || logDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept log data!");

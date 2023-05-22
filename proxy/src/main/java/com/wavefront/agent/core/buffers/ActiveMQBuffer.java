@@ -10,7 +10,6 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.util.JmxGauge;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -81,7 +80,7 @@ public abstract class ActiveMQBuffer implements Buffer {
     }
 
     if (persistenceEnabled) {
-      config.setMaxDiskUsage(70);
+      config.setMaxDiskUsage(70); // TODO: config option
       config.setJournalDirectory(new File(buffer, "journal").getAbsolutePath());
       config.setBindingsDirectory(new File(buffer, "bindings").getAbsolutePath());
       config.setLargeMessagesDirectory(new File(buffer, "largemessages").getAbsolutePath());
@@ -200,7 +199,7 @@ public abstract class ActiveMQBuffer implements Buffer {
     try {
       doSendPoints(queue, points);
     } catch (ActiveMQAddressFullException e) {
-      slowLog.error("Memory Queue full");
+      slowLog.error(getName() + " Queue full");
       if (slowLog.isDebugEnabled()) {
         slowLog.error("", e);
       }

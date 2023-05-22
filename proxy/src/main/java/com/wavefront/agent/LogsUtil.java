@@ -9,7 +9,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/** @author Sumit Deo (deosu@vmware.com) */
+/**
+ * @author Sumit Deo (deosu@vmware.com)
+ */
 public class LogsUtil {
 
   public static final Set<DataFormat> LOGS_DATA_FORMATS =

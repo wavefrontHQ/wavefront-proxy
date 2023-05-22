@@ -150,8 +150,8 @@ public abstract class FeatureCheckUtils {
       String message,
       @Nullable Counter discardedCounter) {
     if (enableHyperlogsConvergedCsp && !receivedLogServerDetails) {
-      // TODO: 10/5/23 review 
-//      featureDisabledLogger.warning(message);
+      // TODO: 10/5/23 review
+      //      featureDisabledLogger.warning(message);
       if (discardedCounter != null) {
         discardedCounter.inc();
       }

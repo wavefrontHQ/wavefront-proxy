@@ -42,7 +42,6 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.net.SocketFactory;
 import javax.net.ssl.*;

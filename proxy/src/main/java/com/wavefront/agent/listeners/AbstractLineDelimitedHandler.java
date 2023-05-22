@@ -181,11 +181,12 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
       final ChannelHandlerContext ctx, @Nonnull final String message, @Nullable DataFormat format);
 
   protected void processBatchMetrics(
-          final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
+      final ChannelHandlerContext ctx, final FullHttpRequest request, @Nullable DataFormat format) {
     if (LOGS_DATA_FORMATS.contains(format)) {
       Histogram receivedLogsBatches =
-              getOrCreateLogsHistogramFromRegistry(
-                      Metrics.defaultRegistry(), format, "logs." + port, "received" + ".batches");
+          getOrCreateLogsHistogramFromRegistry(
+              Metrics.defaultRegistry(), format, "logs." + port, "received" + ".batches");
       receivedLogsBatches.update(request.content().toString(CharsetUtil.UTF_8).length());
-    }  }
+    }
+  }
 }

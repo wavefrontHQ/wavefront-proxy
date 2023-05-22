@@ -8,7 +8,6 @@ import com.yammer.metrics.core.MetricName;
 import java.io.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-
 import org.apache.activemq.artemis.api.core.ICoreMessage;
 import org.apache.commons.io.IOUtils;
 
@@ -41,15 +40,14 @@ class GZIP {
       is.read();
       is.read();
       is.read();
-      try (
-              final GZIPInputStream gzipInput = new GZIPInputStream(is);
-              final StringWriter stringWriter = new StringWriter()) {
+      try (final GZIPInputStream gzipInput = new GZIPInputStream(is);
+          final StringWriter stringWriter = new StringWriter()) {
         IOUtils.copy(gzipInput, stringWriter, UTF_8);
         return stringWriter.toString();
       } catch (IOException e) {
         throw new UncheckedIOException("Error while decompression!", e);
       } finally {
-        System.out.println("-->"+(System.currentTimeMillis() - start));
+        System.out.println("-->" + (System.currentTimeMillis() - start));
         decompressTime.update(System.currentTimeMillis() - start);
       }
     } catch (IOException e) {

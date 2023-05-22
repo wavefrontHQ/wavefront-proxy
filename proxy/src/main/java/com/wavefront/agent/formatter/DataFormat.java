@@ -59,10 +59,10 @@ public enum DataFormat {
       case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
         return DataFormat.LOGS_JSON_ARR;
         // TODO: review
-//      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
-//        return DataFormat.LOGS_JSON_LINES;
-//      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
-//        return DataFormat.LOGS_JSON_CLOUDWATCH;
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
+        //        return DataFormat.LOGS_JSON_LINES;
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        //        return DataFormat.LOGS_JSON_CLOUDWATCH;
       default:
         return null;
     }

@@ -1,7 +1,6 @@
 package com.wavefront.agent;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.*;
 
 import com.beust.jcommander.ParameterException;
 import com.wavefront.agent.api.APIContainer;

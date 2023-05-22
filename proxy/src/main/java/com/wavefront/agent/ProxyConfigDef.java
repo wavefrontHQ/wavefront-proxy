@@ -1503,19 +1503,19 @@ public abstract class ProxyConfigDef extends Configuration {
   String logServerIngestionURL = null;
 
   @Parameter(
-          names = {"--memoryBufferExpirationTime"},
-          description =
-                  "Number of seconds that item will live on the memory buffer will before sending"
-                          + " it to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
-                          + " when there is communication problem with the WF Server. Default 600 (10 minutes) (-1 to disable)")
+      names = {"--memoryBufferExpirationTime"},
+      description =
+          "Number of seconds that item will live on the memory buffer will before sending"
+              + " it to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 600 (10 minutes) (-1 to disable)")
   long memoryBufferExpirationTime = 600;
 
   @Parameter(
-          names = {"--memoryBufferRetryLimit"},
-          description =
-                  "Number of times that the memory buffer will try to send a item to the WF Server before sending"
-                          + " the item to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
-                          + " when there is communication problem with the WF Server. Default 3 (-1 to disable)")
+      names = {"--memoryBufferRetryLimit"},
+      description =
+          "Number of times that the memory buffer will try to send a item to the WF Server before sending"
+              + " the item to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 3 (-1 to disable)")
   int memoryBufferRetryLimit = 3;
 
   public int getMemoryBufferRetryLimit() {
@@ -1523,26 +1523,25 @@ public abstract class ProxyConfigDef extends Configuration {
   }
 
   @Parameter(
-          names = {"--disable_buffer"},
-          description = "Disable disk buffer",
-          order = 7)
+      names = {"--disable_buffer"},
+      description = "Disable disk buffer",
+      order = 7)
   boolean disableBuffer = false;
 
   @Parameter(
-          names = {"--exportQueueAtoms"},
-          description =
-                  "Export queued data in plaintext "
-                          + "format for specified atoms (comma-delimited list) and exit. Set to 'all' to export "
-                          + "everything. Default: none, valid values: points, deltaCounters, histograms, sourceTags, spans, spanLogs, events, logs")
+      names = {"--exportQueueAtoms"},
+      description =
+          "Export queued data in plaintext "
+              + "format for specified atoms (comma-delimited list) and exit. Set to 'all' to export "
+              + "everything. Default: none, valid values: points, deltaCounters, histograms, sourceTags, spans, spanLogs, events, logs")
   String exportQueueAtoms = null;
 
   @Parameter(
-          names = {"--exportQueueOutputDir"},
-          description =
-                  "Export queued data in plaintext "
-                          + "format for specified ports (comma-delimited list) and exit. Default: none")
+      names = {"--exportQueueOutputDir"},
+      description =
+          "Export queued data in plaintext "
+              + "format for specified ports (comma-delimited list) and exit. Default: none")
   String exportQueueOutputDir = null;
-
 
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;
