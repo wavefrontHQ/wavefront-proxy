@@ -172,13 +172,15 @@ public class ProxyCheckInScheduler {
         tenantName = multicastingTenantEntry.getKey();
         multicastingTenantProxyConfig = multicastingTenantEntry.getValue();
         logger.info(
-            "Checking in tenants: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER).getTenantServer());
+            "Checking in tenants: "
+                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER).getTenantServer());
         multicastingConfig =
             apiContainer
                 .getProxyV2APIForTenant(tenantName)
                 .proxyCheckin(
                     proxyId,
-                    "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN).getToken(),
+                    "Bearer "
+                        + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN).getToken(),
                     proxyConfig.getHostname()
                         + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
                     proxyConfig.getProxyname(),
@@ -211,7 +213,10 @@ public class ProxyCheckInScheduler {
         case 404:
         case 405:
           String serverUrl =
-              multicastingTenantProxyConfig.get(APIContainer.API_SERVER).getTenantServer().replaceAll("/$", "");
+              multicastingTenantProxyConfig
+                  .get(APIContainer.API_SERVER)
+                  .getTenantServer()
+                  .replaceAll("/$", "");
           if (successfulCheckIns.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError(

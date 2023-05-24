@@ -56,8 +56,9 @@ public class ProxyConfig extends ProxyConfigDef {
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
-  // Selecting the appropriate Wavefront proxy authentication method depending on the proxy settings.
-  enum PROXY_AUTH_METHOD {
+  // Selecting the appropriate Wavefront proxy authentication method depending on the proxy
+  // settings.
+  public enum PROXY_AUTH_METHOD {
     CSP_API_TOKEN,
     WAVEFRONT_API_TOKEN,
     CSP_CLIENT_CREDENTIALS
@@ -1019,12 +1020,12 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
-      // We won't support CSP_CLIENT_CREDENTIALS as an authentication method for multicasting tenants.
+      // We won't support CSP_CLIENT_CREDENTIALS as an authentication method for multicasting
+      // tenants.
       TenantInfo tenantInfo = new TenantInfo(tenantToken, tenantServer, proxyAuthMethod);
       multicastingTenantList.put(
           tenantName,
-          ImmutableMap.of(
-              APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
+          ImmutableMap.of(APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1197,13 +1198,13 @@ public class ProxyConfig extends ProxyConfigDef {
         modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
     logger.info("modifyByArgs: " + argsStr);
 
-
     TenantInfo tenantInfo;
     if (StringUtils.isNotBlank(serverToServiceClientId)
-            && StringUtils.isNotBlank(serverToServiceClientSecret)
-            && StringUtils.isNotBlank(cspOrgId)) {
+        && StringUtils.isNotBlank(serverToServiceClientSecret)
+        && StringUtils.isNotBlank(cspOrgId)) {
       proxyAuthMethod = CSP_CLIENT_CREDENTIALS;
-      tenantInfo = new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
+      tenantInfo =
+          new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
     } else if (StringUtils.isNotBlank(cspAPIToken)) {
       proxyAuthMethod = CSP_API_TOKEN;
       tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);

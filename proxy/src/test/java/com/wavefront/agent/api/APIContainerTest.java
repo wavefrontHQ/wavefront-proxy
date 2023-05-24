@@ -1,11 +1,13 @@
 package com.wavefront.agent.api;
 
+import static com.wavefront.agent.ProxyConfig.PROXY_AUTH_METHOD.WAVEFRONT_API_TOKEN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.TenantInfo;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -17,13 +19,17 @@ public class APIContainerTest {
   @Before
   public void setup() {
     this.proxyConfig = new ProxyConfig();
+    TenantInfo tenantInfo = new TenantInfo("fake-token", "fake-url", WAVEFRONT_API_TOKEN);
     this.proxyConfig
         .getMulticastingTenantList()
-        .put("central", ImmutableMap.of("token", "fake-token", "server", "fake-url"));
+        .put("central", ImmutableMap.of("token", tenantInfo, "server", tenantInfo));
     for (int i = 0; i < NUM_TENANTS; i++) {
+      TenantInfo tenantInfo1 =
+          new TenantInfo("fake-token" + i, "fake-url" + i, WAVEFRONT_API_TOKEN);
+
       this.proxyConfig
           .getMulticastingTenantList()
-          .put("tenant-" + i, ImmutableMap.of("token", "fake-token" + i, "server", "fake-url" + i));
+          .put("tenant-" + i, ImmutableMap.of("token", tenantInfo1, "server", tenantInfo1));
     }
   }
 
