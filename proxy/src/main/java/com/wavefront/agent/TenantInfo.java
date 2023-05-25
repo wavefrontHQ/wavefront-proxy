@@ -4,16 +4,12 @@ import static com.wavefront.agent.ProxyConfig.PROXY_AUTH_METHOD.CSP_API_TOKEN;
 import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Expiry;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.net.HttpHeaders;
 import com.wavefront.common.NamedThreadFactory;
 import java.util.Base64;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Form;
@@ -37,7 +33,7 @@ public class TenantInfo {
   private String cspAccessToken = null;
 
   private final ScheduledExecutorService executor =
-      Executors.newScheduledThreadPool(2, new NamedThreadFactory("token-configuration"));
+      Executors.newScheduledThreadPool(1, new NamedThreadFactory("token-configuration"));
 
   public TenantInfo(
       @Nonnull final String tenantToken,
@@ -167,39 +163,5 @@ public class TenantInfo {
         "Basic %s",
         Base64.getEncoder()
             .encodeToString(String.format("%s:%s", clientId, clientSecret).getBytes()));
-  }
-
-  private LoadingCache<String, TokenExchangeResponseDTO> createTokenCache(
-      Supplier<TokenExchangeResponseDTO> tokenSupplier) {
-    return Caffeine.newBuilder()
-        .expireAfter(
-            new Expiry<String, TokenExchangeResponseDTO>() {
-              @Override
-              public long expireAfterCreate(
-                  @Nonnull String authToken,
-                  @Nonnull TokenExchangeResponseDTO tokenExchangeResponseDTO,
-                  long currentTime) {
-                return TimeUnit.SECONDS.toNanos(tokenExchangeResponseDTO.getExpiresIn());
-              }
-
-              @Override
-              public long expireAfterUpdate(
-                  @Nonnull String authToken,
-                  @Nonnull TokenExchangeResponseDTO tokenExchangeResponseDTO,
-                  long currentTime,
-                  long currentDuration) {
-                return currentDuration;
-              }
-
-              @Override
-              public long expireAfterRead(
-                  @Nonnull String authToken,
-                  @Nonnull TokenExchangeResponseDTO tokenExchangeResponseDTO,
-                  long currentTime,
-                  long currentDuration) {
-                return currentDuration;
-              }
-            })
-        .build(key -> tokenSupplier.get());
   }
 }

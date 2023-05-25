@@ -1519,7 +1519,7 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"--csp-api-token"},
       description = "The CSP api token.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String cspAPIToken = "pbAY_rpR_k6S92AL7xClBYvWzKKIO4uKL8Mi_m8CUJ8hAdG8yj81A6G1zx59ZMtt";
+  String cspAPIToken = null;
 
   /**
    * A client is created for a service defined in CSP. Machine/Cluster can use this client id/secret

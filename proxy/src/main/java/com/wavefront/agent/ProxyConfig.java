@@ -36,6 +36,8 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
@@ -63,8 +65,6 @@ public class ProxyConfig extends ProxyConfigDef {
     WAVEFRONT_API_TOKEN,
     CSP_CLIENT_CREDENTIALS
   }
-  // Wavefront api token is the default method of proxy authentication.
-  PROXY_AUTH_METHOD proxyAuthMethod = WAVEFRONT_API_TOKEN;
 
   // The field must be set based on the proxy settings.
   private String selectedToken;
@@ -1020,9 +1020,26 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
-      // We won't support CSP_CLIENT_CREDENTIALS as an authentication method for multicasting
-      // tenants.
-      TenantInfo tenantInfo = new TenantInfo(tenantToken, tenantServer, proxyAuthMethod);
+      String tenantServerToServiceClientId =
+          config.getProperty(String.format("multicastingServerToServiceClientId_%d", i), "");
+      String tenantServerToServiceClientSecret =
+          config.getProperty(String.format("multicastingServerToServiceClientSecret_%d", i), "");
+      String tenantCspOrgId = config.getProperty(String.format("multicastingCspOrgId_%d", i), "");
+      String tenantCspAPIToken =
+          config.getProperty(String.format("multicastingCspAPIToken_%d", i), "");
+
+      // Based on the setup parameters, the pertinent tenant information object will be produced
+      // using the proper proxy
+      // authentication technique.
+      TenantInfo tenantInfo =
+          constructTenantInfoObject(
+              tenantServerToServiceClientId,
+              tenantServerToServiceClientSecret,
+              tenantCspOrgId,
+              tenantCspAPIToken,
+              tenantToken,
+              tenantServer);
+
       multicastingTenantList.put(
           tenantName,
           ImmutableMap.of(APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
@@ -1198,20 +1215,6 @@ public class ProxyConfig extends ProxyConfigDef {
         modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
     logger.info("modifyByArgs: " + argsStr);
 
-    TenantInfo tenantInfo;
-    if (StringUtils.isNotBlank(serverToServiceClientId)
-        && StringUtils.isNotBlank(serverToServiceClientSecret)
-        && StringUtils.isNotBlank(cspOrgId)) {
-      proxyAuthMethod = CSP_CLIENT_CREDENTIALS;
-      tenantInfo =
-          new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
-    } else if (StringUtils.isNotBlank(cspAPIToken)) {
-      proxyAuthMethod = CSP_API_TOKEN;
-      tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
-    } else {
-      tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
-    }
-
     // Config file
     if (pushConfigFile != null) {
       ReportableConfig confFile = new ReportableConfig();
@@ -1239,6 +1242,15 @@ public class ProxyConfig extends ProxyConfigDef {
       modifyByArgs.removeAll(modifyByFile); // argument are override by the config file
       configFileExtraArguments(confFile);
     }
+
+    TenantInfo tenantInfo =
+        constructTenantInfoObject(
+            serverToServiceClientId,
+            serverToServiceClientSecret,
+            cspOrgId,
+            cspAPIToken,
+            token,
+            server);
 
     multicastingTenantList.put(
         APIContainer.CENTRAL_TENANT_NAME,
@@ -1452,5 +1464,38 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       return Integer.compare(this.order, other.order);
     }
+  }
+
+  /**
+   * Helper function to construct tenant info {@link TenantInfo} object based on input parameters.
+   *
+   * @param serverToServiceClientId the CSP OAuth app id.
+   * @param serverToServiceClientSecret the CSP OAuth app secret.
+   * @param cspOrgId the CSP organisation id.
+   * @param cspAPIToken the CSP API token.
+   * @param token the Wavefront API token.
+   * @param server the server url.
+   * @return constructed tenant info {@link TenantInfo} object.
+   */
+  private TenantInfo constructTenantInfoObject(
+      @Nullable final String serverToServiceClientId,
+      @Nullable final String serverToServiceClientSecret,
+      @Nullable final String cspOrgId,
+      @Nullable final String cspAPIToken,
+      @Nonnull final String token,
+      @Nonnull final String server) {
+
+    TenantInfo tenantInfo;
+    if (StringUtils.isNotBlank(serverToServiceClientId)
+        && StringUtils.isNotBlank(serverToServiceClientSecret)
+        && StringUtils.isNotBlank(cspOrgId)) {
+      tenantInfo =
+          new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
+    } else if (StringUtils.isNotBlank(cspAPIToken)) {
+      tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
+    } else {
+      tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
+    }
+    return tenantInfo;
   }
 }
