@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.ProxyConfig.PROXY_AUTH_METHOD.*;
+import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.CSP_API_TOKEN;
+import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.WAVEFRONT_API_TOKEN;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -17,7 +18,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
@@ -54,20 +54,17 @@ public class ProxyConfig extends ProxyConfigDef {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
-  protected Map<String, Map<String, TenantInfo>> multicastingTenantList = Maps.newHashMap();
+  protected Map<String, TenantInfo> multicastingTenantList = Maps.newHashMap();
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
   // Selecting the appropriate Wavefront proxy authentication method depending on the proxy
   // settings.
-  public enum PROXY_AUTH_METHOD {
+  public enum ProxyAuthMethod {
     CSP_API_TOKEN,
     WAVEFRONT_API_TOKEN,
     CSP_CLIENT_CREDENTIALS
   }
-
-  // The field must be set based on the proxy settings.
-  private String selectedToken;
 
   public boolean isHelp() {
     return help;
@@ -79,10 +76,6 @@ public class ProxyConfig extends ProxyConfigDef {
 
   public String getPrefix() {
     return prefix;
-  }
-
-  public String getToken() {
-    return selectedToken;
   }
 
   public boolean isTestLogs() {
@@ -962,7 +955,7 @@ public class ProxyConfig extends ProxyConfigDef {
     return trafficShapingHeadroom;
   }
 
-  public Map<String, Map<String, TenantInfo>> getMulticastingTenantList() {
+  public Map<String, TenantInfo> getMulticastingTenantList() {
     return multicastingTenantList;
   }
 
@@ -1040,9 +1033,7 @@ public class ProxyConfig extends ProxyConfigDef {
               tenantToken,
               tenantServer);
 
-      multicastingTenantList.put(
-          tenantName,
-          ImmutableMap.of(APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
+      multicastingTenantList.put(tenantName, tenantInfo);
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1252,10 +1243,7 @@ public class ProxyConfig extends ProxyConfigDef {
             token,
             server);
 
-    multicastingTenantList.put(
-        APIContainer.CENTRAL_TENANT_NAME,
-        ImmutableMap.of(APIContainer.API_SERVER, tenantInfo, APIContainer.API_TOKEN, tenantInfo));
-    selectedToken = tenantInfo.getToken();
+    multicastingTenantList.put(APIContainer.CENTRAL_TENANT_NAME, tenantInfo);
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 

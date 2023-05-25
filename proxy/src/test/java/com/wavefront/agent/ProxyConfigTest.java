@@ -9,7 +9,6 @@ import com.wavefront.agent.data.TaskQueueLevel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
 import org.junit.Test;
 
@@ -74,21 +73,20 @@ public class ProxyConfigTest {
     assertTrue(cfg.parseArguments(args, ""));
 
     // default values
-    Map<String, TenantInfo> info =
-        cfg.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME);
+    TenantInfo info = cfg.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME);
     assertNotNull(info);
-    assertEquals("http://localhost:8080/api/", info.get(APIContainer.API_SERVER).getTenantServer());
-    assertEquals("undefined", info.get(APIContainer.API_TOKEN).getToken());
+    assertEquals("http://localhost:8080/api/", info.getServer());
+    assertEquals("undefined", info.getToken());
 
     info = cfg.getMulticastingTenantList().get("name1");
     assertNotNull(info);
-    assertEquals("server1", info.get(APIContainer.API_SERVER).getTenantServer());
-    assertEquals("token1", info.get(APIContainer.API_TOKEN).getToken());
+    assertEquals("server1", info.getServer());
+    assertEquals("token1", info.getToken());
 
     info = cfg.getMulticastingTenantList().get("name2");
     assertNotNull(info);
-    assertEquals("server2", info.get(APIContainer.API_SERVER).getTenantServer());
-    assertEquals("token2", info.get(APIContainer.API_TOKEN).getToken());
+    assertEquals("server2", info.getServer());
+    assertEquals("token2", info.getToken());
 
     assertNull(cfg.getMulticastingTenantList().get("fake"));
   }

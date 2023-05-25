@@ -194,7 +194,11 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
                 .proxyCheckin(
                     UUID.fromString(request.headers().get("X-WF-PROXY-ID")),
-                    "Bearer " + proxyConfig.getToken(),
+                    "Bearer "
+                        + proxyConfig
+                            .getMulticastingTenantList()
+                            .get(APIContainer.CENTRAL_TENANT_NAME)
+                            .getToken(),
                     query.get("hostname"),
                     query.get("proxyname"),
                     query.get("version"),

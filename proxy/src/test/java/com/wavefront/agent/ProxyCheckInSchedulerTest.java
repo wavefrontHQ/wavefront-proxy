@@ -1,6 +1,6 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.ProxyConfig.PROXY_AUTH_METHOD.WAVEFRONT_API_TOKEN;
+import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.WAVEFRONT_API_TOKEN;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
@@ -45,12 +45,7 @@ public class ProxyCheckInSchedulerTest {
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -106,12 +101,7 @@ public class ProxyCheckInSchedulerTest {
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -169,12 +159,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -240,12 +225,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -350,12 +330,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -508,12 +483,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -582,12 +552,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -646,12 +611,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -705,12 +665,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -764,12 +719,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
@@ -832,12 +782,7 @@ public class ProxyCheckInSchedulerTest {
 
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getMulticastingTenantList())
-        .andReturn(
-            ImmutableMap.of(
-                APIContainer.CENTRAL_TENANT_NAME,
-                ImmutableMap.of(
-                    APIContainer.API_SERVER, tenantInfo,
-                    APIContainer.API_TOKEN, tenantInfo)))
+        .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();

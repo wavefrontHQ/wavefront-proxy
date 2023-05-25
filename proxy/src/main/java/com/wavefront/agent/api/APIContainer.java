@@ -47,8 +47,6 @@ import org.jboss.resteasy.spi.ResteasyProviderFactory;
  */
 public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
-  public static final String API_SERVER = "server";
-  public static final String API_TOKEN = "token";
   public static final String LE_MANS_INGESTION_PATH =
       "le-mans/v1/streams/ingestion-pipeline-stream";
 
@@ -88,10 +86,10 @@ public class APIContainer {
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;
-    for (Map.Entry<String, Map<String, TenantInfo>> tenantInfo :
+    for (Map.Entry<String, TenantInfo> tenantInfoEntry :
         proxyConfig.getMulticastingTenantList().entrySet()) {
-      tenantName = tenantInfo.getKey();
-      tenantServer = tenantInfo.getValue().get(API_SERVER).getTenantServer();
+      tenantName = tenantInfoEntry.getKey();
+      tenantServer = tenantInfoEntry.getValue().getServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
@@ -301,7 +299,15 @@ public class APIContainer {
                       || context.getUri().getPath().contains("/v2/source")
                       || context.getUri().getPath().contains("/event"))
                   && !context.getUri().getPath().endsWith("checkin")) {
-                context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
+                context
+                    .getHeaders()
+                    .add(
+                        "Authorization",
+                        "Bearer "
+                            + proxyConfig
+                                .getMulticastingTenantList()
+                                .get(APIContainer.CENTRAL_TENANT_NAME)
+                                .getToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
                 context.getHeaders().add("Authorization", "Bearer " + logServerToken);
               }
