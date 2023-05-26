@@ -1236,8 +1236,8 @@ public class ProxyConfig extends ProxyConfigDef {
 
     TenantInfo tenantInfo =
         constructTenantInfoObject(
-            serverToServiceClientId,
-            serverToServiceClientSecret,
+            cspServerToServerAppClientId,
+            cspServerToServerAppClientSecret,
             cspOrgId,
             cspAPIToken,
             token,
@@ -1457,8 +1457,8 @@ public class ProxyConfig extends ProxyConfigDef {
   /**
    * Helper function to construct tenant info {@link TenantInfo} object based on input parameters.
    *
-   * @param serverToServiceClientId the CSP OAuth app id.
-   * @param serverToServiceClientSecret the CSP OAuth app secret.
+   * @param serverToServiceClientId the CSP OAuth server to server app id.
+   * @param serverToServiceClientSecret the CSP OAuth server to server app client secret.
    * @param cspOrgId the CSP organisation id.
    * @param cspAPIToken the CSP API token.
    * @param token the Wavefront API token.
@@ -1479,10 +1479,19 @@ public class ProxyConfig extends ProxyConfigDef {
         && StringUtils.isNotBlank(cspOrgId)) {
       tenantInfo =
           new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
+      logger.info(
+          "The proxy selected the CSP OAuth server to server app credentials for further authentication. For the server "
+              + server);
     } else if (StringUtils.isNotBlank(cspAPIToken)) {
       tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
+      logger.info(
+          "The proxy selected the CSP api token for further authentication. For the server "
+              + server);
     } else {
       tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
+      logger.info(
+          "The proxy selected the Wavefront api token for further authentication. For the server "
+              + server);
     }
     return tenantInfo;
   }

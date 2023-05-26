@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.ProxyConfigDef.cspBaseUrl;
 import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 
@@ -24,12 +25,10 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 public class TenantInfo {
   private static final String GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE =
       "Failed to get access token from CSP.";
-  private static final String cspBaseUrl = "https://console-stg.cloud.vmware.com";
+  private static final ScheduledExecutorService executor =
+      Executors.newScheduledThreadPool(1, new NamedThreadFactory("token-configuration"));
   private String bearerToken;
   private final String server;
-
-  private final ScheduledExecutorService executor =
-      Executors.newScheduledThreadPool(1, new NamedThreadFactory("token-configuration"));
 
   public TenantInfo(
       @Nonnull final String token,
@@ -102,16 +101,16 @@ public class TenantInfo {
     this.bearerToken = tokenExchangeResponseDTO.getAccessToken();
     executor.schedule(
         () -> loadAccessTokenByAPIToken(apiToken),
-        tokenExchangeResponseDTO.getExpiresIn(),
+        getTimeOffset(tokenExchangeResponseDTO.getExpiresIn()),
         TimeUnit.SECONDS);
   }
 
   /**
-   * When the CSP access token has expired, obtain it using server by server app url and client
-   * credentials.
+   * When the CSP access token has expired, obtain it using server to server OAuth app's client id
+   * and client secret.
    *
-   * @param clientId the CSP OAuth app client id.
-   * @param clientSecret the CSP OAuth app client secret.
+   * @param clientId a server-to-server OAuth app's client id.
+   * @param clientSecret a server-to-server OAuth app's client secret.
    * @param orgId the CSP organisation id.
    * @throws RuntimeException when CSP is down or wrong csp client credentials.
    */
@@ -150,7 +149,7 @@ public class TenantInfo {
     this.bearerToken = tokenExchangeResponseDTO.getAccessToken();
     executor.schedule(
         () -> loadAccessTokenByClientCredentials(clientId, clientSecret, orgId),
-        tokenExchangeResponseDTO.getExpiresIn(),
+        getTimeOffset(tokenExchangeResponseDTO.getExpiresIn()),
         TimeUnit.SECONDS);
   }
 
@@ -160,5 +159,23 @@ public class TenantInfo {
         "Basic %s",
         Base64.getEncoder()
             .encodeToString(String.format("%s:%s", clientId, clientSecret).getBytes()));
+  }
+
+  /**
+   * Calculates the time offset for scheduling regular requests to a CSP based on the expiration
+   * time of a CSP access token.
+   *
+   * @param expiresIn the expiration time of the CSP access token in seconds.
+   * @return the calculated time offset.
+   */
+  private int getTimeOffset(int expiresIn) {
+    if (expiresIn < 600) {
+      // If the access token expiration time is less than 10 minutes,
+      // schedule requests 30 seconds before it expires.
+      return expiresIn - 30;
+    }
+    // If the access token expiration time is 10 minutes or more,
+    // schedule requests 3 minutes before it expires.
+    return expiresIn - 180;
   }
 }

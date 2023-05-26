@@ -1515,6 +1515,9 @@ public abstract class ProxyConfigDef extends Configuration {
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;
 
+  /** CSP console URL. This will be used in many places like getting token. */
+  public static final String cspBaseUrl = "https://console-stg.cloud.vmware.com";
+
   @Parameter(
       names = {"--csp-api-token"},
       description = "The CSP api token.")
@@ -1528,16 +1531,16 @@ public abstract class ProxyConfigDef extends Configuration {
    * <p>If this value is present, the csp authentication will kick in by default.
    */
   @Parameter(
-      names = {"--client-id"},
-      description = "App ID of an OAuth app.")
+      names = {"--csp-client-id"},
+      description = "A server-to-server OAuth app's client id.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String serverToServiceClientId = null;
+  String cspServerToServerAppClientId = null;
 
   @Parameter(
-      names = {"--client-secret"},
-      description = "App secret of an OAuth app.")
+      names = {"--csp-client-secret"},
+      description = "A server-to-server OAuth app's client secret.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String serverToServiceClientSecret = null;
+  String cspServerToServerAppClientSecret = null;
 
   @Parameter(
       names = {"--csp-org-id"},

@@ -3,9 +3,8 @@ package com.wavefront.agent;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
-import lombok.Data;
+import javax.annotation.Nonnull;
 
-@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TokenExchangeResponseDTO {
 
@@ -25,6 +24,15 @@ public class TokenExchangeResponseDTO {
 
   @JsonProperty("refresh_token")
   private String refreshToken;
+
+  public int getExpiresIn() {
+    return expiresIn;
+  }
+
+  @Nonnull
+  public String getAccessToken() {
+    return accessToken;
+  }
 
   @Override
   public boolean equals(Object o) {
