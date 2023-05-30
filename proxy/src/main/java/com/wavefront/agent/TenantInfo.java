@@ -15,7 +15,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 
 /**
  * The class for keeping tenant required information token, server.
@@ -81,43 +81,29 @@ public class TenantInfo {
     requestBody.param("api_token", apiToken);
 
     Response response =
-        new ResteasyClientBuilder()
+        new ResteasyClientBuilderImpl()
             .build()
             .target(format("%s/csp/gateway/am/api/auth/api-tokens/authorize", cspBaseUrl))
             .request()
             .post(Entity.form(requestBody));
 
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
-      if (failedRequestsCount < 3) {
-        // If the attempt to get a new access token fails, we'll try three more times because
-        // we have at least three minutes until the access token expires.
-        executor.schedule(
-            () -> loadAccessTokenByAPIToken(apiToken, failedRequestsCount + 1),
-            60,
-            TimeUnit.SECONDS);
-        return;
-      } else {
-        throw new RuntimeException(
-            GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus());
-      }
+      handleFailedTokenRequestByAPIToken(
+          GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus(),
+          apiToken,
+          failedRequestsCount);
+      return;
     }
 
     final TokenExchangeResponseDTO tokenExchangeResponseDTO =
         response.readEntity(TokenExchangeResponseDTO.class);
 
     if (tokenExchangeResponseDTO == null) {
-      if (failedRequestsCount < 3) {
-        // If the attempt to get a new access token fails, we'll try three more times because
-        // we have at least three minutes until the access token expires.
-        executor.schedule(
-            () -> loadAccessTokenByAPIToken(apiToken, failedRequestsCount + 1),
-            60,
-            TimeUnit.SECONDS);
-        return;
-      } else {
-        throw new RuntimeException(
-            GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus());
-      }
+      handleFailedTokenRequestByAPIToken(
+          GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus(),
+          apiToken,
+          failedRequestsCount);
+      return;
     }
 
     this.bearerToken = tokenExchangeResponseDTO.getAccessToken();
@@ -148,7 +134,7 @@ public class TenantInfo {
     requestBody.param("orgId", orgId);
 
     Response response =
-        new ResteasyClientBuilder()
+        new ResteasyClientBuilderImpl()
             .build()
             .target(format("%s/csp/gateway/am/api/auth/authorize", cspBaseUrl))
             .request()
@@ -159,40 +145,26 @@ public class TenantInfo {
             .post(Entity.form(requestBody));
 
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
-      if (failedRequestsCount < 3) {
-        // If the attempt to get a new access token fails, we'll try three more times because
-        // we have at least three minutes until the access token expires.
-        executor.schedule(
-            () ->
-                loadAccessTokenByClientCredentials(
-                    clientId, clientSecret, orgId, failedRequestsCount + 1),
-            60,
-            TimeUnit.SECONDS);
-        return;
-      } else {
-        throw new RuntimeException(
-            GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus());
-      }
+      handleFailedTokenRequestByOAuthApp(
+          GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus(),
+          clientId,
+          clientSecret,
+          orgId,
+          failedRequestsCount);
+      return;
     }
 
     final TokenExchangeResponseDTO tokenExchangeResponseDTO =
         response.readEntity(TokenExchangeResponseDTO.class);
 
     if (tokenExchangeResponseDTO == null) {
-      if (failedRequestsCount < 3) {
-        // If the attempt to get a new access token fails, we'll try three more times because
-        // we have at least three minutes until the access token expires.
-        executor.schedule(
-            () ->
-                loadAccessTokenByClientCredentials(
-                    clientId, clientSecret, orgId, failedRequestsCount + 1),
-            60,
-            TimeUnit.SECONDS);
-        return;
-      } else {
-        throw new RuntimeException(
-            GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus());
-      }
+      handleFailedTokenRequestByOAuthApp(
+          GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE + " Status: " + response.getStatus(),
+          clientId,
+          clientSecret,
+          orgId,
+          failedRequestsCount);
+      return;
     }
 
     this.bearerToken = tokenExchangeResponseDTO.getAccessToken();
@@ -226,5 +198,37 @@ public class TenantInfo {
     // If the access token expiration time is 10 minutes or more,
     // schedule requests 3 minutes before it expires.
     return expiresIn - 180;
+  }
+
+  private void handleFailedTokenRequestByAPIToken(
+      String errorMessage, String apiToken, int failedRequestsCount) {
+    if (failedRequestsCount < 3) {
+      // If the attempt to get a new access token fails, we'll try three more times because
+      // we have at least three minutes until the access token expires.
+      executor.schedule(
+          () -> loadAccessTokenByAPIToken(apiToken, failedRequestsCount + 1), 60, TimeUnit.SECONDS);
+    } else {
+      throw new RuntimeException(errorMessage);
+    }
+  }
+
+  private void handleFailedTokenRequestByOAuthApp(
+      @Nonnull final String errorMessage,
+      @Nonnull final String clientId,
+      @Nonnull final String clientSecret,
+      @Nonnull final String orgId,
+      int failedRequestsCount) {
+    if (failedRequestsCount < 3) {
+      // If the attempt to get a new access token fails, we'll try three more times because
+      // we have at least three minutes until the access token expires.
+      executor.schedule(
+          () ->
+              loadAccessTokenByClientCredentials(
+                  clientId, clientSecret, orgId, failedRequestsCount + 1),
+          60,
+          TimeUnit.SECONDS);
+    } else {
+      throw new RuntimeException(errorMessage);
+    }
   }
 }
