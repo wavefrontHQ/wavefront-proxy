@@ -35,11 +35,11 @@ public class TenantInfo implements Runnable {
   private static final Logger log = Logger.getLogger(ProxyConfig.class.getCanonicalName());
 
   private static final Supplier<Counter> errors =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token", "", "exceptions")));
+      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "exceptions")));
   private static final Supplier<Counter> executions =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token", "", "executions")));
+      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "executions")));
   private static final Supplier<Counter> successfully =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token", "", "successfully")));
+      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "successfully")));
   private static final Supplier<Timer> duration =
       LazySupplier.of(
           () ->
@@ -183,7 +183,7 @@ public class TenantInfo implements Runnable {
   private long processResponse(final Response response) {
     Metrics.newCounter(
             new MetricName(
-                "csp.token.response.code", "", "" + response.getStatusInfo().getStatusCode()))
+                "csp.token.update.response", "", "" + response.getStatusInfo().getStatusCode()))
         .inc();
     long nextIn = 10;
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
