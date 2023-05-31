@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
@@ -35,11 +36,14 @@ public class TenantInfo implements Runnable {
   private static final Logger log = Logger.getLogger(ProxyConfig.class.getCanonicalName());
 
   private static final Supplier<Counter> errors =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "exceptions")));
+      LazySupplier.of(
+          () -> Metrics.newCounter(new MetricName("csp.token.update", "", "exceptions")));
   private static final Supplier<Counter> executions =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "executions")));
+      LazySupplier.of(
+          () -> Metrics.newCounter(new MetricName("csp.token.update", "", "executions")));
   private static final Supplier<Counter> successfully =
-      LazySupplier.of(() -> Metrics.newCounter(new MetricName("csp.token.update", "", "successfully")));
+      LazySupplier.of(
+          () -> Metrics.newCounter(new MetricName("csp.token.update", "", "successfully")));
   private static final Supplier<Timer> duration =
       LazySupplier.of(
           () ->
@@ -48,13 +52,15 @@ public class TenantInfo implements Runnable {
                   TimeUnit.MILLISECONDS,
                   TimeUnit.MINUTES));
 
-  // WF or CSP token
+  // WF api token or CSP access token
   private final String token;
 
-  // CSP id
+  // CSP organisation id
   private final String orgId;
-  private final String clientSecret;
-  private final String clientId;
+  // CSP server to server OAuth app secret
+  private final String appSecret;
+  // CSP server to server OAuth app id
+  private final String appId;
 
   private final String wfServer;
   private final ProxyConfig.ProxyAuthMethod proxyAuthMethod;
@@ -68,25 +74,25 @@ public class TenantInfo implements Runnable {
   }
 
   public TenantInfo(
-      @Nonnull final String clientId,
-      @Nonnull final String clientSecret,
-      @Nonnull final String orgId,
+      @Nullable final String appId,
+      @Nullable final String appSecret,
+      @Nullable final String orgId,
       @Nonnull final String wfServer,
       ProxyConfig.ProxyAuthMethod proxyAuthMethod) {
-    this(clientId, clientSecret, orgId, wfServer, null, proxyAuthMethod);
+    this(appId, appSecret, orgId, wfServer, null, proxyAuthMethod);
   }
 
   private TenantInfo(
-      @Nonnull final String clientId,
-      @Nonnull final String clientSecret,
-      @Nonnull final String orgId,
+      @Nullable final String appId,
+      @Nullable final String appSecret,
+      @Nullable final String orgId,
       @Nonnull final String wfServer,
-      @Nonnull final String token,
+      @Nullable final String token,
       ProxyConfig.ProxyAuthMethod proxyAuthMethod) {
 
     this.wfServer = wfServer;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
+    this.appId = appId;
+    this.appSecret = appSecret;
     this.orgId = orgId;
     this.proxyAuthMethod = proxyAuthMethod;
     this.token = token;
@@ -112,7 +118,7 @@ public class TenantInfo implements Runnable {
   public void run() {
     executions.get().inc();
     TimerContext timer = duration.get().time();
-    log.info("Updating CSP token " + "(" + this.proxyAuthMethod + ").");
+    log.info("Updating CSP access token " + "(" + this.proxyAuthMethod + ").");
     long next = 10; // in case of unexpected exception
     try {
       switch (proxyAuthMethod) {
@@ -166,7 +172,7 @@ public class TenantInfo implements Runnable {
         String.format(
             "Basic %s",
             Base64.getEncoder()
-                .encodeToString(String.format("%s:%s", clientId, clientSecret).getBytes()));
+                .encodeToString(String.format("%s:%s", appId, appSecret).getBytes()));
 
     Response response =
         new ResteasyClientBuilderImpl()

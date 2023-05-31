@@ -1519,7 +1519,7 @@ public abstract class ProxyConfigDef extends Configuration {
   public static final String cspBaseUrl = "https://console-stg.cloud.vmware.com";
 
   @Parameter(
-      names = {"--csp-api-token"},
+      names = {"--cspAPIToken"},
       description = "The CSP api token.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String cspAPIToken = null;
@@ -1531,19 +1531,19 @@ public abstract class ProxyConfigDef extends Configuration {
    * <p>If this value is present, the csp authentication will kick in by default.
    */
   @Parameter(
-      names = {"--csp-client-id"},
-      description = "A server-to-server OAuth app's client id.")
+      names = {"--cspAppId"},
+      description = "A server-to-server OAuth app id.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String cspServerToServerAppClientId = null;
+  String cspAppId = null;
 
   @Parameter(
-      names = {"--csp-client-secret"},
-      description = "A server-to-server OAuth app's client secret.")
+      names = {"--cspAppSecret"},
+      description = "A server-to-server OAuth app secret.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String cspServerToServerAppClientSecret = null;
+  String cspAppSecret = null;
 
   @Parameter(
-      names = {"--csp-org-id"},
+      names = {"--cspOrgId"},
       description = "The CSP organisation identifier.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String cspOrgId = null;

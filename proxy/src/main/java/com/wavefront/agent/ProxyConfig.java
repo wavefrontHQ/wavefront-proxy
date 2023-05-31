@@ -1012,23 +1012,22 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
-      String tenantServerToServiceClientId =
-          config.getProperty(String.format("multicastingServerToServiceClientId_%d", i), "");
-      String tenantServerToServiceClientSecret =
-          config.getProperty(String.format("multicastingServerToServiceClientSecret_%d", i), "");
-      String tenantCspOrgId = config.getProperty(String.format("multicastingCspOrgId_%d", i), "");
-      String tenantCspAPIToken =
-          config.getProperty(String.format("multicastingCspAPIToken_%d", i), "");
+      String tenantCSPAppId = config.getProperty(String.format("multicastingCSPAppId_%d", i), "");
+      String tenantCSPAppSecret =
+          config.getProperty(String.format("multicastingCSPAppSecret_%d", i), "");
+      String tenantCSPOrgId = config.getProperty(String.format("multicastingCSPOrgId_%d", i), "");
+      String tenantCSPAPIToken =
+          config.getProperty(String.format("multicastingCSPAPIToken_%d", i), "");
 
       // Based on the setup parameters, the pertinent tenant information object will be produced
       // using the proper proxy
       // authentication technique.
       TenantInfo tenantInfo =
           constructTenantInfoObject(
-              tenantServerToServiceClientId,
-              tenantServerToServiceClientSecret,
-              tenantCspOrgId,
-              tenantCspAPIToken,
+              tenantCSPAppId,
+              tenantCSPAppSecret,
+              tenantCSPOrgId,
+              tenantCSPAPIToken,
               tenantToken,
               tenantServer);
 
@@ -1234,14 +1233,7 @@ public class ProxyConfig extends ProxyConfigDef {
     }
 
     TenantInfo tenantInfo =
-        constructTenantInfoObject(
-            cspServerToServerAppClientId,
-            cspServerToServerAppClientSecret,
-            cspOrgId,
-            cspAPIToken,
-            token,
-            server);
-
+        constructTenantInfoObject(cspAppId, cspAppSecret, cspOrgId, cspAPIToken, token, server);
     multicastingTenantList.put(APIContainer.CENTRAL_TENANT_NAME, tenantInfo);
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
@@ -1456,8 +1448,8 @@ public class ProxyConfig extends ProxyConfigDef {
   /**
    * Helper function to construct tenant info {@link TenantInfo} object based on input parameters.
    *
-   * @param serverToServiceClientId the CSP OAuth server to server app id.
-   * @param serverToServiceClientSecret the CSP OAuth server to server app client secret.
+   * @param appId the CSP OAuth server to server app id.
+   * @param appSecret the CSP OAuth server to server app secret.
    * @param cspOrgId the CSP organisation id.
    * @param cspAPIToken the CSP API token.
    * @param token the Wavefront API token.
@@ -1465,24 +1457,18 @@ public class ProxyConfig extends ProxyConfigDef {
    * @return constructed tenant info {@link TenantInfo} object.
    */
   private TenantInfo constructTenantInfoObject(
-      @Nullable final String serverToServiceClientId,
-      @Nullable final String serverToServiceClientSecret,
+      @Nullable final String appId,
+      @Nullable final String appSecret,
       @Nullable final String cspOrgId,
       @Nullable final String cspAPIToken,
       @Nonnull final String token,
       @Nonnull final String server) {
 
     TenantInfo tenantInfo;
-    if (StringUtils.isNotBlank(serverToServiceClientId)
-        && StringUtils.isNotBlank(serverToServiceClientSecret)
+    if (StringUtils.isNotBlank(appId)
+        && StringUtils.isNotBlank(appSecret)
         && StringUtils.isNotBlank(cspOrgId)) {
-      tenantInfo =
-          new TenantInfo(
-              serverToServiceClientId,
-              serverToServiceClientSecret,
-              cspOrgId,
-              server,
-              CSP_CLIENT_CREDENTIALS);
+      tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
       logger.info(
           "The proxy selected the CSP OAuth server to server app credentials for further authentication. For the server "
               + server);
