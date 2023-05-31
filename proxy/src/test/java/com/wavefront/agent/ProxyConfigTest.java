@@ -75,18 +75,18 @@ public class ProxyConfigTest {
     // default values
     TenantInfo info = cfg.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME);
     assertNotNull(info);
-    assertEquals("http://localhost:8080/api/", info.getServer());
-    assertEquals("undefined", info.getToken());
+    assertEquals("http://localhost:8080/api/", info.getWFServer());
+    assertEquals("undefined", info.getBearerToken());
 
     info = cfg.getMulticastingTenantList().get("name1");
     assertNotNull(info);
-    assertEquals("server1", info.getServer());
-    assertEquals("token1", info.getToken());
+    assertEquals("server1", info.getWFServer());
+    assertEquals("token1", info.getBearerToken());
 
     info = cfg.getMulticastingTenantList().get("name2");
     assertNotNull(info);
-    assertEquals("server2", info.getServer());
-    assertEquals("token2", info.getToken());
+    assertEquals("server2", info.getWFServer());
+    assertEquals("token2", info.getBearerToken());
 
     assertNull(cfg.getMulticastingTenantList().get("fake"));
   }

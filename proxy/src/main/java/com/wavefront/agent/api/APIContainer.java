@@ -89,7 +89,7 @@ public class APIContainer {
     for (Map.Entry<String, TenantInfo> tenantInfoEntry :
         proxyConfig.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
-      tenantServer = tenantInfoEntry.getValue().getServer();
+      tenantServer = tenantInfoEntry.getValue().getWFServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
@@ -307,7 +307,7 @@ public class APIContainer {
                             + proxyConfig
                                 .getMulticastingTenantList()
                                 .get(APIContainer.CENTRAL_TENANT_NAME)
-                                .getToken());
+                                .getBearerToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
                 context.getHeaders().add("Authorization", "Bearer " + logServerToken);
               }

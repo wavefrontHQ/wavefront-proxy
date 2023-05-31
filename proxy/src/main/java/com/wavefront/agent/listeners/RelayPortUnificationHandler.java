@@ -1,10 +1,8 @@
 package com.wavefront.agent.listeners;
 
-import static com.wavefront.agent.channel.ChannelUtils.*;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
@@ -198,7 +196,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                         + proxyConfig
                             .getMulticastingTenantList()
                             .get(APIContainer.CENTRAL_TENANT_NAME)
-                            .getToken(),
+                            .getBearerToken(),
                     query.get("hostname"),
                     query.get("proxyname"),
                     query.get("version"),

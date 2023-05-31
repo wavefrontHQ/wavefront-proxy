@@ -1,7 +1,6 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.CSP_API_TOKEN;
-import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.WAVEFRONT_API_TOKEN;
+import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.*;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -1478,7 +1477,12 @@ public class ProxyConfig extends ProxyConfigDef {
         && StringUtils.isNotBlank(serverToServiceClientSecret)
         && StringUtils.isNotBlank(cspOrgId)) {
       tenantInfo =
-          new TenantInfo(serverToServiceClientId, serverToServiceClientSecret, cspOrgId, server);
+          new TenantInfo(
+              serverToServiceClientId,
+              serverToServiceClientSecret,
+              cspOrgId,
+              server,
+              CSP_CLIENT_CREDENTIALS);
       logger.info(
           "The proxy selected the CSP OAuth server to server app credentials for further authentication. For the server "
               + server);
