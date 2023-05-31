@@ -187,6 +187,7 @@ public class TenantInfo implements Runnable {
         .inc();
     long nextIn = 10;
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
+      errors.get().inc();
       log.severe(
           GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE
               + "("
