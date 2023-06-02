@@ -20,6 +20,26 @@ server=CHANGE_ME
 # 3. Click *API access*.
 token=CHANGE_ME
 
+# To add a proxy, you need to use an existing API token with AOA service proxy role. If you have no API token yet, you
+# can create one under your account page in VMWare Cloud Service.
+cspAPIToken=CSP_API_TOKEN_HERE
+
+# To add a proxy, you need to use an existing App ID, App Secret for server to serve type of app with AOA service proxy role.
+# If you have no App ID and App Secret yet, you can create one for server to serve type of app under Organization/OAuth
+# Apps menu item in VMWare Cloud Service. Note: Proxy, based on OAuth apps, has no expiration time.
+cspAppId=CSP_APP_ID_HERE
+
+# To add a proxy, you need to use an existing App ID, App Secret for server to serve type of app with AOA service proxy role.
+# If you have no App ID and App Secret yet, you can create one for server to serve type of app under Organization/OAuth
+# Apps menu item in VMWare Cloud Service. Note: Proxy, based on OAuth apps, has no expiration time.
+cspAppSecret=CSP_APP_SECRET_HERE
+
+# The CSP organisation ID.
+cspOrgId=CSP_ORG_ID_HERE
+
+# CSP console URL. This will be used in many places like getting token.
+#cspBaseUrl="https://console.cloud.vmware.com"
+
 ####################################################### INPUTS #########################################################
 # Comma-separated list of ports to listen on for Wavefront formatted data (Default: 2878)
 pushListenerPorts=2878
