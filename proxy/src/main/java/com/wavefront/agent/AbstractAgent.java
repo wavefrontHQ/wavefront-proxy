@@ -322,7 +322,8 @@ public abstract class AbstractAgent {
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
       // config the entityPropertiesFactoryMap
-      for (String tenantName : proxyConfig.getMulticastingTenantList().keySet()) {
+      for (String tenantName :
+          proxyConfig.getTenantInfoManager().getMulticastingTenantList().keySet()) {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
       }
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
@@ -384,7 +385,7 @@ public abstract class AbstractAgent {
   protected void processConfiguration(String tenantName, AgentConfiguration config) {
     try {
       // for all ProxyV2API
-      for (String tn : proxyConfig.getMulticastingTenantList().keySet()) {
+      for (String tn : proxyConfig.getTenantInfoManager().getMulticastingTenantList().keySet()) {
         apiContainer.getProxyV2APIForTenant(tn).proxyConfigProcessed(agentId);
       }
     } catch (RuntimeException e) {

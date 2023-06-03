@@ -19,12 +19,17 @@ public class APIContainerTest {
   public void setup() {
     this.proxyConfig = new ProxyConfig();
     TenantInfo tenantInfo = new TenantInfo("fake-token", "fake-url", WAVEFRONT_API_TOKEN);
-    this.proxyConfig.getMulticastingTenantList().put("central", tenantInfo);
+    this.proxyConfig
+        .getTenantInfoManager()
+        .getMulticastingTenantList()
+        .put(APIContainer.CENTRAL_TENANT_NAME, tenantInfo);
     for (int i = 0; i < NUM_TENANTS; i++) {
       TenantInfo tenantInfo1 =
           new TenantInfo("fake-token" + i, "fake-url" + i, WAVEFRONT_API_TOKEN);
-
-      this.proxyConfig.getMulticastingTenantList().put("tenant-" + i, tenantInfo1);
+      this.proxyConfig
+          .getTenantInfoManager()
+          .getMulticastingTenantList()
+          .put("tenant-" + i, tenantInfo1);
     }
   }
 

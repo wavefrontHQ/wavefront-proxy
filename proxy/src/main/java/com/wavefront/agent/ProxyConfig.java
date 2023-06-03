@@ -1,6 +1,5 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.*;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -17,7 +16,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Categories;
@@ -36,7 +34,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
@@ -53,7 +50,7 @@ public class ProxyConfig extends ProxyConfigDef {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
-  protected Map<String, TenantInfo> multicastingTenantList = Maps.newHashMap();
+  protected TenantInfoManager tenantInfoManager = new TenantInfoManager();
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
@@ -954,8 +951,9 @@ public class ProxyConfig extends ProxyConfigDef {
     return trafficShapingHeadroom;
   }
 
-  public Map<String, TenantInfo> getMulticastingTenantList() {
-    return multicastingTenantList;
+  @JsonIgnore
+  public TenantInfoManager getTenantInfoManager() {
+    return tenantInfoManager;
   }
 
   public List<String> getCorsEnabledPorts() {
@@ -1022,16 +1020,14 @@ public class ProxyConfig extends ProxyConfigDef {
       // Based on the setup parameters, the pertinent tenant information object will be produced
       // using the proper proxy
       // authentication technique.
-      TenantInfo tenantInfo =
-          constructTenantInfoObject(
-              tenantCSPAppId,
-              tenantCSPAppSecret,
-              tenantCSPOrgId,
-              tenantCSPAPIToken,
-              tenantToken,
-              tenantServer);
-
-      multicastingTenantList.put(tenantName, tenantInfo);
+      tenantInfoManager.constructTenantInfoObject(
+          tenantCSPAppId,
+          tenantCSPAppSecret,
+          tenantCSPOrgId,
+          tenantCSPAPIToken,
+          tenantToken,
+          tenantServer,
+          tenantName);
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1232,9 +1228,14 @@ public class ProxyConfig extends ProxyConfigDef {
       configFileExtraArguments(confFile);
     }
 
-    TenantInfo tenantInfo =
-        constructTenantInfoObject(cspAppId, cspAppSecret, cspOrgId, cspAPIToken, token, server);
-    multicastingTenantList.put(APIContainer.CENTRAL_TENANT_NAME, tenantInfo);
+    tenantInfoManager.constructTenantInfoObject(
+        cspAppId,
+        cspAppSecret,
+        cspOrgId,
+        cspAPIToken,
+        token,
+        server,
+        APIContainer.CENTRAL_TENANT_NAME);
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 
@@ -1445,44 +1446,8 @@ public class ProxyConfig extends ProxyConfigDef {
     }
   }
 
-  /**
-   * Helper function to construct tenant info {@link TenantInfo} object based on input parameters.
-   *
-   * @param appId the CSP OAuth server to server app id.
-   * @param appSecret the CSP OAuth server to server app secret.
-   * @param cspOrgId the CSP organisation id.
-   * @param cspAPIToken the CSP API token.
-   * @param token the Wavefront API token.
-   * @param server the server url.
-   * @return constructed tenant info {@link TenantInfo} object.
-   */
-  private TenantInfo constructTenantInfoObject(
-      @Nullable final String appId,
-      @Nullable final String appSecret,
-      @Nullable final String cspOrgId,
-      @Nullable final String cspAPIToken,
-      @Nonnull final String token,
-      @Nonnull final String server) {
-
-    TenantInfo tenantInfo;
-    if (StringUtils.isNotBlank(appId)
-        && StringUtils.isNotBlank(appSecret)
-        && StringUtils.isNotBlank(cspOrgId)) {
-      tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
-      logger.info(
-          "The proxy selected the CSP OAuth server to server app credentials for further authentication. For the server "
-              + server);
-    } else if (StringUtils.isNotBlank(cspAPIToken)) {
-      tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
-      logger.info(
-          "The proxy selected the CSP api token for further authentication. For the server "
-              + server);
-    } else {
-      tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
-      logger.info(
-          "The proxy selected the Wavefront api token for further authentication. For the server "
-              + server);
-    }
-    return tenantInfo;
+  /** Calling the function should only be done for testing purposes. */
+  void setTenantInfoManager(@Nonnull final TenantInfoManager tenantInfoManager) {
+    this.tenantInfoManager = tenantInfoManager;
   }
 }

@@ -1,11 +1,9 @@
 package com.wavefront.agent;
 
 import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.WAVEFRONT_API_TOKEN;
-import static com.wavefront.agent.ProxyConfigDef.cspBaseUrl;
-import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 
-import com.google.common.net.HttpHeaders;
+import com.wavefront.agent.auth.CSPAuthConnector;
 import com.wavefront.common.LazySupplier;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
@@ -13,7 +11,6 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
-import java.util.Base64;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,12 +19,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 
+/**
+ * If the tenant came from CSP, the tenant's token will be frequently updated by the class, which
+ * stores tenant-related data.
+ *
+ * @author Norayr Chaparyan(nchaparyan@vmware.com).
+ */
 public class TenantInfo implements Runnable {
   private static final String GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE =
       "Failed to get access token from CSP.";
@@ -51,20 +50,10 @@ public class TenantInfo implements Runnable {
                   new MetricName("csp.token.update", "", "duration"),
                   TimeUnit.MILLISECONDS,
                   TimeUnit.MINUTES));
-
-  // WF api token or CSP access token
-  private final String token;
-
-  // CSP organisation id
-  private final String orgId;
-  // CSP server to server OAuth app secret
-  private final String appSecret;
-  // CSP server to server OAuth app id
-  private final String appId;
-
   private final String wfServer;
   private final ProxyConfig.ProxyAuthMethod proxyAuthMethod;
   private String bearerToken;
+  private CSPAuthConnector cspAuthConnector;
 
   public TenantInfo(
       @Nonnull final String token,
@@ -91,16 +80,12 @@ public class TenantInfo implements Runnable {
       ProxyConfig.ProxyAuthMethod proxyAuthMethod) {
 
     this.wfServer = wfServer;
-    this.appId = appId;
-    this.appSecret = appSecret;
-    this.orgId = orgId;
     this.proxyAuthMethod = proxyAuthMethod;
-    this.token = token;
 
     if (proxyAuthMethod == WAVEFRONT_API_TOKEN) {
-      bearerToken = token;
+      this.bearerToken = token;
     } else {
-      run();
+      this.cspAuthConnector = new CSPAuthConnector(appId, appSecret, orgId, token);
     }
   }
 
@@ -109,7 +94,6 @@ public class TenantInfo implements Runnable {
     return wfServer;
   }
 
-  @Nonnull
   public String getBearerToken() {
     return bearerToken;
   }
@@ -123,10 +107,10 @@ public class TenantInfo implements Runnable {
     try {
       switch (proxyAuthMethod) {
         case CSP_CLIENT_CREDENTIALS:
-          next = loadAccessTokenByClientCredentials();
+          next = processResponse(cspAuthConnector.loadAccessTokenByClientCredentials());
           break;
         case CSP_API_TOKEN:
-          next = loadAccessTokenByAPIToken();
+          next = processResponse(cspAuthConnector.loadAccessTokenByAPIToken());
           break;
       }
     } catch (Throwable e) {
@@ -137,53 +121,6 @@ public class TenantInfo implements Runnable {
       timer.stop();
       executor.schedule(this, next, TimeUnit.SECONDS);
     }
-  }
-
-  /**
-   * When the CSP access token has expired, obtain it using the CSP api token.
-   *
-   * @throws RuntimeException when CSP is down or wrong CSP api token.
-   */
-  private long loadAccessTokenByAPIToken() {
-    Form requestBody = new Form();
-    requestBody.param("grant_type", "api_token");
-    requestBody.param("api_token", this.token);
-
-    Response response =
-        new ResteasyClientBuilderImpl()
-            .build()
-            .target(format("%s/csp/gateway/am/api/auth/api-tokens/authorize", cspBaseUrl))
-            .request()
-            .post(Entity.form(requestBody));
-
-    return processResponse(response);
-  }
-
-  /**
-   * When the CSP access token has expired, obtain it using server to server OAuth app's client id
-   * and client secret.
-   */
-  private long loadAccessTokenByClientCredentials() {
-    Form requestBody = new Form();
-    requestBody.param("grant_type", "client_credentials");
-    requestBody.param("orgId", orgId);
-
-    String auth =
-        String.format(
-            "Basic %s",
-            Base64.getEncoder()
-                .encodeToString(String.format("%s:%s", appId, appSecret).getBytes()));
-
-    Response response =
-        new ResteasyClientBuilderImpl()
-            .build()
-            .target(format("%s/csp/gateway/am/api/auth/authorize", cspBaseUrl))
-            .request()
-            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED)
-            .header(HttpHeaders.AUTHORIZATION, auth)
-            .post(Entity.form(requestBody));
-
-    return processResponse(response);
   }
 
   private long processResponse(final Response response) {
@@ -199,7 +136,7 @@ public class TenantInfo implements Runnable {
               + "("
               + this.proxyAuthMethod
               + ") Status: "
-              + response.getStatus());
+              + response.getStatusInfo().getStatusCode());
     } else {
       try {
         final TokenExchangeResponseDTO tokenExchangeResponseDTO =
@@ -230,5 +167,10 @@ public class TenantInfo implements Runnable {
       return expiresIn - 30;
     }
     return expiresIn - 180;
+  }
+
+  /** Calling the function should only be done for testing purposes. */
+  void setCSPAuthConnector(@Nonnull final CSPAuthConnector cspAuthConnector) {
+    this.cspAuthConnector = cspAuthConnector;
   }
 }

@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
 
 import com.beust.jcommander.ParameterException;
@@ -10,6 +11,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+import org.easymock.EasyMock;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -73,22 +75,25 @@ public class ProxyConfigTest {
     assertTrue(cfg.parseArguments(args, ""));
 
     // default values
-    TenantInfo info = cfg.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME);
+    TenantInfo info =
+        cfg.getTenantInfoManager()
+            .getMulticastingTenantList()
+            .get(APIContainer.CENTRAL_TENANT_NAME);
     assertNotNull(info);
     assertEquals("http://localhost:8080/api/", info.getWFServer());
     assertEquals("undefined", info.getBearerToken());
 
-    info = cfg.getMulticastingTenantList().get("name1");
+    info = cfg.getTenantInfoManager().getMulticastingTenantList().get("name1");
     assertNotNull(info);
     assertEquals("server1", info.getWFServer());
     assertEquals("token1", info.getBearerToken());
 
-    info = cfg.getMulticastingTenantList().get("name2");
+    info = cfg.getTenantInfoManager().getMulticastingTenantList().get("name2");
     assertNotNull(info);
     assertEquals("server2", info.getWFServer());
     assertEquals("token2", info.getBearerToken());
 
-    assertNull(cfg.getMulticastingTenantList().get("fake"));
+    assertNull(cfg.getTenantInfoManager().getMulticastingTenantList().get("fake"));
   }
 
   @Test
@@ -188,5 +193,121 @@ public class ProxyConfigTest {
     config.parseArguments(
         new String[] {"--otlpAppTagsOnMetricsIncluded", String.valueOf(false)}, "PushAgentTest");
     assertFalse(config.isOtlpAppTagsOnMetricsIncluded());
+  }
+
+  @Test
+  public void testMultiTenantUsingCSPAPIToken() throws IOException {
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
+    File cfgFile = File.createTempFile("proxy", ".cfg");
+    cfgFile.deleteOnExit();
+
+    Properties props = new Properties();
+    props.setProperty("pushListenerPorts", "1234");
+
+    props.setProperty("multicastingTenants", "2");
+
+    props.setProperty("multicastingTenantName_1", "name1");
+    props.setProperty("multicastingServer_1", "server1");
+    props.setProperty("multicastingCSPAPIToken_1", "csp-api-token1");
+
+    props.setProperty("multicastingTenantName_2", "name2");
+    props.setProperty("multicastingServer_2", "server2");
+    props.setProperty("multicastingCSPAPIToken_2", "csp-api-token2");
+
+    FileOutputStream out = new FileOutputStream(cfgFile);
+    props.store(out, "");
+    out.close();
+
+    String[] args =
+        new String[] {
+          "-f", cfgFile.getAbsolutePath(),
+          "--pushListenerPorts", "4321",
+          "--proxyname", "proxyname"
+        };
+
+    ProxyConfig proxyConfig = new ProxyConfig();
+    proxyConfig.setTenantInfoManager(tenantInfoManager);
+
+    tenantInfoManager.constructTenantInfoObject(
+        "", "", "", "csp-api-token1", "", "server1", "name1");
+    expectLastCall();
+
+    tenantInfoManager.constructTenantInfoObject(
+        "", "", "", "csp-api-token2", "", "server2", "name2");
+    expectLastCall();
+
+    tenantInfoManager.constructTenantInfoObject(
+        null,
+        null,
+        null,
+        null,
+        proxyConfig.token,
+        proxyConfig.server,
+        APIContainer.CENTRAL_TENANT_NAME);
+    expectLastCall();
+    replay(tenantInfoManager);
+
+    assertTrue(proxyConfig.parseArguments(args, ""));
+    verify(tenantInfoManager);
+  }
+
+  @Test
+  public void testMultiTenantUsingCSPOAuthApp() throws IOException {
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
+    File cfgFile = File.createTempFile("proxy", ".cfg");
+    cfgFile.deleteOnExit();
+
+    Properties props = new Properties();
+    props.setProperty("pushListenerPorts", "1234");
+
+    props.setProperty("multicastingTenants", "2");
+
+    props.setProperty("multicastingTenantName_1", "name1");
+    props.setProperty("multicastingServer_1", "server1");
+    props.setProperty("multicastingCSPAppId_1", "app-id1");
+    props.setProperty("multicastingCSPAppSecret_1", "app-secret1");
+    props.setProperty("multicastingCSPOrgId_1", "org-id1");
+
+    props.setProperty("multicastingTenantName_2", "name2");
+    props.setProperty("multicastingServer_2", "server2");
+    props.setProperty("multicastingCSPAppId_2", "app-id2");
+    props.setProperty("multicastingCSPAppSecret_2", "app-secret2");
+    props.setProperty("multicastingCSPOrgId_2", "org-id2");
+
+    FileOutputStream out = new FileOutputStream(cfgFile);
+    props.store(out, "");
+    out.close();
+
+    String[] args =
+        new String[] {
+          "-f", cfgFile.getAbsolutePath(),
+          "--pushListenerPorts", "4321",
+          "--proxyname", "proxyname"
+        };
+
+    ProxyConfig proxyConfig = new ProxyConfig();
+    proxyConfig.setTenantInfoManager(tenantInfoManager);
+
+    tenantInfoManager.constructTenantInfoObject(
+        "app-id1", "app-secret1", "org-id1", "", "", "server1", "name1");
+    expectLastCall();
+
+    tenantInfoManager.constructTenantInfoObject(
+        "app-id2", "app-secret2", "org-id2", "", "", "server2", "name2");
+    expectLastCall();
+
+    tenantInfoManager.constructTenantInfoObject(
+        null,
+        null,
+        null,
+        null,
+        proxyConfig.token,
+        proxyConfig.server,
+        APIContainer.CENTRAL_TENANT_NAME);
+    expectLastCall();
+    replay(tenantInfoManager);
+
+    assertTrue(proxyConfig.parseArguments(args, ""));
+    verify(tenantInfoManager);
   }
 }

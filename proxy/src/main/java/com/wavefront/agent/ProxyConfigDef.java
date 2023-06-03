@@ -1515,8 +1515,11 @@ public abstract class ProxyConfigDef extends Configuration {
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;
 
-  /** CSP console URL. This will be used in many places like getting token. */
-  public static final String cspBaseUrl = "https://console-stg.cloud.vmware.com";
+  @Parameter(
+      names = {"--cspBaseUrl"},
+      description = "The CSP base url. By default stg.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  public static String cspBaseUrl = "https://console-stg.cloud.vmware.com";
 
   @Parameter(
       names = {"--cspAPIToken"},

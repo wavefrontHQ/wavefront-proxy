@@ -87,7 +87,7 @@ public class APIContainer {
     String tenantName;
     String tenantServer;
     for (Map.Entry<String, TenantInfo> tenantInfoEntry :
-        proxyConfig.getMulticastingTenantList().entrySet()) {
+        proxyConfig.getTenantInfoManager().getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
@@ -305,6 +305,7 @@ public class APIContainer {
                         "Authorization",
                         "Bearer "
                             + proxyConfig
+                                .getTenantInfoManager()
                                 .getMulticastingTenantList()
                                 .get(APIContainer.CENTRAL_TENANT_NAME)
                                 .getBearerToken());

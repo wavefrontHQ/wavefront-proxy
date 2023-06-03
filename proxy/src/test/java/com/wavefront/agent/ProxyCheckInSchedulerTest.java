@@ -39,12 +39,14 @@ public class ProxyCheckInSchedulerTest {
   @Test
   public void testNormalCheckin() {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -58,7 +60,7 @@ public class ProxyCheckInSchedulerTest {
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
     returnConfig.currentTime = System.currentTimeMillis();
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -87,7 +89,7 @@ public class ProxyCheckInSchedulerTest {
             () -> {},
             () -> {});
     scheduler.scheduleCheckins();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
     assertEquals(1, scheduler.getSuccessfulCheckinCount());
     scheduler.shutdown();
   }
@@ -97,10 +99,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -113,7 +117,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setShutOffAgents(true);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -145,7 +149,7 @@ public class ProxyCheckInSchedulerTest {
             () -> {});
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
     assertTrue(shutdown.get());
   }
 
@@ -154,11 +158,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -220,11 +225,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/zzz", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -235,7 +241,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
@@ -317,7 +323,7 @@ public class ProxyCheckInSchedulerTest {
     scheduler.updateConfiguration();
     scheduler.updateConfiguration();
     scheduler.updateConfiguration();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -325,11 +331,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/zzz", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -341,7 +348,7 @@ public class ProxyCheckInSchedulerTest {
     expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
@@ -470,7 +477,7 @@ public class ProxyCheckInSchedulerTest {
     scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -478,11 +485,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/zzz", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -495,7 +503,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -539,7 +547,7 @@ public class ProxyCheckInSchedulerTest {
             (tenantName, config) -> assertEquals(1234567L, config.getPointsPerBatch().longValue()),
             () -> {},
             () -> {});
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -547,11 +555,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/zzz", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -562,7 +571,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -598,7 +607,7 @@ public class ProxyCheckInSchedulerTest {
     } catch (RuntimeException e) {
       //
     }
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -606,11 +615,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -621,7 +631,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
@@ -652,7 +662,7 @@ public class ProxyCheckInSchedulerTest {
     } catch (RuntimeException e) {
       //
     }
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -660,11 +670,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -675,7 +686,7 @@ public class ProxyCheckInSchedulerTest {
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
@@ -706,7 +717,7 @@ public class ProxyCheckInSchedulerTest {
     } catch (RuntimeException e) {
       //
     }
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
   }
 
   @Test
@@ -714,11 +725,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -738,7 +750,7 @@ public class ProxyCheckInSchedulerTest {
     ValidationConfiguration validationConfiguration = new ValidationConfiguration();
     validationConfiguration.setEnableHyperlogsConvergedCsp(true);
     returnConfig.setValidationConfiguration(validationConfiguration);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -767,7 +779,7 @@ public class ProxyCheckInSchedulerTest {
             () -> {},
             () -> {});
     scheduler.scheduleCheckins();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
     assertEquals(1, scheduler.getSuccessfulCheckinCount());
     scheduler.shutdown();
   }
@@ -777,11 +789,12 @@ public class ProxyCheckInSchedulerTest {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfoManager tenantInfoManager = EasyMock.createMock(TenantInfoManager.class);
     TenantInfo tenantInfo =
         new TenantInfo("abcde12345", "https://acme.corp/api", WAVEFRONT_API_TOKEN);
-
     reset(proxyConfig, proxyV2API, proxyConfig);
-    expect(proxyConfig.getMulticastingTenantList())
+    expect(proxyConfig.getTenantInfoManager()).andReturn(tenantInfoManager).anyTimes();
+    expect(tenantInfoManager.getMulticastingTenantList())
         .andReturn(ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tenantInfo))
         .anyTimes();
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
@@ -802,7 +815,7 @@ public class ProxyCheckInSchedulerTest {
     ValidationConfiguration validationConfiguration = new ValidationConfiguration();
     validationConfiguration.setEnableHyperlogsConvergedCsp(true);
     returnConfig.setValidationConfiguration(validationConfiguration);
-    replay(proxyConfig);
+    replay(proxyConfig, tenantInfoManager);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(
             proxyV2API.proxyCheckin(
@@ -831,7 +844,7 @@ public class ProxyCheckInSchedulerTest {
             () -> {},
             () -> {});
     scheduler.scheduleCheckins();
-    verify(proxyConfig, proxyV2API, apiContainer);
+    verify(proxyConfig, proxyV2API, apiContainer, tenantInfoManager);
     assertEquals(1, scheduler.getSuccessfulCheckinCount());
     scheduler.shutdown();
   }

@@ -37,8 +37,8 @@ cspAppSecret=CSP_APP_SECRET_HERE
 # The CSP organisation ID.
 cspOrgId=CSP_ORG_ID_HERE
 
-# CSP console URL. This will be used in many places like getting token.
-#cspBaseUrl="https://console.cloud.vmware.com"
+# CSP console URL. This will be used in many places like getting token. If you wish to use the csp stg url, comment the line.
+cspBaseUrl=https://console.cloud.vmware.com
 
 ####################################################### INPUTS #########################################################
 # Comma-separated list of ports to listen on for Wavefront formatted data (Default: 2878)
