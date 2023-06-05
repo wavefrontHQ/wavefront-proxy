@@ -1,9 +1,15 @@
 FROM eclipse-temurin:11
 
-# This script may automatically configure wavefront without prompting, based on
-# these variables:
+# Wavefront authentication can be configured in three different ways: Customers that have been
+# onboarded by CSP can set up CSP api tokens or CSP OAuth apps (CSP_APP_ID, CSP_APP_SECRET,
+# CSP_ORG_ID). Customers of Wavefront can use Wavefront api token. This script may automatically
+# configure wavefront without prompting, based on these variables:
 #  WAVEFRONT_URL           (required)
-#  WAVEFRONT_TOKEN         (required)
+#  WAVEFRONT_TOKEN         (not required)
+#  CSP_API_TOKEN           (not required)
+#  CSP_APP_ID              (not required)
+#  CSP_APP_SECRET          (not required)
+#  CSP_ORG_ID              (not required)
 #  JAVA_HEAP_USAGE         (default is 4G)
 #  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
 #  WAVEFRONT_PROXY_ARGS    (default is none)

@@ -1,10 +1,26 @@
 The Proxy will accept Wavefront formatted message on port 2878 (additional listeners can be enabled in WAVEFRONT_PROXY_ARGS, see below). 
-Just run this docker image with the following environment variables defined, e.g. 
+Just run one of these docker images with the following environment variables defined, e.g. 
 
     docker build -t wavefront-proxy .
     docker run \
         -e WAVEFRONT_URL=https://you.wavefront.com/api \
         -e WAVEFRONT_TOKEN=<YOUR-API-TOKEN> \
+        -p 2878:2878 \
+        wavefront-proxy
+
+    docker build -t wavefront-proxy .
+    docker run -d \
+        -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
+        -e CSP_APP_ID <CSP_APP_ID> \
+        -e CSP_APP_SECRET <CSP_APP_SECRET> \
+        -e CSP_ORG_ID <CSP_ORG_ID> \
+        -p 2878:2878 \
+        wavefront-proxy
+
+    docker build -t wavefront-proxy .
+    docker run -d \
+        -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
+        -e CSP_API_TOKEN=<CSP_API_TOKEN> \
         -p 2878:2878 \
         wavefront-proxy
 
