@@ -235,6 +235,8 @@ public abstract class AbstractAgent {
    * @param args Command-line parameters passed on to JCommander to configure the daemon.
    */
   public void start(String[] args) {
+//    ProxyConfig.generateHTMLDoc();
+//    System.exit(-1);
     String versionStr =
         "Wavefront Proxy version "
             + getBuildVersion()

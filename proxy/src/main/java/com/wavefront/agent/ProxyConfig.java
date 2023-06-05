@@ -1,11 +1,5 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.config.ReportableConfig.reportGauge;
-import static com.wavefront.agent.data.EntityProperties.*;
-import static com.wavefront.common.Utils.getBuildVersion;
-import static com.wavefront.common.Utils.getLocalHostName;
-import static io.opentracing.tag.Tags.SPAN_KIND;
-
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -20,14 +14,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
-import com.wavefront.agent.config.Categories;
-import com.wavefront.agent.config.ProxyConfigOption;
-import com.wavefront.agent.config.ReportableConfig;
-import com.wavefront.agent.config.SubCategories;
+import com.wavefront.agent.config.*;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.TimeProvider;
 import com.yammer.metrics.core.MetricName;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -35,9 +30,12 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.jetbrains.annotations.NotNull;
+
+import static com.wavefront.agent.config.ReportableConfig.reportGauge;
+import static com.wavefront.agent.data.EntityProperties.*;
+import static com.wavefront.common.Utils.getBuildVersion;
+import static com.wavefront.common.Utils.getLocalHostName;
+import static io.opentracing.tag.Tags.SPAN_KIND;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -54,6 +52,80 @@ public class ProxyConfig extends ProxyConfigDef {
   protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   TimeProvider timeProvider = System::currentTimeMillis;
+
+  public static String generateHTMLDoc() {
+    Stream<Option> options = Arrays.stream(ProxyConfigDef.class.getDeclaredFields()).map(field -> {
+      Optional<ProxyConfigOption> option =
+              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+      Optional<Parameter> parameter =
+              Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+      return new Option(field, option, parameter);
+    });
+
+    options = options.filter(option -> option.config.isPresent() && option.parameter.isPresent());
+
+    options = options.sorted((o1, o2) -> {
+      Categories category1 = o1.config.get().category();
+      Categories category2 = o2.config.get().category();
+      SubCategories subCategory1 = o1.config.get().subCategory();
+      SubCategories subCategory2 = o2.config.get().subCategory();
+      Parameter parameter1 = o1.parameter.get();
+      Parameter parameter2 = o2.parameter.get();
+      if (category1.getOrder() == category2.getOrder()) {
+        if (subCategory1.getOrder() == subCategory2.getOrder()) {
+          if (parameter1.order() == parameter2.order()) {
+            return parameter1.names()[0].compareTo(parameter2.names()[0]);
+          } else {
+            return parameter1.order() - parameter2.order();
+          }
+        } else {
+          return subCategory1.getOrder() - subCategory2.getOrder();
+        }
+      } else {
+        return category1.getOrder() - category2.getOrder();
+      }
+    });
+
+    ProxyConfigDef def = new ProxyConfigDef() {
+      @Override
+      public void verifyAndInit() throws ConfigurationException {
+
+      }
+    };
+
+    Categories cat = null;
+    SubCategories subCat = null;
+    for (Option option : options.collect(Collectors.toList())) {
+      if (!option.config.get().category().equals(cat)) {
+        if (cat != null) {
+          System.out.println("</tbody>");
+        }
+        cat = option.config.get().category();
+        subCat = null;
+        System.out.println("<tbody>");
+        System.out.println("<tr><td><h2>" + cat.getValue() + "</h2></td></tr>");
+      }
+
+      if (!option.config.get().subCategory().equals(subCat)) {
+        subCat = option.config.get().subCategory();
+        System.out.println("<tr><td><h3>" + subCat.getValue() + "</h3></td></tr>");
+      }
+
+      System.out.print("<tr>");
+      System.out.print("<td>" + option.field.getName() + "</td>");
+      System.out.print("<td>" + option.parameter.get().description() + "</td>");
+      try {
+        Object val = option.field.get(def);
+        System.out.print("<td>" + (val != null ? val.toString() : "") + "</td>");
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+      System.out.println("</tr>");
+    }
+    System.out.print("</tbody>");
+
+    return "";
+  }
 
   public boolean isHelp() {
     return help;
@@ -605,11 +677,11 @@ public class ProxyConfig extends ProxyConfigDef {
 
   public Set<String> getTraceDerivedCustomTagKeys() {
     Set<String> customTagKeys =
-        new HashSet<>(
-            Splitter.on(",")
-                .trimResults()
-                .omitEmptyStrings()
-                .splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+            new HashSet<>(
+                    Splitter.on(",")
+                            .trimResults()
+                            .omitEmptyStrings()
+                            .splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
     customTagKeys.add(SPAN_KIND.getKey()); // add span.kind tag by default
     return customTagKeys;
   }
@@ -650,16 +722,16 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of custom tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customSourceTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customSourceTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customSourceTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customSourceTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
@@ -667,16 +739,16 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of timestamp tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customTimestampTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customTimestampTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customTimestampTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customTimestampTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
@@ -684,16 +756,16 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of message tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customMessageTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customMessageTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customMessageTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customMessageTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
@@ -701,16 +773,16 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of application tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customApplicationTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customApplicationTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customApplicationTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customApplicationTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
@@ -718,32 +790,32 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of service tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customServiceTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customServiceTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customServiceTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customServiceTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
   public List<String> getCustomExceptionTags() {
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customExceptionTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customExceptionTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customExceptionTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customExceptionTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
@@ -751,24 +823,24 @@ public class ProxyConfig extends ProxyConfigDef {
     // create List of level tags from the configuration string
     Set<String> tagSet = new LinkedHashSet<>();
     Splitter.on(",")
-        .trimResults()
-        .omitEmptyStrings()
-        .split(customLevelTags)
-        .forEach(
-            x -> {
-              if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customLevelTags config setting");
-              }
-            });
+            .trimResults()
+            .omitEmptyStrings()
+            .split(customLevelTags)
+            .forEach(
+                    x -> {
+                      if (!tagSet.add(x)) {
+                        logger.warning(
+                                "Duplicate tag " + x + " specified in customLevelTags config setting");
+                      }
+                    });
     return new ArrayList<>(tagSet);
   }
 
   public Map<String, String> getAgentMetricsPointTags() {
     //noinspection UnstableApiUsage
     return agentMetricsPointTags == null
-        ? Collections.emptyMap()
-        : Splitter.on(",")
+            ? Collections.emptyMap()
+            : Splitter.on(",")
             .trimResults()
             .omitEmptyStrings()
             .withKeyValueSeparator("=")
@@ -1001,170 +1073,170 @@ public class ProxyConfig extends ProxyConfigDef {
       String tenantName = config.getProperty(String.format("multicastingTenantName_%d", i), "");
       if (tenantName.equals(APIContainer.CENTRAL_TENANT_NAME)) {
         throw new IllegalArgumentException(
-            "Error in multicasting endpoints initiation: "
-                + "\"central\" is the reserved tenant name.");
+                "Error in multicasting endpoints initiation: "
+                        + "\"central\" is the reserved tenant name.");
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
       multicastingTenantList.put(
-          tenantName,
-          ImmutableMap.of(
-              APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
+              tenantName,
+              ImmutableMap.of(
+                      APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
       histogramMinuteAvgKeyBytes =
-          histogramHourAvgKeyBytes =
-              histogramDayAvgKeyBytes =
-                  histogramDistAvgKeyBytes = config.getInteger("avgHistogramKeyBytes", 150);
+              histogramHourAvgKeyBytes =
+                      histogramDayAvgKeyBytes =
+                              histogramDistAvgKeyBytes = config.getInteger("avgHistogramKeyBytes", 150);
     }
 
     if (config.isDefined("avgHistogramDigestBytes")) {
       histogramMinuteAvgDigestBytes =
-          histogramHourAvgDigestBytes =
-              histogramDayAvgDigestBytes =
-                  histogramDistAvgDigestBytes = config.getInteger("avgHistogramDigestBytes", 500);
+              histogramHourAvgDigestBytes =
+                      histogramDayAvgDigestBytes =
+                              histogramDistAvgDigestBytes = config.getInteger("avgHistogramDigestBytes", 500);
     }
     if (config.isDefined("histogramAccumulatorSize")) {
       histogramMinuteAccumulatorSize =
-          histogramHourAccumulatorSize =
-              histogramDayAccumulatorSize =
-                  histogramDistAccumulatorSize = config.getLong("histogramAccumulatorSize", 100000);
+              histogramHourAccumulatorSize =
+                      histogramDayAccumulatorSize =
+                              histogramDistAccumulatorSize = config.getLong("histogramAccumulatorSize", 100000);
     }
     if (config.isDefined("histogramCompression")) {
       histogramMinuteCompression =
-          histogramHourCompression =
-              histogramDayCompression =
-                  histogramDistCompression =
-                      config.getNumber("histogramCompression", null, 20, 1000).shortValue();
+              histogramHourCompression =
+                      histogramDayCompression =
+                              histogramDistCompression =
+                                      config.getNumber("histogramCompression", null, 20, 1000).shortValue();
     }
     if (config.isDefined("persistAccumulator")) {
       histogramMinuteAccumulatorPersisted =
-          histogramHourAccumulatorPersisted =
-              histogramDayAccumulatorPersisted =
-                  histogramDistAccumulatorPersisted =
-                      config.getBoolean("persistAccumulator", false);
+              histogramHourAccumulatorPersisted =
+                      histogramDayAccumulatorPersisted =
+                              histogramDistAccumulatorPersisted =
+                                      config.getBoolean("persistAccumulator", false);
     }
 
     histogramMinuteCompression =
-        config
-            .getNumber("histogramMinuteCompression", histogramMinuteCompression, 20, 1000)
-            .shortValue();
+            config
+                    .getNumber("histogramMinuteCompression", histogramMinuteCompression, 20, 1000)
+                    .shortValue();
     histogramMinuteAvgDigestBytes = 32 + histogramMinuteCompression * 7;
 
     histogramHourCompression =
-        config
-            .getNumber("histogramHourCompression", histogramHourCompression, 20, 1000)
-            .shortValue();
+            config
+                    .getNumber("histogramHourCompression", histogramHourCompression, 20, 1000)
+                    .shortValue();
     histogramHourAvgDigestBytes = 32 + histogramHourCompression * 7;
 
     histogramDayCompression =
-        config.getNumber("histogramDayCompression", histogramDayCompression, 20, 1000).shortValue();
+            config.getNumber("histogramDayCompression", histogramDayCompression, 20, 1000).shortValue();
     histogramDayAvgDigestBytes = 32 + histogramDayCompression * 7;
 
     histogramDistCompression =
-        config
-            .getNumber("histogramDistCompression", histogramDistCompression, 20, 1000)
-            .shortValue();
+            config
+                    .getNumber("histogramDistCompression", histogramDistCompression, 20, 1000)
+                    .shortValue();
     histogramDistAvgDigestBytes = 32 + histogramDistCompression * 7;
 
     proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
     httpMaxConnTotal = Math.min(200, config.getInteger("httpMaxConnTotal", httpMaxConnTotal));
     httpMaxConnPerRoute =
-        Math.min(100, config.getInteger("httpMaxConnPerRoute", httpMaxConnPerRoute));
+            Math.min(100, config.getInteger("httpMaxConnPerRoute", httpMaxConnPerRoute));
     gzipCompressionLevel =
-        config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).intValue();
+            config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).intValue();
 
     // clamp values for pushFlushMaxPoints/etc between min split size
     // (or 1 in case of source tags and events) and default batch size.
     // also make sure it is never higher than the configured rate limit.
     pushFlushMaxPoints =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxPoints", pushFlushMaxPoints),
-                    DEFAULT_BATCH_SIZE),
-                (int) pushRateLimit),
-            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxPoints", pushFlushMaxPoints),
+                                    DEFAULT_BATCH_SIZE),
+                            (int) pushRateLimit),
+                    DEFAULT_MIN_SPLIT_BATCH_SIZE);
     pushFlushMaxHistograms =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxHistograms", pushFlushMaxHistograms),
-                    DEFAULT_BATCH_SIZE_HISTOGRAMS),
-                (int) pushRateLimitHistograms),
-            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxHistograms", pushFlushMaxHistograms),
+                                    DEFAULT_BATCH_SIZE_HISTOGRAMS),
+                            (int) pushRateLimitHistograms),
+                    DEFAULT_MIN_SPLIT_BATCH_SIZE);
     pushFlushMaxSourceTags =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxSourceTags", pushFlushMaxSourceTags),
-                    DEFAULT_BATCH_SIZE_SOURCE_TAGS),
-                (int) pushRateLimitSourceTags),
-            1);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxSourceTags", pushFlushMaxSourceTags),
+                                    DEFAULT_BATCH_SIZE_SOURCE_TAGS),
+                            (int) pushRateLimitSourceTags),
+                    1);
     pushFlushMaxSpans =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxSpans", pushFlushMaxSpans),
-                    DEFAULT_BATCH_SIZE_SPANS),
-                (int) pushRateLimitSpans),
-            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxSpans", pushFlushMaxSpans),
+                                    DEFAULT_BATCH_SIZE_SPANS),
+                            (int) pushRateLimitSpans),
+                    DEFAULT_MIN_SPLIT_BATCH_SIZE);
     pushFlushMaxSpanLogs =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxSpanLogs", pushFlushMaxSpanLogs),
-                    DEFAULT_BATCH_SIZE_SPAN_LOGS),
-                (int) pushRateLimitSpanLogs),
-            DEFAULT_MIN_SPLIT_BATCH_SIZE);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxSpanLogs", pushFlushMaxSpanLogs),
+                                    DEFAULT_BATCH_SIZE_SPAN_LOGS),
+                            (int) pushRateLimitSpanLogs),
+                    DEFAULT_MIN_SPLIT_BATCH_SIZE);
     pushFlushMaxEvents =
-        Math.min(
             Math.min(
-                Math.max(config.getInteger("pushFlushMaxEvents", pushFlushMaxEvents), 1),
-                DEFAULT_BATCH_SIZE_EVENTS),
-            (int) (pushRateLimitEvents + 1));
+                    Math.min(
+                            Math.max(config.getInteger("pushFlushMaxEvents", pushFlushMaxEvents), 1),
+                            DEFAULT_BATCH_SIZE_EVENTS),
+                    (int) (pushRateLimitEvents + 1));
 
     pushFlushMaxLogs =
-        Math.max(
-            Math.min(
-                Math.min(
-                    config.getInteger("pushFlushMaxLogs", pushFlushMaxLogs),
-                    MAX_BATCH_SIZE_LOGS_PAYLOAD),
-                (int) pushRateLimitLogs),
-            DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
+            Math.max(
+                    Math.min(
+                            Math.min(
+                                    config.getInteger("pushFlushMaxLogs", pushFlushMaxLogs),
+                                    MAX_BATCH_SIZE_LOGS_PAYLOAD),
+                            (int) pushRateLimitLogs),
+                    DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
     pushMemoryBufferLimitLogs =
-        Math.max(
-            config.getInteger("pushMemoryBufferLimitLogs", pushMemoryBufferLimitLogs),
-            pushFlushMaxLogs);
+            Math.max(
+                    config.getInteger("pushMemoryBufferLimitLogs", pushMemoryBufferLimitLogs),
+                    pushFlushMaxLogs);
 
     pushMemoryBufferLimit =
-        Math.max(
-            config.getInteger("pushMemoryBufferLimit", pushMemoryBufferLimit), pushFlushMaxPoints);
+            Math.max(
+                    config.getInteger("pushMemoryBufferLimit", pushMemoryBufferLimit), pushFlushMaxPoints);
     retryBackoffBaseSeconds =
-        Math.max(
-            Math.min(
-                config.getDouble("retryBackoffBaseSeconds", retryBackoffBaseSeconds),
-                MAX_RETRY_BACKOFF_BASE_SECONDS),
-            1.0);
+            Math.max(
+                    Math.min(
+                            config.getDouble("retryBackoffBaseSeconds", retryBackoffBaseSeconds),
+                            MAX_RETRY_BACKOFF_BASE_SECONDS),
+                    1.0);
   }
 
   /**
    * Parse commandline arguments into {@link ProxyConfig} object.
    *
-   * @param args arguments to parse
+   * @param args        arguments to parse
    * @param programName program name (to display help)
    * @return true if proxy should continue, false if proxy should terminate.
    * @throws ParameterException if configuration parsing failed
    */
   public boolean parseArguments(String[] args, String programName) throws ParameterException {
     JCommander jc =
-        JCommander.newBuilder()
-            .programName(programName)
-            .addObject(this)
-            .allowParameterOverwriting(true)
-            .acceptUnknownOptions(true)
-            .build();
+            JCommander.newBuilder()
+                    .programName(programName)
+                    .addObject(this)
+                    .allowParameterOverwriting(true)
+                    .acceptUnknownOptions(true)
+                    .build();
 
     // Command line arguments
     jc.parse(args);
@@ -1179,7 +1251,7 @@ public class ProxyConfig extends ProxyConfigDef {
 
     detectModifiedOptions(Arrays.stream(args).filter(s -> s.startsWith("-")), modifyByArgs);
     String argsStr =
-        modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
+            modifyByArgs.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
     logger.info("modifyByArgs: " + argsStr);
 
     // Config file
@@ -1194,33 +1266,33 @@ public class ProxyConfig extends ProxyConfigDef {
       }
 
       confFile.entrySet().stream()
-          .filter(entry -> !entry.getKey().toString().startsWith("multicasting"))
-          .forEach(
-              entry -> {
-                fileArgs.add("--" + entry.getKey().toString());
-                fileArgs.add(entry.getValue().toString());
-              });
+              .filter(entry -> !entry.getKey().toString().startsWith("multicasting"))
+              .forEach(
+                      entry -> {
+                        fileArgs.add("--" + entry.getKey().toString());
+                        fileArgs.add(entry.getValue().toString());
+                      });
 
       jc.parse(fileArgs.toArray(new String[0]));
       detectModifiedOptions(fileArgs.stream().filter(s -> s.startsWith("-")), modifyByFile);
       String fileStr =
-          modifyByFile.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
+              modifyByFile.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
       logger.info("modifyByFile: " + fileStr);
       modifyByArgs.removeAll(modifyByFile); // argument are override by the config file
       configFileExtraArguments(confFile);
     }
 
     multicastingTenantList.put(
-        APIContainer.CENTRAL_TENANT_NAME,
-        ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
+            APIContainer.CENTRAL_TENANT_NAME,
+            ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 
     String FQDN = getLocalHostName();
     if (!hostname.equals(FQDN)) {
       logger.warning(
-          "Deprecated field hostname specified in config setting. Please use "
-              + "proxyname config field to set proxy name.");
+              "Deprecated field hostname specified in config setting. Please use "
+                      + "proxyname config field to set proxy name.");
       if (proxyname.equals(FQDN)) proxyname = hostname;
     }
     logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
@@ -1237,26 +1309,26 @@ public class ProxyConfig extends ProxyConfigDef {
     cfg.addAll(modifyByArgs);
     cfg.addAll(modifyByFile);
     cfg.stream()
-        .forEach(
-            field -> {
-              Optional<ProxyConfigOption> option =
-                  Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
-              boolean hide = option.isPresent() && option.get().hide();
-              if (!hide) {
-                boolean secret = option.isPresent() && option.get().secret();
-                try {
-                  boolean arg = !modifyByFile.contains(field);
-                  cfgStrs.add(
-                      "\t"
-                          + (arg ? "* " : "  ")
-                          + field.getName()
-                          + " = "
-                          + (secret ? "******" : field.get(this)));
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            });
+            .forEach(
+                    field -> {
+                      Optional<ProxyConfigOption> option =
+                              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+                      boolean hide = option.isPresent() && option.get().hide();
+                      if (!hide) {
+                        boolean secret = option.isPresent() && option.get().secret();
+                        try {
+                          boolean arg = !modifyByFile.contains(field);
+                          cfgStrs.add(
+                                  "\t"
+                                          + (arg ? "* " : "  ")
+                                          + field.getName()
+                                          + " = "
+                                          + (secret ? "******" : field.get(this)));
+                        } catch (IllegalAccessException e) {
+                          throw new RuntimeException(e);
+                        }
+                      }
+                    });
     logger.info("Config: (* command line argument)");
     for (String cfgStr : cfgStrs) {
       logger.info(cfgStr);
@@ -1269,9 +1341,9 @@ public class ProxyConfig extends ProxyConfigDef {
     Field[] fields = this.getClass().getDeclaredFields();
     for (Field field : fields) {
       Optional<Parameter> parameter =
-          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
       Optional<ProxyConfigOption> option =
-          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
       boolean hide = option.isPresent() && option.get().hide();
       if (parameter.isPresent() && !hide) {
         MetricName name = new MetricName("config", "", field.getName());
@@ -1312,42 +1384,42 @@ public class ProxyConfig extends ProxyConfigDef {
 
   private void detectModifiedOptions(Stream<String> args, List<Field> list) {
     args.forEach(
-        arg -> {
-          Field[] fields = this.getClass().getSuperclass().getDeclaredFields();
-          list.addAll(
-              Arrays.stream(fields)
-                  .filter(
-                      field -> {
-                        Optional<Parameter> parameter =
-                            Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
-                        if (parameter.isPresent()) {
-                          String[] names = parameter.get().names();
-                          if (Arrays.asList(names).contains(arg)) {
-                            return true;
-                          }
-                        }
-                        return false;
-                      })
-                  .collect(Collectors.toList()));
-        });
+            arg -> {
+              Field[] fields = this.getClass().getSuperclass().getDeclaredFields();
+              list.addAll(
+                      Arrays.stream(fields)
+                              .filter(
+                                      field -> {
+                                        Optional<Parameter> parameter =
+                                                Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+                                        if (parameter.isPresent()) {
+                                          String[] names = parameter.get().names();
+                                          if (Arrays.asList(names).contains(arg)) {
+                                            return true;
+                                          }
+                                        }
+                                        return false;
+                                      })
+                              .collect(Collectors.toList()));
+            });
   }
 
   @JsonIgnore
   public JsonNode getJsonConfig() {
     Map<Categories, Map<SubCategories, Set<ProxyConfigOptionDescriptor>>> cfg =
-        new TreeMap<>(Comparator.comparingInt(Categories::getOrder));
+            new TreeMap<>(Comparator.comparingInt(Categories::getOrder));
     for (Field field : this.getClass().getSuperclass().getDeclaredFields()) {
       Optional<ProxyConfigOption> option =
-          Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(ProxyConfigOption.class)).findFirst();
       Optional<Parameter> parameter =
-          Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
+              Arrays.stream(field.getAnnotationsByType(Parameter.class)).findFirst();
       if (parameter.isPresent()) {
         ProxyConfigOptionDescriptor data = new ProxyConfigOptionDescriptor();
         data.name =
-            Arrays.stream(parameter.get().names())
-                .max(Comparator.comparingInt(String::length))
-                .orElseGet(() -> field.getName())
-                .replaceAll("--", "");
+                Arrays.stream(parameter.get().names())
+                        .max(Comparator.comparingInt(String::length))
+                        .orElseGet(() -> field.getName())
+                        .replaceAll("--", "");
         data.description = parameter.get().description();
         data.order = parameter.get().order() == -1 ? 99999 : parameter.get().order();
         try {
@@ -1368,15 +1440,15 @@ public class ProxyConfig extends ProxyConfigDef {
           SubCategories subCategory = option.get().subCategory();
           if (!option.get().hide()) {
             Set<ProxyConfigOptionDescriptor> options =
-                cfg.computeIfAbsent(
-                        category,
-                        s -> new TreeMap<>(Comparator.comparingInt(SubCategories::getOrder)))
-                    .computeIfAbsent(subCategory, s -> new TreeSet<>());
+                    cfg.computeIfAbsent(
+                                    category,
+                                    s -> new TreeMap<>(Comparator.comparingInt(SubCategories::getOrder)))
+                            .computeIfAbsent(subCategory, s -> new TreeSet<>());
             options.add(data);
           }
         } else {
           throw new RuntimeException(
-              "All options need 'ProxyConfigOption' annotation (" + data.name + ") !!");
+                  "All options need 'ProxyConfigOption' annotation (" + data.name + ") !!");
         }
       }
     }
@@ -1386,7 +1458,7 @@ public class ProxyConfig extends ProxyConfigDef {
   }
 
   public static class TokenValidationMethodConverter
-      implements IStringConverter<TokenValidationMethod> {
+          implements IStringConverter<TokenValidationMethod> {
     @Override
     public TokenValidationMethod convert(String value) {
       TokenValidationMethod convertedValue = TokenValidationMethod.fromString(value);
@@ -1420,6 +1492,18 @@ public class ProxyConfig extends ProxyConfigDef {
         return this.name.compareTo(other.name);
       }
       return Integer.compare(this.order, other.order);
+    }
+  }
+
+  private static class Option {
+    Field field;
+    Optional<ProxyConfigOption> config;
+    Optional<Parameter> parameter;
+
+    public Option(Field field, Optional<ProxyConfigOption> config, Optional<Parameter> parameter) {
+      this.field = field;
+      this.config = config;
+      this.parameter = parameter;
     }
   }
 }
