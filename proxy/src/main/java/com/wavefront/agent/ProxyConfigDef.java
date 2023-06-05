@@ -1517,9 +1517,9 @@ public abstract class ProxyConfigDef extends Configuration {
 
   @Parameter(
       names = {"--cspBaseUrl"},
-      description = "The CSP base url. By default stg.")
+      description = "The CSP base url. By default prod.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
-  public static String cspBaseUrl = "https://console-stg.cloud.vmware.com";
+  public static String cspBaseUrl = "https://console.cloud.vmware.com";
 
   @Parameter(
       names = {"--cspAPIToken"},
