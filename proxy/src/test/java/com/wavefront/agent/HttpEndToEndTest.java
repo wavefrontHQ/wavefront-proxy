@@ -90,6 +90,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
@@ -194,6 +195,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.flushThreadsEvents = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
@@ -289,6 +291,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.flushThreadsSourceTags = 1;
     proxy.proxyConfig.splitPushWhenRateLimited = true;
@@ -406,6 +409,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.histogramMinuteListenerPorts = String.valueOf(histMinPort);
     proxy.proxyConfig.histogramHourListenerPorts = String.valueOf(histHourPort);
@@ -575,6 +579,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
@@ -649,6 +654,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
@@ -728,6 +734,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.bufferFile = buffer;
@@ -765,6 +772,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.bufferFile = buffer;
@@ -815,6 +823,7 @@ public class HttpEndToEndTest {
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.bufferFile = buffer;
