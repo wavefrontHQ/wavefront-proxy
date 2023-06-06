@@ -70,7 +70,7 @@ public class TenantInfoManager {
             "TCSP OAuth server to server app credentials for further authentication. For the server "
                 + server);
         tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
-        tenantInfo.run();
+        tenantsInfo.add(tenantInfo);
       } else {
         throw new IllegalArgumentException(BAD_CONFIG);
       }

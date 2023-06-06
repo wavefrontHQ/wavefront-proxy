@@ -53,6 +53,6 @@ public class CSPAuthConnector {
             "Basic %s",
             Base64.getEncoder()
                 .encodeToString(String.format("%s:%s", appId, appSecret).getBytes()));
-    return api.getTokenByClientCredentials(auth, orgId);
+    return api.getTokenByClientCredentials(auth, "client_credentials", orgId);
   }
 }

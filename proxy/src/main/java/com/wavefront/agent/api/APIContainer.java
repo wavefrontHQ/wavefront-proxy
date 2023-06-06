@@ -304,6 +304,9 @@ public class APIContainer {
     factory.register(
         (ClientRequestFilter)
             context -> {
+          if(context.getUri().getPath().startsWith("/csp")){
+            return;
+          }
               if (proxyConfig.isGzipCompression()) {
                 context.getHeaders().add("Content-Encoding", "gzip");
               }
