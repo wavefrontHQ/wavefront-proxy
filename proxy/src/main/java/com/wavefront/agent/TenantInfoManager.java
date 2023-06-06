@@ -4,7 +4,9 @@ import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.*;
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 
 import com.google.common.collect.Maps;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -19,6 +21,7 @@ import org.apache.commons.lang.StringUtils;
 public class TenantInfoManager {
   private static final Logger logger = Logger.getLogger(TenantInfoManager.class.getCanonicalName());
   private final Map<String, TenantInfo> multicastingTenantList = Maps.newHashMap();
+  private List<TenantInfo> tenantsInfo = new ArrayList();
 
   /**
    * Helper function to construct tenant info {@link TenantInfo} object based on input parameters.
@@ -74,13 +77,17 @@ public class TenantInfoManager {
     } else if (isCPSAPIToken) {
       logger.info("CSP api token for further authentication. For the server " + server);
       tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
-      tenantInfo.run();
+      tenantsInfo.add(tenantInfo);
     } else { // isWFToken
       logger.info("Wavefront api token for further authentication. For the server " + server);
       tenantInfo = new TenantInfo(wfToken, server, WAVEFRONT_API_TOKEN);
     }
 
     multicastingTenantList.put(tenantName, tenantInfo);
+  }
+
+  public void start() {
+    tenantsInfo.forEach(tenantInfo -> tenantInfo.run());
   }
 
   public Map<String, TenantInfo> getMulticastingTenantList() {

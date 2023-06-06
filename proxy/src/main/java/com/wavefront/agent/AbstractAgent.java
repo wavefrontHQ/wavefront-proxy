@@ -321,6 +321,8 @@ public abstract class AbstractAgent {
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
+      proxyConfig.getTenantInfoManager().start();
+
       // config the entityPropertiesFactoryMap
       for (String tenantName :
           proxyConfig.getTenantInfoManager().getMulticastingTenantList().keySet()) {

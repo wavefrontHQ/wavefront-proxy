@@ -44,7 +44,7 @@ public class APIContainerTest {
 
   @Test(expected = IllegalStateException.class)
   public void testUpdateServerEndpointURLWithNullProxyConfig() {
-    APIContainer apiContainer = new APIContainer(null, null, null, null);
+    APIContainer apiContainer = new APIContainer(null, null, null, null, null);
     apiContainer.updateServerEndpointURL("central", "fake-url");
   }
 

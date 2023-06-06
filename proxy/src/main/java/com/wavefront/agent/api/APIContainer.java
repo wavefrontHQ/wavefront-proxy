@@ -6,6 +6,7 @@ import com.wavefront.agent.JsonNodeWriter;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
 import com.wavefront.agent.TenantInfo;
+import com.wavefront.agent.auth.CSPAuthConnector;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
 import com.wavefront.api.EventAPI;
@@ -54,6 +55,7 @@ public class APIContainer {
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
   private final boolean discardData;
+  private final CSPAPI cspAPI;
 
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
@@ -78,11 +80,16 @@ public class APIContainer {
     this.clientHttpEngine = createHttpEngine();
     this.discardData = discardData;
     this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
+    this.cspAPI = createService(proxyConfig.getCSPBaseUrl(), CSPAPI.class);
+
+    // TODO: refactor this
+    CSPAuthConnector.api = this.cspAPI;
 
     // config the multicasting tenants / clusters
     proxyV2APIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting = Maps.newHashMap();
     eventAPIsForMulticasting = Maps.newHashMap();
+
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;
@@ -118,12 +125,17 @@ public class APIContainer {
    */
   @VisibleForTesting
   public APIContainer(
-      ProxyV2API proxyV2API, SourceTagAPI sourceTagAPI, EventAPI eventAPI, LogAPI logAPI) {
+      ProxyV2API proxyV2API,
+      SourceTagAPI sourceTagAPI,
+      EventAPI eventAPI,
+      LogAPI logAPI,
+      CSPAPI cspAPI) {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
     this.discardData = false;
     this.logAPI = logAPI;
+    this.cspAPI = cspAPI;
     proxyV2APIsForMulticasting = Maps.newHashMap();
     proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
     sourceTagAPIsForMulticasting = Maps.newHashMap();

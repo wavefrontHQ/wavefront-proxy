@@ -54,6 +54,10 @@ public class ProxyConfig extends ProxyConfigDef {
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
+  public String getCSPBaseUrl() {
+    return cspBaseUrl;
+  }
+
   // Selecting the appropriate Wavefront proxy authentication method depending on the proxy
   // settings.
   public enum ProxyAuthMethod {

@@ -32,7 +32,7 @@ public class TenantInfo implements Runnable {
       "Failed to get access token from CSP.";
   private static final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(1, new NamedThreadFactory("csp-token-updater"));
-  private static final Logger log = Logger.getLogger(ProxyConfig.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(TenantInfo.class.getCanonicalName());
 
   private static final Supplier<Counter> errors =
       LazySupplier.of(
