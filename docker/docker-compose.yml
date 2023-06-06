@@ -4,6 +4,10 @@ services:
     environment:
       WAVEFRONT_URL: ${WF_URL}
       WAVEFRONT_TOKEN: ${WF_TOKEN}
+      CSP_API_TOKEN: ${CSP_API_TOKEN}
+      CSP_APP_ID: ${CSP_APP_ID}
+      CSP_APP_SECRET: ${CSP_APP_SECRET}
+      CSP_ORG_ID: ${CSP_ORG_ID}
       WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id-1
     volumes:
       - /Users/glaullon/tmp:/var/spool/wavefront-proxy
@@ -14,6 +18,10 @@ services:
     environment:
       WAVEFRONT_URL: ${WF_URL}
       WAVEFRONT_TOKEN: ${WF_TOKEN}
+      CSP_API_TOKEN: ${CSP_API_TOKEN}
+      CSP_APP_ID: ${CSP_APP_ID}
+      CSP_APP_SECRET: ${CSP_APP_SECRET}
+      CSP_ORG_ID: ${CSP_ORG_ID}
       WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id-2
     volumes:
       - /Users/glaullon/tmp:/var/spool/wavefront-proxy
