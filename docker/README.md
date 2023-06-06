@@ -1,5 +1,5 @@
 The Proxy will accept Wavefront formatted message on port 2878 (additional listeners can be enabled in WAVEFRONT_PROXY_ARGS, see below). 
-Just run one of these docker images with the following environment variables defined, e.g. 
+Just run this docker image with the following environment variables defined, e.g. 
 
     docker build -t wavefront-proxy .
     docker run \
