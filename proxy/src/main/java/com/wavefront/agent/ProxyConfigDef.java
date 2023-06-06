@@ -116,7 +116,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "Token to auto-register proxy with an account",
       order = 1)
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String token = "undefined";
+  String token = null;
 
   @Parameter(
       names = {"--testLogs"},

@@ -1,8 +1,10 @@
 package com.wavefront.agent;
 
 import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.*;
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 
 import com.google.common.collect.Maps;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -24,8 +26,8 @@ public class TenantInfoManager {
    * @param appId the CSP OAuth server to server app id.
    * @param appSecret the CSP OAuth server to server app secret.
    * @param cspOrgId the CSP organisation id.
-   * @param cspAPIToken the CSP API token.
-   * @param token the Wavefront API token.
+   * @param cspAPIToken the CSP API wfToken.
+   * @param wfToken the Wavefront API wfToken.
    * @param server the server url.
    * @param tenantName the name of the tenant.
    * @throws IllegalArgumentException for invalid arguments.
@@ -35,40 +37,47 @@ public class TenantInfoManager {
       @Nullable final String appSecret,
       @Nullable final String cspOrgId,
       @Nullable final String cspAPIToken,
-      @Nonnull final String token,
+      @Nonnull final String wfToken,
       @Nonnull final String server,
       @Nonnull final String tenantName) {
 
-    boolean oauthApp =
-        StringUtils.isNotBlank(appId)
-            && StringUtils.isNotBlank(appSecret)
-            && StringUtils.isNotBlank(cspOrgId);
+    final String BAD_CONFIG =
+        "incorrect configuration, one (and only one) of this options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret, cspOrgId`"
+            + (CENTRAL_TENANT_NAME.equals(tenantName) ? "" : " for tenant `" + tenantName + "`");
 
-    if ((oauthApp && StringUtils.isNotBlank(cspAPIToken))
-        || (oauthApp && StringUtils.isNotBlank(token))
-        || (StringUtils.isNotBlank(cspAPIToken) && StringUtils.isNotBlank(token))) {
-      throw new IllegalArgumentException(
-          "Proxy failed to select an authentication method for the tenant name " + tenantName);
+    boolean isOAuthApp =
+        StringUtils.isNotBlank(appId)
+            || StringUtils.isNotBlank(appSecret)
+            || StringUtils.isNotBlank(cspOrgId);
+    boolean isCPSAPIToken = StringUtils.isNotBlank(cspAPIToken);
+    boolean isWFToken = StringUtils.isNotBlank(wfToken);
+
+    long authMethods =
+        Arrays.asList(isOAuthApp, isCPSAPIToken, isWFToken).stream().filter(auth -> auth).count();
+    if (authMethods != 1) {
+      throw new IllegalArgumentException(BAD_CONFIG);
     }
 
     TenantInfo tenantInfo;
-    if (oauthApp) {
-      tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
-      tenantInfo.run();
-      logger.info(
-          "The proxy selected the CSP OAuth server to server app credentials for further authentication. For the server "
-              + server);
-    } else if (StringUtils.isNotBlank(cspAPIToken)) {
+    if (isOAuthApp) {
+      if (StringUtils.isNotBlank(appId)
+          && StringUtils.isNotBlank(appSecret)
+          && StringUtils.isNotBlank(cspOrgId)) {
+        logger.info(
+            "TCSP OAuth server to server app credentials for further authentication. For the server "
+                + server);
+        tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
+        tenantInfo.run();
+      } else {
+        throw new IllegalArgumentException(BAD_CONFIG);
+      }
+    } else if (isCPSAPIToken) {
+      logger.info("CSP api token for further authentication. For the server " + server);
       tenantInfo = new TenantInfo(cspAPIToken, server, CSP_API_TOKEN);
       tenantInfo.run();
-      logger.info(
-          "The proxy selected the CSP api token for further authentication. For the server "
-              + server);
-    } else {
-      tenantInfo = new TenantInfo(token, server, WAVEFRONT_API_TOKEN);
-      logger.info(
-          "The proxy selected the Wavefront api token for further authentication. For the server "
-              + server);
+    } else { // isWFToken
+      logger.info("Wavefront api token for further authentication. For the server " + server);
+      tenantInfo = new TenantInfo(wfToken, server, WAVEFRONT_API_TOKEN);
     }
 
     multicastingTenantList.put(tenantName, tenantInfo);

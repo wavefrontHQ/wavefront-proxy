@@ -11,10 +11,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.UUID;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class ProxyConfigTest {
 
   @Test
@@ -31,15 +31,39 @@ public class ProxyConfigTest {
 
     String[] args =
         new String[] {
-          "-f", cfgFile.getAbsolutePath(),
-          "--pushListenerPorts", "4321",
-          "--proxyname", "proxyname"
+          "-f",
+          cfgFile.getAbsolutePath(),
+          "--pushListenerPorts",
+          "4321",
+          "--proxyname",
+          "proxyname",
+          "--token",
+          UUID.randomUUID().toString()
         };
 
     ProxyConfig cfg = new ProxyConfig();
     assertTrue(cfg.parseArguments(args, ""));
     assertEquals(cfg.getProxyname(), "proxyname");
     assertEquals(cfg.getPushListenerPorts(), "1234");
+  }
+
+  @Test
+  public void testBadConfig() {
+    String[] args =
+        new String[] {
+          "--token", UUID.randomUUID().toString(),
+          "--cspAppId", UUID.randomUUID().toString()
+        };
+
+    ProxyConfig cfg = new ProxyConfig();
+    assertThrows(IllegalArgumentException.class, () -> cfg.parseArguments(args, ""));
+  }
+
+  public void testBadCSPOAuthConfig() {
+    String[] args = new String[] {"--cspAppId", UUID.randomUUID().toString()};
+
+    ProxyConfig cfg = new ProxyConfig();
+    assertThrows(IllegalArgumentException.class, () -> cfg.parseArguments(args, ""));
   }
 
   @Test
@@ -64,11 +88,17 @@ public class ProxyConfigTest {
     props.store(out, "");
     out.close();
 
+    String token = UUID.randomUUID().toString();
     String[] args =
         new String[] {
-          "-f", cfgFile.getAbsolutePath(),
-          "--pushListenerPorts", "4321",
-          "--proxyname", "proxyname"
+          "-f",
+          cfgFile.getAbsolutePath(),
+          "--pushListenerPorts",
+          "4321",
+          "--proxyname",
+          "proxyname",
+          "--token",
+          token
         };
 
     ProxyConfig cfg = new ProxyConfig();
@@ -81,7 +111,7 @@ public class ProxyConfigTest {
             .get(APIContainer.CENTRAL_TENANT_NAME);
     assertNotNull(info);
     assertEquals("http://localhost:8080/api/", info.getWFServer());
-    assertEquals("undefined", info.getBearerToken());
+    assertEquals(token, info.getBearerToken());
 
     info = cfg.getTenantInfoManager().getMulticastingTenantList().get("name1");
     assertNotNull(info);
@@ -100,12 +130,18 @@ public class ProxyConfigTest {
   public void testVersionOrHelpReturnFalse() {
     assertFalse(new ProxyConfig().parseArguments(new String[] {"--version"}, "PushAgentTest"));
     assertFalse(new ProxyConfig().parseArguments(new String[] {"--help"}, "PushAgentTest"));
-    assertTrue(new ProxyConfig().parseArguments(new String[] {"--host", "host"}, "PushAgentTest"));
+    assertTrue(
+        new ProxyConfig()
+            .parseArguments(
+                new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest"));
   }
 
   @Test
   public void testTokenValidationMethodParsing() {
     ProxyConfig proxyConfig = new ProxyConfig();
+    proxyConfig.parseArguments(
+        new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest");
+
     proxyConfig.parseArguments(new String[] {"--authMethod", "NONE"}, "PushAgentTest");
     assertEquals(proxyConfig.authMethod, TokenValidationMethod.NONE);
 
@@ -136,6 +172,9 @@ public class ProxyConfigTest {
   @Test
   public void testTaskQueueLevelParsing() {
     ProxyConfig proxyConfig = new ProxyConfig();
+    proxyConfig.parseArguments(
+        new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest");
+
     proxyConfig.parseArguments(new String[] {"--taskQueueLevel", "NEVER"}, "PushAgentTest");
     assertEquals(proxyConfig.taskQueueLevel, TaskQueueLevel.NEVER);
 
@@ -169,6 +208,7 @@ public class ProxyConfigTest {
   @Test
   public void testOtlpResourceAttrsOnMetricsIncluded() {
     ProxyConfig config = new ProxyConfig();
+    config.parseArguments(new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest");
 
     // do not include OTLP resource attributes by default on metrics
     // TODO: find link from OTel GH PR where this choice was made
@@ -184,6 +224,7 @@ public class ProxyConfigTest {
   @Test
   public void testOtlpAppTagsOnMetricsIncluded() {
     ProxyConfig config = new ProxyConfig();
+    config.parseArguments(new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest");
 
     // include application, shard, cluster, service.name resource attributes by default on
     // metrics
@@ -218,11 +259,17 @@ public class ProxyConfigTest {
     props.store(out, "");
     out.close();
 
+    String token = UUID.randomUUID().toString();
     String[] args =
         new String[] {
-          "-f", cfgFile.getAbsolutePath(),
-          "--pushListenerPorts", "4321",
-          "--proxyname", "proxyname"
+          "-f",
+          cfgFile.getAbsolutePath(),
+          "--pushListenerPorts",
+          "4321",
+          "--proxyname",
+          "proxyname",
+          "--token",
+          token
         };
 
     ProxyConfig proxyConfig = new ProxyConfig();
@@ -237,13 +284,7 @@ public class ProxyConfigTest {
     expectLastCall();
 
     tenantInfoManager.constructTenantInfoObject(
-        null,
-        null,
-        null,
-        null,
-        proxyConfig.token,
-        proxyConfig.server,
-        APIContainer.CENTRAL_TENANT_NAME);
+        null, null, null, null, token, proxyConfig.server, APIContainer.CENTRAL_TENANT_NAME);
     expectLastCall();
     replay(tenantInfoManager);
 
@@ -278,11 +319,17 @@ public class ProxyConfigTest {
     props.store(out, "");
     out.close();
 
+    String token = UUID.randomUUID().toString();
     String[] args =
         new String[] {
-          "-f", cfgFile.getAbsolutePath(),
-          "--pushListenerPorts", "4321",
-          "--proxyname", "proxyname"
+          "-f",
+          cfgFile.getAbsolutePath(),
+          "--pushListenerPorts",
+          "4321",
+          "--proxyname",
+          "proxyname",
+          "--token",
+          token
         };
 
     ProxyConfig proxyConfig = new ProxyConfig();
@@ -297,13 +344,7 @@ public class ProxyConfigTest {
     expectLastCall();
 
     tenantInfoManager.constructTenantInfoObject(
-        null,
-        null,
-        null,
-        null,
-        proxyConfig.token,
-        proxyConfig.server,
-        APIContainer.CENTRAL_TENANT_NAME);
+        null, null, null, null, token, proxyConfig.server, APIContainer.CENTRAL_TENANT_NAME);
     expectLastCall();
     replay(tenantInfoManager);
 
