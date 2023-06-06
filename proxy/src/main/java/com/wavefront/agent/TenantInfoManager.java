@@ -28,6 +28,7 @@ public class TenantInfoManager {
    * @param token the Wavefront API token.
    * @param server the server url.
    * @param tenantName the name of the tenant.
+   * @throws IllegalArgumentException for invalid arguments.
    */
   public void constructTenantInfoObject(
       @Nullable final String appId,
@@ -38,10 +39,20 @@ public class TenantInfoManager {
       @Nonnull final String server,
       @Nonnull final String tenantName) {
 
+    boolean oauthApp =
+        StringUtils.isNotBlank(appId)
+            && StringUtils.isNotBlank(appSecret)
+            && StringUtils.isNotBlank(cspOrgId);
+
+    if ((oauthApp && StringUtils.isNotBlank(cspAPIToken))
+        || (oauthApp && StringUtils.isNotBlank(token))
+        || (StringUtils.isNotBlank(cspAPIToken) && StringUtils.isNotBlank(token))) {
+      throw new IllegalArgumentException(
+          "Proxy failed to select an authentication method for the tenant name " + tenantName);
+    }
+
     TenantInfo tenantInfo;
-    if (StringUtils.isNotBlank(appId)
-        && StringUtils.isNotBlank(appSecret)
-        && StringUtils.isNotBlank(cspOrgId)) {
+    if (oauthApp) {
       tenantInfo = new TenantInfo(appId, appSecret, cspOrgId, server, CSP_CLIENT_CREDENTIALS);
       tenantInfo.run();
       logger.info(
