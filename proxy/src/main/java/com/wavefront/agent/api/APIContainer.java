@@ -2,11 +2,7 @@ package com.wavefront.agent.api;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import com.wavefront.agent.JsonNodeWriter;
-import com.wavefront.agent.ProxyConfig;
-import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
-import com.wavefront.agent.TenantInfo;
-import com.wavefront.agent.auth.CSPAuthConnector;
+import com.wavefront.agent.*;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
 import com.wavefront.api.EventAPI;
@@ -82,9 +78,6 @@ public class APIContainer {
     this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
     this.cspAPI = createService(proxyConfig.getCSPBaseUrl(), CSPAPI.class);
 
-    // TODO: refactor this
-    CSPAuthConnector.api = this.cspAPI;
-
     // config the multicasting tenants / clusters
     proxyV2APIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting = Maps.newHashMap();
@@ -94,7 +87,7 @@ public class APIContainer {
     String tenantName;
     String tenantServer;
     for (Map.Entry<String, TenantInfo> tenantInfoEntry :
-        proxyConfig.getTenantInfoManager().getMulticastingTenantList().entrySet()) {
+        TokenManager.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
@@ -304,9 +297,9 @@ public class APIContainer {
     factory.register(
         (ClientRequestFilter)
             context -> {
-          if(context.getUri().getPath().startsWith("/csp")){
-            return;
-          }
+              if (context.getUri().getPath().startsWith("/csp")) {
+                return;
+              }
               if (proxyConfig.isGzipCompression()) {
                 context.getHeaders().add("Content-Encoding", "gzip");
               }
@@ -319,9 +312,7 @@ public class APIContainer {
                     .add(
                         "Authorization",
                         "Bearer "
-                            + proxyConfig
-                                .getTenantInfoManager()
-                                .getMulticastingTenantList()
+                            + TokenManager.getMulticastingTenantList()
                                 .get(APIContainer.CENTRAL_TENANT_NAME)
                                 .getBearerToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
@@ -395,5 +386,9 @@ public class APIContainer {
             .build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(apiClass);
+  }
+
+  public CSPAPI getCSPApi() {
+    return cspAPI;
   }
 }

@@ -1,16 +1,13 @@
 package com.wavefront.agent.api;
 
-import static com.wavefront.agent.ProxyConfig.ProxyAuthMethod.WAVEFRONT_API_TOKEN;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.wavefront.agent.ProxyConfig;
-import com.wavefront.agent.TenantInfo;
+import com.wavefront.agent.TokenManager;
+import com.wavefront.agent.TokenWorkerCSP;
 import org.junit.Before;
 import org.junit.Test;
 
-/** @author Xiaochen Wang (xiaochenw@vmware.com). */
 public class APIContainerTest {
   private final int NUM_TENANTS = 5;
   private ProxyConfig proxyConfig;
@@ -18,18 +15,11 @@ public class APIContainerTest {
   @Before
   public void setup() {
     this.proxyConfig = new ProxyConfig();
-    TenantInfo tenantInfo = new TenantInfo("fake-token", "fake-url", WAVEFRONT_API_TOKEN);
-    this.proxyConfig
-        .getTenantInfoManager()
-        .getMulticastingTenantList()
-        .put(APIContainer.CENTRAL_TENANT_NAME, tenantInfo);
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("fake-token", "fake-url");
+    TokenManager.addTenant(APIContainer.CENTRAL_TENANT_NAME, tokenWorkerCSP);
     for (int i = 0; i < NUM_TENANTS; i++) {
-      TenantInfo tenantInfo1 =
-          new TenantInfo("fake-token" + i, "fake-url" + i, WAVEFRONT_API_TOKEN);
-      this.proxyConfig
-          .getTenantInfoManager()
-          .getMulticastingTenantList()
-          .put("tenant-" + i, tenantInfo1);
+      TokenWorkerCSP tokenWorkerCSP1 = new TokenWorkerCSP("fake-token" + i, "fake-url" + i);
+      TokenManager.addTenant("tenant-" + i, tokenWorkerCSP1);
     }
   }
 

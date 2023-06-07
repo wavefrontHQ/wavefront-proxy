@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -34,6 +35,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
@@ -50,20 +52,11 @@ public class ProxyConfig extends ProxyConfigDef {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
-  protected TenantInfoManager tenantInfoManager = new TenantInfoManager();
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
   public String getCSPBaseUrl() {
     return cspBaseUrl;
-  }
-
-  // Selecting the appropriate Wavefront proxy authentication method depending on the proxy
-  // settings.
-  public enum ProxyAuthMethod {
-    CSP_API_TOKEN,
-    WAVEFRONT_API_TOKEN,
-    CSP_CLIENT_CREDENTIALS
   }
 
   public boolean isHelp() {
@@ -955,11 +948,6 @@ public class ProxyConfig extends ProxyConfigDef {
     return trafficShapingHeadroom;
   }
 
-  @JsonIgnore
-  public TenantInfoManager getTenantInfoManager() {
-    return tenantInfoManager;
-  }
-
   public List<String> getCorsEnabledPorts() {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
   }
@@ -1024,7 +1012,7 @@ public class ProxyConfig extends ProxyConfigDef {
       // Based on the setup parameters, the pertinent tenant information object will be produced
       // using the proper proxy
       // authentication technique.
-      tenantInfoManager.constructTenantInfoObject(
+      constructTenantInfoObject(
           tenantCSPAppId,
           tenantCSPAppSecret,
           tenantCSPOrgId,
@@ -1232,7 +1220,7 @@ public class ProxyConfig extends ProxyConfigDef {
       configFileExtraArguments(confFile);
     }
 
-    tenantInfoManager.constructTenantInfoObject(
+    constructTenantInfoObject(
         cspAppId,
         cspAppSecret,
         cspOrgId,
@@ -1450,8 +1438,65 @@ public class ProxyConfig extends ProxyConfigDef {
     }
   }
 
-  /** Calling the function should only be done for testing purposes. */
-  void setTenantInfoManager(@Nonnull final TenantInfoManager tenantInfoManager) {
-    this.tenantInfoManager = tenantInfoManager;
+  /**
+   * Helper function to construct tenant info {@link TokenWorkerCSP} object based on input
+   * parameters.
+   *
+   * @param appId the CSP OAuth server to server app id.
+   * @param appSecret the CSP OAuth server to server app secret.
+   * @param cspOrgId the CSP organisation id.
+   * @param cspAPIToken the CSP API wfToken.
+   * @param wfToken the Wavefront API wfToken.
+   * @param server the server url.
+   * @param tenantName the name of the tenant.
+   * @throws IllegalArgumentException for invalid arguments.
+   */
+  public void constructTenantInfoObject(
+      @Nullable final String appId,
+      @Nullable final String appSecret,
+      @Nullable final String cspOrgId,
+      @Nullable final String cspAPIToken,
+      @Nonnull final String wfToken,
+      @Nonnull final String server,
+      @Nonnull final String tenantName) {
+
+    final String BAD_CONFIG =
+        "incorrect configuration, one (and only one) of this options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret, cspOrgId`"
+            + (CENTRAL_TENANT_NAME.equals(tenantName) ? "" : " for tenant `" + tenantName + "`");
+
+    boolean isOAuthApp =
+        StringUtils.isNotBlank(appId)
+            || StringUtils.isNotBlank(appSecret)
+            || StringUtils.isNotBlank(cspOrgId);
+    boolean isCPSAPIToken = StringUtils.isNotBlank(cspAPIToken);
+    boolean isWFToken = StringUtils.isNotBlank(wfToken);
+
+    long authMethods =
+        Arrays.asList(isOAuthApp, isCPSAPIToken, isWFToken).stream().filter(auth -> auth).count();
+    if (authMethods != 1) {
+      throw new IllegalArgumentException(BAD_CONFIG);
+    }
+
+    TenantInfo tokenWorker;
+    if (isOAuthApp) {
+      if (StringUtils.isNotBlank(appId)
+          && StringUtils.isNotBlank(appSecret)
+          && StringUtils.isNotBlank(cspOrgId)) {
+        logger.info(
+            "TCSP OAuth server to server app credentials for further authentication. For the server "
+                + server);
+        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server);
+      } else {
+        throw new IllegalArgumentException(BAD_CONFIG);
+      }
+    } else if (isCPSAPIToken) {
+      logger.info("CSP api token for further authentication. For the server " + server);
+      tokenWorker = new TokenWorkerCSP(cspAPIToken, server);
+    } else { // isWFToken
+      logger.info("Wavefront api token for further authentication. For the server " + server);
+      tokenWorker = new TokenWorkerWF(wfToken, server);
+    }
+
+    TokenManager.addTenant(tenantName, tokenWorker);
   }
 }

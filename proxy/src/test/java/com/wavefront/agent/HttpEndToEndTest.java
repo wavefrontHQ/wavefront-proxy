@@ -76,6 +76,7 @@ public class HttpEndToEndTest {
 
   @After
   public void teardown() {
+    TokenManager.reset();
     thread.interrupt();
     proxy.stopListener(proxyPort);
     proxy.shutdown();

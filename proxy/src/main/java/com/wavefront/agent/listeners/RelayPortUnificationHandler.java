@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.TokenManager;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -193,9 +194,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 .proxyCheckin(
                     UUID.fromString(request.headers().get("X-WF-PROXY-ID")),
                     "Bearer "
-                        + proxyConfig
-                            .getTenantInfoManager()
-                            .getMulticastingTenantList()
+                        + TokenManager.getMulticastingTenantList()
                             .get(APIContainer.CENTRAL_TENANT_NAME)
                             .getBearerToken(),
                     query.get("hostname"),

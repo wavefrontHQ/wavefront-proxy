@@ -158,8 +158,7 @@ public class ProxyCheckInScheduler {
       if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
     // MONIT-25479: check-in for central and multicasting tenants / clusters
-    Map<String, TenantInfo> multicastingTenantList =
-        proxyConfig.getTenantInfoManager().getMulticastingTenantList();
+    Map<String, TenantInfo> multicastingTenantList = TokenManager.getMulticastingTenantList();
     // Initialize tenantName and multicastingTenantProxyConfig here to track current checking
     // tenant for better exception handling message
     String tenantName = APIContainer.CENTRAL_TENANT_NAME;
