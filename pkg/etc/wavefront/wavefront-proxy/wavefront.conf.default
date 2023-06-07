@@ -18,7 +18,7 @@ server=CHANGE_ME
 # 1. Click the gear icon at the top right in the Wavefront UI.
 # 2. Click your account name (usually your email)
 # 3. Click *API access*.
-token=CHANGE_ME
+#token=CHANGE_ME
 
 # To add a proxy, you need to use an existing API token with AOA service proxy role. If you have no API token yet, you
 # can create one under your account page in VMWare Cloud Service.

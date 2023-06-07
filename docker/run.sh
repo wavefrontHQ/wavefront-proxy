@@ -8,14 +8,16 @@ fi
 authType=""
 if [[ -n "$CSP_APP_ID" && -n "$CSP_APP_SECRET" && -n "$CSP_ORG_ID" ]]; then
   authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET --cspOrgId $CSP_ORG_ID"
-elif [[ -n "$CSP_API_TOKEN" ]]; then
+fi
+if [[ -n "$CSP_API_TOKEN" ]]; then
   authType="--cspAPIToken $CSP_API_TOKEN"
-elif [[ -n "$WAVEFRONT_TOKEN" ]]; then
+fi
+if [[ -n "$WAVEFRONT_TOKEN" ]]; then
   authType="-t $WAVEFRONT_TOKEN"
 fi
 
 if [[ -z "$authType" ]]; then
-    echo "Error: Invalid combination of parameters."
+    echo "Error: The auth method combination was wrong or no auth method was supplied."
     exit 1
 fi
 

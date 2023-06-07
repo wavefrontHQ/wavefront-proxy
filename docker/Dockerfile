@@ -3,7 +3,7 @@ FROM eclipse-temurin:11
 # Wavefront authentication can be configured in three different ways: Customers that have been
 # onboarded by CSP can set up CSP api tokens or CSP OAuth apps (CSP_APP_ID, CSP_APP_SECRET,
 # CSP_ORG_ID). Customers of Wavefront can use Wavefront api token. This script may automatically
-# configure wavefront without prompting, based on these variables:
+# configure Wavefront without prompting, based on these variables:
 #  WAVEFRONT_URL           (required)
 #  WAVEFRONT_TOKEN         (not required)
 #  CSP_API_TOKEN           (not required)

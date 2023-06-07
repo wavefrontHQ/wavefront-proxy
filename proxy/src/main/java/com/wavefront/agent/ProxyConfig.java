@@ -1468,11 +1468,11 @@ public class ProxyConfig extends ProxyConfigDef {
         StringUtils.isNotBlank(appId)
             || StringUtils.isNotBlank(appSecret)
             || StringUtils.isNotBlank(cspOrgId);
-    boolean isCPSAPIToken = StringUtils.isNotBlank(cspAPIToken);
+    boolean isCSPAPIToken = StringUtils.isNotBlank(cspAPIToken);
     boolean isWFToken = StringUtils.isNotBlank(wfToken);
 
     long authMethods =
-        Arrays.asList(isOAuthApp, isCPSAPIToken, isWFToken).stream().filter(auth -> auth).count();
+        Arrays.asList(isOAuthApp, isCSPAPIToken, isWFToken).stream().filter(auth -> auth).count();
     if (authMethods != 1) {
       throw new IllegalArgumentException(BAD_CONFIG);
     }
@@ -1489,7 +1489,7 @@ public class ProxyConfig extends ProxyConfigDef {
       } else {
         throw new IllegalArgumentException(BAD_CONFIG);
       }
-    } else if (isCPSAPIToken) {
+    } else if (isCSPAPIToken) {
       logger.info("CSP api token for further authentication. For the server " + server);
       tokenWorker = new TokenWorkerCSP(cspAPIToken, server);
     } else { // isWFToken

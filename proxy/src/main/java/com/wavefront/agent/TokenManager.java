@@ -5,11 +5,9 @@ import com.wavefront.agent.api.APIContainer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import org.jetbrains.annotations.TestOnly;
 
 public class TokenManager {
-  private static final Logger logger = Logger.getLogger(TokenManager.class.getCanonicalName());
   private static final Map<String, TenantInfo> multicastingTenantList = Maps.newHashMap();
   private static List<TokenWorker.Scheduled> scheduledWorkers = new ArrayList();
   private static List<TokenWorker.External> externalWorkers = new ArrayList();

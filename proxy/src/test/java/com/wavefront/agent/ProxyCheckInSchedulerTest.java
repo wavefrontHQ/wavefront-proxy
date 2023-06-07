@@ -29,7 +29,6 @@ public class ProxyCheckInSchedulerTest {
   public void testNormalCheckin() {
     ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
     ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
-    TenantInfo token = new TokenWorkerWF("abcde12345", "https://acme.corp/api");
     APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
     reset(proxyConfig, proxyV2API, proxyConfig);
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();

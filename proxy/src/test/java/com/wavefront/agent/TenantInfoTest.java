@@ -117,7 +117,6 @@ public class TenantInfoTest {
     TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
 
     // Set up expectations
-    //    expect(mockCSPAuthConnector.loadAccessTokenByAPIToken()).andReturn(mockResponse);
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
     expect(statusTypeMock.getStatusCode()).andReturn(200);
     expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SUCCESSFUL);

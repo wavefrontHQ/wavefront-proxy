@@ -82,7 +82,6 @@ public class APIContainer {
     proxyV2APIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting = Maps.newHashMap();
     eventAPIsForMulticasting = Maps.newHashMap();
-
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;

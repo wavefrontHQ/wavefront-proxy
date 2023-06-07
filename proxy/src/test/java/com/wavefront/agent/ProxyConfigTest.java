@@ -1,7 +1,6 @@
 package com.wavefront.agent;
 
 import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
 
 import com.beust.jcommander.ParameterException;
@@ -58,6 +57,7 @@ public class ProxyConfigTest {
     assertThrows(IllegalArgumentException.class, () -> cfg.parseArguments(args, ""));
   }
 
+  @Test
   public void testBadCSPOAuthConfig() {
     String[] args = new String[] {"--cspAppId", UUID.randomUUID().toString()};
 

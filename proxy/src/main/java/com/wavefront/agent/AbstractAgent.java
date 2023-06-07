@@ -322,7 +322,6 @@ public abstract class AbstractAgent {
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
       TokenManager.start(apiContainer);
-
       // config the entityPropertiesFactoryMap
       for (String tenantName : TokenManager.getMulticastingTenantList().keySet()) {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
