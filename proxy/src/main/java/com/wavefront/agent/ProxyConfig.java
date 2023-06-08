@@ -1461,33 +1461,27 @@ public class ProxyConfig extends ProxyConfigDef {
       @Nonnull final String tenantName) {
 
     final String BAD_CONFIG =
-        "incorrect configuration, one (and only one) of this options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret, cspOrgId`"
+        "incorrect configuration, one (and only one) of these options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret`"
             + (CENTRAL_TENANT_NAME.equals(tenantName) ? "" : " for tenant `" + tenantName + "`");
 
-    boolean isOAuthApp =
-        StringUtils.isNotBlank(appId)
-            || StringUtils.isNotBlank(appSecret)
-            || StringUtils.isNotBlank(cspOrgId);
+    boolean isOAuthApp = StringUtils.isNotBlank(appId) || StringUtils.isNotBlank(appSecret);
     boolean isCSPAPIToken = StringUtils.isNotBlank(cspAPIToken);
     boolean isWFToken = StringUtils.isNotBlank(wfToken);
 
-    long authMethods =
-        Arrays.asList(isOAuthApp, isCSPAPIToken, isWFToken).stream().filter(auth -> auth).count();
-    if (authMethods != 1) {
+    if (Stream.of(isOAuthApp, isCSPAPIToken, isWFToken).filter(auth -> auth).count() != 1) {
       throw new IllegalArgumentException(BAD_CONFIG);
     }
 
     TenantInfo tokenWorker;
     if (isOAuthApp) {
-      if (StringUtils.isNotBlank(appId)
-          && StringUtils.isNotBlank(appSecret)
-          && StringUtils.isNotBlank(cspOrgId)) {
+      if (StringUtils.isNotBlank(appId) && StringUtils.isNotBlank(appSecret)) {
         logger.info(
             "TCSP OAuth server to server app credentials for further authentication. For the server "
                 + server);
         tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server);
       } else {
-        throw new IllegalArgumentException(BAD_CONFIG);
+        throw new IllegalArgumentException(
+            "To use server to server oauth, both `cspAppId` and `cspAppSecret` are required.");
       }
     } else if (isCSPAPIToken) {
       logger.info("CSP api token for further authentication. For the server " + server);

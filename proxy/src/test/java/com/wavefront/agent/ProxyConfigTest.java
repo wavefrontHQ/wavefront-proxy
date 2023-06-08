@@ -52,17 +52,81 @@ public class ProxyConfigTest {
           "--token", UUID.randomUUID().toString(),
           "--cspAppId", UUID.randomUUID().toString()
         };
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args, ""));
 
-    ProxyConfig cfg = new ProxyConfig();
-    assertThrows(IllegalArgumentException.class, () -> cfg.parseArguments(args, ""));
+    String[] args2 =
+        new String[] {
+          "--token", UUID.randomUUID().toString(),
+          "--cspAppSecret", UUID.randomUUID().toString()
+        };
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args2, ""));
+
+    String[] args3 =
+        new String[] {
+          "--token", UUID.randomUUID().toString(),
+          "--cspAppId", UUID.randomUUID().toString(),
+          "--cspAppSecret", UUID.randomUUID().toString()
+        };
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args3, ""));
+
+    String[] args4 =
+        new String[] {
+          "--cspAPIToken", UUID.randomUUID().toString(),
+          "--cspAppId", UUID.randomUUID().toString(),
+          "--cspAppSecret", UUID.randomUUID().toString()
+        };
+
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args4, ""));
+
+    String[] args5 =
+        new String[] {
+          "--token", UUID.randomUUID().toString(),
+          "--cspAPIToken", UUID.randomUUID().toString()
+        };
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args5, ""));
   }
 
   @Test
   public void testBadCSPOAuthConfig() {
     String[] args = new String[] {"--cspAppId", UUID.randomUUID().toString()};
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args, ""));
 
-    ProxyConfig cfg = new ProxyConfig();
-    assertThrows(IllegalArgumentException.class, () -> cfg.parseArguments(args, ""));
+    String[] args2 = new String[] {"--cspAppSecret", UUID.randomUUID().toString()};
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args2, ""));
+
+    String[] args3 =
+        new String[] {
+          "--token", UUID.randomUUID().toString(),
+          "--cspAppId", UUID.randomUUID().toString(),
+          "--cspAppSecret", UUID.randomUUID().toString()
+        };
+
+    assertThrows(IllegalArgumentException.class, () -> new ProxyConfig().parseArguments(args3, ""));
+  }
+
+  @Test
+  public void testGoodCSPOAuthConfig() {
+    String[] args =
+        new String[] {
+          "--cspAppId", UUID.randomUUID().toString(),
+          "--cspAppSecret", UUID.randomUUID().toString()
+        };
+
+    assertTrue(new ProxyConfig().parseArguments(args, ""));
+  }
+
+  @Test
+  public void testGoodCSPUserConfig() {
+    String[] args = new String[] {"--cspAPIToken", UUID.randomUUID().toString()};
+
+    assertTrue(new ProxyConfig().parseArguments(args, ""));
+  }
+
+  @Test
+  public void testGoodWfTokenConfig() {
+    String[] args = new String[] {"--token", UUID.randomUUID().toString()};
+
+    assertTrue(new ProxyConfig().parseArguments(args, ""));
   }
 
   @Test
