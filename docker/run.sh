@@ -6,8 +6,12 @@ if [[ -z "$WAVEFRONT_URL" ]]; then
 fi
 
 authType=""
-if [[ -n "$CSP_APP_ID" && -n "$CSP_APP_SECRET" && -n "$CSP_ORG_ID" ]]; then
-  authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET --cspOrgId $CSP_ORG_ID"
+if [[ -n "$CSP_APP_ID" && -n "$CSP_APP_SECRET" ]]; then
+  if [[ -n "$CSP_ORG_ID" ]]; then
+    authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET --cspOrgId $CSP_ORG_ID"
+  else
+    authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET"
+  fi
 fi
 if [[ -n "$CSP_API_TOKEN" ]]; then
   authType="--cspAPIToken $CSP_API_TOKEN"
