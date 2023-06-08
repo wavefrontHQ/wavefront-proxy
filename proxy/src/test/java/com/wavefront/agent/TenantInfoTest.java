@@ -24,7 +24,7 @@ import org.junit.Test;
  */
 public class TenantInfoTest {
   private static final String wfServer = "wfServer";
-  private final CSPAPI cpsApi = EasyMock.createMock(CSPAPI.class);
+  private final CSPAPI cspApi = EasyMock.createMock(CSPAPI.class);
   private final Response mockResponse = EasyMock.createMock(Response.class);
   private final Response.StatusType statusTypeMock = EasyMock.createMock(Response.StatusType.class);
   private final TokenExchangeResponseDTO mockTokenExchangeResponseDTO =
@@ -33,15 +33,15 @@ public class TenantInfoTest {
   @After
   public void cleanup() {
     TokenManager.reset();
-    reset(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cpsApi);
+    reset(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cspApi);
   }
 
   private void replayAll() {
-    replay(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cpsApi);
+    replay(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cspApi);
   }
 
   private void verifyAll() {
-    verify(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cpsApi);
+    verify(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cspApi);
   }
 
   @Test
@@ -52,7 +52,7 @@ public class TenantInfoTest {
 
     TenantInfo tokenWorkerCSP = new TokenWorkerWF(wfToken, wfServer);
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals(wfToken, tokenWorkerCSP.getBearerToken());
@@ -73,14 +73,66 @@ public class TenantInfoTest {
     expect(mockTokenExchangeResponseDTO.getAccessToken()).andReturn("newAccessToken");
     expect(mockTokenExchangeResponseDTO.getExpiresIn()).andReturn(600);
     expect(
-            cpsApi.getTokenByClientCredentials(
+            cspApi.getTokenByClientCredentialsWithOrgId(
                 "Basic YXBwSWQ6YXBwU2VjcmV0", "client_credentials", "orgId"))
         .andReturn(mockResponse)
         .times(1);
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+
+    // Verify the results
+    assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
+    assertEquals(wfServer, tokenWorkerCSP.getWFServer());
+    verifyAll();
+  }
+
+  @Test
+  public void testRun_SuccessfulResponseUsingOAuthAppWithBlankOrgId() {
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "", wfServer);
+
+    // Set up expectations
+    expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
+    expect(statusTypeMock.getStatusCode()).andReturn(200);
+    expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SUCCESSFUL);
+    expect(mockResponse.readEntity(TokenExchangeResponseDTO.class))
+        .andReturn(mockTokenExchangeResponseDTO);
+    expect(mockTokenExchangeResponseDTO.getAccessToken()).andReturn("newAccessToken");
+    expect(mockTokenExchangeResponseDTO.getExpiresIn()).andReturn(600);
+    expect(cspApi.getTokenByClientCredentials("Basic YXBwSWQ6YXBwU2VjcmV0", "client_credentials"))
+        .andReturn(mockResponse)
+        .times(1);
+    replayAll();
+
+    TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+
+    // Verify the results
+    assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
+    assertEquals(wfServer, tokenWorkerCSP.getWFServer());
+    verifyAll();
+  }
+
+  @Test
+  public void testRun_SuccessfulResponseUsingOAuthAppWithNullOrgId() {
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", null, wfServer);
+
+    // Set up expectations
+    expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
+    expect(statusTypeMock.getStatusCode()).andReturn(200);
+    expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SUCCESSFUL);
+    expect(mockResponse.readEntity(TokenExchangeResponseDTO.class))
+        .andReturn(mockTokenExchangeResponseDTO);
+    expect(mockTokenExchangeResponseDTO.getAccessToken()).andReturn("newAccessToken");
+    expect(mockTokenExchangeResponseDTO.getExpiresIn()).andReturn(600);
+    expect(cspApi.getTokenByClientCredentials("Basic YXBwSWQ6YXBwU2VjcmV0", "client_credentials"))
+        .andReturn(mockResponse)
+        .times(1);
+    replayAll();
+
+    TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -97,14 +149,14 @@ public class TenantInfoTest {
     expect(statusTypeMock.getStatusCode()).andReturn(400).times(2);
     expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SERVER_ERROR);
     expect(
-            cpsApi.getTokenByClientCredentials(
+            cspApi.getTokenByClientCredentialsWithOrgId(
                 "Basic YXBwSWQ6YXBwU2VjcmV0", "client_credentials", "orgId"))
         .andReturn(mockResponse)
         .times(1);
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
 
     // Verify the results
     assertNull(tokenWorkerCSP.getBearerToken());
@@ -124,13 +176,13 @@ public class TenantInfoTest {
         .andReturn(mockTokenExchangeResponseDTO);
     expect(mockTokenExchangeResponseDTO.getAccessToken()).andReturn("newAccessToken");
     expect(mockTokenExchangeResponseDTO.getExpiresIn()).andReturn(600);
-    expect(cpsApi.getTokenByAPIToken("api_token", "csp-api-token"))
+    expect(cspApi.getTokenByAPIToken("api_token", "csp-api-token"))
         .andReturn(mockResponse)
         .times(1);
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -146,13 +198,13 @@ public class TenantInfoTest {
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(3);
     expect(statusTypeMock.getStatusCode()).andReturn(400).times(2);
     expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SERVER_ERROR);
-    expect(cpsApi.getTokenByAPIToken("api_token", "csp-api-token"))
+    expect(cspApi.getTokenByAPIToken("api_token", "csp-api-token"))
         .andReturn(mockResponse)
         .times(1);
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
 
     // Verify the results
     assertNull(tokenWorkerCSP.getBearerToken());
@@ -215,7 +267,7 @@ public class TenantInfoTest {
     expect(mockTokenExchangeResponseDTO.getAccessToken()).andReturn("newAccessToken").times(2);
     expect(mockTokenExchangeResponseDTO.getExpiresIn()).andReturn(600).times(2);
     expect(
-            cpsApi.getTokenByClientCredentials(
+            cpsApi.getTokenByClientCredentialsWithOrgId(
                 "Basic YXBwLWlkMjphcHAtc2VjcmV0Mg==", "client_credentials", "org-id2"))
         .andReturn(mockResponse)
         .times(1);

@@ -1,7 +1,9 @@
 package com.wavefront.agent;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 
+import com.google.common.base.Strings;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.api.CSPAPI;
 import com.wavefront.common.LazySupplier;
@@ -67,16 +69,16 @@ public class TokenWorkerCSP
 
   public TokenWorkerCSP(
       final String appId, final String appSecret, final String orgId, final String wfServer) {
-    this.appId = appId;
-    this.appSecret = appSecret;
+    this.appId = checkNotNull(appId);
+    this.appSecret = checkNotNull(appSecret);
     this.orgId = orgId;
-    this.wfServer = wfServer;
+    this.wfServer = checkNotNull(wfServer);
     proxyAuthMethod = ProxyAuthMethod.CLIENT_CREDENTIALS;
   }
 
   public TokenWorkerCSP(final String token, final String wfServer) {
-    this.token = token;
-    this.wfServer = wfServer;
+    this.token = checkNotNull(token);
+    this.wfServer = checkNotNull(wfServer);
     proxyAuthMethod = ProxyAuthMethod.API_TOKEN;
   }
 
@@ -134,7 +136,12 @@ public class TokenWorkerCSP
             "Basic %s",
             Base64.getEncoder()
                 .encodeToString(String.format("%s:%s", appId, appSecret).getBytes()));
-    return api.getTokenByClientCredentials(auth, "client_credentials", orgId);
+
+    if (Strings.isNullOrEmpty(orgId)) {
+      return api.getTokenByClientCredentials(auth, "client_credentials");
+    }
+
+    return api.getTokenByClientCredentialsWithOrgId(auth, "client_credentials", orgId);
   }
 
   private long processResponse(final Response response) {

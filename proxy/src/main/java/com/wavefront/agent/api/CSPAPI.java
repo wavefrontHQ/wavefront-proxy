@@ -16,8 +16,15 @@ public interface CSPAPI {
   @POST
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
   @Path("csp/gateway/am/api/auth/authorize")
-  Response getTokenByClientCredentials(
+  Response getTokenByClientCredentialsWithOrgId(
       @HeaderParam(HttpHeaders.AUTHORIZATION) final String auth,
       @FormParam("grant_type") final String grantType,
       @FormParam("orgId") final String orgId);
+
+  @POST
+  @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+  @Path("csp/gateway/am/api/auth/authorize")
+  Response getTokenByClientCredentials(
+      @HeaderParam(HttpHeaders.AUTHORIZATION) final String auth,
+      @FormParam("grant_type") final String grantType);
 }
