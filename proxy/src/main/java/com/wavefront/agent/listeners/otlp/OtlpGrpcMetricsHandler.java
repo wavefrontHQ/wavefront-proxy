@@ -1,8 +1,9 @@
 package com.wavefront.agent.listeners.otlp;
 
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import static com.wavefront.agent.ProxyContext.queuesManager;
+
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import io.grpc.stub.StreamObserver;
@@ -15,25 +16,17 @@ import wavefront.report.ReportPoint;
 
 public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImplBase {
 
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
-  private final ReportableEntityHandler<ReportPoint, String> histogramHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> histogramHandler;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final String defaultSource;
   private final boolean includeResourceAttrsForMetrics;
   private final boolean includeOtlpAppTagsOnMetrics;
 
-  /**
-   * Create new instance.
-   *
-   * @param pointHandler
-   * @param histogramHandler
-   * @param preprocessorSupplier
-   * @param defaultSource
-   * @param includeResourceAttrsForMetrics
-   */
+  /** Create new instance. */
   public OtlpGrpcMetricsHandler(
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
-      ReportableEntityHandler<ReportPoint, String> histogramHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
+      ReportableEntityHandler<ReportPoint> histogramHandler,
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics,
@@ -48,15 +41,17 @@ public class OtlpGrpcMetricsHandler extends MetricsServiceGrpc.MetricsServiceImp
   }
 
   public OtlpGrpcMetricsHandler(
-      String handle,
+      int port,
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics,
       boolean includeOtlpAppTagsOnMetrics) {
     this(
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)),
+        handlerFactory.getHandler(
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.POINT)),
+        handlerFactory.getHandler(
+            String.valueOf(port), queuesManager.initQueue(ReportableEntityType.HISTOGRAM)),
         preprocessorSupplier,
         defaultSource,
         includeResourceAttrsForMetrics,

@@ -1,31 +1,18 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expectLastCall;
+import static com.wavefront.sdk.common.Constants.*;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.WavefrontSender;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.EmptyHttpHeaders;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.util.HashMap;
 import org.easymock.Capture;
@@ -35,15 +22,11 @@ import org.junit.Test;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link OtlpHttpHandler}.
- *
- * @author Glenn Oppegard (goppegard@vmware.com)
- */
+/** Unit tests for {@link OtlpHttpHandler}. */
 public class OtlpHttpHandlerTest {
-  private final ReportableEntityHandler<Span, String> mockTraceHandler =
+  private final ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private final ReportableEntityHandler<SpanLogs, String> mockSpanLogsHandler =
+  private final ReportableEntityHandler<SpanLogs> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
@@ -76,7 +59,7 @@ public class OtlpHttpHandlerTest {
             mockHandlerFactory,
             null,
             null,
-            "4318",
+            4318,
             mockSender,
             null,
             mockSampler,

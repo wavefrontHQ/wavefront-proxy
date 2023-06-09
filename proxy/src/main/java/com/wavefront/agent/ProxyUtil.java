@@ -20,16 +20,14 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Miscellaneous support methods for running Wavefront proxy.
- *
- * @author vasily@wavefront.com
- */
-abstract class ProxyUtil {
-  protected static final Logger logger = Logger.getLogger("proxy");
+/** Miscellaneous support methods for running Wavefront proxy. */
+public abstract class ProxyUtil {
+  protected static final Logger logger =
+      LoggerFactory.getLogger(ProxyUtil.class.getCanonicalName());
 
   private ProxyUtil() {}
 
@@ -152,17 +150,19 @@ abstract class ProxyUtil {
       int port,
       int idleTimeout,
       @Nullable SslContext sslContext) {
-    String strPort = String.valueOf(port);
     ChannelHandler idleStateEventHandler =
         new IdleStateEventHandler(
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
+                new TaggedMetricName(
+                    "listeners", "connections.idle.closed", "port", String.valueOf(port))));
     ChannelHandler connectionTracker =
         new ConnectionTrackingHandler(
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.accepted", "port", strPort)),
+                new TaggedMetricName(
+                    "listeners", "connections.accepted", "port", String.valueOf(port))),
             Metrics.newCounter(
-                new TaggedMetricName("listeners", "connections.active", "port", strPort)));
+                new TaggedMetricName(
+                    "listeners", "connections.active", "port", String.valueOf(port))));
     if (sslContext != null) {
       logger.info("TLS enabled on port: " + port);
     }

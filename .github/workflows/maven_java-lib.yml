@@ -1,0 +1,38 @@
+name: Java CI with Maven with custom Java-lib
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: ["11"]
+        # java: ["11", "16", "17"]
+
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Java-lib Repository
+        with:
+          ref: dev-proxy2
+          repository: wavefrontHQ/java-lib
+      - name: Build Java-lib
+        run: mvn --batch-mode install
+      - uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: "temurin"
+          cache: maven
+      - name: Check code format
+        run: mvn -f proxy git-code-format:validate-code-format
+      - name: Build with Maven
+        run: mvn -f proxy test -B --fail-at-end
+      - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: Test logs
+          path: proxy/target/surefire-reports

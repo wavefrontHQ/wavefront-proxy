@@ -3,7 +3,6 @@ package com.wavefront.agent;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class WavefrontProxyService implements Daemon {
 
   private PushAgent agent;

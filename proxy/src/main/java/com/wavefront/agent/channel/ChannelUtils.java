@@ -12,15 +12,7 @@ import com.yammer.metrics.core.MetricName;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpMessage;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -29,11 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/**
- * A collection of helper methods around Netty channels.
- *
- * @author vasily@wavefront.com
- */
+/** A collection of helper methods around Netty channels. */
 public abstract class ChannelUtils {
 
   private static final Map<Integer, LoadingCache<Integer, Counter>> RESPONSE_STATUS_CACHES =

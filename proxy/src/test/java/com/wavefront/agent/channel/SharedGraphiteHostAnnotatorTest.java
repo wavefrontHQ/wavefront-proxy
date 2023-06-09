@@ -1,8 +1,6 @@
 package com.wavefront.agent.channel;
 
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
@@ -12,7 +10,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com */
 public class SharedGraphiteHostAnnotatorTest {
 
   @Test

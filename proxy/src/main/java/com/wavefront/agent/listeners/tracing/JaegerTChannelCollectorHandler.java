@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
@@ -9,9 +10,8 @@ import com.google.common.collect.Sets;
 import com.uber.tchannel.api.handlers.ThriftRequestHandler;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.uber.tchannel.messages.ThriftResponse;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
@@ -32,30 +32,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and converts them to Wavefront
  * format
- *
- * @author vasily@wavefront.com
  */
 public class JaegerTChannelCollectorHandler
     extends ThriftRequestHandler<Collector.submitBatches_args, Collector.submitBatches_result>
     implements Runnable, Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerTChannelCollectorHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerTChannelCollectorHandler.class.getCanonicalName());
 
   private static final String JAEGER_COMPONENT = "jaeger";
   private static final String DEFAULT_SOURCE = "jaeger";
 
-  private final ReportableEntityHandler<Span, String> spanHandler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
   @Nullable private final WavefrontInternalReporter wfInternalReporter;
   private final Supplier<Boolean> traceDisabled;
@@ -75,7 +73,7 @@ public class JaegerTChannelCollectorHandler
   private final ScheduledExecutorService scheduledExecutorService;
 
   public JaegerTChannelCollectorHandler(
-      String handle,
+      int port,
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
@@ -85,9 +83,10 @@ public class JaegerTChannelCollectorHandler
       @Nullable String traceJaegerApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
     this(
-        handle,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        port,
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,
@@ -98,9 +97,9 @@ public class JaegerTChannelCollectorHandler
   }
 
   public JaegerTChannelCollectorHandler(
-      String handle,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      int port,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,
@@ -120,17 +119,17 @@ public class JaegerTChannelCollectorHandler
             ? "Jaeger"
             : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + port, "", "discarded"));
     this.discardedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "discarded"));
     this.processedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "processed"));
     this.failedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "failed"));
     this.discardedSpansBySampler =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded"));
     this.receivedSpansTotal =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("jaeger-heart-beater"));
@@ -176,8 +175,7 @@ public class JaegerTChannelCollectorHandler
         processedBatches.inc();
       } catch (Exception e) {
         failedBatches.inc();
-        logger.log(
-            Level.WARNING, "Jaeger Thrift batch processing failed", Throwables.getRootCause(e));
+        logger.warn("Jaeger Thrift batch processing failed", Throwables.getRootCause(e));
       }
     }
     return new ThriftResponse.Builder<Collector.submitBatches_result>(request)
@@ -190,7 +188,7 @@ public class JaegerTChannelCollectorHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

@@ -17,8 +17,10 @@ import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
+import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -29,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,25 +40,27 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Base class for all line-based protocols. Supports TCP line protocol as well as HTTP POST with
  * newline-delimited payload.
- *
- * @author vasily@wavefront.com.
  */
 @ChannelHandler.Sharable
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
 
   public static final ObjectMapper JSON_PARSER = new ObjectMapper();
   public static final String LOG_EVENTS_KEY = "logEvents";
+  private final Supplier<Histogram> receivedLogsBatches;
 
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AbstractLineDelimitedHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final String handle) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+      final int port) {
+    super(tokenAuthenticator, healthCheckManager, port);
+    this.receivedLogsBatches =
+        Utils.lazySupplier(
+            () -> Metrics.newHistogram(new MetricName("logs." + port, "", "received.batches")));
   }
 
   /** Handles an incoming HTTP message. Accepts HTTP POST on all paths */
@@ -66,7 +71,8 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     try {
       DataFormat format = getFormat(request);
       processBatchMetrics(ctx, request, format);
-      // Log batches may contain new lines as part of the message payload so we special case
+      // Log batches may contain new lines as part of the message payload so we
+      // special case
       // handling breaking up the batches
       Iterable<String> lines;
 
@@ -179,7 +185,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     if (LOGS_DATA_FORMATS.contains(format)) {
       Histogram receivedLogsBatches =
           getOrCreateLogsHistogramFromRegistry(
-              Metrics.defaultRegistry(), format, "logs." + handle, "received" + ".batches");
+              Metrics.defaultRegistry(), format, "logs." + port, "received" + ".batches");
       receivedLogsBatches.update(request.content().toString(CharsetUtil.UTF_8).length());
     }
   }

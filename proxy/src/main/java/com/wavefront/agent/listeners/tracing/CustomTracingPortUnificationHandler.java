@@ -1,14 +1,9 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.*;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,9 +11,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.data.ReportableEntityType;
@@ -32,24 +26,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Handler that process trace data sent from tier 1 SDK.
- *
- * @author djia@vmware.com
- */
+/** Handler that process trace data sent from tier 1 SDK. */
 @ChannelHandler.Sharable
 public class CustomTracingPortUnificationHandler extends TracePortUnificationHandler {
   private static final Logger logger =
-      Logger.getLogger(CustomTracingPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(CustomTracingPortUnificationHandler.class.getCanonicalName());
   @Nullable private final WavefrontSender wfSender;
   private final WavefrontInternalReporter wfInternalReporter;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
@@ -58,7 +48,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
   private final String proxyLevelServiceName;
 
   /**
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param traceDecoder trace decoders.
@@ -72,7 +62,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
    * @param traceDerivedCustomTagKeys custom tags added to derived RED metrics.
    */
   public CustomTracingPortUnificationHandler(
-      String handle,
+      int port,
       TokenAuthenticator tokenAuthenticator,
       HealthCheckManager healthCheckManager,
       ReportableEntityDecoder<String, Span> traceDecoder,
@@ -88,14 +78,15 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       @Nullable String customTracingApplicationName,
       @Nullable String customTracingServiceName) {
     this(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         sampler,
         traceDisabled,
         spanLogsDisabled,
@@ -108,14 +99,14 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
 
   @VisibleForTesting
   public CustomTracingPortUnificationHandler(
-      String handle,
+      int port,
       TokenAuthenticator tokenAuthenticator,
       HealthCheckManager healthCheckManager,
       ReportableEntityDecoder<String, Span> traceDecoder,
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      final ReportableEntityHandler<Span> handler,
+      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
       SpanSampler sampler,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,
@@ -125,7 +116,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       @Nullable String customTracingApplicationName,
       @Nullable String customTracingServiceName) {
     super(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
         traceDecoder,
@@ -181,7 +172,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       }
     }
     if (applicationName == null || serviceName == null) {
-      logger.warning(
+      logger.warn(
           "Ingested spans discarded because span application/service name is " + "missing.");
       discardedSpans.inc();
       return;
@@ -213,7 +204,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       try {
         reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "wavefront-generated");
       } catch (IOException e) {
-        logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+        logger.warn("Cannot report heartbeat metric to wavefront");
       }
     }
   }

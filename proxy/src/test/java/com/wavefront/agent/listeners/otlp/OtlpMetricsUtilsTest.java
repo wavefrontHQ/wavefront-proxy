@@ -1,13 +1,7 @@
 package com.wavefront.agent.listeners.otlp;
 
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
-import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.replaceServiceNameKeyWithServiceKey;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.*;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -42,7 +36,6 @@ import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
-/** @author Sumit Deo (deosu@vmware.com) */
 public class OtlpMetricsUtilsTest {
   private static final List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
   private static final long startTimeMs = System.currentTimeMillis();
@@ -666,7 +659,8 @@ public class OtlpMetricsUtilsTest {
     Metric otlpMetric =
         OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
 
-    // Actual buckets: -1, 2.8284, 4, 5.6569, 8, 11.3137, but we average the lower and upper
+    // Actual buckets: -1, 2.8284, 4, 5.6569, 8, 11.3137, but we average the lower
+    // and upper
     // bound of
     // each bucket when doing delta histogram centroids.
     List<Double> bins = Arrays.asList(0.9142, 3.4142, 4.8284, 6.8284, 9.6569);
@@ -707,8 +701,8 @@ public class OtlpMetricsUtilsTest {
     Metric otlpMetric =
         OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
 
-    // actual buckets: -4, -1, -0.25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and
-    // upper
+    // actual buckets: -4, -1, -0.25, 16.0, 64.0, 256.0, 1024.0, but we average the
+    // lower and upper
     // bound of
     // each bucket when doing delta histogram centroids.
     List<Double> bins = Arrays.asList(-2.5, -0.625, 7.875, 40.0, 160.0, 640.0);

@@ -1,8 +1,8 @@
 package org.logstash.beats;
 
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is implemented in ruby in `lib/logstash/inputs/beats/message_listener`, this class is
@@ -11,14 +11,11 @@ import org.apache.logging.log4j.Logger;
  */
 // This need to be implemented in Ruby
 public class MessageListener implements IMessageListener {
-  private static final Logger logger = LogManager.getLogger(MessageListener.class);
+  private static final Logger logger = LoggerFactory.getLogger(MessageListener.class);
 
   /**
    * This is triggered on every new message parsed by the beats handler and should be executed in
    * the ruby world.
-   *
-   * @param ctx
-   * @param message
    */
   public void onNewMessage(ChannelHandlerContext ctx, Message message) {
     logger.debug("onNewMessage");
@@ -27,8 +24,6 @@ public class MessageListener implements IMessageListener {
   /**
    * Triggered when a new client connect to the input, this is used to link a connection to a codec
    * in the ruby world.
-   *
-   * @param ctx
    */
   public void onNewConnection(ChannelHandlerContext ctx) {
     logger.debug("onNewConnection");
@@ -37,8 +32,6 @@ public class MessageListener implements IMessageListener {
   /**
    * Triggered when a connection is close on the remote end and we need to flush buffered events to
    * the queue.
-   *
-   * @param ctx
    */
   public void onConnectionClose(ChannelHandlerContext ctx) {
     logger.debug("onConnectionClose");
@@ -47,20 +40,12 @@ public class MessageListener implements IMessageListener {
   /**
    * Called went something bad occur in the pipeline, allow to clear buffered codec went somethign
    * goes wrong.
-   *
-   * @param ctx
-   * @param cause
    */
   public void onException(ChannelHandlerContext ctx, Throwable cause) {
     logger.debug("onException");
   }
 
-  /**
-   * Called when a error occur in the channel initialize, usually ssl handshake error.
-   *
-   * @param ctx
-   * @param cause
-   */
+  /** Called when a error occur in the channel initialize, usually ssl handshake error. */
   public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
     logger.debug("onException");
   }

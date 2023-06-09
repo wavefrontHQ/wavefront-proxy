@@ -2,17 +2,12 @@ package com.wavefront.agent.histogram.accumulator;
 
 import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.CacheWriter;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.Ticker;
+import com.github.benmanes.caffeine.cache.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.common.TimeProvider;
-import com.wavefront.common.logger.SharedRateLimitingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -22,18 +17,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Histogram;
 
 /**
  * Expose a local cache of limited size along with a task to flush that cache to the backing store.
- *
- * @author Tim Schmidt (tim@wavefront.com).
  */
 public class AccumulationCache implements Accumulator {
-  private static final Logger logger = Logger.getLogger(AccumulationCache.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(AccumulationCache.class.getCanonicalName());
   private static final MetricsRegistry sharedRegistry = SharedMetricsRegistry.getInstance();
 
   private final Counter binCreatedCounter;
@@ -356,8 +351,8 @@ public class AccumulationCache implements Accumulator {
   }
 
   private static class AccumulationCacheMonitor implements Runnable {
-    private final Logger throttledLogger =
-        new SharedRateLimitingLogger(logger, "accumulator-failure", 1.0d);
+    private final Logger throttledLogger = logger;
+    //        new SharedRateLimitingLogger(logger, "accumulator-failure", 1.0d);
     private Counter failureCounter;
 
     @Override
@@ -366,7 +361,7 @@ public class AccumulationCache implements Accumulator {
         failureCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "failure"));
       }
       failureCounter.inc();
-      throttledLogger.severe(
+      throttledLogger.error(
           "CRITICAL: Histogram accumulator overflow - "
               + "losing histogram data!!! Accumulator size configuration setting is "
               + "not appropriate for the current workload, please increase the value "

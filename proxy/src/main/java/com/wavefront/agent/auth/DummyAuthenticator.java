@@ -1,10 +1,6 @@
 package com.wavefront.agent.auth;
 
-/**
- * A dummy authenticator for the "No authorization required" flow.
- *
- * @author vasily@wavefront.com
- */
+/** A dummy authenticator for the "No authorization required" flow. */
 class DummyAuthenticator implements TokenAuthenticator {
 
   DummyAuthenticator() {}

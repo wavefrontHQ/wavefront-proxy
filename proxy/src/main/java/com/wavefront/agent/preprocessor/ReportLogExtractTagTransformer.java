@@ -14,11 +14,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.ReportLog;
 
-/**
- * Create a log tag by extracting a portion of a message, source name or another log tag
- *
- * @author amitw@vmware.com
- */
+/** Create a log tag by extracting a portion of a message, source name or another log tag */
 public class ReportLogExtractTagTransformer implements Function<ReportLog, ReportLog> {
 
   protected final String tag;

@@ -7,8 +7,6 @@ import wavefront.report.ReportPoint;
 /**
  * Create a point tag by extracting a portion of a metric name, source name or another point tag. If
  * such point tag already exists, the value won't be overwritten.
- *
- * @author vasily@wavefront.com Created 5/18/18
  */
 public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtractTagTransformer {
 

@@ -1,0 +1,58 @@
+name: Beta
+on:
+  push:
+    tags:
+      - v*.beta.*
+      - v*.RC.*
+env:
+  TAG: ${{ github.ref_name }}
+jobs:
+  beta-build:
+    runs-on: ubuntu-latest
+    name: Build Proxy Docker Image
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Java-lib Repository
+        with:
+          ref: dev-proxy2
+          repository: wavefrontHQ/java-lib
+      - name: Build Java-lib
+        run: mvn --batch-mode install
+      - uses: actions/checkout@v2
+        name: Checkout Proxy Repository
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: build application
+        run: USER=${{ secrets.DOCKER_USER }} DOCKER_TAG=${{ env.TAG }} make build-jar cp-docker
+      - name: login PCKGC
+        run: echo '${{ secrets.PCKGC_FILE }}' > pkg/package_cloud.conf
+      - name: build linux
+        run: PACKAGECLOUD_USER=${{ secrets.PCKGC_USER }} PACKAGECLOUD_REPO=proxy-snapshot REVISION=${{ env.TAG }} make build-linux
+      - name: deploy to s3 rpm
+        run: aws s3 cp out/*rpm s3://eso-wfproxy-testing/performance_test_artifacts/
+      - name: deploy to s3 deb
+        run: aws s3 cp out/*deb s3://eso-wfproxy-testing/performance_test_artifacts/
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: "./docker"
+          platforms: linux/amd64,linux/arm/v7,linux/arm64
+          push: true
+          build-args: "TEST=true"
+          tags: "${{ secrets.DOCKER_OWNER }}/proxy-snapshot:${{ env.TAG }}"

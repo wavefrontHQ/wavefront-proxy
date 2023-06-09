@@ -10,13 +10,9 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
-import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.agent.preprocessor.SpanBlockFilter;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.preprocessor.*;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
@@ -31,18 +27,14 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Unit tests for {@link SpanUtils}.
- *
- * @author Shipeng Xie (xshipeng@vmware.com)
- */
+/** Unit tests for {@link SpanUtils}. */
 public class SpanUtilsTest {
   private ReportableEntityDecoder<String, Span> spanDecoder = new SpanDecoder("localdev");
   private ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDocoder = new SpanLogsDecoder();
 
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private ValidationConfiguration validationConfiguration = new ValidationConfiguration();
   private long startTime = System.currentTimeMillis();

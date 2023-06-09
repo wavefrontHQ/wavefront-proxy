@@ -6,32 +6,29 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.URISyntaxException;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Base class for HTTP-only listeners.
- *
- * @author vasily@wavefront.com
- */
+/** Base class for HTTP-only listeners. */
 @ChannelHandler.Sharable
 public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHandler {
   private static final Logger logger =
-      Logger.getLogger(AbstractHttpOnlyHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractHttpOnlyHandler.class.getCanonicalName());
 
   /**
    * Create new instance.
    *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AbstractHttpOnlyHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final String handle) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+      final int port) {
+    super(tokenAuthenticator, healthCheckManager, port);
   }
 
   protected abstract void handleHttpMessage(
@@ -42,6 +39,6 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
   protected void handlePlainTextMessage(
       final ChannelHandlerContext ctx, @Nonnull final String message) {
     pointsDiscarded.get().inc();
-    logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
+    logger.warn("Input discarded: plaintext protocol is not supported on port " + port);
   }
 }

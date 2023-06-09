@@ -5,7 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Metric;
@@ -15,24 +15,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.TimeSeries;
 
 /**
  * Consumes log messages sent to {@link #ingestLog(LogsMessage)}. Configures and starts the periodic
  * flush of consumed metric data to Wavefront.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class LogsIngester {
-  protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(LogsIngester.class.getCanonicalName());
   private static final ReadProcessor readProcessor = new ReadProcessor();
-  private final FlushProcessor flushProcessor;
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting final LogsIngestionConfigManager logsIngestionConfigManager;
+  private final FlushProcessor flushProcessor;
   private final Counter unparsed, parsed;
-  private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
   private EvictingMetricsRegistry evictingMetricsRegistry;
 
@@ -95,7 +93,6 @@ public class LogsIngester {
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
-    this.currentMillis = currentMillis;
     this.flushProcessor =
         new FlushProcessor(
             currentMillis,
@@ -168,7 +165,7 @@ public class LogsIngester {
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(output[0]));
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Could not process metric " + metricName.toString(), e);
+      logger.error("Could not process metric " + metricName, e);
     }
     return true;
   }

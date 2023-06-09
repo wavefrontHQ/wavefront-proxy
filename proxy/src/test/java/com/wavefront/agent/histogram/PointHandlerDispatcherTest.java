@@ -3,8 +3,7 @@ package com.wavefront.agent.histogram;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
 import java.util.LinkedList;
@@ -18,7 +17,6 @@ import org.junit.Before;
 import org.junit.Test;
 import wavefront.report.ReportPoint;
 
-/** @author Tim Schmidt (tim@wavefront.com). */
 public class PointHandlerDispatcherTest {
   private static final short COMPRESSION = 100;
 
@@ -50,7 +48,7 @@ public class PointHandlerDispatcherTest {
     subject =
         new PointHandlerDispatcher(
             in,
-            new ReportableEntityHandler<ReportPoint, String>() {
+            new ReportableEntityHandler<ReportPoint>() {
 
               @Override
               public void report(ReportPoint reportPoint) {
@@ -75,10 +73,10 @@ public class PointHandlerDispatcherTest {
               @Override
               public void reject(@Nonnull String t, @Nullable String message) {}
 
-              @Override
-              public void setLogFormat(DataFormat format) {
-                throw new UnsupportedOperationException();
-              }
+              //              @Override
+              //              public void setLogFormat(DataFormat format) {
+              //                throw new UnsupportedOperationException();
+              //              }
 
               @Override
               public void shutdown() {}

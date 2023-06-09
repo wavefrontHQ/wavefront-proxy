@@ -24,7 +24,6 @@ import com.wavefront.agent.config.Categories;
 import com.wavefront.agent.config.ProxyConfigOption;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.config.SubCategories;
-import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.TimeProvider;
 import com.yammer.metrics.core.MetricName;
@@ -32,12 +31,13 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -47,7 +47,8 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends ProxyConfigDef {
   static final int GRAPHITE_LISTENING_PORT = 2878;
-  private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
@@ -115,16 +116,12 @@ public class ProxyConfig extends ProxyConfigDef {
     return sqsQueueIdentifier;
   }
 
-  public TaskQueueLevel getTaskQueueLevel() {
-    return taskQueueLevel;
+  public String getExportQueueAtoms() {
+    return exportQueueAtoms;
   }
 
-  public String getExportQueuePorts() {
-    return exportQueuePorts;
-  }
-
-  public String getExportQueueOutputFile() {
-    return exportQueueOutputFile;
+  public String getExportQueueOutputDir() {
+    return exportQueueOutputDir;
   }
 
   public boolean isExportQueueRetainData() {
@@ -656,8 +653,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customSourceTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customSourceTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -673,7 +669,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customTimestampTags config setting");
               }
             });
@@ -690,7 +686,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customMessageTags config setting");
               }
             });
@@ -707,7 +703,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customApplicationTags config setting");
               }
             });
@@ -724,7 +720,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customServiceTags config setting");
               }
             });
@@ -740,7 +736,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
+                logger.warn(
                     "Duplicate tag " + x + " specified in customExceptionTags config setting");
               }
             });
@@ -757,8 +753,7 @@ public class ProxyConfig extends ProxyConfigDef {
         .forEach(
             x -> {
               if (!tagSet.add(x)) {
-                logger.warning(
-                    "Duplicate tag " + x + " specified in customLevelTags config setting");
+                logger.warn("Duplicate tag " + x + " specified in customLevelTags config setting");
               }
             });
     return new ArrayList<>(tagSet);
@@ -988,6 +983,18 @@ public class ProxyConfig extends ProxyConfigDef {
     this.receivedLogServerDetails = receivedLogServerDetails;
   }
 
+  public int getMemoryBufferRetryLimit() {
+    return memoryBufferRetryLimit;
+  }
+
+  public long getMemoryBufferExpirationTime() {
+    return memoryBufferExpirationTime;
+  }
+
+  public boolean getDisableBuffer() {
+    return disableBuffer;
+  }
+
   @Override
   public void verifyAndInit() {
     throw new UnsupportedOperationException("not implemented");
@@ -1189,7 +1196,7 @@ public class ProxyConfig extends ProxyConfigDef {
       try {
         confFile.load(Files.newInputStream(Paths.get(pushConfigFile)));
       } catch (Throwable exception) {
-        logger.severe("Could not load configuration file " + pushConfigFile);
+        logger.error("Could not load configuration file " + pushConfigFile);
         throw new RuntimeException(exception.getMessage());
       }
 
@@ -1218,7 +1225,7 @@ public class ProxyConfig extends ProxyConfigDef {
 
     String FQDN = getLocalHostName();
     if (!hostname.equals(FQDN)) {
-      logger.warning(
+      logger.warn(
           "Deprecated field hostname specified in config setting. Please use "
               + "proxyname config field to set proxy name.");
       if (proxyname.equals(FQDN)) proxyname = hostname;
@@ -1354,7 +1361,7 @@ public class ProxyConfig extends ProxyConfigDef {
           Object val = field.get(this);
           data.value = val != null ? val.toString() : "null";
         } catch (IllegalAccessException e) {
-          logger.severe(e.toString());
+          logger.error(e.toString());
         }
 
         if (modifyByArgs.contains(field)) {
@@ -1392,17 +1399,6 @@ public class ProxyConfig extends ProxyConfigDef {
       TokenValidationMethod convertedValue = TokenValidationMethod.fromString(value);
       if (convertedValue == null) {
         throw new ParameterException("Unknown token validation method value: " + value);
-      }
-      return convertedValue;
-    }
-  }
-
-  public static class TaskQueueLevelConverter implements IStringConverter<TaskQueueLevel> {
-    @Override
-    public TaskQueueLevel convert(String value) {
-      TaskQueueLevel convertedValue = TaskQueueLevel.fromString(value);
-      if (convertedValue == null) {
-        throw new ParameterException("Unknown task queue level: " + value);
       }
       return convertedValue;
     }

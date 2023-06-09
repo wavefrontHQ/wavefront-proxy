@@ -4,26 +4,8 @@ import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Unified interface for non-entity specific dynamic properties, that may change at runtime.
- *
- * @author vasily@wavefront.com
- */
+/** Unified interface for non-entity specific dynamic properties, that may change at runtime. */
 public interface GlobalProperties {
-  /**
-   * Get base in seconds for retry thread exponential backoff.
-   *
-   * @return exponential backoff base value
-   */
-  double getRetryBackoffBaseSeconds();
-
-  /**
-   * Sets base in seconds for retry thread exponential backoff.
-   *
-   * @param retryBackoffBaseSeconds new value for exponential backoff base value. if null is
-   *     provided, reverts to originally configured value.
-   */
-  void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
 
   /**
    * Get histogram storage accuracy, as specified by the back-end.

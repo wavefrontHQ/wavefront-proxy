@@ -14,24 +14,22 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A placeholder class for miscellaneous utility methods.
- *
- * @author vasily@wavefront.com
- */
+/** A placeholder class for miscellaneous utility methods. */
 public abstract class Utils {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
   private static final ResourceBundle buildProps = ResourceBundle.getBundle("build");
   private static final List<Integer> UUID_SEGMENTS = ImmutableList.of(8, 4, 4, 4, 12);
 
-  private static final Logger log = Logger.getLogger(Utils.class.getCanonicalName());
+  private static final Logger log = LoggerFactory.getLogger(Utils.class.getCanonicalName());
 
   /**
    * A lazy initialization wrapper for {@code Supplier}
@@ -106,10 +104,12 @@ public abstract class Utils {
    * @return iterator
    */
   @Nonnull
-  public static List<String> csvToList(@Nullable String inputString) {
-    return inputString == null
-        ? Collections.emptyList()
-        : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
+  public static List<Integer> csvToList(@Nullable String inputString) {
+    List<String> res =
+        inputString == null
+            ? Collections.emptyList()
+            : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
+    return res.stream().map(Integer::parseInt).collect(Collectors.toList());
   }
 
   /**
@@ -184,7 +184,7 @@ public abstract class Utils {
         return hostname;
       }
     } catch (IOException e) {
-      log.fine("Error running 'hostname' command. " + e.getMessage());
+      log.error("Error running 'hostname' command. " + e.getMessage());
     }
 
     InetAddress localAddress = null;

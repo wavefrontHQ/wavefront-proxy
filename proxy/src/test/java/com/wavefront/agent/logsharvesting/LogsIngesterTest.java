@@ -1,5 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
@@ -28,9 +29,11 @@ import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
+import com.wavefront.agent.core.queues.QueuesManager;
+import com.wavefront.agent.core.queues.TestQueue;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.data.ReportableEntityType;
@@ -50,13 +53,13 @@ import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.After;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.logstash.beats.Message;
 import org.yaml.snakeyaml.LoaderOptions;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class LogsIngesterTest {
   private final AtomicLong now;
   private final AtomicLong nanos;
@@ -66,14 +69,27 @@ public class LogsIngesterTest {
   private FilebeatIngester filebeatIngesterUnderTest;
   private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
   private ReportableEntityHandlerFactory mockFactory;
-  private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
-  private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
+  private ReportableEntityHandler<ReportPoint> mockPointHandler;
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
 
   public LogsIngesterTest() {
     this.now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
     this.nanos = new AtomicLong(System.nanoTime());
     YAMLFactoryBuilder factory = new YAMLFactoryBuilder(new YAMLFactory());
     this.objectMapper = new ObjectMapper(factory.loaderOptions(new LoaderOptions()).build());
+  }
+
+  @BeforeClass
+  public static void init() {
+    queuesManager =
+        new QueuesManager() {
+          Map<String, TestQueue> queues = new HashMap<>();
+
+          @Override
+          public QueueInfo initQueue(ReportableEntityType entityType) {
+            return queues.computeIfAbsent(entityType.toString(), s -> new TestQueue(entityType));
+          }
+        };
   }
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
@@ -90,25 +106,28 @@ public class LogsIngesterTest {
     mockPointHandler = createMock(ReportableEntityHandler.class);
     mockHistogramHandler = createMock(ReportableEntityHandler.class);
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
+
     expect(
             (ReportableEntityHandler)
-                mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester")))
+                mockFactory.getHandler(
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.POINT)))
         .andReturn(mockPointHandler)
         .anyTimes();
     expect(
             (ReportableEntityHandler)
                 mockFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester")))
+                    "logs-ingester", queuesManager.initQueue(ReportableEntityType.HISTOGRAM)))
         .andReturn(mockHistogramHandler)
         .anyTimes();
     replay(mockFactory);
+
     logsIngesterUnderTest =
         new LogsIngester(mockFactory, () -> logsIngestionConfig, null, now::get, nanos::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
     rawLogsIngesterUnderTest =
         new RawLogsIngesterPortUnificationHandler(
-            "12345",
+            12345,
             logsIngesterUnderTest,
             x -> "testHost",
             TokenAuthenticatorBuilder.create().build(),
@@ -164,7 +183,7 @@ public class LogsIngesterTest {
   }
 
   private List<ReportPoint> getPoints(
-      ReportableEntityHandler<ReportPoint, String> handler,
+      ReportableEntityHandler<ReportPoint> handler,
       int numPoints,
       int lagPerLogLine,
       Consumer<String> consumer,

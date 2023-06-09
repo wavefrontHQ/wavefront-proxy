@@ -3,10 +3,9 @@ package com.wavefront.agent.logsharvesting;
 import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.ingester.ReportPointSerializer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -17,7 +16,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class InteractiveLogsTester implements InteractiveTester {
 
   private final Supplier<LogsIngestionConfig> logsIngestionConfigSupplier;
@@ -40,9 +38,9 @@ public class InteractiveLogsTester implements InteractiveTester {
         new ReportableEntityHandlerFactory() {
           @SuppressWarnings("unchecked")
           @Override
-          public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-            return (ReportableEntityHandler<T, U>)
-                new ReportableEntityHandler<ReportPoint, String>() {
+          public <T> ReportableEntityHandler<T> getHandler(String handler, QueueInfo queue) {
+            return (ReportableEntityHandler<T>)
+                new ReportableEntityHandler<ReportPoint>() {
                   @Override
                   public void report(ReportPoint reportPoint) {
                     reported.set(true);
@@ -70,17 +68,12 @@ public class InteractiveLogsTester implements InteractiveTester {
                   }
 
                   @Override
-                  public void setLogFormat(DataFormat format) {
-                    throw new UnsupportedOperationException();
-                  }
-
-                  @Override
                   public void shutdown() {}
                 };
           }
 
           @Override
-          public void shutdown(@Nonnull String handle) {}
+          public void shutdown(int handle) {}
         };
 
     LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix);

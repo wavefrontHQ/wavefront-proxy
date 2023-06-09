@@ -10,7 +10,6 @@ import com.wavefront.agent.config.Categories;
 import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ProxyConfigOption;
 import com.wavefront.agent.config.SubCategories;
-import com.wavefront.agent.data.TaskQueueLevel;
 
 /** Proxy configuration (refactored from {@link AbstractAgent}). */
 public abstract class ProxyConfigDef extends Configuration {
@@ -198,15 +197,6 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "The AWS Region name the queue will live in.")
   @ProxyConfigOption(category = Categories.BUFFER, subCategory = SubCategories.SQS)
   String sqsQueueRegion = "us-west-2";
-
-  @Parameter(
-      names = {"--taskQueueLevel"},
-      converter = ProxyConfig.TaskQueueLevelConverter.class,
-      description =
-          "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. "
-              + "Default: ANY_ERROR")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
-  TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
 
   @Parameter(
       names = {"--exportQueuePorts"},
@@ -1511,6 +1501,47 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "Log insight ingestion URL, required to ingest logs to the log server.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
   String logServerIngestionURL = null;
+
+  @Parameter(
+      names = {"--memoryBufferExpirationTime"},
+      description =
+          "Number of seconds that item will live on the memory buffer will before sending"
+              + " it to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 600 (10 minutes) (-1 to disable)")
+  long memoryBufferExpirationTime = 600;
+
+  @Parameter(
+      names = {"--memoryBufferRetryLimit"},
+      description =
+          "Number of times that the memory buffer will try to send a item to the WF Server before sending"
+              + " the item to the disk buffer. Tis is used to reduce the time of a item on the memory buffer"
+              + " when there is communication problem with the WF Server. Default 3 (-1 to disable)")
+  int memoryBufferRetryLimit = 3;
+
+  public int getMemoryBufferRetryLimit() {
+    return memoryBufferRetryLimit;
+  }
+
+  @Parameter(
+      names = {"--disable_buffer"},
+      description = "Disable disk buffer",
+      order = 7)
+  boolean disableBuffer = false;
+
+  @Parameter(
+      names = {"--exportQueueAtoms"},
+      description =
+          "Export queued data in plaintext "
+              + "format for specified atoms (comma-delimited list) and exit. Set to 'all' to export "
+              + "everything. Default: none, valid values: points, deltaCounters, histograms, sourceTags, spans, spanLogs, events, logs")
+  String exportQueueAtoms = null;
+
+  @Parameter(
+      names = {"--exportQueueOutputDir"},
+      description =
+          "Export queued data in plaintext "
+              + "format for specified ports (comma-delimited list) and exit. Default: none")
+  String exportQueueOutputDir = null;
 
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;

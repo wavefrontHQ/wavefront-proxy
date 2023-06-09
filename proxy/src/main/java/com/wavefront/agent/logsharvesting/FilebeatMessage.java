@@ -10,11 +10,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.logstash.beats.Message;
 
-/**
- * Abstraction for {@link org.logstash.beats.Message}
- *
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** Abstraction for {@link org.logstash.beats.Message} */
 public class FilebeatMessage implements LogsMessage {
   private final Message wrapped;
   private final Map<String, Object> messageData;

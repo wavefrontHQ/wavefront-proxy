@@ -1,25 +1,11 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.*;
+import static com.wavefront.sdk.common.Constants.*;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
@@ -28,9 +14,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -52,20 +37,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -73,19 +54,23 @@ import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
-/**
- * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
- *
- * @author Anil Kodali (akodali@vmware.com)
- */
+/** Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format. */
 @ChannelHandler.Sharable
 public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger =
-      Logger.getLogger(ZipkinPortUnificationHandler.class.getCanonicalName());
-
-  private final ReportableEntityHandler<Span, String> spanHandler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+      LoggerFactory.getLogger(ZipkinPortUnificationHandler.class.getCanonicalName());
+  private static final Set<String> ZIPKIN_VALID_PATHS =
+      ImmutableSet.of("/api/v1/spans/", "/api/v2/spans/");
+  private static final String ZIPKIN_VALID_HTTP_METHOD = "POST";
+  private static final String ZIPKIN_COMPONENT = "zipkin";
+  private static final String DEFAULT_SOURCE = "zipkin";
+  private static final String DEFAULT_SERVICE = "defaultService";
+  private static final String DEFAULT_SPAN_NAME = "defaultOperation";
+  private static final String SPAN_TAG_ERROR = "error";
+  private static final Logger ZIPKIN_DATA_LOGGER = LoggerFactory.getLogger("ZipkinDataLogger");
+  private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
   @Nullable private final WavefrontInternalReporter wfInternalReporter;
   private final Supplier<Boolean> traceDisabled;
@@ -100,22 +85,11 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Counter discardedTraces;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
-
-  private static final Set<String> ZIPKIN_VALID_PATHS =
-      ImmutableSet.of("/api/v1/spans/", "/api/v2/spans/");
-  private static final String ZIPKIN_VALID_HTTP_METHOD = "POST";
-  private static final String ZIPKIN_COMPONENT = "zipkin";
-  private static final String DEFAULT_SOURCE = "zipkin";
-  private static final String DEFAULT_SERVICE = "defaultService";
-  private static final String DEFAULT_SPAN_NAME = "defaultOperation";
-  private static final String SPAN_TAG_ERROR = "error";
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
 
-  private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
-
   public ZipkinPortUnificationHandler(
-      String handle,
+      int port,
       final HealthCheckManager healthCheckManager,
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable WavefrontSender wfSender,
@@ -126,10 +100,11 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       @Nullable String traceZipkinApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
     this(
-        handle,
+        port,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,
@@ -141,10 +116,10 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
   @VisibleForTesting
   ZipkinPortUnificationHandler(
-      final String handle,
+      final int port,
       final HealthCheckManager healthCheckManager,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,
@@ -152,7 +127,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       SpanSampler sampler,
       @Nullable String traceZipkinApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
-    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
+    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, port);
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -166,16 +141,16 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
             : traceZipkinApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discardedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "discarded"));
     this.processedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "processed"));
     this.failedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "failed"));
     this.discardedSpansBySampler =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded"));
     this.receivedSpansTotal =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + port, "", "discarded"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("zipkin-heart-beater"));
@@ -244,7 +219,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       failedBatches.inc();
       output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
-      logger.log(Level.WARNING, "Zipkin batch processing failed", Throwables.getRootCause(e));
+      logger.warn("Zipkin batch processing failed", Throwables.getRootCause(e));
     }
     writeHttpResponse(ctx, status, output, request);
   }
@@ -256,7 +231,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   }
 
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
-    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
       ZIPKIN_DATA_LOGGER.info("Inbound Zipkin span: " + zipkinSpan.toString());
     }
     // Add application tags, span references, span kind and http uri, responses etc.
@@ -381,7 +356,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
             .build();
 
     if (zipkinSpan.tags().containsKey(SPAN_TAG_ERROR)) {
-      if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINER)) {
+      if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
         ZIPKIN_DATA_LOGGER.info(
             "Span id :: "
                 + spanId
@@ -392,7 +367,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
-    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (ZIPKIN_DATA_LOGGER.isDebugEnabled()) {
       ZIPKIN_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 
@@ -491,7 +466,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, ZIPKIN_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

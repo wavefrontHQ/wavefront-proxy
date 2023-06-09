@@ -1,0 +1,29 @@
+{
+  "phases": {
+    "verify": {
+      "context": {
+        "application": {
+          "kind": "OVA",
+          "details": {
+            "name": "wordpress",
+            "package": {
+              "url": "https://downloads.bitnami.com/tmp/wordpress-6-debian-11.ova"
+            }
+          }
+        },
+        "runtime_parameters": "dXNlcl9kYXRhOiBJeUV2WW1sdUwySmhjMmdLSXlCaWFYUnVZVzFwWDJGd2NHeHBZMkYwYVc5dVgzQmhjM04zYjNKa1BVTnZiWEJzYVdOaGRHVmtVR0Z6YzNkdmNtUXhNak1oTkFvaklHUmhkR0ZpWVhObFgzQmhjM04zYjNKa1BYUmxjM1JmZDI5eVpIQnlaWE56WDNCaGMzTjNiM0prQ21WNGNHOXlkQ0JOUVZKSlFVUkNYMFJCVkVGQ1FWTkZQWFJsYzNSZmQyOXlaSEJ5WlhOelgyUmhkR0ZpWVhObENtVjRjRzl5ZENCTlFWSkpRVVJDWDFWVFJWSTlkR1Z6ZEY5M2IzSmtjSEpsYzNOZmRYTmxjbTVoYldVS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5Q1RFOUhYMDVCVFVVOUlsUmxjM1JmVlhObGNuTW5jeUJDYkc5bklTSUtaWGh3YjNKMElGZFBVa1JRVWtWVFUxOUZUVUZKVEQxMFpYTjBYM1Z6WlhKZlpXMWhhV3hBWlcxaGFXd3VZMjl0Q21WNGNHOXlkQ0JYVDFKRVVGSkZVMU5mUkVGVVFVSkJVMFZmVGtGTlJUMTBaWE4wWDNkdmNtUndjbVZ6YzE5a1lYUmhZbUZ6WlFwbGVIQnZjblFnVjA5U1JGQlNSVk5UWDBSQlZFRkNRVk5GWDFWVFJWSTlkR1Z6ZEY5M2IzSmtjSEpsYzNOZmRYTmxjbTVoYldVS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5R1NWSlRWRjlPUVUxRlBWUmxjM1JPWVcxbENtVjRjRzl5ZENCWFQxSkVVRkpGVTFOZlRFRlRWRjlPUVUxRlBWUmxjM1JNWVhOMFRtRnRaUXBsZUhCdmNuUWdWMDlTUkZCU1JWTlRYMU5OVkZCZlNFOVRWRDF0WVdsc0xuTmxjblpsY2k1amIyMEtaWGh3YjNKMElGZFBVa1JRVWtWVFUxOVRUVlJRWDFCQlUxTlhUMUpFUFhSbGMzUmZiV0ZwYkY5d1lYTnpkMjl5WkFwbGVIQnZjblFnVjA5U1JGQlNSVk5UWDFOTlZGQmZVRTlTVkQweE1qQUtaWGh3YjNKMElGZFBVa1JRVWtWVFUxOVRUVlJRWDFWVFJWSTlkR1Z6ZEY5dFlXbHNYM1Z6WlhJS1pYaHdiM0owSUZkUFVrUlFVa1ZUVTE5VlUwVlNUa0ZOUlQxMFpYTjBYM1Z6WlhJPQptZW1vcnlfbGltaXQ6IDEwMjQKc3NoOgogIHVzZXJuYW1lOiBiaXRuYW1pCnBvcnRzOgogIC0gODAKICAtIDQ0Mw=="
+      },
+      "actions": [
+        {
+          "action_id": "goss",
+          "params": {
+            "resources": {
+              "path": "/",
+              "url": "{VIB_ENV_ZIP_URL}"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

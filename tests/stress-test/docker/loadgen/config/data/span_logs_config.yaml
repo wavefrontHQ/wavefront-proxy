@@ -1,0 +1,11 @@
+customer: "collector"
+isTraceIdConstant: true
+isSpanIdConstant: true
+isSecondarySpanIdUsed: true
+isSecondarySpanIdConstant: true
+logsVariantsAmount: 5
+possibleLogsStartRange: 2
+possibleLogsEndRange: 4
+logsFieldsStartRange: 3
+logsFieldsEndRange: 5
+timestampChanger: 100000

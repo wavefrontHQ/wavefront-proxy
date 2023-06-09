@@ -21,11 +21,7 @@ import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 import wavefront.report.ReportPoint;
 
-/**
- * Helpers around histograms
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Helpers around histograms */
 public final class HistogramUtils {
   private HistogramUtils() {
     // Not instantiable
@@ -136,12 +132,6 @@ public final class HistogramUtils {
       return INSTANCE;
     }
 
-    @Nonnull
-    @Override
-    public HistogramKeyMarshaller readResolve() {
-      return INSTANCE;
-    }
-
     private static void writeString(Bytes out, String s) {
       Preconditions.checkArgument(
           s == null || s.length() <= Short.MAX_VALUE, "String too long (more than 32K)");
@@ -154,6 +144,12 @@ public final class HistogramUtils {
       byte[] bytes = new byte[in.readShort()];
       in.read(bytes);
       return new String(bytes);
+    }
+
+    @Nonnull
+    @Override
+    public HistogramKeyMarshaller readResolve() {
+      return INSTANCE;
     }
 
     @Override

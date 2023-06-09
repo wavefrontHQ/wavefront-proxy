@@ -7,8 +7,6 @@ import javax.annotation.Nullable;
 /**
  * Tuple class to store combination of { host, metric, tags } Two or more tuples with the same value
  * of { host, metric and tags } are considered equal and will have the same hashcode.
- *
- * @author Jia Deng (djia@vmware.com).
  */
 public class HostMetricTagsPair {
   public final String metric;

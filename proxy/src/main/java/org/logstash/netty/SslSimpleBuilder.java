@@ -6,6 +6,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -14,24 +16,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLEngine;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Created by ph on 2016-05-27. */
 public class SslSimpleBuilder {
-
-  public static enum SslClientVerifyMode {
-    VERIFY_PEER,
-    FORCE_PEER,
-  }
-
-  private static final Logger logger = LogManager.getLogger(SslSimpleBuilder.class);
-
-  private File sslKeyFile;
-  private File sslCertificateFile;
-  private SslClientVerifyMode verifyMode = SslClientVerifyMode.FORCE_PEER;
-
-  private long handshakeTimeoutMilliseconds = 10000;
 
   /*
   Mordern Ciphers List from
@@ -49,11 +38,17 @@ public class SslSimpleBuilder {
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
         "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
       };
+  private static final Logger logger = LoggerFactory.getLogger(SslSimpleBuilder.class);
 
+  private final File sslKeyFile;
+  private final File sslCertificateFile;
+  private SslClientVerifyMode verifyMode = SslClientVerifyMode.FORCE_PEER;
+
+  private long handshakeTimeoutMilliseconds = 10000;
   private String[] ciphers = DEFAULT_CIPHERS;
   private String[] protocols = new String[] {"TLSv1.2"};
   private String[] certificateAuthorities;
-  private String passPhrase;
+  private final String passPhrase;
 
   public SslSimpleBuilder(String sslCertificateFilePath, String sslKeyFilePath, String pass)
       throws FileNotFoundException {
@@ -61,11 +56,6 @@ public class SslSimpleBuilder {
     sslKeyFile = new File(sslKeyFilePath);
     passPhrase = pass;
     ciphers = DEFAULT_CIPHERS;
-  }
-
-  public SslSimpleBuilder setProtocols(String[] protocols) {
-    this.protocols = protocols;
-    return this;
   }
 
   public SslSimpleBuilder setCipherSuites(String[] ciphersSuite) throws IllegalArgumentException {
@@ -161,21 +151,17 @@ public class SslSimpleBuilder {
 
       logger.debug("Loading certificates from file " + certificate);
 
-      try (InputStream in = new FileInputStream(certificate)) {
+      try (InputStream in = Files.newInputStream(Paths.get(certificate))) {
         List<X509Certificate> certificatesChains =
             (List<X509Certificate>) certificateFactory.generateCertificates(in);
         collections.addAll(certificatesChains);
       }
     }
-    return collections.toArray(new X509Certificate[collections.size()]);
+    return collections.toArray(new X509Certificate[0]);
   }
 
   private boolean requireClientAuth() {
-    if (certificateAuthorities != null) {
-      return true;
-    }
-
-    return false;
+    return certificateAuthorities != null;
   }
 
   private FileInputStream createFileInputStream(String filepath) throws FileNotFoundException {
@@ -189,5 +175,15 @@ public class SslSimpleBuilder {
    */
   String[] getProtocols() {
     return protocols.clone();
+  }
+
+  public SslSimpleBuilder setProtocols(String[] protocols) {
+    this.protocols = protocols;
+    return this;
+  }
+
+  public enum SslClientVerifyMode {
+    VERIFY_PEER,
+    FORCE_PEER,
   }
 }

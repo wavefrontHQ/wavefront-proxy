@@ -12,17 +12,14 @@ import wavefront.report.Span;
 /**
  * Blocking regex-based filter. Rejects a span if a specified component (name, source, or annotation
  * value, depending on the "scope" parameter) doesn't match the regex.
- *
- * @author vasily@wavefront.com
  */
 public class SpanBlockFilter implements AnnotatedPredicate<Span> {
 
   @Nullable private final String scope;
   @Nullable private final Pattern compiledPattern;
   private final Predicate<Span> v2Predicate;
-  private boolean isV1PredicatePresent = false;
-
   private final PreprocessorRuleMetrics ruleMetrics;
+  private boolean isV1PredicatePresent = false;
 
   public SpanBlockFilter(
       @Nullable final String scope,

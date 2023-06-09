@@ -5,17 +5,7 @@ import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.TDigest;
 import com.wavefront.common.MetricsToTimeseries;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.DeltaCounter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.Sampling;
-import com.yammer.metrics.core.Summarizable;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.core.WavefrontHistogram;
+import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,8 +17,6 @@ import wavefront.report.HistogramType;
 /**
  * Wrapper for {@link com.yammer.metrics.core.MetricProcessor}. It provides additional support for
  * Delta Counters and WavefrontHistogram.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
@@ -36,7 +24,6 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
   private final Counter histogramCounter =
       Metrics.newCounter(new MetricName("logsharvesting", "", "histograms-sent"));
-  private final Supplier<Long> currentMillis;
   private final boolean useWavefrontHistograms;
   private final boolean reportEmptyHistogramStats;
 
@@ -53,7 +40,6 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       Supplier<Long> currentMillis,
       boolean useWavefrontHistograms,
       boolean reportEmptyHistogramStats) {
-    this.currentMillis = currentMillis;
     this.useWavefrontHistograms = useWavefrontHistograms;
     this.reportEmptyHistogramStats = reportEmptyHistogramStats;
   }

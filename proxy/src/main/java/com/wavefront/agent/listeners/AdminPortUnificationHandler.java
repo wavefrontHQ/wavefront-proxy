@@ -12,12 +12,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's IP address
@@ -26,13 +27,11 @@ import org.apache.commons.lang.math.NumberUtils;
  * healthy. - POST /disable/{port} mark port {port} as unhealthy. - POST /enable mark all
  * healthcheck-enabled ports as healthy. - POST /disable mark all healthcheck-enabled ports as
  * unhealthy.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(AdminPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AdminPortUnificationHandler.class.getCanonicalName());
 
   private static final Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
 
@@ -43,14 +42,14 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
    *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AdminPortUnificationHandler(
       @Nullable TokenAuthenticator tokenAuthenticator,
       @Nullable HealthCheckManager healthCheckManager,
-      @Nullable String handle,
+      int port,
       @Nullable String remoteIpAllowRegex) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.remoteIpAllowRegex = remoteIpAllowRegex;
   }
 
@@ -62,7 +61,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
         ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
     if (remoteIpAllowRegex != null
         && !Pattern.compile(remoteIpAllowRegex).matcher(remoteIp).matches()) {
-      logger.warning("Incoming request from non-allowed remote address " + remoteIp + " rejected!");
+      logger.warn("Incoming request from non-allowed remote address " + remoteIp + " rejected!");
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;
     }
@@ -71,18 +70,18 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
     Matcher path = PATH.matcher(uri.getPath());
     if (path.matches()) {
       String strPort = path.group(2);
-      Integer port = NumberUtils.isNumber(strPort) ? Integer.parseInt(strPort) : null;
-      if (StringUtils.isBlank(strPort) || port != null) {
+      Integer targetPort = NumberUtils.isNumber(strPort) ? Integer.parseInt(strPort) : null;
+      if (StringUtils.isBlank(strPort) || targetPort != null) {
         switch (path.group(1)) {
           case "status":
             if (request.method().equals(HttpMethod.GET)) {
-              if (port == null) {
+              if (targetPort == null) {
                 output.append("Status check requires a specific port");
                 status = HttpResponseStatus.BAD_REQUEST;
               } else {
                 // return 200 if status check ok, 503 if not
                 status =
-                    healthCheck.isHealthy(port)
+                    healthCheck.isHealthy(targetPort)
                         ? HttpResponseStatus.OK
                         : HttpResponseStatus.SERVICE_UNAVAILABLE;
                 output.append(status.reasonPhrase());
@@ -93,12 +92,12 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
             break;
           case "enable":
             if (request.method().equals(HttpMethod.POST)) {
-              if (port == null) {
+              if (targetPort == null) {
                 logger.info("Request to mark all HTTP ports as healthy from remote: " + remoteIp);
                 healthCheck.setAllHealthy();
               } else {
-                logger.info("Marking HTTP port " + port + " as healthy, remote: " + remoteIp);
-                healthCheck.setHealthy(port);
+                logger.info("Marking HTTP port " + targetPort + " as healthy, remote: " + remoteIp);
+                healthCheck.setHealthy(targetPort);
               }
               status = HttpResponseStatus.OK;
             } else {
@@ -107,12 +106,13 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
             break;
           case "disable":
             if (request.method().equals(HttpMethod.POST)) {
-              if (port == null) {
+              if (targetPort == null) {
                 logger.info("Request to mark all HTTP ports as unhealthy from remote: " + remoteIp);
                 healthCheck.setAllUnhealthy();
               } else {
-                logger.info("Marking HTTP port " + port + " as unhealthy, remote: " + remoteIp);
-                healthCheck.setUnhealthy(port);
+                logger.info(
+                    "Marking HTTP port " + targetPort + " as unhealthy, remote: " + remoteIp);
+                healthCheck.setUnhealthy(targetPort);
               }
               status = HttpResponseStatus.OK;
             } else {

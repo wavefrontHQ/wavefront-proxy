@@ -1,6 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
 import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
+import static com.wavefront.common.Utils.csvToList;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,13 +18,13 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 /**
@@ -32,14 +33,16 @@ import org.yaml.snakeyaml.Yaml;
  * <p>Created by Vasily on 9/15/16.
  */
 public class PreprocessorConfigManager {
+  public static final String NAMES = "names";
+  public static final String FUNC = "function";
+  public static final String OPTS = "opts";
   private static final Logger logger =
-      Logger.getLogger(PreprocessorConfigManager.class.getCanonicalName());
+      LoggerFactory.getLogger(PreprocessorConfigManager.class.getCanonicalName());
   private static final Counter configReloads =
       Metrics.newCounter(new MetricName("preprocessor", "", "config-reloads.successful"));
   private static final Counter failedConfigReloads =
       Metrics.newCounter(new MetricName("preprocessor", "", "config-reloads.failed"));
   private static final String GLOBAL_PORT_KEY = "global";
-
   // rule keywords
   private static final String RULE = "rule";
   private static final String ACTION = "action";
@@ -62,9 +65,6 @@ public class PreprocessorConfigManager {
   private static final String FIRST_MATCH_ONLY = "firstMatchOnly";
   private static final String ALLOW = "allow";
   private static final String IF = "if";
-  public static final String NAMES = "names";
-  public static final String FUNC = "function";
-  public static final String OPTS = "opts";
   private static final Set<String> ALLOWED_RULE_ARGUMENTS = ImmutableSet.of(RULE, ACTION);
 
   // rule type keywords: altering, filtering, and count
@@ -79,27 +79,25 @@ public class PreprocessorConfigManager {
   public static final String LOG_COUNT = "logCount";
 
   private final Supplier<Long> timeSupplier;
-  private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
-
-  @VisibleForTesting public Map<String, ReportableEntityPreprocessor> userPreprocessors;
-  private Map<String, ReportableEntityPreprocessor> preprocessors = null;
-
+  private final Map<Integer, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
+  private final Map<Integer, MetricsFilter> lockMetricsFilter = new WeakHashMap<>();
+  @VisibleForTesting public Map<Integer, ReportableEntityPreprocessor> userPreprocessors;
+  @VisibleForTesting int totalInvalidRules = 0;
+  @VisibleForTesting int totalValidRules = 0;
+  private Map<Integer, ReportableEntityPreprocessor> preprocessors = null;
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
   private String lastProcessedRules = "";
   private static Map<String, Object> ruleNode = new HashMap<>();
 
-  @VisibleForTesting int totalInvalidRules = 0;
-  @VisibleForTesting int totalValidRules = 0;
-
-  private final Map<String, MetricsFilter> lockMetricsFilter = new WeakHashMap<>();
-
   public PreprocessorConfigManager() {
     this(System::currentTimeMillis);
   }
 
-  /** @param timeSupplier Supplier for current time (in millis). */
+  /**
+   * @param timeSupplier Supplier for current time (in millis).
+   */
   @VisibleForTesting
   PreprocessorConfigManager(@Nonnull Supplier<Long> timeSupplier) {
     this.timeSupplier = timeSupplier;
@@ -126,16 +124,16 @@ public class PreprocessorConfigManager {
             fileCheckIntervalMillis);
   }
 
-  public ReportableEntityPreprocessor getSystemPreprocessor(String key) {
+  public ReportableEntityPreprocessor getSystemPreprocessor(Integer key) {
     systemPreprocessorsTs = timeSupplier.get();
     return systemPreprocessors.computeIfAbsent(key, x -> new ReportableEntityPreprocessor());
   }
 
-  public Supplier<ReportableEntityPreprocessor> get(String handle) {
-    return () -> getPreprocessor(handle);
+  public Supplier<ReportableEntityPreprocessor> get(int port) {
+    return () -> getPreprocessor(port);
   }
 
-  private ReportableEntityPreprocessor getPreprocessor(String key) {
+  private ReportableEntityPreprocessor getPreprocessor(int port) {
     if ((lastBuild < userPreprocessorsTs || lastBuild < systemPreprocessorsTs)
         && userPreprocessors != null) {
       synchronized (this) {
@@ -153,7 +151,7 @@ public class PreprocessorConfigManager {
         }
       }
     }
-    return this.preprocessors.computeIfAbsent(key, x -> new ReportableEntityPreprocessor());
+    return this.preprocessors.computeIfAbsent(port, x -> new ReportableEntityPreprocessor());
   }
 
   private void requireArguments(@Nonnull Map<String, Object> rule, String... arguments) {
@@ -187,7 +185,7 @@ public class PreprocessorConfigManager {
         configReloads.inc();
       }
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
+      logger.error("Unable to load preprocessor rules", e);
       failedConfigReloads.inc();
     }
   }
@@ -203,13 +201,13 @@ public class PreprocessorConfigManager {
     totalValidRules = 0;
     totalInvalidRules = 0;
     Yaml yaml = new Yaml();
-    Map<String, ReportableEntityPreprocessor> portMap = new HashMap<>();
+    Map<Integer, ReportableEntityPreprocessor> portMap = new HashMap<>();
     lockMetricsFilter.clear();
     try {
       Map<String, Object> rulesByPort = yaml.load(stream);
       List<Map<String, Object>> validRulesList = new ArrayList<>();
       if (rulesByPort == null || rulesByPort.isEmpty()) {
-        logger.warning("Empty preprocessor rule file detected!");
+        logger.warn("Empty preprocessor rule file detected!");
         logger.info("Total 0 rules loaded");
         synchronized (this) {
           this.userPreprocessorsTs = timeSupplier.get();
@@ -221,12 +219,14 @@ public class PreprocessorConfigManager {
         // Handle comma separated ports and global ports.
         // Note: Global ports need to be specified at the end of the file, inorder to be
         // applicable to all the explicitly specified ports in preprocessor_rules.yaml file.
-        List<String> strPortList =
+
+        List<Integer> ports =
             strPortKey.equalsIgnoreCase(GLOBAL_PORT_KEY)
                 ? new ArrayList<>(portMap.keySet())
-                : Arrays.asList(strPortKey.trim().split("\\s*,\\s*"));
-        for (String strPort : strPortList) {
-          portMap.putIfAbsent(strPort, new ReportableEntityPreprocessor());
+                : csvToList(strPortKey);
+
+        for (int port : ports) {
+          portMap.putIfAbsent(port, new ReportableEntityPreprocessor());
           int validRules = 0;
           //noinspection unchecked
           List<Map<String, Object>> rules = (List<Map<String, Object>>) rulesByPort.get(strPortKey);
@@ -263,15 +263,21 @@ public class PreprocessorConfigManager {
                   new PreprocessorRuleMetrics(
                       Metrics.newCounter(
                           new TaggedMetricName(
-                              "preprocessor." + ruleName, "count", "port", strPort)),
+                              "preprocessor." + ruleName, "count", "port", String.valueOf(port))),
                       Metrics.newCounter(
                           new TaggedMetricName(
-                              "preprocessor." + ruleName, "cpu_nanos", "port", strPort)),
+                              "preprocessor." + ruleName,
+                              "cpu_nanos",
+                              "port",
+                              String.valueOf(port))),
                       Metrics.newCounter(
                           new TaggedMetricName(
-                              "preprocessor." + ruleName, "checked-count", "port", strPort)));
+                              "preprocessor." + ruleName,
+                              "checked-count",
+                              "port",
+                              String.valueOf(port))));
               Map<String, Object> saveRule = new HashMap<>();
-              saveRule.put("port", strPort);
+              saveRule.put("port", port);
               String scope = getString(rule, SCOPE);
               if ("pointLine".equals(scope) || "inputText".equals(scope)) {
                 if (Predicates.getPredicate(rule) != null) {
@@ -282,7 +288,7 @@ public class PreprocessorConfigManager {
                   case "replaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forPointLine()
                         .addTransformer(
                             new LineBasedReplaceRegexTransformer(
@@ -297,7 +303,7 @@ public class PreprocessorConfigManager {
                   case "block":
                     allowArguments(rule, SCOPE, MATCH);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forPointLine()
                         .addFilter(new LineBasedBlockFilter(getString(rule, MATCH), ruleMetrics));
                     saveRule.put("type", POINT_FILTER);
@@ -306,7 +312,7 @@ public class PreprocessorConfigManager {
                   case "allow":
                     allowArguments(rule, SCOPE, MATCH);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forPointLine()
                         .addFilter(new LineBasedAllowFilter(getString(rule, MATCH), ruleMetrics));
                     saveRule.put("type", POINT_FILTER);
@@ -322,22 +328,22 @@ public class PreprocessorConfigManager {
                 switch (action) {
                   case "metricsFilter":
                     lockMetricsFilter.computeIfPresent(
-                        strPort,
+                        port,
                         (s, metricsFilter) -> {
                           throw new IllegalArgumentException(
                               "Only one 'MetricsFilter' is allow per port");
                         });
                     allowArguments(rule, NAMES, FUNC, OPTS);
-                    MetricsFilter mf = new MetricsFilter(rule, ruleMetrics, ruleName, strPort);
-                    lockMetricsFilter.put(strPort, mf);
-                    portMap.get(strPort).forPointLine().addFilter(mf);
+                    MetricsFilter mf = new MetricsFilter(rule, ruleMetrics, ruleName, port);
+                    lockMetricsFilter.put(port, mf);
+                    portMap.get(port).forPointLine().addFilter(mf);
                     saveRule.put("type", POINT_FILTER);
                     break;
 
                   case "replaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointReplaceRegexTransformer(
@@ -353,7 +359,7 @@ public class PreprocessorConfigManager {
                   case "forceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointForceLowercaseTransformer(
@@ -366,7 +372,7 @@ public class PreprocessorConfigManager {
                   case "addTag":
                     allowArguments(rule, TAG, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointAddTagTransformer(
@@ -379,7 +385,7 @@ public class PreprocessorConfigManager {
                   case "addTagIfNotExists":
                     allowArguments(rule, TAG, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointAddTagIfNotExistsTransformer(
@@ -392,7 +398,7 @@ public class PreprocessorConfigManager {
                   case "dropTag":
                     allowArguments(rule, TAG, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointDropTagTransformer(
@@ -414,7 +420,7 @@ public class PreprocessorConfigManager {
                         MATCH,
                         IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointExtractTagTransformer(
@@ -440,7 +446,7 @@ public class PreprocessorConfigManager {
                         MATCH,
                         IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointExtractTagIfNotExistsTransformer(
@@ -457,7 +463,7 @@ public class PreprocessorConfigManager {
                   case "renameTag":
                     allowArguments(rule, TAG, NEWTAG, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointRenameTagTransformer(
@@ -471,7 +477,7 @@ public class PreprocessorConfigManager {
                   case "limitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new ReportPointLimitLengthTransformer(
@@ -486,21 +492,21 @@ public class PreprocessorConfigManager {
                   case "count":
                     allowArguments(rule, SCOPE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     saveRule.put("type", POINT_COUNT);
                     break;
                   case "blacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: block' instead!");
                   case "block":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addFilter(
                             new ReportPointBlockFilter(
@@ -511,14 +517,14 @@ public class PreprocessorConfigManager {
                     saveRule.put("type", POINT_FILTER);
                     break;
                   case "whitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: allow' instead!");
                   case "allow":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportPoint()
                         .addFilter(
                             new ReportPointAllowFilter(
@@ -534,7 +540,7 @@ public class PreprocessorConfigManager {
                     allowArguments(
                         rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, FIRST_MATCH_ONLY, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanReplaceRegexTransformer(
@@ -551,7 +557,7 @@ public class PreprocessorConfigManager {
                   case "spanForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, FIRST_MATCH_ONLY, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanForceLowercaseTransformer(
@@ -566,7 +572,7 @@ public class PreprocessorConfigManager {
                   case "spanAddTag":
                     allowArguments(rule, KEY, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanAddAnnotationTransformer(
@@ -580,7 +586,7 @@ public class PreprocessorConfigManager {
                   case "spanAddTagIfNotExists":
                     allowArguments(rule, KEY, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanAddAnnotationIfNotExistsTransformer(
@@ -594,7 +600,7 @@ public class PreprocessorConfigManager {
                   case "spanDropTag":
                     allowArguments(rule, KEY, MATCH, FIRST_MATCH_ONLY, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanDropAnnotationTransformer(
@@ -607,7 +613,7 @@ public class PreprocessorConfigManager {
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllowAnnotation' instead!");
@@ -615,7 +621,7 @@ public class PreprocessorConfigManager {
                   case "spanAllowTag":
                     allowArguments(rule, ALLOW, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             SpanAllowAnnotationTransformer.create(
@@ -635,7 +641,7 @@ public class PreprocessorConfigManager {
                         FIRST_MATCH_ONLY,
                         IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanExtractAnnotationTransformer(
@@ -663,7 +669,7 @@ public class PreprocessorConfigManager {
                         FIRST_MATCH_ONLY,
                         IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanExtractAnnotationIfNotExistsTransformer(
@@ -682,7 +688,7 @@ public class PreprocessorConfigManager {
                   case "spanRenameTag":
                     allowArguments(rule, KEY, NEWKEY, MATCH, FIRST_MATCH_ONLY, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanRenameAnnotationTransformer(
@@ -695,7 +701,7 @@ public class PreprocessorConfigManager {
                     allowArguments(
                         rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, FIRST_MATCH_ONLY, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new SpanLimitLengthTransformer(
@@ -711,21 +717,21 @@ public class PreprocessorConfigManager {
                   case "spanCount":
                     allowArguments(rule, SCOPE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     saveRule.put("type", SPAN_COUNT);
                     break;
                   case "spanBlacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanBlock' instead!");
                   case "spanBlock":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addFilter(
                             new SpanBlockFilter(
@@ -736,14 +742,14 @@ public class PreprocessorConfigManager {
                     saveRule.put("type", SPAN_FILTER);
                     break;
                   case "spanWhitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllow' instead!");
                   case "spanAllow":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forSpan()
                         .addFilter(
                             new SpanAllowFilter(
@@ -758,7 +764,7 @@ public class PreprocessorConfigManager {
                   case "logReplaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogReplaceRegexTransformer(
@@ -774,7 +780,7 @@ public class PreprocessorConfigManager {
                   case "logForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogForceLowercaseTransformer(
@@ -788,7 +794,7 @@ public class PreprocessorConfigManager {
                   case "logAddTag":
                     allowArguments(rule, KEY, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogAddTagTransformer(
@@ -802,7 +808,7 @@ public class PreprocessorConfigManager {
                   case "logAddTagIfNotExists":
                     allowArguments(rule, KEY, VALUE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogAddTagIfNotExistsTransformer(
@@ -816,7 +822,7 @@ public class PreprocessorConfigManager {
                   case "logDropTag":
                     allowArguments(rule, KEY, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogDropTagTransformer(
@@ -830,7 +836,7 @@ public class PreprocessorConfigManager {
                   case "logAllowTag":
                     allowArguments(rule, ALLOW, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             ReportLogAllowTagTransformer.create(
@@ -841,7 +847,7 @@ public class PreprocessorConfigManager {
                   case "logExtractTag":
                     allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogExtractTagTransformer(
@@ -859,7 +865,7 @@ public class PreprocessorConfigManager {
                   case "logExtractTagIfNotExists":
                     allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogExtractTagIfNotExistsTransformer(
@@ -877,7 +883,7 @@ public class PreprocessorConfigManager {
                   case "logRenameTag":
                     allowArguments(rule, KEY, NEWKEY, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogRenameTagTransformer(
@@ -891,7 +897,7 @@ public class PreprocessorConfigManager {
                   case "logLimitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new ReportLogLimitLengthTransformer(
@@ -906,7 +912,7 @@ public class PreprocessorConfigManager {
                   case "logCount":
                     allowArguments(rule, SCOPE, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addTransformer(
                             new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
@@ -914,14 +920,14 @@ public class PreprocessorConfigManager {
                     break;
 
                   case "logBlacklistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: logBlock' instead!");
                   case "logBlock":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addFilter(
                             new ReportLogBlockFilter(
@@ -932,14 +938,14 @@ public class PreprocessorConfigManager {
                     saveRule.put("type", LOG_FILTER);
                     break;
                   case "logWhitelistRegex":
-                    logger.warning(
+                    logger.warn(
                         "Preprocessor rule using deprecated syntax (action: "
                             + action
                             + "), use 'action: spanAllow' instead!");
                   case "logAllow":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap
-                        .get(strPort)
+                        .get(port)
                         .forReportLog()
                         .addFilter(
                             new ReportLogAllowFilter(
@@ -960,17 +966,17 @@ public class PreprocessorConfigManager {
               saveRule.putAll(rule);
               validRulesList.add(saveRule);
             } catch (IllegalArgumentException | NullPointerException ex) {
-              logger.warning(
+              logger.warn(
                   "Invalid rule "
                       + (rule == null ? "" : rule.getOrDefault(RULE, ""))
                       + " (port "
-                      + strPort
+                      + port
                       + "): "
                       + ex);
               totalInvalidRules++;
             }
           }
-          logger.info("Loaded " + validRules + " rules for port :: " + strPort);
+          logger.info("Loaded " + validRules + " rules for port :: " + port);
           totalValidRules += validRules;
         }
         logger.info("Loaded Preprocessor rules for port key :: \"" + strPortKey + "\"");

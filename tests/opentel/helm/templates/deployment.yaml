@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentel-proxy
+  labels:
+    app: opentel-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opentel-proxy
+  template:
+    metadata:
+      labels:
+        app: opentel-proxy
+    spec:
+      containers:
+        - name: opentel-proxy
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: | 
+                --pushListenerPorts 2878 
+                --ephemeral false 
+                --idFile /tmp/id
+                --otlpGrpcListenerPorts 4317
+          ports: 
+            - name: push
+              containerPort: 2878
+              protocol: TCP
+            - name: opentel
+              containerPort: 4317
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /scripts/
+              name: scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: scripts
+            defaultMode: 0777
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentel-app
+  labels:
+    app: opentel-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opentel-app
+  template:
+    metadata:
+      labels:
+        app: opentel-app
+    spec:
+      containers:
+        - name: opentel-app
+          image: {{ .Values.image.opentelapp }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - name: push
+              containerPort: 8080
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentel-proxy
+spec:
+  ports:
+  - name: push
+    protocol: "TCP"
+    port: 4317
+    targetPort: 4317
+  selector:
+    app: opentel-proxy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentel-app
+spec:
+  ports:
+  - name: http
+    protocol: "TCP"
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: opentel-app

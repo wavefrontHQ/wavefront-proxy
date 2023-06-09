@@ -1,0 +1,18 @@
+waitInterval: 1
+proxyClients:
+     - type: "HTTP"
+       host: "wf-proxy"
+       port: 2878
+       data:
+            METRIC: "config/data/metric_config.yaml"
+     # - type: "HTTP"
+     #   host: "wf-proxy"
+     #   port: 2878
+     #   data:
+     #        SPAN: "config/data/span_config.yaml"
+#       DELTA: "config/data/delta_config.yaml"
+#       SPAN_LOG: "config/data/span_logs_config.yaml"
+#       HISTOGRAM: "config/data/histogram_config.yaml"
+#       EVENT: "config/data/event_config.yaml"
+#       SOURCE_TAG: "config/data/source_tag_config.yaml"
+#       HYPERLOGS: "config/data/hyperlogs_config.yaml"

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buffer-lock
+  labels:
+    app: buffer-lock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buffer-lock
+  template:
+    metadata:
+      labels:
+        app: buffer-lock
+    spec:
+      volumes:
+      - name: shared-buffer
+        emptyDir: {}
+      containers:
+        - name: wf-proxy-1
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: "--pushListenerPorts 2878 --buffer /buffer/"
+          volumeMounts:
+          - name: shared-buffer
+            mountPath: /buffer

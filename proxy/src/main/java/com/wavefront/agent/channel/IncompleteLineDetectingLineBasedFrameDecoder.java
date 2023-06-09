@@ -12,8 +12,6 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * Line-delimited decoder that has the ability of detecting when clients have disconnected while
  * leaving some data in the buffer.
- *
- * @author vasily@wavefront.com
  */
 public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrameDecoder {
   private final Consumer<String> warningMessageConsumer;

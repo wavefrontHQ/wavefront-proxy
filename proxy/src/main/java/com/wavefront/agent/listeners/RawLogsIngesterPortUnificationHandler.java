@@ -19,20 +19,16 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.InetAddress;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Process incoming logs in raw plaintext format.
- *
- * @author vasily@wavefront.com
- */
+/** Process incoming logs in raw plaintext format. */
 public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger =
-      Logger.getLogger(RawLogsIngesterPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(RawLogsIngesterPortUnificationHandler.class.getCanonicalName());
 
   private final LogsIngester logsIngester;
   private final Function<InetAddress, String> hostnameResolver;
@@ -44,7 +40,7 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
   /**
    * Create new instance.
    *
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param ingester log ingester.
    * @param hostnameResolver rDNS lookup for remote clients ({@link InetAddress} to {@link String}
    *     resolver)
@@ -53,13 +49,13 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
    * @param preprocessor preprocessor.
    */
   public RawLogsIngesterPortUnificationHandler(
-      String handle,
+      int port,
       @Nonnull LogsIngester ingester,
       @Nonnull Function<InetAddress, String> hostnameResolver,
       @Nullable TokenAuthenticator authenticator,
       @Nullable HealthCheckManager healthCheckManager,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle);
+    super(authenticator, healthCheckManager, port);
     this.logsIngester = ingester;
     this.hostnameResolver = hostnameResolver;
     this.preprocessorSupplier = preprocessor;
@@ -73,7 +69,7 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
       return;
     }
     if (cause instanceof DecoderException) {
-      logger.log(Level.WARNING, "Unexpected exception in raw logs ingester", cause);
+      logger.warn("Unexpected exception in raw logs ingester", cause);
     }
     super.exceptionCaught(ctx, cause);
   }

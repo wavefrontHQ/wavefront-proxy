@@ -1,21 +1,9 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.CacheWriter;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.Ticker;
+import com.github.benmanes.caffeine.cache.*;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.config.MetricMatcher;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.DeltaCounter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metric;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
-import com.yammer.metrics.core.WavefrontHistogram;
+import com.yammer.metrics.core.*;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -31,8 +19,6 @@ import javax.annotation.Nullable;
  * <p>With the introduction of Delta Counter for Yammer metrics, this class now treats Counters as
  * Delta Counters. So anybody using this {@link #getCounter(MetricName, MetricMatcher)} method will
  * get an instance of Delta counter.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class EvictingMetricsRegistry {
   private final MetricsRegistry metricsRegistry;

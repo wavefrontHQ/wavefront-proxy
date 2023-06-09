@@ -2,11 +2,7 @@ package com.wavefront.agent.auth;
 
 import org.apache.http.client.HttpClient;
 
-/**
- * Builder for {@link TokenAuthenticator} instances.
- *
- * @author vasily@wavefront.com
- */
+/** Builder for {@link TokenAuthenticator} instances. */
 public class TokenAuthenticatorBuilder {
   private TokenValidationMethod tokenValidationMethod;
   private HttpClient httpClient;
@@ -16,10 +12,6 @@ public class TokenAuthenticatorBuilder {
   private int authResponseMaxTtl;
   private String staticToken;
 
-  public static TokenAuthenticatorBuilder create() {
-    return new TokenAuthenticatorBuilder();
-  }
-
   private TokenAuthenticatorBuilder() {
     this.tokenValidationMethod = TokenValidationMethod.NONE;
     this.httpClient = null;
@@ -28,6 +20,10 @@ public class TokenAuthenticatorBuilder {
     this.authResponseRefreshInterval = 600; // 10 min
     this.authResponseMaxTtl = 24 * 60 * 60; // 1 day
     this.staticToken = null;
+  }
+
+  public static TokenAuthenticatorBuilder create() {
+    return new TokenAuthenticatorBuilder();
   }
 
   public TokenAuthenticatorBuilder setTokenValidationMethod(
@@ -68,7 +64,9 @@ public class TokenAuthenticatorBuilder {
     return this;
   }
 
-  /** @return {@link TokenAuthenticator} instance. */
+  /**
+   * @return {@link TokenAuthenticator} instance.
+   */
   public TokenAuthenticator build() {
     switch (tokenValidationMethod) {
       case NONE:

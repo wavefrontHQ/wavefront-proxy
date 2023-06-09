@@ -54,7 +54,7 @@ public class APIContainer {
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
-  private final boolean discardData;
+  //  private final boolean discardData;
 
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
@@ -71,13 +71,13 @@ public class APIContainer {
    * @param proxyConfig proxy configuration settings
    * @param discardData run proxy in test mode (don't actually send the data)
    */
-  public APIContainer(ProxyConfig proxyConfig, boolean discardData) {
+  public APIContainer(ProxyConfig proxyConfig) { // , boolean discardData) {
     this.proxyConfig = proxyConfig;
     this.logServerToken = "NOT_SET";
     this.logServerEndpointUrl = "NOT_SET";
     this.resteasyProviderFactory = createProviderFactory();
     this.clientHttpEngine = createHttpEngine();
-    this.discardData = discardData;
+    //    this.discardData = discardData;
     this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
 
     // config the multicasting tenants / clusters
@@ -96,16 +96,17 @@ public class APIContainer {
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
     }
 
-    if (discardData) {
-      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
-      this.proxyV2APIsForMulticasting = Maps.newHashMap();
-      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
-      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
-      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
-      this.eventAPIsForMulticasting = Maps.newHashMap();
-      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
-      this.logAPI = new NoopLogAPI();
-    }
+    //    if (discardData) {
+    //      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
+    //      this.proxyV2APIsForMulticasting = Maps.newHashMap();
+    //      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new
+    // NoopProxyV2API(proxyV2API));
+    //      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
+    //      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
+    //      this.eventAPIsForMulticasting = Maps.newHashMap();
+    //      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
+    //      this.logAPI = new NoopLogAPI();
+    //    }
     configureHttpProxy();
   }
 
@@ -123,7 +124,7 @@ public class APIContainer {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
-    this.discardData = false;
+    //    this.discardData = false;
     this.logAPI = logAPI;
     proxyV2APIsForMulticasting = Maps.newHashMap();
     proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
@@ -207,9 +208,9 @@ public class APIContainer {
       this.logServerEndpointUrl = removePathFromURL(logServerEndpointUrl);
       this.logServerToken = logServerToken;
       this.logAPI = createService(this.logServerEndpointUrl, LogAPI.class, createProviderFactory());
-      if (discardData) {
-        this.logAPI = new NoopLogAPI();
-      }
+      //      if (discardData) {
+      //        this.logAPI = new NoopLogAPI();
+      //      }
     }
   }
 
@@ -235,15 +236,17 @@ public class APIContainer {
         tenantName, createService(serverEndpointUrl, SourceTagAPI.class));
     eventAPIsForMulticasting.put(tenantName, createService(serverEndpointUrl, EventAPI.class));
 
-    if (discardData) {
-      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
-      this.proxyV2APIsForMulticasting = Maps.newHashMap();
-      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
-      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
-      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
-      this.eventAPIsForMulticasting = Maps.newHashMap();
-      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
-    }
+    // TODO:review
+    //    if (discardData) {
+    //      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
+    //      this.proxyV2APIsForMulticasting = Maps.newHashMap();
+    //      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new
+    // NoopProxyV2API(proxyV2API));
+    //      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
+    //      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
+    //      this.eventAPIsForMulticasting = Maps.newHashMap();
+    //      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
+    //    }
   }
 
   private void configureHttpProxy() {

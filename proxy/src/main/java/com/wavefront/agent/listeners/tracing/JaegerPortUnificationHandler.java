@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
@@ -11,9 +12,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -39,29 +39,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.thrift.TDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 /**
  * Handler that processes Jaeger Thrift trace data over HTTP and converts them to Wavefront format.
- *
- * @author Han Zhang (zhanghan@vmware.com)
  */
 public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
 
   private static final String JAEGER_COMPONENT = "jaeger";
   private static final String DEFAULT_SOURCE = "jaeger";
-
-  private final ReportableEntityHandler<Span, String> spanHandler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private static final String JAEGER_VALID_PATH = "/api/traces/";
+  private static final String JAEGER_VALID_HTTP_METHOD = "POST";
+  private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable private final WavefrontSender wfSender;
   @Nullable private final WavefrontInternalReporter wfInternalReporter;
   private final Supplier<Boolean> traceDisabled;
@@ -70,7 +69,6 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
   private final SpanSampler sampler;
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
-
   private final Counter receivedSpansTotal;
   private final Counter discardedTraces;
   private final Counter discardedBatches;
@@ -80,11 +78,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  private static final String JAEGER_VALID_PATH = "/api/traces/";
-  private static final String JAEGER_VALID_HTTP_METHOD = "POST";
-
   public JaegerPortUnificationHandler(
-      String handle,
+      int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       ReportableEntityHandlerFactory handlerFactory,
@@ -96,11 +91,12 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
       @Nullable String traceJaegerApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
     this(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         wfSender,
         traceDisabled,
         spanLogsDisabled,
@@ -112,11 +108,11 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
 
   @VisibleForTesting
   JaegerPortUnificationHandler(
-      String handle,
+      int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontSender wfSender,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,
@@ -124,7 +120,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
       SpanSampler sampler,
       @Nullable String traceJaegerApplicationName,
       Set<String> traceDerivedCustomTagKeys) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -137,17 +133,17 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
             ? "Jaeger"
             : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + port, "", "discarded"));
     this.discardedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "discarded"));
     this.processedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "processed"));
     this.failedBatches =
-        Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+        Metrics.newCounter(new MetricName("spans." + port + ".batches", "", "failed"));
     this.discardedSpansBySampler =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded"));
     this.receivedSpansTotal =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+        Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("jaeger-heart-beater"));
@@ -221,7 +217,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
       failedBatches.inc();
       output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
-      logger.log(Level.WARNING, "Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
+      logger.warn("Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
     }
     writeHttpResponse(ctx, status, output, request);
   }
@@ -231,7 +227,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler
     try {
       reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
-      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 

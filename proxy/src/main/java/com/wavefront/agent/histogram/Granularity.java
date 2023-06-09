@@ -2,12 +2,7 @@ package com.wavefront.agent.histogram;
 
 import org.apache.commons.lang.time.DateUtils;
 
-/**
- * Standard supported aggregation Granularities. Refactored from HistogramUtils.
- *
- * @author Tim Schmidt (tim@wavefront.com)
- * @author vasily@wavefront.com
- */
+/** Standard supported aggregation Granularities. Refactored from HistogramUtils. */
 public enum Granularity {
   MINUTE((int) DateUtils.MILLIS_PER_MINUTE),
   HOUR((int) DateUtils.MILLIS_PER_HOUR),
@@ -17,6 +12,16 @@ public enum Granularity {
 
   Granularity(int inMillis) {
     this.inMillis = inMillis;
+  }
+
+  public static Granularity fromMillis(long millis) {
+    if (millis <= 60 * 1000) {
+      return MINUTE;
+    } else if (millis <= 60 * 60 * 1000) {
+      return HOUR;
+    } else {
+      return DAY;
+    }
   }
 
   /**
@@ -49,15 +54,5 @@ public enum Granularity {
         return "minute";
     }
     return "unknown";
-  }
-
-  public static Granularity fromMillis(long millis) {
-    if (millis <= 60 * 1000) {
-      return MINUTE;
-    } else if (millis <= 60 * 60 * 1000) {
-      return HOUR;
-    } else {
-      return DAY;
-    }
   }
 }

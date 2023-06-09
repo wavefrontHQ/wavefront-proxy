@@ -1,18 +1,11 @@
 package com.wavefront.agent.data;
 
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Dynamic non-entity specific properties, that may change at runtime.
- *
- * @author vasily@wavefront.com
- */
+/** Dynamic non-entity specific properties, that may change at runtime. */
 public final class GlobalPropertiesImpl implements GlobalProperties {
   private final ProxyConfig wrapped;
   private Double retryBackoffBaseSeconds = null;
@@ -23,17 +16,6 @@ public final class GlobalPropertiesImpl implements GlobalProperties {
 
   public GlobalPropertiesImpl(ProxyConfig wrapped) {
     this.wrapped = wrapped;
-    reportSettingAsGauge(this::getRetryBackoffBaseSeconds, "dynamic.retryBackoffBaseSeconds");
-  }
-
-  @Override
-  public double getRetryBackoffBaseSeconds() {
-    return firstNonNull(retryBackoffBaseSeconds, wrapped.getRetryBackoffBaseSeconds());
-  }
-
-  @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-    this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
   }
 
   @Override

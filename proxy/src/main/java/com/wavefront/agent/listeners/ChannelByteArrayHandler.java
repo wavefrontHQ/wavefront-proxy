@@ -1,7 +1,7 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.ReportPointSerializer;
@@ -14,23 +14,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 
-/**
- * Channel handler for byte array data.
- *
- * @author Mike McLaughlin (mike@wavefront.com)
- */
+/** Channel handler for byte array data. */
 @ChannelHandler.Sharable
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private static final Logger logger =
-      Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
 
   private final ReportableEntityDecoder<byte[], ReportPoint> decoder;
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Logger blockedItemsLogger;
@@ -39,7 +35,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
   /** Constructor. */
   public ChannelByteArrayHandler(
       final ReportableEntityDecoder<byte[], ReportPoint> decoder,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler,
+      final ReportableEntityHandler<ReportPoint> pointHandler,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       final Logger blockedItemsLogger) {
     this.decoder = decoder;
@@ -83,7 +79,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
       if (remoteAddress != null) {
         errMsg += "; remote: " + remoteAddress.getHostString();
       }
-      logger.log(Level.WARNING, errMsg, e);
+      logger.warn(errMsg, e);
       pointHandler.block(null, errMsg);
     }
   }
@@ -98,7 +94,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     // backwards compatibility: apply "pointLine" rules to metric name
     if (!preprocessor.forPointLine().filter(point.getMetric(), messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warn(ReportPointSerializer.pointToString(point));
       } else {
         blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
@@ -108,7 +104,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     preprocessor.forReportPoint().transform(point);
     if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warn(ReportPointSerializer.pointToString(point));
       } else {
         blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
@@ -133,6 +129,6 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     if (remoteAddress != null) {
       message += "; remote: " + remoteAddress.getHostString();
     }
-    logger.warning(message);
+    logger.warn(message);
   }
 }

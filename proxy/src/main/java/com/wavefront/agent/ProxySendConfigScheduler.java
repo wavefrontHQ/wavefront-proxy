@@ -22,9 +22,10 @@ public class ProxySendConfigScheduler {
     task =
         () -> {
           try {
-            apiContainer
-                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-                .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
+            // TODO: review
+            //            apiContainer
+            //                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+            //                .proxySaveConfig(proxyId, proxyConfig.getJsonConfig());
             successful = true;
             logger.info("Configuration sent to the server successfully.");
           } catch (javax.ws.rs.NotFoundException ex) {

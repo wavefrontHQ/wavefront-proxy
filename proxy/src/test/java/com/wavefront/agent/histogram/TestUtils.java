@@ -7,19 +7,15 @@ import java.util.concurrent.TimeUnit;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-/**
- * Shared test helpers around histograms
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Shared test helpers around histograms */
 public final class TestUtils {
-  private TestUtils() {
-    // final abstract...
-  }
-
   public static long DEFAULT_TIME_MILLIS =
       TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()));
   public static double DEFAULT_VALUE = 1D;
+
+  private TestUtils() {
+    // final abstract...
+  }
 
   /**
    * Creates a histogram accumulation key for given metric at minute granularity and

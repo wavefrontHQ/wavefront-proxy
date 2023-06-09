@@ -1,23 +1,16 @@
 package com.wavefront.agent.listeners;
 
-import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.core.Counter;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.CharsetUtil;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Constants and utility methods for validating feature subscriptions.
- *
- * @author vasily@wavefront.com
- */
+/** Constants and utility methods for validating feature subscriptions. */
 public abstract class FeatureCheckUtils {
-  private static final Logger logger = Logger.getLogger(FeatureCheckUtils.class.getCanonicalName());
-
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
   public static final String HISTO_DISABLED =
       "Ingested point discarded because histogram "
           + "feature has not been enabled for your account";
@@ -29,6 +22,9 @@ public abstract class FeatureCheckUtils {
           + "this feature has not been enabled for your account.";
   public static final String LOGS_DISABLED =
       "Ingested logs discarded because " + "this feature has not been enabled for your account.";
+  private static final Logger logger =
+      LoggerFactory.getLogger(FeatureCheckUtils.class.getCanonicalName());
+  //  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
 
   public static final String LOGS_SERVER_DETAILS_MISSING =
       "Ingested logs discarded because the "
@@ -123,7 +119,7 @@ public abstract class FeatureCheckUtils {
       @Nullable StringBuilder output,
       @Nullable FullHttpRequest request) {
     if (featureDisabledFlag.get()) {
-      featureDisabledLogger.warning(message);
+      logger.warn(message);
       if (output != null) {
         output.append(message);
       }
@@ -154,7 +150,8 @@ public abstract class FeatureCheckUtils {
       String message,
       @Nullable Counter discardedCounter) {
     if (enableHyperlogsConvergedCsp && !receivedLogServerDetails) {
-      featureDisabledLogger.warning(message);
+      // TODO: 10/5/23 review
+      //      featureDisabledLogger.warning(message);
       if (discardedCounter != null) {
         discardedCounter.inc();
       }

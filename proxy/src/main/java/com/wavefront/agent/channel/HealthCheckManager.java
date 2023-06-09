@@ -6,11 +6,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.net.URISyntaxException;
 import javax.annotation.Nonnull;
 
-/**
- * Centrally manages healthcheck statuses (for controlling load balancers).
- *
- * @author vasily@wavefront.com
- */
+/** Centrally manages healthcheck statuses (for controlling load balancers). */
 public interface HealthCheckManager {
   HttpResponse getHealthCheckResponse(ChannelHandlerContext ctx, @Nonnull FullHttpRequest request)
       throws URISyntaxException;

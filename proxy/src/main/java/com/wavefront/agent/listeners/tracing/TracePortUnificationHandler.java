@@ -1,8 +1,7 @@
 package com.wavefront.agent.listeners.tracing;
 
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.ProxyContext.queuesManager;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 
@@ -10,10 +9,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -40,29 +38,26 @@ import wavefront.report.SpanLogs;
  *
  * <p>Accepts incoming messages of either String or FullHttpRequest type: single Span in a string,
  * or multiple points in the HTTP post body, newline-delimited.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
 
-  protected final ReportableEntityHandler<Span, String> handler;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  protected final ReportableEntityHandler<Span> handler;
+  protected final Counter discardedSpans;
+  protected final Counter discardedSpanLogs;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SpanSampler sampler;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-
-  protected final Counter discardedSpans;
-  protected final Counter discardedSpanLogs;
   private final Counter discardedSpansBySampler;
   private final Counter discardedSpanLogsBySampler;
   private final Counter receivedSpansTotal;
 
   public TracePortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityDecoder<String, Span> traceDecoder,
@@ -73,14 +68,15 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
     this(
-        handle,
+        port,
         tokenAuthenticator,
         healthCheckManager,
         traceDecoder,
         spanLogsDecoder,
         preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE)),
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)),
         sampler,
         traceDisabled,
         spanLogsDisabled);
@@ -88,18 +84,18 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
 
   @VisibleForTesting
   public TracePortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      final ReportableEntityHandler<Span> handler,
+      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
       final SpanSampler sampler,
       final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.decoder = traceDecoder;
     this.spanLogsDecoder = spanLogsDecoder;
     this.handler = handler;
@@ -108,15 +104,15 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     this.sampler = sampler;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
-    this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedSpans = Metrics.newCounter(new MetricName("spans." + this.port, "", "discarded"));
     this.discardedSpanLogs =
-        Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded"));
+        Metrics.newCounter(new MetricName("spanLogs." + this.port, "", "discarded"));
     this.discardedSpansBySampler =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spans." + this.port, "", "sampler.discarded"));
     this.discardedSpanLogsBySampler =
-        Metrics.newCounter(new MetricName("spanLogs." + handle, "", "sampler.discarded"));
+        Metrics.newCounter(new MetricName("spanLogs." + this.port, "", "sampler.discarded"));
     this.receivedSpansTotal =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+        Metrics.newCounter(new MetricName("spans." + this.port, "", "received.total"));
   }
 
   @Nullable

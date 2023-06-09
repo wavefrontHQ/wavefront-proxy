@@ -6,15 +6,13 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.uber.tchannel.messages.ThriftRequest;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.api.agent.SpanSamplingPolicy;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
-import io.jaegertracing.thriftjava.Batch;
-import io.jaegertracing.thriftjava.Collector;
-import io.jaegertracing.thriftjava.Log;
+import io.jaegertracing.thriftjava.*;
 import io.jaegertracing.thriftjava.Process;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
@@ -27,9 +25,9 @@ import wavefront.report.SpanLogs;
 
 public class JaegerTChannelCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
+  private ReportableEntityHandler<SpanLogs> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 
@@ -151,7 +149,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -329,7 +327,7 @@ public class JaegerTChannelCollectorHandlerTest {
     // Verify span level "application" tags precedence
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -407,7 +405,8 @@ public class JaegerTChannelCollectorHandlerTest {
             .build();
     handler.handleImpl(request);
 
-    // Span3 to verify process level tags precedence. So do not set any process level tag.
+    // Span3 to verify process level tags precedence. So do not set any process
+    // level tag.
     Batch testBatchForProxyLevel = new Batch();
     testBatchForProxyLevel.process = new Process();
     testBatchForProxyLevel.process.serviceName = "frontend";
@@ -476,7 +475,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -623,7 +622,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -763,7 +762,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -829,7 +828,8 @@ public class JaegerTChannelCollectorHandlerTest {
             .build();
     handler.handleImpl(request);
 
-    // Span3 to verify hostname process level tags precedence. So do not set any process level
+    // Span3 to verify hostname process level tags precedence. So do not set any
+    // process level
     // source tag.
     Batch testBatchSourceAsProcessTagHostName = new Batch();
     testBatchSourceAsProcessTagHostName.process = new Process();
@@ -925,7 +925,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1004,7 +1004,8 @@ public class JaegerTChannelCollectorHandlerTest {
 
   @Test
   public void testProtectedTagsSpanOverridesProcess() throws Exception {
-    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // cluster, shard and service are special tags, because they're indexed by
+    // wavefront
     // The priority order is:
     // Span Level > Process Level > Proxy Level > Default
     reset(mockTraceHandler, mockTraceLogsHandler);
@@ -1034,7 +1035,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1102,7 +1103,8 @@ public class JaegerTChannelCollectorHandlerTest {
 
   @Test
   public void testProtectedTagsProcessOverridesProxyConfig() throws Exception {
-    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // cluster, shard and service are special tags, because they're indexed by
+    // wavefront
     // The priority order is:
     // Span Level > Process Level > Proxy Level > Default
     reset(mockTraceHandler, mockTraceLogsHandler);
@@ -1132,7 +1134,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1220,7 +1222,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,
@@ -1318,7 +1320,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler =
         new JaegerTChannelCollectorHandler(
-            "9876",
+            9876,
             mockTraceHandler,
             mockTraceLogsHandler,
             null,

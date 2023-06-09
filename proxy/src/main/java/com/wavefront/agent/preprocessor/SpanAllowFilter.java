@@ -12,8 +12,6 @@ import wavefront.report.Span;
 /**
  * "Allow list" regex filter. Rejects a span if a specified component (name, source, or annotation
  * value, depending on the "scope" parameter) doesn't match the regex.
- *
- * @author vasily@wavefront.com
  */
 public class SpanAllowFilter implements AnnotatedPredicate<Span> {
 

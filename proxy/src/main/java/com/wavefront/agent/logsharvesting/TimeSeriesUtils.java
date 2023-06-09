@@ -9,10 +9,10 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import wavefront.report.TimeSeries;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class TimeSeriesUtils {
 
-  private static DatumReader<TimeSeries> datumReader = new SpecificDatumReader<>(TimeSeries.class);
+  private static final DatumReader<TimeSeries> datumReader =
+      new SpecificDatumReader<>(TimeSeries.class);
 
   public static TimeSeries fromMetricName(MetricName metricName) throws IOException {
     String name = metricName.getName();

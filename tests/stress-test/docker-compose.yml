@@ -1,0 +1,78 @@
+volumes:
+  buffer:
+    driver: local
+    driver_opts:
+      o: "size=20g"
+      device: tmpfs
+      type: tmpfs
+
+services:
+
+  http-proxy:
+    build: docker/filter
+    ports:
+      - "8001:8001"
+
+  wf-proxy:
+    hostname: stress-test-wfproxy
+    build: docker/proxy
+    # build: docker/proxy-latest
+    environment:
+      WAVEFRONT_URL: https://${WF_URL}/api/
+      WAVEFRONT_TOKEN: ${WF_TOKEN}
+      WAVEFRONT_PROXY_ARGS: --proxyHost http-proxy --proxyPort 8000 -f /etc/proxy.cfg --buffer /buffer
+      JAVA_HEAP_USAGE: 4G
+      JVM_USE_CONTAINER_OPTS: false
+      JAVA_ARGS: "-Xlog:gc*:file=/var/spool/wavefront-proxy/gc.log"
+      TLGF_WF_URL: https://${WF_URL}
+    ports:
+      - "2878:2878"
+      - "1098:1098"
+    volumes:
+      - buffer:/buffer
+    depends_on:
+      - "http-proxy"
+    command:
+      [
+        "/opt/others/wait-for-it.sh",
+        "http-proxy:8000",
+        "--",
+        "/bin/bash",
+        "/opt/wavefront/wavefront-proxy/run.sh"
+      ]
+
+  loadgen:
+    profiles: [ "loadgen" ]
+    build: docker/loadgen
+    depends_on:
+      - "wf-proxy"
+    command:
+      [
+        "/opt/others/wait-for-it.sh",
+        "wf-proxy:2878",
+        "--timeout=30",
+        "--",
+        "/opt/loadgen/run.sh"
+      ]
+
+  jmeter:
+    profiles: [ "jmeter" ]
+    build: docker/jmeter
+    volumes:
+      - ./resources/jmeter:/opt/jmeter/
+      - ./resources/others:/opt/others/
+    depends_on:
+      - "wf-proxy"
+    command:
+      [
+        "/opt/others/wait-for-it.sh",
+        "wf-proxy:2878",
+        "--timeout=30",
+        "--",
+        "jmeter",
+        "-n",
+        "-t",
+        "/opt/jmeter/stress.jmx",
+        "-p",
+        "/opt/jmeter/stress.properties"
+      ]

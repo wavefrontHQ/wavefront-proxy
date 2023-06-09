@@ -1,17 +1,11 @@
 package com.wavefront.agent.listeners.tracing;
 
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.captureLong;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.newCapture;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.internal_reporter_java.io.dropwizard.metrics5.DeltaCounter;
 import com.wavefront.internal_reporter_java.io.dropwizard.metrics5.WavefrontHistogram;
@@ -32,12 +26,12 @@ public class CustomTracingPortUnificationHandlerTest {
     Capture<Long> duration = newCapture();
     histogram.update(captureLong(duration));
     expectLastCall();
-    ReportableEntityHandler<Span, String> handler =
+    ReportableEntityHandler<Span> handler =
         MockReportableEntityHandlerFactory.getMockTraceHandler();
     CustomTracingPortUnificationHandler subject =
         new CustomTracingPortUnificationHandler(
-            null, null, null, null, null, null, handler, null, null, null, null, null, reporter,
-            null, null, null);
+            0, null, null, null, null, null, handler, null, null, null, null, null, reporter, null,
+            null, null);
     replay(reporter, histogram);
 
     Span span = getSpan();

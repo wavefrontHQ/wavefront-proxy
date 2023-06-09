@@ -8,11 +8,7 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import wavefront.report.Histogram;
 
-/**
- * Caching wrapper around the backing store.
- *
- * @author vasily@wavefront.com
- */
+/** Caching wrapper around the backing store. */
 public interface Accumulator {
 
   /**

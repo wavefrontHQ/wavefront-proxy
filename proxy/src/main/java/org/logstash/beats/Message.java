@@ -9,14 +9,13 @@ import java.io.InputStream;
 import java.util.Map;
 
 public class Message implements Comparable<Message> {
+  public static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new AfterburnerModule());
   private final int sequence;
   private String identityStream;
   private Map data;
   private Batch batch;
   private ByteBuf buffer;
-
-  public static final ObjectMapper MAPPER =
-      new ObjectMapper().registerModule(new AfterburnerModule());
 
   /**
    * Create a message using a map of key, value pairs
@@ -41,11 +40,7 @@ public class Message implements Comparable<Message> {
     this.buffer = buffer;
   }
 
-  /**
-   * Returns the sequence number of this messsage
-   *
-   * @return
-   */
+  /** Returns the sequence number of this messsage */
   public int getSequence() {
     return sequence;
   }
@@ -89,7 +84,7 @@ public class Message implements Comparable<Message> {
   }
 
   private String extractIdentityStream() {
-    Map beatsData = (Map<String, String>) this.getData().get("beat");
+    Map<String, String> beatsData = (Map<String, String>) this.getData().get("beat");
 
     if (beatsData != null) {
       String id = (String) beatsData.get("id");

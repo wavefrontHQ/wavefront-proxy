@@ -15,8 +15,6 @@ import wavefront.report.ReportLog;
 /**
  * Replace regex transformer. Performs search and replace on a specified component of a log
  * (message, source name or a log tag value, depending on "scope" parameter.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogReplaceRegexTransformer implements Function<ReportLog, ReportLog> {
 

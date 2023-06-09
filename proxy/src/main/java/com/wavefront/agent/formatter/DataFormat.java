@@ -4,11 +4,7 @@ import com.wavefront.api.agent.Constants;
 import com.wavefront.ingester.AbstractIngesterFormatter;
 import javax.annotation.Nullable;
 
-/**
- * Best-effort data format auto-detection.
- *
- * @author vasily@wavefront.com
- */
+/** Best-effort data format auto-detection. */
 public enum DataFormat {
   DEFAULT,
   WAVEFRONT,
@@ -62,10 +58,11 @@ public enum DataFormat {
         return DataFormat.SPAN_LOG;
       case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
         return DataFormat.LOGS_JSON_ARR;
-      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
-        return DataFormat.LOGS_JSON_LINES;
-      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
-        return DataFormat.LOGS_JSON_CLOUDWATCH;
+        // TODO: review
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
+        //        return DataFormat.LOGS_JSON_LINES;
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        //        return DataFormat.LOGS_JSON_CLOUDWATCH;
       default:
         return null;
     }

@@ -43,13 +43,13 @@ public class AgentConfigurationTest {
     PreprocessorConfigManager config = new PreprocessorConfigManager();
     config.loadFromStream(stream);
     config
-        .getSystemPreprocessor("2878")
+        .getSystemPreprocessor(2878)
         .forReportPoint()
         .addTransformer(new ReportPointAddPrefixTransformer("fooFighters"));
     ReportPoint point =
         new ReportPoint(
             "foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
-    config.get("2878").get().forReportPoint().transform(point);
+    config.get(2878).get().forReportPoint().transform(point);
     assertEquals("barFighters.barmetric", point.getMetric());
   }
 
@@ -63,7 +63,7 @@ public class AgentConfigurationTest {
     ReportPoint point =
         new ReportPoint(
             "foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
-    config.get("2879").get().forReportPoint().transform(point);
+    config.get(2879).get().forReportPoint().transform(point);
     assertEquals("bar1metric", point.getMetric());
     assertEquals(1, point.getAnnotations().size());
     assertEquals("multiTagVal", point.getAnnotations().get("multiPortTagKey"));
@@ -71,7 +71,7 @@ public class AgentConfigurationTest {
     ReportPoint point1 =
         new ReportPoint(
             "foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
-    config.get("1111").get().forReportPoint().transform(point1);
+    config.get(1111).get().forReportPoint().transform(point1);
     assertEquals("foometric", point1.getMetric());
     assertEquals(1, point1.getAnnotations().size());
     assertEquals("multiTagVal", point1.getAnnotations().get("multiPortTagKey"));

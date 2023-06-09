@@ -8,30 +8,25 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link TokenAuthenticator} that uses an external webservice for validating tokens. Responses are
  * cached and re-validated every {@code authResponseRefreshInterval} seconds; if the service is not
  * available, a cached last valid response may be used until {@code authResponseMaxTtl} expires.
- *
- * @author vasily@wavefront.com
  */
 abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
   private static final Logger logger =
-      Logger.getLogger(TokenIntrospectionAuthenticator.class.getCanonicalName());
+      LoggerFactory.getLogger(TokenIntrospectionAuthenticator.class.getCanonicalName());
 
   private final long authResponseMaxTtlMillis;
-
-  private volatile Long lastSuccessfulCallTs = null;
-
   private final Counter serviceCalls = Metrics.newCounter(new MetricName("auth", "", "api-calls"));
   private final Counter errorCount = Metrics.newCounter(new MetricName("auth", "", "api-errors"));
-
   private final LoadingCache<String, Boolean> tokenValidityCache;
+  private volatile Long lastSuccessfulCallTs = null;
 
   TokenIntrospectionAuthenticator(
       int authResponseRefreshInterval,
@@ -57,7 +52,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
                       lastSuccessfulCallTs = timeSupplier.get();
                     } catch (Exception e) {
                       errorCount.inc();
-                      logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
+                      logger.warn("Error during Token Introspection Service call", e);
                       return null;
                     }
                     return result;
@@ -72,7 +67,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
                       lastSuccessfulCallTs = timeSupplier.get();
                     } catch (Exception e) {
                       errorCount.inc();
-                      logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
+                      logger.warn("Error during Token Introspection Service call", e);
                       if (lastSuccessfulCallTs != null
                           && timeSupplier.get() - lastSuccessfulCallTs > authResponseMaxTtlMillis) {
                         return null;
@@ -92,7 +87,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
       return false;
     }
     Boolean tokenResult = tokenValidityCache.get(token);
-    return tokenResult == null ? false : tokenResult;
+    return tokenResult != null && tokenResult;
   }
 
   @Override

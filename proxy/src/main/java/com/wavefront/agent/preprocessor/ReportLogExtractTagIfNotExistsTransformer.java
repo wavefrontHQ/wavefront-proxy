@@ -7,8 +7,6 @@ import wavefront.report.ReportLog;
 /**
  * Create a log tag by extracting a portion of a message, source name or another log tag. If such
  * log tag already exists, the value won't be overwritten.
- *
- * @author amitw@vmware.com
  */
 public class ReportLogExtractTagIfNotExistsTransformer extends ReportLogExtractTagTransformer {
 

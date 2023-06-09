@@ -2,14 +2,9 @@ package com.wavefront.agent;
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
+import com.wavefront.agent.data.EntityRateLimiter;
 import com.wavefront.ingester.SpanDecoder;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -18,8 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 import javax.net.SocketFactory;
 import org.apache.commons.io.FileUtils;
@@ -31,11 +24,12 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.message.BasicHeader;
 import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 
-/** @author vasily@wavefront.com */
 public class TestUtils {
-  private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(TestUtils.class.getCanonicalName());
 
   public static <T extends HttpRequestBase> T httpEq(HttpRequestBase request) {
     EasyMock.reportMatcher(
@@ -80,26 +74,16 @@ public class TestUtils {
     EasyMock.replay(httpClient, response, entity, line);
   }
 
-  public static int findAvailablePort(int startingPortNumber) {
-    int portNum = startingPortNumber;
-    ServerSocket socket;
-    while (portNum < startingPortNumber + 1000) {
-      try {
-        socket = new ServerSocket(portNum);
-        socket.close();
-        logger.log(Level.INFO, "Found available port: " + portNum);
-        return portNum;
-      } catch (IOException exc) {
-        logger.log(Level.WARNING, "Port " + portNum + " is not available:" + exc.getMessage());
-      }
-      portNum++;
+  public static int findAvailablePort() {
+    try {
+      ServerSocket socket = new ServerSocket(0);
+      int portNum = socket.getLocalPort();
+      socket.close();
+      logger.info("Found available port: " + portNum);
+      return portNum;
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
     }
-    throw new RuntimeException(
-        "Unable to find an available port in the ["
-            + startingPortNumber
-            + ";"
-            + (startingPortNumber + 1000)
-            + ") range");
   }
 
   public static void waitUntilListenerIsOnline(int port) throws Exception {
@@ -202,7 +186,7 @@ public class TestUtils {
           break;
         } catch (AssertionError e) {
           if (millisLeft <= 0) {
-            logger.warning("verify() failed after : " + (timeout - millisLeft) + "ms");
+            logger.warn("verify() failed after : " + (timeout - millisLeft) + "ms");
             throw e;
           }
           try {
@@ -244,5 +228,12 @@ public class TestUtils {
     List<Span> out = Lists.newArrayListWithExpectedSize(1);
     new SpanDecoder("unknown").decode(line, out, "dummy");
     return out.get(0);
+  }
+
+  public static class RateLimiter extends EntityRateLimiter {
+    @Override
+    public boolean tryAcquire(int points) {
+      return true;
+    }
   }
 }

@@ -23,7 +23,10 @@
         ]
       ],
       "host": "testHost",
-      "tags": ["env:prod,app:openstack", "source:Launcher"]
+      "tags": [
+        "env:prod,app:openstack",
+        "source:Launcher"
+      ]
     },
     {
       "type": "gauge",
@@ -39,17 +42,17 @@
       "device": "eth0"
     },
     {
-      "metric":"test.metric",
-      "points":[
+      "metric": "test.metric",
+      "points": [
         [
           1531176936,
           20
         ]
       ],
-      "type":"rate",
+      "type": "rate",
       "interval": 20,
-      "host":"testhost",
-      "tags":null
+      "host": "testhost",
+      "tags": null
     }
   ]
 }

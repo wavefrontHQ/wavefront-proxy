@@ -13,8 +13,8 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.assertEquals;
 
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.WavefrontSender;
 import io.grpc.stub.StreamObserver;
@@ -28,14 +28,10 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 import wavefront.report.Annotation;
 
-/**
- * @author Xiaochen Wang (xiaochenw@vmware.com).
- * @author Glenn Oppegard (goppegard@vmware.com).
- */
 public class OtlpGrpcTraceHandlerTest {
-  private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
+  private final ReportableEntityHandler<wavefront.report.Span> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private final ReportableEntityHandler<wavefront.report.SpanLogs, String> mockSpanLogsHandler =
+  private final ReportableEntityHandler<wavefront.report.SpanLogs> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
@@ -69,7 +65,7 @@ public class OtlpGrpcTraceHandlerTest {
     // 2. Act
     OtlpGrpcTraceHandler otlpGrpcTraceHandler =
         new OtlpGrpcTraceHandler(
-            "9876",
+            9876,
             mockSpanHandler,
             mockSpanLogsHandler,
             mockSender,

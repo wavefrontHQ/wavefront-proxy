@@ -7,7 +7,7 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.sdk.common.Pair;
@@ -37,25 +37,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 public class OtlpMetricsUtils {
-  public static final Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
+  public static final Logger OTLP_DATA_LOGGER = LoggerFactory.getLogger("OTLPDataLogger");
   public static final int MILLIS_IN_MINUTE = 60 * 1000;
   public static final int MILLIS_IN_HOUR = 60 * 60 * 1000;
   public static final int MILLIS_IN_DAY = 24 * 60 * 60 * 1000;
 
   public static void exportToWavefront(
       ExportMetricsServiceRequest request,
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
-      ReportableEntityHandler<ReportPoint, String> histogramHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
+      ReportableEntityHandler<ReportPoint> histogramHandler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       String defaultSource,
       boolean includeResourceAttrsForMetrics,
@@ -94,7 +95,7 @@ public class OtlpMetricsUtils {
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
       Resource resource = resourceMetrics.getResource();
-      OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
+      OTLP_DATA_LOGGER.debug("Inbound OTLP Resource: " + resource);
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
       String source = sourceAndResourceAttrs._1;
@@ -107,13 +108,12 @@ public class OtlpMetricsUtils {
       }
 
       for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
-        OTLP_DATA_LOGGER.finest(
-            () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
+        OTLP_DATA_LOGGER.debug("Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
-          OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
+          OTLP_DATA_LOGGER.debug("Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points =
               transform(otlpMetric, resourceAttributes, preprocessor, source);
-          OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Metric: " + points);
+          OTLP_DATA_LOGGER.debug("Converted Wavefront Metric: " + points);
 
           wfPoints.addAll(points);
         }
@@ -160,7 +160,7 @@ public class OtlpMetricsUtils {
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(
       ReportPoint wfReportPoint,
-      ReportableEntityHandler<ReportPoint, String> pointHandler,
+      ReportableEntityHandler<ReportPoint> pointHandler,
       @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
@@ -340,8 +340,7 @@ public class OtlpMetricsUtils {
     List<CumulativeBucket> buckets = point.asCumulative();
     List<ReportPoint> reportPoints = new ArrayList<>(buckets.size());
     for (CumulativeBucket bucket : buckets) {
-      // we have to create a new builder every time as the annotations are getting appended
-      // after
+      // we have to create a new builder every time as the annotations are getting appended after
       // each iteration
       ReportPoint rp =
           pointWithAnnotations(
@@ -499,25 +498,21 @@ public class OtlpMetricsUtils {
     double base = Math.pow(2.0, Math.pow(2.0, -dataPoint.getScale()));
 
     // ExponentialHistogramDataPoints have buckets with negative explicit bounds, buckets with
-    // positive explicit bounds, and a "zero" bucket. Our job is to merge these bucket groups
-    // into
+    // positive explicit bounds, and a "zero" bucket. Our job is to merge these bucket groups into
     // a single list of buckets and explicit bounds.
     List<Long> negativeBucketCounts = dataPoint.getNegative().getBucketCountsList();
     List<Long> positiveBucketCounts = dataPoint.getPositive().getBucketCountsList();
 
     // The total number of buckets is the number of negative buckets + the number of positive
     // buckets + 1 for the zero bucket + 1 bucket for negative infinity up to smallest negative
-    // explicit bound + 1 bucket for the largest positive explicit bound up to positive
-    // infinity.
+    // explicit bound + 1 bucket for the largest positive explicit bound up to positive infinity.
     int numBucketCounts = 1 + negativeBucketCounts.size() + 1 + positiveBucketCounts.size() + 1;
 
     List<Long> bucketCounts = new ArrayList<>(numBucketCounts);
 
     // The number of explicit bounds is always 1 less than the number of buckets. This is how
-    // explicit bounds work. If you have 2 explicit bounds say {2.0, 5.0} then you have 3
-    // buckets:
-    // one for values less than 2.0; one for values between 2.0 and 5.0; and one for values
-    // greater
+    // explicit bounds work. If you have 2 explicit bounds say {2.0, 5.0} then you have 3 buckets:
+    // one for values less than 2.0; one for values between 2.0 and 5.0; and one for values greater
     // than 5.0.
     List<Double> explicitBounds = new ArrayList<>(numBucketCounts - 1);
 
@@ -568,8 +563,8 @@ public class OtlpMetricsUtils {
     // the last element in the negativeBucketCounts array.
     for (int i = negativeBucketCounts.size() - 1; i >= 0; i--) {
       bucketCounts.add(negativeBucketCounts.get(i));
-      le /= base; // We divide by base because our explicit bounds are getting smaller in
-      // magnitude as
+      le /=
+          base; // We divide by base because our explicit bounds are getting smaller in magnitude as
       // we go
       explicitBounds.add(le);
     }

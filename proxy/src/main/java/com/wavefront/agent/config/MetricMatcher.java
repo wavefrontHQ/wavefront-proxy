@@ -12,20 +12,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.TimeSeries;
 
-/**
- * Object defining transformation between a log line into structured telemetry data.
- *
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** Object defining transformation between a log line into structured telemetry data. */
 @SuppressWarnings("CanBeFinal")
 public class MetricMatcher extends Configuration {
-  protected static final Logger logger = Logger.getLogger(MetricMatcher.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(MetricMatcher.class.getCanonicalName());
   private final Object grokLock = new Object();
 
   /**
@@ -81,6 +79,28 @@ public class MetricMatcher extends Configuration {
   private Grok grok = null;
   private Map<String, String> additionalPatterns = Maps.newHashMap();
 
+  private static String expandTemplate(String template, Map<String, Object> replacements) {
+    if (template.contains("%{")) {
+      StringBuffer result = new StringBuffer();
+      Matcher placeholders = Pattern.compile("%\\{(.*?)}").matcher(template);
+      while (placeholders.find()) {
+        if (placeholders.group(1).isEmpty()) {
+          placeholders.appendReplacement(result, placeholders.group(0));
+        } else {
+          if (replacements.get(placeholders.group(1)) != null) {
+            placeholders.appendReplacement(
+                result, (String) replacements.get(placeholders.group(1)));
+          } else {
+            placeholders.appendReplacement(result, placeholders.group(0));
+          }
+        }
+      }
+      placeholders.appendTail(result);
+      return result.toString();
+    }
+    return template;
+  }
+
   public String getValueLabel() {
     return valueLabel;
   }
@@ -110,39 +130,17 @@ public class MetricMatcher extends Configuration {
               try {
                 grok.addPattern(key, value);
               } catch (GrokException e) {
-                logger.severe("Invalid grok pattern: " + pattern);
+                logger.error("Invalid grok pattern: " + pattern);
                 throw new RuntimeException(e);
               }
             });
         grok.compile(pattern);
       } catch (GrokException e) {
-        logger.severe("Invalid grok pattern: " + pattern);
+        logger.error("Invalid grok pattern: " + pattern);
         throw new RuntimeException(e);
       }
       return grok;
     }
-  }
-
-  private static String expandTemplate(String template, Map<String, Object> replacements) {
-    if (template.contains("%{")) {
-      StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("%\\{(.*?)}").matcher(template);
-      while (placeholders.find()) {
-        if (placeholders.group(1).isEmpty()) {
-          placeholders.appendReplacement(result, placeholders.group(0));
-        } else {
-          if (replacements.get(placeholders.group(1)) != null) {
-            placeholders.appendReplacement(
-                result, (String) replacements.get(placeholders.group(1)));
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
-        }
-      }
-      placeholders.appendTail(result);
-      return result.toString();
-    }
-    return template;
   }
 
   /**
@@ -185,7 +183,7 @@ public class MetricMatcher extends Configuration {
         String tagValueLabel = tagValueLabels.get(i);
         if (!matches.containsKey(tagValueLabel)) {
           // What happened? We shouldn't have had matchEnd != 0 above...
-          logger.severe("Application error: unparsed tag key.");
+          logger.error("Application error: unparsed tag key.");
           continue;
         }
         String value = (String) matches.get(tagValueLabel);

@@ -1,9 +1,8 @@
 package com.wavefront.agent.histogram;
 
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.wavefront.common.TimeProvider;
-import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
@@ -12,20 +11,17 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 
-/**
- * Dispatch task for marshalling "ripe" digests for shipment to the agent to a point handler.
- *
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** Dispatch task for marshalling "ripe" digests for shipment to the agent to a point handler. */
 public class PointHandlerDispatcher implements Runnable {
   private static final Logger logger =
-      Logger.getLogger(PointHandlerDispatcher.class.getCanonicalName());
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
+      LoggerFactory.getLogger(PointHandlerDispatcher.class.getCanonicalName());
+  private static final Logger featureDisabledLogger =
+      logger; // new MessageDedupingLogger(logger, 2, 0.2);
 
   private final Counter dispatchCounter;
   private final Counter dispatchErrorCounter;
@@ -33,14 +29,14 @@ public class PointHandlerDispatcher implements Runnable {
 
   private final Accumulator digests;
   private final AtomicLong digestsSize = new AtomicLong(0);
-  private final ReportableEntityHandler<ReportPoint, String> output;
+  private final ReportableEntityHandler<ReportPoint> output;
   private final TimeProvider clock;
   private final Supplier<Boolean> histogramDisabled;
   private final Integer dispatchLimit;
 
   public PointHandlerDispatcher(
       Accumulator digests,
-      ReportableEntityHandler<ReportPoint, String> output,
+      ReportableEntityHandler<ReportPoint> output,
       TimeProvider clock,
       Supplier<Boolean> histogramDisabled,
       @Nullable Integer dispatchLimit,
@@ -92,7 +88,7 @@ public class PointHandlerDispatcher implements Runnable {
                   dispatchCounter.inc();
                 } catch (Exception e) {
                   dispatchErrorCounter.inc();
-                  logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
+                  logger.error("Failed dispatching entry " + k, e);
                 }
               }
               index.remove();
@@ -103,7 +99,7 @@ public class PointHandlerDispatcher implements Runnable {
       }
       dispatchProcessTime.inc(System.currentTimeMillis() - startMillis);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "PointHandlerDispatcher error", e);
+      logger.error("PointHandlerDispatcher error", e);
     }
   }
 }

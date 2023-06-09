@@ -1,15 +1,8 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.*;
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,10 +16,9 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
@@ -43,19 +35,19 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
@@ -66,41 +58,37 @@ import wavefront.report.SpanLogs;
  * DDI (Direct Data Ingestion) endpoint. All the data received on this endpoint will register as
  * originating from this proxy. Supports metric, histogram and distributed trace data (no source tag
  * support or log support at this moment). Intended for internal use.
- *
- * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger =
-      Logger.getLogger(RelayPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(RelayPortUnificationHandler.class.getCanonicalName());
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
   private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  private ProxyConfig proxyConfig;
-  private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
+  private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SharedGraphiteHostAnnotator annotator;
-
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<Boolean> logsDisabled;
-
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> receivedSpansTotal;
-
   private final APIContainer apiContainer;
+  private final ProxyConfig proxyConfig;
+
   /**
    * Create new instance with lazy initialization for handlers.
    *
-   * @param handle handle/port number.
+   * @param port port/port number.
    * @param tokenAuthenticator tokenAuthenticator for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param decoders decoders.
@@ -113,7 +101,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
    */
   @SuppressWarnings("unchecked")
   public RelayPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
@@ -126,27 +114,31 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       final Supplier<Boolean> logsDisabled,
       final APIContainer apiContainer,
       final ProxyConfig proxyConfig) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.decoders = decoders;
     this.wavefrontDecoder =
         (ReportableEntityDecoder<String, ReportPoint>) decoders.get(ReportableEntityType.POINT);
     this.proxyConfig = proxyConfig;
     this.wavefrontHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM)));
     this.spanHandlerSupplier =
         Utils.lazySupplier(
-            () -> handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
+            () ->
+                handlerFactory.getHandler(
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE)));
     this.spanLogsHandlerSupplier =
         Utils.lazySupplier(
             () ->
                 handlerFactory.getHandler(
-                    HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+                    port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS)));
     this.receivedSpansTotal =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "received.total")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "received.total")));
     this.preprocessorSupplier = preprocessorSupplier;
     this.annotator = annotator;
     this.histogramDisabled = histogramDisabled;
@@ -159,10 +151,18 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             () -> Metrics.newCounter(new MetricName("histogram", "", "discarded_points")));
     this.discardedSpans =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.discardedSpanLogs =
         Utils.lazySupplier(
-            () -> Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+            () -> Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
+    // TODO: 10/5/23
+    //    this.discardedLogs =
+    //        Utils.lazySupplier(
+    //            () -> Metrics.newCounter(new MetricName("logs." + port, "", "discarded")));
+    //    this.receivedLogsTotal =
+    //        Utils.lazySupplier(
+    //            () -> Metrics.newCounter(new MetricName("logs." + port, "", "received.total")));
+
     this.apiContainer = apiContainer;
   }
 
@@ -174,7 +174,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
       Map<String, String> query =
-          URLEncodedUtils.parse(uri, Charset.forName("UTF-8")).stream()
+          URLEncodedUtils.parse(uri, StandardCharsets.UTF_8).stream()
               .collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
 
       String agentMetricsStr = request.content().toString(CharsetUtil.UTF_8);
@@ -182,8 +182,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       try {
         agentMetrics = JSON_PARSER.readTree(agentMetricsStr);
       } catch (JsonProcessingException e) {
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         agentMetrics = JsonNodeFactory.instance.objectNode();
       }
@@ -204,9 +204,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         JsonNode node = JSON_PARSER.valueToTree(agentConfiguration);
         writeHttpResponse(ctx, HttpResponseStatus.OK, node, request);
       } catch (javax.ws.rs.ProcessingException e) {
-        logger.warning("Problem while checking a chained proxy: " + e);
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        logger.warn("Problem while checking a chained proxy: " + e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         Throwable rootCause = Throwables.getRootCause(e);
         String error =
@@ -216,9 +216,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 + rootCause;
         writeHttpResponse(ctx, new HttpResponseStatus(444, error), error, request);
       } catch (Throwable e) {
-        logger.warning("Problem while checking a chained proxy: " + e);
-        if (logger.isLoggable(Level.FINE)) {
-          logger.log(Level.WARNING, "Exception: ", e);
+        logger.warn("Problem while checking a chained proxy: " + e);
+        if (logger.isDebugEnabled()) {
+          logger.warn("Exception: ", e);
         }
         String error =
             "Request processing error: Unable to retrieve proxy configuration from '"
@@ -331,7 +331,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         //noinspection unchecked
         ReportableEntityDecoder<String, Span> spanDecoder =
             (ReportableEntityDecoder<String, Span>) decoders.get(ReportableEntityType.TRACE);
-        ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
+        ReportableEntityHandler<Span> spanHandler = spanHandlerSupplier.get();
         Splitter.on('\n')
             .trimResults()
             .omitEmptyStrings()
@@ -359,7 +359,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder =
             (ReportableEntityDecoder<JsonNode, SpanLogs>)
                 decoders.get(ReportableEntityType.TRACE_SPAN_LOGS);
-        ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
+        ReportableEntityHandler<SpanLogs> spanLogsHandler = spanLogsHandlerSupplier.get();
         Splitter.on('\n')
             .trimResults()
             .omitEmptyStrings()
@@ -376,13 +376,14 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         status = okStatus;
         break;
       case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
-      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
-      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
+        // TODO: 10/5/23
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_LINES:
+        //      case Constants.PUSH_FORMAT_LOGS_JSON_CLOUDWATCH:
         Supplier<Counter> discardedLogs =
             Utils.lazySupplier(
                 () ->
                     Metrics.newCounter(
-                        new TaggedMetricName("logs." + handle, "discarded", "format", format)));
+                        new TaggedMetricName("logs." + port, "discarded", "format", format)));
 
         if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(), output, request)) {
           status = HttpResponseStatus.FORBIDDEN;
@@ -390,7 +391,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
       default:
         status = HttpResponseStatus.BAD_REQUEST;
-        logger.warning("Unexpected format for incoming HTTP request: " + format);
+        logger.warn("Unexpected format for incoming HTTP request: " + format);
     }
     writeHttpResponse(ctx, status, output, request);
   }

@@ -16,8 +16,9 @@ import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import java.util.List;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class handles 2 different protocols on a single port. Supported protocols include HTTP and a
@@ -27,13 +28,13 @@ import javax.annotation.Nullable;
  * @see <a
  *     href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
  *     Port Unification Example</a>
- * @author Mike McLaughlin (mike@wavefront.com)
  */
 public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 
   protected static final Logger logger =
-      Logger.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
-
+      LoggerFactory.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
+  private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
+  private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
   /** The object for handling requests of either protocol */
   private final ChannelHandler handler;
 
@@ -41,9 +42,6 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
   @Nullable private final CorsConfig corsConfig;
   private final int maxLengthPlaintext;
   private final int maxLengthHttp;
-
-  private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
-  private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
 
   /**
    * @param handler the object responsible for handling the incoming messages on either protocol.
@@ -70,59 +68,6 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
     this.maxLengthPlaintext = maxLengthPlaintext;
     this.maxLengthHttp = maxLengthHttp;
     this.detectGzip = detectGzip;
-  }
-
-  /**
-   * Dynamically adds the appropriate encoder/decoder(s) to the pipeline based on the detected
-   * protocol.
-   */
-  @Override
-  protected void decode(final ChannelHandlerContext ctx, final ByteBuf buffer, List<Object> out) {
-    // read the first 2 bytes to use for protocol detection
-    if (buffer.readableBytes() < 2) {
-      logger.info(
-          "Inbound data from "
-              + ctx.channel().remoteAddress()
-              + " has less that 2 readable bytes - ignoring");
-      return;
-    }
-    final int firstByte = buffer.getUnsignedByte(buffer.readerIndex());
-    final int secondByte = buffer.getUnsignedByte(buffer.readerIndex() + 1);
-
-    // determine the protocol and add the encoder/decoder
-    final ChannelPipeline pipeline = ctx.pipeline();
-
-    if (detectGzip && isGzip(firstByte, secondByte)) {
-      logger.fine("Inbound gzip stream detected");
-      pipeline
-          .addLast("gzipdeflater", ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP))
-          .addLast("gzipinflater", ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP))
-          .addLast(
-              "unificationB",
-              new PlainTextOrHttpFrameDecoder(
-                  handler, corsConfig, maxLengthPlaintext, maxLengthHttp, false));
-    } else if (isHttp(firstByte, secondByte)) {
-      logger.fine("Switching to HTTP protocol");
-      pipeline
-          .addLast("decoder", new HttpRequestDecoder())
-          .addLast("inflater", new HttpContentDecompressor())
-          .addLast("encoder", new HttpResponseEncoder())
-          .addLast("aggregator", new StatusTrackingHttpObjectAggregator(maxLengthHttp));
-      if (corsConfig != null) {
-        pipeline.addLast("corsHandler", new CorsHandler(corsConfig));
-      }
-      pipeline.addLast("handler", this.handler);
-    } else {
-      logger.fine("Switching to plaintext TCP protocol");
-      pipeline
-          .addLast(
-              "line",
-              new IncompleteLineDetectingLineBasedFrameDecoder(logger::warning, maxLengthPlaintext))
-          .addLast("decoder", STRING_DECODER)
-          .addLast("encoder", STRING_ENCODER)
-          .addLast("handler", this.handler);
-    }
-    pipeline.remove(this);
   }
 
   /**
@@ -163,5 +108,58 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    */
   private static boolean isGzip(int magic1, int magic2) {
     return magic1 == 31 && magic2 == 139;
+  }
+
+  /**
+   * Dynamically adds the appropriate encoder/decoder(s) to the pipeline based on the detected
+   * protocol.
+   */
+  @Override
+  protected void decode(final ChannelHandlerContext ctx, final ByteBuf buffer, List<Object> out) {
+    // read the first 2 bytes to use for protocol detection
+    if (buffer.readableBytes() < 2) {
+      logger.info(
+          "Inbound data from "
+              + ctx.channel().remoteAddress()
+              + " has less that 2 readable bytes - ignoring");
+      return;
+    }
+    final int firstByte = buffer.getUnsignedByte(buffer.readerIndex());
+    final int secondByte = buffer.getUnsignedByte(buffer.readerIndex() + 1);
+
+    // determine the protocol and add the encoder/decoder
+    final ChannelPipeline pipeline = ctx.pipeline();
+
+    if (detectGzip && isGzip(firstByte, secondByte)) {
+      logger.info("Inbound gzip stream detected");
+      pipeline
+          .addLast("gzipdeflater", ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP))
+          .addLast("gzipinflater", ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP))
+          .addLast(
+              "unificationB",
+              new PlainTextOrHttpFrameDecoder(
+                  handler, corsConfig, maxLengthPlaintext, maxLengthHttp, false));
+    } else if (isHttp(firstByte, secondByte)) {
+      logger.info("Switching to HTTP protocol");
+      pipeline
+          .addLast("decoder", new HttpRequestDecoder())
+          .addLast("inflater", new HttpContentDecompressor())
+          .addLast("encoder", new HttpResponseEncoder())
+          .addLast("aggregator", new StatusTrackingHttpObjectAggregator(maxLengthHttp));
+      if (corsConfig != null) {
+        pipeline.addLast("corsHandler", new CorsHandler(corsConfig));
+      }
+      pipeline.addLast("handler", this.handler);
+    } else {
+      logger.info("Switching to plaintext TCP protocol");
+      pipeline
+          .addLast(
+              "line",
+              new IncompleteLineDetectingLineBasedFrameDecoder(logger::warn, maxLengthPlaintext))
+          .addLast("decoder", STRING_DECODER)
+          .addLast("encoder", STRING_ENCODER)
+          .addLast("handler", this.handler);
+    }
+    pipeline.remove(this);
   }
 }

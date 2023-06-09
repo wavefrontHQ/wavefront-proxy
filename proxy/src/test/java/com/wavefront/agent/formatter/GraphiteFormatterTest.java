@@ -1,17 +1,14 @@
 package com.wavefront.agent.formatter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/** @author Andrew Kao (andrew@wavefront.com) */
 public class GraphiteFormatterTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(GraphiteFormatterTest.class);
+  private static final Logger logger = LogManager.getLogger(GraphiteFormatterTest.class);
 
   @Test
   public void testCollectdGraphiteParsing() {

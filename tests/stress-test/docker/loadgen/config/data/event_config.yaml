@@ -1,0 +1,7 @@
+namePart: "event-part"
+startTimeSecondsRangeModifier: 500
+endTimeSecondsRangeModifier: 100
+tagsVariantsAmount: 5
+tagsStartRange: 8
+tagsEndRange: 15
+paramsSurrounding: "DOUBLE_QUOTES"

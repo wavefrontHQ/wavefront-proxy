@@ -1,21 +1,10 @@
 package com.wavefront.agent.data;
 
-import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-
 import com.wavefront.api.agent.SpanSamplingPolicy;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/** @author vasily@wavefront.com */
 public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
-
-  @Override
-  public double getRetryBackoffBaseSeconds() {
-    return DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-  }
-
-  @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {}
 
   @Override
   public short getHistogramStorageAccuracy() {

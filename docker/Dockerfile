@@ -1,5 +1,8 @@
 FROM eclipse-temurin:11
 
+RUN apt-get -qq -o=Dpkg::Use-Pty=0 update && \
+    apt-get -qq -o=Dpkg::Use-Pty=0 install -y libaio1
+
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
 #  WAVEFRONT_URL           (required)
@@ -13,8 +16,16 @@ FROM eclipse-temurin:11
 RUN groupadd -g 2000 wavefront
 RUN useradd --uid 1000 --gid 2000 -m wavefront
 RUN chown -R wavefront:wavefront /opt/java/openjdk/lib/security/cacerts
-RUN mkdir -p /var/spool/wavefront-proxy
-RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy
+RUN mkdir -p /var/spool/wavefront-proxy/buffer
+RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy/buffer
+RUN mkdir -p /var/log/wavefront
+RUN chown -R wavefront:wavefront /var/log/wavefront
+
+# just for testing
+ARG TEST
+RUN if [ ${TEST} = "true" ]; then \
+    apt-get update && apt-get install -y jq vim ;\
+    fi
 
 RUN mkdir -p /var/log/wavefront
 RUN chown -R wavefront:wavefront /var/log/wavefront
@@ -26,9 +37,9 @@ EXPOSE 4242
 
 USER wavefront:wavefront
 
-ADD wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
-ADD run.sh /opt/wavefront/wavefront-proxy/run.sh
-ADD log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
-ADD LICENSE /licenses/LICENSE
+COPY wavefront-proxy.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
+COPY run.sh /opt/wavefront/wavefront-proxy/run.sh
+COPY log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
+COPY LICENSE /licenses/LICENSE
 
 CMD ["/bin/bash", "/opt/wavefront/wavefront-proxy/run.sh"]

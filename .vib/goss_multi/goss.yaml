@@ -1,0 +1,31 @@
+file:
+  /opt/wavefront/wavefront-proxy/wavefront-proxy.jar:
+    exists: true
+    filetype: file
+    mode: "0644"
+    owner: root
+command:
+  proxy-main-cheking:
+    exec: bash /files/test_main.sh
+    timeout: 600000
+    exit-status: 0
+  test-tenant-cheking:
+    exec: bash /files/test_tenant.sh
+    timeout: 600000
+    exit-status: 0
+  test-metrics-cheking:
+    exec: bash /files/test_metrics.sh
+    timeout: 600000
+    exit-status: 0
+  user-id:
+    exec: id -u
+    exit-status: 0
+    stdout:
+      - "1000"
+    stderr: []
+  java-test:
+    exec: java -version
+    exit-status: 0
+    stdout: []
+    stderr:
+      - "OpenJDK 64-Bit Server VM Temurin"

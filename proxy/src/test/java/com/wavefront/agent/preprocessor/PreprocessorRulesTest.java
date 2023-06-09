@@ -1,10 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -15,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.*;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import wavefront.report.ReportPoint;
@@ -25,8 +20,8 @@ public class PreprocessorRulesTest {
   private static final String FOO = "foo";
   private static final String SOURCE_NAME = "sourceName";
   private static final String METRIC_NAME = "metricName";
-  private static PreprocessorConfigManager config;
   private static final List<String> emptyCustomSourceTags = Collections.emptyList();
+  private static PreprocessorConfigManager config;
   private final GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
   private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
 
@@ -37,6 +32,23 @@ public class PreprocessorRulesTest {
     config.loadFromStream(stream);
   }
 
+  private static String referencePointToStringImpl(ReportPoint point) {
+    String toReturn =
+        String.format(
+            "\"%s\" %s %d source=\"%s\"",
+            point.getMetric().replaceAll("\"", "\\\""),
+            point.getValue(),
+            point.getTimestamp() / 1000,
+            point.getHost().replaceAll("\"", "\\\""));
+    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
+      toReturn +=
+          String.format(
+              " \"%s\"=\"%s\"",
+              entry.getKey().replaceAll("\"", "\\\""), entry.getValue().replaceAll("\"", "\\\""));
+    }
+    return toReturn;
+  }
+
   @Test
   public void testPreprocessorRulesHotReload() throws Exception {
     PreprocessorConfigManager config = new PreprocessorConfigManager();
@@ -45,118 +57,35 @@ public class PreprocessorRulesTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     config.loadFile(path);
-    ReportableEntityPreprocessor preprocessor = config.get("2878").get();
+    ReportableEntityPreprocessor preprocessor = config.get(2878).get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
     assertTrue(
-        applyAllFilters(
-            config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
+        applyAllFilters(config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9999));
     config.loadFileIfModified(path); // should be no changes
-    preprocessor = config.get("2878").get();
+    preprocessor = config.get(2878).get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
     assertTrue(
-        applyAllFilters(
-            config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
+        applyAllFilters(config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9999));
     stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_reload.yaml");
     Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     // this is only needed for JDK8. JDK8 has second-level precision of lastModified,
     // in JDK11 lastModified is in millis.
     file.setLastModified((file.lastModified() / 1000 + 1) * 1000);
     config.loadFileIfModified(path); // reload should've happened
-    preprocessor = config.get("2878").get();
+    preprocessor = config.get(2878).get();
     assertEquals(0, preprocessor.forPointLine().getFilters().size());
     assertEquals(2, preprocessor.forPointLine().getTransformers().size());
     assertEquals(1, preprocessor.forReportPoint().getFilters().size());
     assertEquals(3, preprocessor.forReportPoint().getTransformers().size());
     assertFalse(
-        applyAllFilters(
-            config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
+        applyAllFilters(config, "metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9999));
     config.setUpConfigFileMonitoring(path, 1000);
-  }
-
-  @Test
-  public void testPointInRangeCorrectForTimeRanges() {
-    long millisPerYear = 31536000000L;
-    long millisPerDay = 86400000L;
-    long millisPerHour = 3600000L;
-
-    long time = System.currentTimeMillis();
-    AnnotatedPredicate<ReportPoint> pointInRange1year =
-        new ReportPointTimestampInRangeFilter(8760, 24, () -> time);
-    // not in range if over a year ago
-    ReportPoint rp =
-        new ReportPoint("some metric", time - millisPerYear, 10L, "host", "table", new HashMap<>());
-    Assert.assertFalse(pointInRange1year.test(rp));
-
-    rp.setTimestamp(time - millisPerYear - 1);
-    Assert.assertFalse(pointInRange1year.test(rp));
-
-    // in range if within a year ago
-    rp.setTimestamp(time - (millisPerYear / 2));
-    Assert.assertTrue(pointInRange1year.test(rp));
-
-    // in range for right now
-    rp.setTimestamp(time);
-    Assert.assertTrue(pointInRange1year.test(rp));
-
-    // in range if within a day in the future
-    rp.setTimestamp(time + millisPerDay - 1);
-    Assert.assertTrue(pointInRange1year.test(rp));
-
-    // out of range for over a day in the future
-    rp.setTimestamp(time + (millisPerDay * 2));
-    Assert.assertFalse(pointInRange1year.test(rp));
-
-    // now test with 1 day limit
-    AnnotatedPredicate<ReportPoint> pointInRange1day =
-        new ReportPointTimestampInRangeFilter(24, 24, () -> time);
-
-    rp.setTimestamp(time - millisPerDay - 1);
-    Assert.assertFalse(pointInRange1day.test(rp));
-
-    // in range if within 1 day ago
-    rp.setTimestamp(time - (millisPerDay / 2));
-    Assert.assertTrue(pointInRange1day.test(rp));
-
-    // in range for right now
-    rp.setTimestamp(time);
-    Assert.assertTrue(pointInRange1day.test(rp));
-
-    // assert for future range within 12 hours
-    AnnotatedPredicate<ReportPoint> pointInRange12hours =
-        new ReportPointTimestampInRangeFilter(12, 12, () -> time);
-
-    rp.setTimestamp(time + (millisPerHour * 10));
-    Assert.assertTrue(pointInRange12hours.test(rp));
-
-    rp.setTimestamp(time - (millisPerHour * 10));
-    Assert.assertTrue(pointInRange12hours.test(rp));
-
-    rp.setTimestamp(time + (millisPerHour * 20));
-    Assert.assertFalse(pointInRange12hours.test(rp));
-
-    rp.setTimestamp(time - (millisPerHour * 20));
-    Assert.assertFalse(pointInRange12hours.test(rp));
-
-    AnnotatedPredicate<ReportPoint> pointInRange10Days =
-        new ReportPointTimestampInRangeFilter(240, 240, () -> time);
-
-    rp.setTimestamp(time + (millisPerDay * 9));
-    Assert.assertTrue(pointInRange10Days.test(rp));
-
-    rp.setTimestamp(time - (millisPerDay * 9));
-    Assert.assertTrue(pointInRange10Days.test(rp));
-
-    rp.setTimestamp(time + (millisPerDay * 20));
-    Assert.assertFalse(pointInRange10Days.test(rp));
-
-    rp.setTimestamp(time - (millisPerDay * 20));
-    Assert.assertFalse(pointInRange10Days.test(rp));
   }
 
   @Test(expected = NullPointerException.class)
@@ -443,41 +372,41 @@ public class PreprocessorRulesTest {
         "collectd.#cpu#.&load$avg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
     String expectedPoint1 =
         "collectd._cpu_._load_avg^.1m 7 1459527231 source=source_hostname foo=bar boo=baz";
-    assertEquals(expectedPoint1, config.get("2878").get().forPointLine().transform(testPoint1));
+    assertEquals(expectedPoint1, config.get(2878).get().forPointLine().transform(testPoint1));
 
     // test filters
     String testPoint2 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz";
-    assertTrue(config.get("2878").get().forPointLine().filter(testPoint2));
+    assertTrue(config.get(2878).get().forPointLine().filter(testPoint2));
 
     String testPoint3 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname bar=foo boo=baz";
-    assertFalse(config.get("2878").get().forPointLine().filter(testPoint3));
+    assertFalse(config.get(2878).get().forPointLine().filter(testPoint3));
   }
 
   @Test
   public void testAgentPreprocessorForReportPoint() {
     ReportPoint testPoint1 =
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    assertTrue(config.get("2878").get().forReportPoint().filter(testPoint1));
+    assertTrue(config.get(2878).get().forReportPoint().filter(testPoint1));
 
     ReportPoint testPoint2 =
         parsePointLine("foo.collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint2));
+    assertFalse(config.get(2878).get().forReportPoint().filter(testPoint2));
 
     ReportPoint testPoint3 =
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=west123 boo=baz");
-    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint3));
+    assertFalse(config.get(2878).get().forReportPoint().filter(testPoint3));
 
     ReportPoint testPoint4 =
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=bar123 foo=bar boo=baz");
-    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint4));
+    assertFalse(config.get(2878).get().forReportPoint().filter(testPoint4));
 
     // in this test we are confirming that the rule sets for different ports are in fact
     // different
     // on port 2878 we add "newtagkey=1", on port 4242 we don't
     ReportPoint testPoint1a =
         parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    config.get("2878").get().forReportPoint().transform(testPoint1);
-    config.get("4242").get().forReportPoint().transform(testPoint1a);
+    config.get(2878).get().forReportPoint().transform(testPoint1);
+    config.get(4242).get().forReportPoint().transform(testPoint1a);
     String expectedPoint1 =
         "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 "
             + "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\" \"newtagkey\"=\"1\"";
@@ -498,7 +427,7 @@ public class PreprocessorRulesTest {
         expectedPoint5,
         applyAllTransformers(
             "metrictest.metric 7 1459527231 source=src foo=bar datacenter=az1 bar=baz-baz-baz qux=123z",
-            "2878"));
+            2878));
 
     // in this test the following should happen:
     // - rename tag foo to baz
@@ -513,7 +442,7 @@ public class PreprocessorRulesTest {
         expectedPoint6,
         applyAllTransformers(
             "some.metric 7 1459527231 source=hostname foo=bar dc1=baz datacenter=az4 qux=12345",
-            "2878"));
+            2878));
 
     // in this test the following should happen:
     // - fromMetric point tag extracted
@@ -529,13 +458,12 @@ public class PreprocessorRulesTest {
         applyAllTransformers(
             "node0.node1.node2.testExtractTag.node4 7.0 1459527231 source=host0-host1-host2 "
                 + "testExtractTag=tag0.tag1.tag2.tag3.tag4",
-            "1234"));
+            1234));
   }
 
   @Test
   public void testMetricsFilters() {
-    List<String> ports = Arrays.asList(new String[] {"9999", "9997"});
-    for (String port : ports) {
+    for (int port : new int[] {9999, 9997}) {
       assertTrue(
           "error on port=" + port,
           applyAllFilters(
@@ -561,48 +489,45 @@ public class PreprocessorRulesTest {
     }
 
     assertFalse(
-        applyAllFilters(
-            "tururu.poi.dff.ok 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+        applyAllFilters("tururu.poi.dff.ok 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
     assertFalse(
-        applyAllFilters("metrics.2.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+        applyAllFilters("metrics.2.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
 
-    assertFalse(
-        applyAllFilters("metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+    assertFalse(applyAllFilters("metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
     assertTrue(
-        applyAllFilters("metrics.1.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+        applyAllFilters("metrics.1.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
 
     assertTrue(
-        applyAllFilters(
-            "tururu.poi.dff.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+        applyAllFilters("tururu.poi.dff.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
     assertTrue(
-        applyAllFilters("metrics.ok.2 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+        applyAllFilters("metrics.ok.2 7 1459527231 source=h.prod.corp foo=bar boo=baz", 9998));
   }
 
   @Test
   public void testAllFilters() {
     assertTrue(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", 1111));
     assertTrue(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", 1111));
     assertTrue(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", 1111));
     assertFalse(
         applyAllFilters(
-            "invalid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+            "invalid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", 1111));
     assertFalse(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar baz=boo", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar baz=boo", 1111));
     assertFalse(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.dev.corp foo=bar boo=baz", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.dev.corp foo=bar boo=baz", 1111));
     assertFalse(
         applyAllFilters(
-            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=stop", "1111"));
+            "valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=stop", 1111));
     assertFalse(
-        applyAllFilters("loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+        applyAllFilters("loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", 1111));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -889,38 +814,21 @@ public class PreprocessorRulesTest {
     assertEquals(originalTagExistsString, referencePointToStringImpl(tagExistsMatchPoint));
   }
 
-  private boolean applyAllFilters(String pointLine, String strPort) {
-    return applyAllFilters(config, pointLine, strPort);
+  private boolean applyAllFilters(String pointLine, int port) {
+    return applyAllFilters(config, pointLine, port);
   }
 
-  private boolean applyAllFilters(PreprocessorConfigManager cfg, String pointLine, String strPort) {
-    if (!cfg.get(strPort).get().forPointLine().filter(pointLine)) return false;
+  private boolean applyAllFilters(PreprocessorConfigManager cfg, String pointLine, int port) {
+    if (!cfg.get(port).get().forPointLine().filter(pointLine)) return false;
     ReportPoint point = parsePointLine(pointLine);
-    return cfg.get(strPort).get().forReportPoint().filter(point);
+    return cfg.get(port).get().forReportPoint().filter(point);
   }
 
-  private String applyAllTransformers(String pointLine, String strPort) {
-    String transformedPointLine = config.get(strPort).get().forPointLine().transform(pointLine);
+  private String applyAllTransformers(String pointLine, int port) {
+    String transformedPointLine = config.get(port).get().forPointLine().transform(pointLine);
     ReportPoint point = parsePointLine(transformedPointLine);
-    config.get(strPort).get().forReportPoint().transform(point);
+    config.get(port).get().forReportPoint().transform(point);
     return referencePointToStringImpl(point);
-  }
-
-  private static String referencePointToStringImpl(ReportPoint point) {
-    String toReturn =
-        String.format(
-            "\"%s\" %s %d source=\"%s\"",
-            point.getMetric().replaceAll("\"", "\\\""),
-            point.getValue(),
-            point.getTimestamp() / 1000,
-            point.getHost().replaceAll("\"", "\\\""));
-    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-      toReturn +=
-          String.format(
-              " \"%s\"=\"%s\"",
-              entry.getKey().replaceAll("\"", "\\\""), entry.getValue().replaceAll("\"", "\\\""));
-    }
-    return toReturn;
   }
 
   private ReportPoint parsePointLine(String pointLine) {

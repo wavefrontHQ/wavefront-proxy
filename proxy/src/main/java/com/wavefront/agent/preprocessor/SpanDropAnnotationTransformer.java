@@ -14,8 +14,6 @@ import wavefront.report.Span;
 /**
  * Removes a span annotation with a specific key if its value matches an optional regex pattern
  * (always remove if null)
- *
- * @author vasily@wavefront.com
  */
 public class SpanDropAnnotationTransformer implements Function<Span, Span> {
 

@@ -9,7 +9,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -31,17 +30,16 @@ import java.util.function.BiConsumer;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits
  * proxy metrics to the back-end.
- *
- * @author vasily@wavefront.com
  */
 public class ProxyCheckInScheduler {
-  private static final Logger logger = LogManager.getLogger("proxy");
+  private static final Logger logger =
+      LoggerFactory.getLogger(ProxyCheckInScheduler.class.getCanonicalName());
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
@@ -132,14 +130,15 @@ public class ProxyCheckInScheduler {
   }
 
   /** Send preprocessor rules */
+  // TODO: review
   private void sendPreprocessorRules() {
-    try {
-      apiContainer
-          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-          .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
-    } catch (javax.ws.rs.NotFoundException ex) {
-      logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
-    }
+    //    try {
+    //      apiContainer
+    //          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+    //          .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
+    //    } catch (javax.ws.rs.NotFoundException ex) {
+    //      logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
+    //    }
   }
 
   /**
@@ -160,7 +159,8 @@ public class ProxyCheckInScheduler {
     // MONIT-25479: check-in for central and multicasting tenants / clusters
     Map<String, Map<String, String>> multicastingTenantList =
         proxyConfig.getMulticastingTenantList();
-    // Initialize tenantName and multicastingTenantProxyConfig here to track current checking
+    // Initialize tenantName and multicastingTenantProxyConfig here to track current
+    // checking
     // tenant for better exception handling message
     String tenantName = APIContainer.CENTRAL_TENANT_NAME;
     Map<String, String> multicastingTenantProxyConfig =
@@ -325,20 +325,22 @@ public class ProxyCheckInScheduler {
         && StringUtils.isBlank(logServerIngestionToken)) {
       ValidationConfiguration validationConfiguration =
           configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getValidationConfiguration();
-      if (validationConfiguration != null
-          && validationConfiguration.enableHyperlogsConvergedCsp()) {
-        proxyConfig.setEnableHyperlogsConvergedCsp(true);
-        logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
-        logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
-        if (StringUtils.isBlank(logServerIngestionURL)
-            || StringUtils.isBlank(logServerIngestionToken)) {
-          proxyConfig.setReceivedLogServerDetails(false);
-          logger.error(
-              WARNING_MSG
-                  + " To ingest logs to the log server, please provide "
-                  + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
-        }
-      }
+      // TODO: review
+      //      if (validationConfiguration != null
+      //          && validationConfiguration.enableHyperlogsConvergedCsp()) {
+      //        proxyConfig.setEnableHyperlogsConvergedCsp(true);
+      //        logServerIngestionURL = proxyConfig.getLogServerIngestionURL();
+      //        logServerIngestionToken = proxyConfig.getLogServerIngestionToken();
+      //        if (StringUtils.isBlank(logServerIngestionURL)
+      //            || StringUtils.isBlank(logServerIngestionToken)) {
+      //          proxyConfig.setReceivedLogServerDetails(false);
+      //          logger.error(
+      //              WARNING_MSG
+      //                  + " To ingest logs to the log server, please provide "
+      //                  + "logServerIngestionToken & logServerIngestionURL in the proxy
+      // configuration.");
+      //        }
+      //      }
     } else if (StringUtils.isBlank(logServerIngestionURL)
         || StringUtils.isBlank(logServerIngestionToken)) {
       logger.warn(
@@ -367,8 +369,8 @@ public class ProxyCheckInScheduler {
           }
           if (configEntry.getKey().equals(APIContainer.CENTRAL_TENANT_NAME)) {
             if (logger.isDebugEnabled()) {
-              logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
-              logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
+              logger.info("Server configuration getShutOffAgents: " + config.getShutOffAgents());
+              logger.info("Server configuration isTruncateQueue: " + config.isTruncateQueue());
             }
             if (config.getShutOffAgents()) {
               logger.warn(

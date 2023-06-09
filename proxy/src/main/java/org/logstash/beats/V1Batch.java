@@ -8,7 +8,7 @@ import java.util.List;
 public class V1Batch implements Batch {
 
   private int batchSize;
-  private List<Message> messages = new ArrayList<>();
+  private final List<Message> messages = new ArrayList<>();
   private byte protocol = Protocol.VERSION_1;
   private int highestSequence = -1;
 

@@ -9,7 +9,6 @@ import java.util.Iterator;
 import javax.annotation.Nonnull;
 import org.junit.Test;
 
-/** @author vasily@wavefront.com. */
 public class BatchIdentityTest {
 
   @Test

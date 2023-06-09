@@ -1,20 +1,16 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
+
 import com.wavefront.agent.InteractiveTester;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.queues.QueueInfo;
 import com.wavefront.agent.formatter.DataFormat;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.HistogramDecoder;
-import com.wavefront.ingester.ReportPointDecoder;
-import com.wavefront.ingester.ReportPointDecoderWrapper;
-import com.wavefront.ingester.ReportPointSerializer;
-import com.wavefront.ingester.ReportableEntityDecoder;
-import com.wavefront.ingester.SpanDecoder;
-import com.wavefront.ingester.SpanSerializer;
+import com.wavefront.ingester.*;
 import java.util.List;
 import java.util.Scanner;
 import java.util.function.Supplier;
@@ -23,11 +19,7 @@ import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
-/**
- * Interactive tester for preprocessor rules.
- *
- * @author vasily@wavefront.com
- */
+/** Interactive tester for preprocessor rules. */
 public class InteractivePreprocessorTester implements InteractiveTester {
   private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private static final ReportableEntityDecoder<String, Span> SPAN_DECODER =
@@ -36,93 +28,77 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   private final Scanner stdin = new Scanner(System.in);
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final ReportableEntityType entityType;
-  private final String port;
+  private final int port;
   private final List<String> customSourceTags;
 
   private final ReportableEntityHandlerFactory factory =
       new ReportableEntityHandlerFactory() {
-        @SuppressWarnings("unchecked")
         @Override
-        public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-          if (handlerKey.getEntityType() == ReportableEntityType.TRACE) {
-            return (ReportableEntityHandler<T, U>)
-                new ReportableEntityHandler<Span, String>() {
-                  @Override
-                  public void report(Span reportSpan) {
-                    System.out.println(SPAN_SERIALIZER.apply(reportSpan));
-                  }
+        public ReportableEntityHandler getHandler(String handler, QueueInfo queue) {
+          if (queue.getEntityType() == ReportableEntityType.TRACE) {
+            return new ReportableEntityHandler<Span>() {
+              @Override
+              public void report(Span reportSpan) {
+                System.out.println(SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void block(Span reportSpan) {
-                    System.out.println("Blocked: " + reportSpan);
-                  }
+              @Override
+              public void block(Span reportSpan) {
+                System.out.println("Blocked: " + reportSpan);
+              }
 
-                  @Override
-                  public void block(@Nullable Span reportSpan, @Nullable String message) {
-                    System.out.println("Blocked: " + SPAN_SERIALIZER.apply(reportSpan));
-                  }
+              @Override
+              public void block(@Nullable Span reportSpan, @Nullable String message) {
+                System.out.println("Blocked: " + SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void reject(@Nullable Span reportSpan, @Nullable String message) {
-                    System.out.println("Rejected: " + SPAN_SERIALIZER.apply(reportSpan));
-                  }
+              @Override
+              public void reject(@Nullable Span reportSpan, @Nullable String message) {
+                System.out.println("Rejected: " + SPAN_SERIALIZER.apply(reportSpan));
+              }
 
-                  @Override
-                  public void reject(@Nonnull String t, @Nullable String message) {
-                    System.out.println("Rejected: " + t);
-                  }
+              @Override
+              public void reject(@Nonnull String t, @Nullable String message) {
+                System.out.println("Rejected: " + t);
+              }
 
-                  @Override
-                  public void setLogFormat(DataFormat format) {
-                    throw new UnsupportedOperationException();
-                  }
-
-                  @Override
-                  public void shutdown() {}
-                };
+              @Override
+              public void shutdown() {}
+            };
           }
-          return (ReportableEntityHandler<T, U>)
-              new ReportableEntityHandler<ReportPoint, String>() {
-                @Override
-                public void report(ReportPoint reportPoint) {
-                  System.out.println(ReportPointSerializer.pointToString(reportPoint));
-                }
+          return new ReportableEntityHandler<ReportPoint>() {
+            @Override
+            public void report(ReportPoint reportPoint) {
+              System.out.println(ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void block(ReportPoint reportPoint) {
-                  System.out.println(
-                      "Blocked: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void block(ReportPoint reportPoint) {
+              System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-                  System.out.println(
-                      "Blocked: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+              System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
-                  System.out.println(
-                      "Rejected: " + ReportPointSerializer.pointToString(reportPoint));
-                }
+            @Override
+            public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+              System.out.println("Rejected: " + ReportPointSerializer.pointToString(reportPoint));
+            }
 
-                @Override
-                public void reject(@Nonnull String t, @Nullable String message) {
-                  System.out.println("Rejected: " + t);
-                }
+            @Override
+            public void reject(@Nonnull String t, @Nullable String message) {
+              System.out.println("Rejected: " + t);
+            }
 
-                @Override
-                public void setLogFormat(DataFormat format) {
-                  throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public void shutdown() {}
-              };
+            @Override
+            public void shutdown() {}
+          };
         }
 
         @Override
-        public void shutdown(@Nonnull String handle) {}
+        public void shutdown(int handle) {}
       };
 
   /**
@@ -134,7 +110,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   public InteractivePreprocessorTester(
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       ReportableEntityType entityType,
-      String port,
+      int port,
       List<String> customSourceTags) {
     this.preprocessorSupplier = preprocessorSupplier;
     this.entityType = entityType;
@@ -146,11 +122,13 @@ public class InteractivePreprocessorTester implements InteractiveTester {
   public boolean interactiveTest() {
     String line = stdin.nextLine();
     if (entityType == ReportableEntityType.TRACE) {
-      ReportableEntityHandler<Span, String> handler = factory.getHandler(entityType, port);
+      ReportableEntityHandler<Span> handler =
+          factory.getHandler(port, queuesManager.initQueue(entityType));
       SpanUtils.preprocessAndHandleSpan(
           line, SPAN_DECODER, handler, handler::report, preprocessorSupplier, null, x -> true);
     } else {
-      ReportableEntityHandler<ReportPoint, String> handler = factory.getHandler(entityType, port);
+      ReportableEntityHandler<ReportPoint> handler =
+          factory.getHandler(port, queuesManager.initQueue(entityType));
       ReportableEntityDecoder<String, ReportPoint> decoder;
       if (DataFormat.autodetect(line) == DataFormat.HISTOGRAM) {
         decoder = new ReportPointDecoderWrapper(new HistogramDecoder());

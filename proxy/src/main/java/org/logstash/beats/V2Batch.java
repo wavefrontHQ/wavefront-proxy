@@ -9,22 +9,22 @@ import java.util.Iterator;
  * use.
  */
 public class V2Batch implements Batch {
-  private ByteBuf internalBuffer = PooledByteBufAllocator.DEFAULT.buffer();
+  private static final int SIZE_OF_INT = 4;
+  private final ByteBuf internalBuffer = PooledByteBufAllocator.DEFAULT.buffer();
   private int written = 0;
   private int read = 0;
-  private static final int SIZE_OF_INT = 4;
   private int batchSize;
   private int highestSequence = -1;
+
+  @Override
+  public byte getProtocol() {
+    return Protocol.VERSION_2;
+  }
 
   public void setProtocol(byte protocol) {
     if (protocol != Protocol.VERSION_2) {
       throw new IllegalArgumentException("Only version 2 protocol is supported");
     }
-  }
-
-  @Override
-  public byte getProtocol() {
-    return Protocol.VERSION_2;
   }
 
   public Iterator<Message> iterator() {

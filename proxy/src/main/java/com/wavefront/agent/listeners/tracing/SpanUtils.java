@@ -6,7 +6,7 @@ import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.ReportableEntityDecoder;
@@ -19,18 +19,15 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-/**
- * Utility methods for handling Span and SpanLogs.
- *
- * @author Shipeng Xie (xshipeng@vmware.com)
- */
+/** Utility methods for handling Span and SpanLogs. */
 public final class SpanUtils {
-  private static final Logger logger = Logger.getLogger(SpanUtils.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(SpanUtils.class.getCanonicalName());
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
   private SpanUtils() {}
@@ -49,7 +46,7 @@ public final class SpanUtils {
   public static void preprocessAndHandleSpan(
       String message,
       ReportableEntityDecoder<String, Span> decoder,
-      ReportableEntityHandler<Span, String> handler,
+      ReportableEntityHandler<Span> handler,
       Consumer<Span> spanReporter,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx,
@@ -112,7 +109,7 @@ public final class SpanUtils {
       String message,
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       ReportableEntityDecoder<String, Span> spanDecoder,
-      ReportableEntityHandler<SpanLogs, String> handler,
+      ReportableEntityHandler<SpanLogs> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx,
       Function<Span, Boolean> samplerFunc) {

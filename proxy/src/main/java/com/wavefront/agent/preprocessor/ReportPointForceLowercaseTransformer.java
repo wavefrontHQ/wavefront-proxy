@@ -10,8 +10,6 @@ import wavefront.report.ReportPoint;
 /**
  * Force lowercase transformer. Converts a specified component of a point (metric name, source name
  * or a point tag value, depending on "scope" parameter) to lower case to enforce consistency.
- *
- * @author vasily@wavefront.com
  */
 public class ReportPointForceLowercaseTransformer implements Function<ReportPoint, ReportPoint> {
 

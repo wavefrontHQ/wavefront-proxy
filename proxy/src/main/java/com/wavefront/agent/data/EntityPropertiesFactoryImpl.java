@@ -6,9 +6,6 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
-import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
@@ -17,17 +14,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 
-/**
- * Generates entity-specific wrappers for dynamic proxy settings.
- *
- * @author vasily@wavefront.com
- */
+/** Generates entity-specific wrappers for dynamic proxy settings. */
 public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   private final Map<ReportableEntityType, EntityProperties> wrappers;
   private final GlobalProperties global;
 
-  /** @param proxyConfig proxy settings container */
+  /**
+   * @param proxyConfig proxy settings container
+   */
   public EntityPropertiesFactoryImpl(ProxyConfig proxyConfig) {
     global = new GlobalPropertiesImpl(proxyConfig);
     EntityProperties pointProperties = new PointsProperties(proxyConfig);
@@ -56,24 +51,25 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   /** Common base for all wrappers (to avoid code duplication) */
   private abstract static class AbstractEntityProperties implements EntityProperties {
-    private Integer dataPerBatch = null;
     protected final ProxyConfig wrapped;
-    private final RecyclableRateLimiter rateLimiter;
+    private final EntityRateLimiter rateLimiter;
     private final LoadingCache<String, AtomicInteger> backlogSizeCache =
         Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.SECONDS)
             .build(x -> new AtomicInteger());
     private final LoadingCache<String, AtomicLong> receivedRateCache =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
+    private Integer dataPerBatch = null;
 
     public AbstractEntityProperties(ProxyConfig wrapped) {
       this.wrapped = wrapped;
-      this.rateLimiter =
-          getRateLimit() > 0
-              ? new RecyclableRateLimiterWithMetrics(
-                  RecyclableRateLimiterImpl.create(getRateLimit(), getRateLimitMaxBurstSeconds()),
-                  getRateLimiterName())
-              : null;
+      //      this.rateLimiter = new RecyclableRateLimiterWithMetrics(
+      //                  RecyclableRateLimiterImpl.create(getRateLimit(),
+      // getRateLimitMaxBurstSeconds()),
+      //                  getRateLimiterName());
+      rateLimiter =
+          new EntityRateLimiter(
+              getRateLimit(), getRateLimitMaxBurstSeconds(), getRateLimiterName());
 
       reportSettingAsGauge(this::getPushFlushInterval, "dynamic.pushFlushInterval");
     }
@@ -89,17 +85,12 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public boolean isSplitPushWhenRateLimited() {
-      return wrapped.isSplitPushWhenRateLimited();
-    }
-
-    @Override
     public int getRateLimitMaxBurstSeconds() {
       return wrapped.getPushRateLimitMaxBurstSeconds();
     }
 
     @Override
-    public RecyclableRateLimiter getRateLimiter() {
+    public EntityRateLimiter getRateLimiter() {
       return rateLimiter;
     }
 
@@ -113,41 +104,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public int getPushFlushInterval() {
       return wrapped.getPushFlushInterval();
-    }
-
-    @Override
-    public int getMinBatchSplitSize() {
-      return DEFAULT_MIN_SPLIT_BATCH_SIZE;
-    }
-
-    @Override
-    public int getMemoryBufferLimit() {
-      return wrapped.getPushMemoryBufferLimit();
-    }
-
-    @Override
-    public TaskQueueLevel getTaskQueueLevel() {
-      return wrapped.getTaskQueueLevel();
-    }
-
-    @Override
-    public int getTotalBacklogSize() {
-      return backlogSizeCache.asMap().values().stream().mapToInt(AtomicInteger::get).sum();
-    }
-
-    @Override
-    public void reportBacklogSize(String handle, int backlogSize) {
-      backlogSizeCache.get(handle).set(backlogSize);
-    }
-
-    @Override
-    public long getTotalReceivedRate() {
-      return receivedRateCache.asMap().values().stream().mapToLong(AtomicLong::get).sum();
-    }
-
-    @Override
-    public void reportReceivedRate(String handle, long receivedRate) {
-      receivedRateCache.get(handle).set(receivedRate);
     }
   }
 
@@ -195,7 +151,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public PointsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxPoints");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -219,7 +174,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public HistogramsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxHistograms");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -243,7 +197,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SourceTagsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSourceTags");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitSourceTags");
     }
 
     @Override
@@ -262,11 +215,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getMemoryBufferLimit() {
-      return 16 * wrapped.getPushFlushMaxSourceTags();
-    }
-
-    @Override
     public int getFlushThreads() {
       return wrapped.getFlushThreadsSourceTags();
     }
@@ -277,7 +225,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SpansProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpans");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -301,7 +248,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public SpanLogsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxSpanLogs");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
 
     @Override
@@ -325,7 +271,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public EventsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxEvents");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitEvents");
     }
 
     @Override
@@ -344,11 +289,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public int getMemoryBufferLimit() {
-      return 16 * wrapped.getPushFlushMaxEvents();
-    }
-
-    @Override
     public int getFlushThreads() {
       return wrapped.getFlushThreadsEvents();
     }
@@ -359,7 +299,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public LogsProperties(ProxyConfig wrapped) {
       super(wrapped);
       reportSettingAsGauge(this::getDataPerBatch, "dynamic.pushFlushMaxLogs");
-      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitLogs");
     }
 
     @Override
@@ -370,11 +309,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public int getDataPerBatchOriginal() {
       return wrapped.getPushFlushMaxLogs();
-    }
-
-    @Override
-    public int getMemoryBufferLimit() {
-      return wrapped.getPushMemoryBufferLimitLogs();
     }
 
     @Override

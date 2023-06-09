@@ -1,8 +1,6 @@
 package com.wavefront.agent.listeners;
 
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.channel.ChannelUtils.*;
 import static com.wavefront.common.Utils.lazySupplier;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
@@ -20,12 +18,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.compression.DecompressionException;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
@@ -33,28 +26,25 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a base class for the majority of proxy's listeners. Handles an incoming message of either
  * String or FullHttpRequest type, all other types are ignored. Has ability to support health checks
  * and authentication of incoming HTTP requests. Designed to be used with {@link
  * com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder}.
- *
- * @author vasily@wavefront.com
  */
 @SuppressWarnings("SameReturnValue")
 @ChannelHandler.Sharable
 public abstract class AbstractPortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger =
-      Logger.getLogger(AbstractPortUnificationHandler.class.getCanonicalName());
+      LoggerFactory.getLogger(AbstractPortUnificationHandler.class.getCanonicalName());
 
   protected final Supplier<Histogram> httpRequestHandleDuration;
   protected final Supplier<Counter> requestsDiscarded;
@@ -62,7 +52,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
   protected final Supplier<Gauge<Long>> httpRequestsInFlightGauge;
   protected final AtomicLong httpRequestsInFlight = new AtomicLong();
 
-  protected final String handle;
+  protected final int port;
   protected final TokenAuthenticator tokenAuthenticator;
   protected final HealthCheckManager healthCheck;
 
@@ -71,44 +61,49 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
    *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
-   * @param handle handle/port number.
+   * @param port handle/port number.
    */
   public AbstractPortUnificationHandler(
       @Nullable final TokenAuthenticator tokenAuthenticator,
       @Nullable final HealthCheckManager healthCheckManager,
-      @Nullable final String handle) {
+      final int port) {
     this.tokenAuthenticator =
         ObjectUtils.firstNonNull(tokenAuthenticator, TokenAuthenticator.DUMMY_AUTHENTICATOR);
     this.healthCheck =
         healthCheckManager == null ? new NoopHealthCheckManager() : healthCheckManager;
-    this.handle = firstNonNull(handle, "unknown");
-    String portNumber = this.handle.replaceAll("^\\d", "");
-    if (NumberUtils.isNumber(portNumber)) {
-      healthCheck.setHealthy(Integer.parseInt(portNumber));
-    }
+    this.port = port;
+    healthCheck.setHealthy(this.port);
 
     this.httpRequestHandleDuration =
         lazySupplier(
             () ->
                 Metrics.newHistogram(
                     new TaggedMetricName(
-                        "listeners", "http-requests.duration-nanos", "port", this.handle)));
+                        "listeners",
+                        "http-requests.duration-nanos",
+                        "port",
+                        String.valueOf(this.port))));
     this.requestsDiscarded =
         lazySupplier(
             () ->
                 Metrics.newCounter(
                     new TaggedMetricName(
-                        "listeners", "http-requests.discarded", "port", this.handle)));
+                        "listeners",
+                        "http-requests.discarded",
+                        "port",
+                        String.valueOf(this.port))));
     this.pointsDiscarded =
         lazySupplier(
             () ->
                 Metrics.newCounter(
-                    new TaggedMetricName("listeners", "items-discarded", "port", this.handle)));
+                    new TaggedMetricName(
+                        "listeners", "items-discarded", "port", String.valueOf(this.port))));
     this.httpRequestsInFlightGauge =
         lazySupplier(
             () ->
                 Metrics.newGauge(
-                    new TaggedMetricName("listeners", "http-requests.active", "port", this.handle),
+                    new TaggedMetricName(
+                        "listeners", "http-requests.active", "port", String.valueOf(this.port)),
                     new Gauge<Long>() {
                       @Override
                       public Long value() {
@@ -161,7 +156,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       return;
     }
     logWarning("Handler failed", cause, ctx);
-    logger.log(Level.WARNING, "Unexpected error: ", cause);
+    logger.warn("Unexpected error: ", cause);
   }
 
   protected String extractToken(final FullHttpRequest request) {
@@ -204,9 +199,9 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
         if (tokenAuthenticator.authRequired()) {
           // plaintext is disabled with auth enabled
           pointsDiscarded.get().inc();
-          logger.warning(
+          logger.warn(
               "Input discarded: plaintext protocol is not supported on port "
-                  + handle
+                  + port
                   + " (authentication enabled)");
           return;
         }
@@ -225,7 +220,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
         }
         if (!getHttpEnabled()) {
           requestsDiscarded.get().inc();
-          logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + handle);
+          logger.warn("Inbound HTTP request discarded: HTTP disabled on port " + port);
           return;
         }
         if (authorized(ctx, request)) {
@@ -250,7 +245,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       } catch (URISyntaxException e) {
         writeHttpResponse(
             ctx, HttpResponseStatus.BAD_REQUEST, errorMessageWithRootCause(e), request);
-        logger.warning(
+        logger.warn(
             formatErrorMessage(
                 "WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx));
       } catch (final Exception e) {
@@ -286,6 +281,10 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
       final String message,
       @Nullable final Throwable e,
       @Nullable final ChannelHandlerContext ctx) {
-    logger.warning(formatErrorMessage(message, e, ctx));
+    if (logger.isDebugEnabled() && (e != null)) {
+      logger.warn(formatErrorMessage(message, e, ctx), e);
+    } else {
+      logger.warn(formatErrorMessage(message, e, ctx));
+    }
   }
 }

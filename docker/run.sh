@@ -25,6 +25,7 @@ ulimit -Hn 65536
 java_heap_usage=${JAVA_HEAP_USAGE:-4G}
 jvm_initial_ram_percentage=${JVM_INITIAL_RAM_PERCENTAGE:-50.0}
 jvm_max_ram_percentage=${JVM_MAX_RAM_PERCENTAGE:-85.0}
+log4j=${LOG4J_FILE:-/etc/wavefront/wavefront-proxy/log4j2.xml}
 
 # Use cgroup opts - Note that -XX:UseContainerSupport=true since Java 8u191.
 # https://bugs.openjdk.java.net/browse/JDK-8146115
@@ -57,12 +58,13 @@ fi
 #############
 java \
     $jvm_container_opts $JAVA_ARGS \
-	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
-	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
-	-jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
-	-h $WAVEFRONT_URL \
-	-t $WAVEFRONT_TOKEN \
-	--ephemeral true \
-	--buffer ${spool_dir}/buffer \
-	--flushThreads 6 \
-	$WAVEFRONT_PROXY_ARGS
+    -XX:NewRatio=1 -XX:MaxMetaspaceSize=256M \
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
+    -Dlog4j.configurationFile=${log4j} \
+    -jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
+    -h $WAVEFRONT_URL \
+    -t $WAVEFRONT_TOKEN \
+    --ephemeral true \
+    --buffer ${spool_dir}/buffer \
+    --flushThreads 6 \
+    $WAVEFRONT_PROXY_ARGS

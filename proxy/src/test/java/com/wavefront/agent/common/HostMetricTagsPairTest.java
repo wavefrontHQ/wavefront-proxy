@@ -8,7 +8,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/** @author Jia Deng (djia@vmware.com) */
 public class HostMetricTagsPairTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

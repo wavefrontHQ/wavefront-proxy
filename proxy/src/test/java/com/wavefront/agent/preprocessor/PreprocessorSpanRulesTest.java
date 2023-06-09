@@ -1,9 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
 import static com.wavefront.agent.TestUtils.parseSpan;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -20,8 +18,8 @@ public class PreprocessorSpanRulesTest {
   private static final String URL = "url";
   private static final String SOURCE_NAME = "sourceName";
   private static final String SPAN_NAME = "spanName";
-  private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
   private static PreprocessorConfigManager config;
+  private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -40,7 +38,7 @@ public class PreprocessorSpanRulesTest {
             + "\"key2\"=\"bar2\" \"bar\"=\"baz\" \"service\"=\"svc\" 1532012145123 1532012146234";
 
     Span span = parseSpan(spanLine);
-    config.get("30124").get().forSpan().transform(span);
+    config.get(30124).get().forSpan().transform(span);
     assertEquals(5, span.getAnnotations().size());
     assertTrue(span.getAnnotations().contains(new Annotation("application", "app")));
     assertTrue(span.getAnnotations().contains(new Annotation("foo", "bar1")));
@@ -49,7 +47,7 @@ public class PreprocessorSpanRulesTest {
     assertTrue(span.getAnnotations().contains(new Annotation("service", "svc")));
 
     span = parseSpan(spanLine);
-    config.get("30125").get().forSpan().transform(span);
+    config.get(30125).get().forSpan().transform(span);
     assertEquals(3, span.getAnnotations().size());
     assertTrue(span.getAnnotations().contains(new Annotation("application", "app")));
     assertTrue(span.getAnnotations().contains(new Annotation("key2", "bar2")));

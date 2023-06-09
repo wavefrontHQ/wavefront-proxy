@@ -14,25 +14,23 @@ import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper for a {@link LogsIngestionConfig} that supports hot-loading and removal notifications.
- *
- * @author Mori Bellamy (mori@wavefront.com)
  */
 public class LogsIngestionConfigManager {
   protected static final Logger logger =
-      Logger.getLogger(LogsIngestionConfigManager.class.getCanonicalName());
+      LoggerFactory.getLogger(LogsIngestionConfigManager.class.getCanonicalName());
   private static final Counter configReloads =
       Metrics.newCounter(new MetricName("logsharvesting", "", "config-reloads.successful"));
   private static final Counter failedConfigReloads =
       Metrics.newCounter(new MetricName("logsharvesting", "", "config-reloads.failed"));
-  private LogsIngestionConfig lastParsedConfig;
   // The only key in this cache is "true". Basically we want the cache expiry and reloading logic.
   private final LoadingCache<Boolean, LogsIngestionConfig> logsIngestionConfigLoadingCache;
   private final Consumer<MetricMatcher> removalListener;
+  private LogsIngestionConfig lastParsedConfig;
 
   public LogsIngestionConfigManager(
       Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
@@ -50,7 +48,7 @@ public class LogsIngestionConfigManager {
                 (ignored) -> {
                   LogsIngestionConfig nextConfig = logsIngestionConfigSupplier.get();
                   if (nextConfig == null) {
-                    logger.warning("Unable to reload logs ingestion config file!");
+                    logger.warn("Unable to reload logs ingestion config file!");
                     failedConfigReloads.inc();
                   } else if (!lastParsedConfig.equals(nextConfig)) {
                     nextConfig.verifyAndInit(); // If it throws, we keep the last
@@ -71,7 +69,7 @@ public class LogsIngestionConfigManager {
                 try {
                   logsIngestionConfigLoadingCache.get(true);
                 } catch (Exception e) {
-                  logger.log(Level.SEVERE, "Cannot load a new logs ingestion config.", e);
+                  logger.error("Cannot load a new logs ingestion config.", e);
                 }
               }
             },
@@ -91,32 +89,32 @@ public class LogsIngestionConfigManager {
 
   private void processConfigChange(LogsIngestionConfig nextConfig) {
     if (nextConfig.useWavefrontHistograms != lastParsedConfig.useWavefrontHistograms) {
-      logger.warning(
+      logger.warn(
           "useWavefrontHistograms property cannot be changed at runtime, "
               + "proxy restart required!");
     }
     if (nextConfig.useDeltaCounters != lastParsedConfig.useDeltaCounters) {
-      logger.warning(
+      logger.warn(
           "useDeltaCounters property cannot be changed at runtime, " + "proxy restart required!");
     }
     if (nextConfig.reportEmptyHistogramStats != lastParsedConfig.reportEmptyHistogramStats) {
-      logger.warning(
+      logger.warn(
           "reportEmptyHistogramStats property cannot be changed at runtime, "
               + "proxy restart required!");
     }
     if (!nextConfig.aggregationIntervalSeconds.equals(
         lastParsedConfig.aggregationIntervalSeconds)) {
-      logger.warning(
+      logger.warn(
           "aggregationIntervalSeconds property cannot be changed at runtime, "
               + "proxy restart required!");
     }
     if (nextConfig.configReloadIntervalSeconds != lastParsedConfig.configReloadIntervalSeconds) {
-      logger.warning(
+      logger.warn(
           "configReloadIntervalSeconds property cannot be changed at runtime, "
               + "proxy restart required!");
     }
     if (nextConfig.expiryMillis != lastParsedConfig.expiryMillis) {
-      logger.warning(
+      logger.warn(
           "expiryMillis property cannot be changed at runtime, " + "proxy restart required!");
     }
     for (MetricMatcher oldMatcher : lastParsedConfig.counters) {

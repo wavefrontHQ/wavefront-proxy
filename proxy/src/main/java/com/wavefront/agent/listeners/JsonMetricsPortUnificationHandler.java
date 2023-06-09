@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,9 +10,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Pair;
@@ -25,22 +25,13 @@ import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
-/**
- * Agent-side JSON metrics endpoint.
- *
- * @author Clement Pang (clement@wavefront.com).
- * @author vasily@wavefront.com.
- */
+/** Agent-side JSON metrics endpoint. */
 @ChannelHandler.Sharable
 public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Set<String> STANDARD_PARAMS = ImmutableSet.of("h", "p", "d", "t");
@@ -49,7 +40,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   private final String prefix;
   private final String defaultHost;
@@ -60,7 +51,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   /**
    * Create a new instance.
    *
-   * @param handle handle/port number.
+   * @param port handle/port number.
    * @param authenticator token authenticator.
    * @param healthCheckManager shared health check endpoint handler.
    * @param handlerFactory factory for ReportableEntityHandler objects.
@@ -69,7 +60,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param preprocessor preprocessor.
    */
   public JsonMetricsPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory,
@@ -77,10 +68,10 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
       final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     this(
-        handle,
+        port,
         authenticator,
         healthCheckManager,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT)),
         prefix,
         defaultHost,
         preprocessor);
@@ -88,14 +79,14 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @VisibleForTesting
   protected JsonMetricsPortUnificationHandler(
-      final String handle,
+      final int port,
       final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler,
+      final ReportableEntityHandler<ReportPoint> pointHandler,
       final String prefix,
       final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle);
+    super(authenticator, healthCheckManager, port);
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.defaultHost = defaultHost;

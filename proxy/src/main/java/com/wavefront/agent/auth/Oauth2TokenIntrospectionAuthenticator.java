@@ -22,20 +22,16 @@ import org.apache.http.util.EntityUtils;
  * {@link TokenIntrospectionAuthenticator} that validates tokens against an OAuth 2.0-compliant
  * Token Introspection endpoint, as described in <a href="https://tools.ietf.org/html/rfc7662">RFC
  * 7662</a>.
- *
- * @author vasily@wavefront.com
  */
 class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
+  private static final ObjectMapper JSON_PARSER = new ObjectMapper();
   private final HttpClient httpClient;
   private final String tokenIntrospectionServiceUrl;
   private final String tokenIntrospectionAuthorizationHeader;
-
   private final Counter accessGrantedResponses =
       Metrics.newCounter(new MetricName("auth", "", "access-granted"));
   private final Counter accessDeniedResponses =
       Metrics.newCounter(new MetricName("auth", "", "access-denied"));
-
-  private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
   Oauth2TokenIntrospectionAuthenticator(
       @Nonnull HttpClient httpClient,

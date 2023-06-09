@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.ProxyContext.queuesManager;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
@@ -11,9 +12,8 @@ import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -22,21 +22,13 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.common.annotation.NonNull;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.Closeable;
@@ -49,26 +41,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeable, Runnable {
-  private static final Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
+  private static final Logger logger =
+      LoggerFactory.getLogger(OtlpHttpHandler.class.getCanonicalName());
   private final String defaultSource;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   @Nullable private final WavefrontInternalReporter internalReporter;
   @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final ScheduledExecutorService scheduledExecutorService;
-  private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<Span> spanHandler;
   @Nullable private final WavefrontSender sender;
-  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final Set<String> traceDerivedCustomTagKeys;
-  private final ReportableEntityHandler<ReportPoint, String> metricsHandler;
-  private final ReportableEntityHandler<ReportPoint, String> histogramHandler;
+  private final ReportableEntityHandler<ReportPoint> metricsHandler;
+  private final ReportableEntityHandler<ReportPoint> histogramHandler;
   private final Counter receivedSpans;
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
@@ -79,7 +73,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable TokenAuthenticator tokenAuthenticator,
       @Nullable HealthCheckManager healthCheckManager,
-      @NonNull String handle,
+      int port,
       @Nullable WavefrontSender wfSender,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       SpanSampler sampler,
@@ -89,36 +83,36 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       Set<String> traceDerivedCustomTagKeys,
       boolean includeResourceAttrsForMetrics,
       boolean includeOtlpAppTagsOnMetrics) {
-    super(tokenAuthenticator, healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, port);
     this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
     this.includeOtlpAppTagsOnMetrics = includeOtlpAppTagsOnMetrics;
-    this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
+    this.spanHandler =
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.TRACE));
     this.spanLogsHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
+        handlerFactory.getHandler(
+            port, queuesManager.initQueue(ReportableEntityType.TRACE_SPAN_LOGS));
     this.metricsHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.POINT));
     this.histogramHandler =
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle));
+        handlerFactory.getHandler(port, queuesManager.initQueue(ReportableEntityType.HISTOGRAM));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
 
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
-    this.receivedSpans =
-        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+    this.receivedSpans = Metrics.newCounter(new MetricName("spans." + port, "", "received.total"));
     this.spanSamplerAndCounter =
         Pair.of(
-            sampler,
-            Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
+            sampler, Metrics.newCounter(new MetricName("spans." + port, "", "sampler.discarded")));
     this.spansDisabled =
         Pair.of(
             spansFeatureDisabled,
-            Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+            Metrics.newCounter(new MetricName("spans." + port, "", "discarded")));
     this.spanLogsDisabled =
         Pair.of(
             spanLogsFeatureDisabled,
-            Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+            Metrics.newCounter(new MetricName("spanLogs." + port, "", "discarded")));
 
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-http-heart-beater"));
@@ -172,9 +166,10 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
           break;
         default:
           /*
-           We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
-           OTel Collector's OTLP Receiver code.
-          */
+           * We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found
+           * in
+           * OTel Collector's OTLP Receiver code.
+           */
           writeHttpResponse(
               ctx, HttpResponseStatus.BAD_REQUEST, "unknown endpoint " + path, request);
           return;
@@ -193,7 +188,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     try {
       reportHeartbeats(sender, discoveredHeartbeatMetrics, "otlp");
     } catch (IOException e) {
-      logger.warning("Cannot report heartbeat metric to wavefront");
+      logger.warn("Cannot report heartbeat metric to wavefront");
     }
   }
 
@@ -203,8 +198,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   }
 
   /*
-  Build an OTLP HTTP error response per the spec:
-  https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/otlp.md#otlphttp-response
+   * Build an OTLP HTTP error response per the spec:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/
+   * specification/protocol/otlp.md#otlphttp-response
    */
   private HttpResponse makeErrorResponse(Code rpcCode, String msg) {
     Status pbStatus = Status.newBuilder().setCode(rpcCode.getNumber()).setMessage(msg).build();

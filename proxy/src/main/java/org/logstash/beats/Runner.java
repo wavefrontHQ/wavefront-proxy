@@ -1,13 +1,13 @@
 package org.logstash.beats;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.logstash.netty.SslSimpleBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Runner {
   private static final int DEFAULT_PORT = 5044;
 
-  private static final Logger logger = LogManager.getLogger(Runner.class);
+  private static final Logger logger = LoggerFactory.getLogger(Runner.class);
 
   public static void main(String[] args) throws Exception {
     logger.info("Starting Beats Bulk");

@@ -1,34 +1,29 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.common.MetricConstants;
 import java.util.function.Supplier;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class FlushProcessorContext {
   private final long timestamp;
   private final TimeSeries timeSeries;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final String prefix;
 
   FlushProcessorContext(
       TimeSeries timeSeries,
       String prefix,
-      Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier,
-      Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier) {
+      Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier,
+      Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier) {
     this.timeSeries = TimeSeries.newBuilder(timeSeries).build();
     this.prefix = prefix;
     this.pointHandlerSupplier = pointHandlerSupplier;
     this.histogramHandlerSupplier = histogramHandlerSupplier;
     timestamp = System.currentTimeMillis();
-  }
-
-  String getMetricName() {
-    return timeSeries.getMetric();
   }
 
   private ReportPoint.Builder reportPointBuilder(long timestamp) {

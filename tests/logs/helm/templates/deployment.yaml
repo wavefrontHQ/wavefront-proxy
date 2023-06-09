@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logs-proxy
+  labels:
+    app: logs-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logs-proxy
+  template:
+    metadata:
+      labels:
+        app: logs-proxy
+    spec:
+      containers:
+        - name: logs-proxy
+          image: {{ .Values.image.proxy }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: | 
+                --pushListenerPorts 2878 
+                --ephemeral false 
+                --idFile /tmp/id
+          ports: 
+            - name: push
+              containerPort: 2878
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /scripts/
+              name: scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: scripts
+            defaultMode: 0777

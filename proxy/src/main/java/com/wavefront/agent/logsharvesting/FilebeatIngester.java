@@ -6,14 +6,14 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** @author Mori Bellamy (mori@wavefront.com) */
 public class FilebeatIngester implements IMessageListener {
-  protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
+  protected static final Logger logger =
+      LoggerFactory.getLogger(LogsIngester.class.getCanonicalName());
   private final LogsIngester logsIngester;
   private final Counter received;
   private final Counter malformed;
@@ -35,8 +35,7 @@ public class FilebeatIngester implements IMessageListener {
     try {
       filebeatMessage = new FilebeatMessage(message);
     } catch (MalformedMessageException exn) {
-      logger.severe(
-          "Malformed message received from filebeat, dropping (" + exn.getMessage() + ")");
+      logger.error("Malformed message received from filebeat, dropping (" + exn.getMessage() + ")");
       malformed.inc();
       return;
     }
@@ -60,11 +59,11 @@ public class FilebeatIngester implements IMessageListener {
 
   @Override
   public void onException(ChannelHandlerContext ctx, Throwable cause) {
-    logger.log(Level.SEVERE, "Caught error processing beats data.", cause);
+    logger.error("Caught error processing beats data.", cause);
   }
 
   @Override
   public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
-    logger.log(Level.SEVERE, "Caught initializing beats data processor.", cause);
+    logger.error("Caught initializing beats data processor.", cause);
   }
 }

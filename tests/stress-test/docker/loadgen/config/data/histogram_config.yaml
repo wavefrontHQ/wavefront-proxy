@@ -1,0 +1,21 @@
+namePart: "histogram.part"
+nameEndings:
+  - "end1"
+  - "end2"
+  - "end3"
+  - "end4"
+  - "end5"
+timestampChanger: 100000
+valuesAmount: 4
+keyRangeLimit: 10
+valueRangeLimit: 100
+sources:
+  - "hs1"
+  - "hs2"
+  - "hs3"
+  - "hs4"
+  - "hs5"
+tagsVariantsAmount: 5
+tagsStartRange: 8
+tagsEndRange: 15
+paramsSurrounding: "DOUBLE_QUOTES"

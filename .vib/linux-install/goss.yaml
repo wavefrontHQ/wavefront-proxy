@@ -1,0 +1,5 @@
+command:
+  install-proxy:
+    exec: /tmp/extracted/scripts/tests.sh
+    exit-status: 0
+    timeout: 120000

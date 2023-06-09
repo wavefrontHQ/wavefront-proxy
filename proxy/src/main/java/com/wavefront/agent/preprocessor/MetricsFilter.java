@@ -9,7 +9,9 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -27,7 +29,7 @@ public class MetricsFilter implements AnnotatedPredicate<String> {
       final Map<String, Object> rule,
       final PreprocessorRuleMetrics ruleMetrics,
       String ruleName,
-      String strPort) {
+      int port) {
     this.ruleMetrics = ruleMetrics;
     List<String> names;
     if (rule.get(NAMES) instanceof List) {
@@ -63,12 +65,14 @@ public class MetricsFilter implements AnnotatedPredicate<String> {
     queries =
         Metrics.newCounter(
             new TaggedMetricName(
-                "preprocessor." + ruleName, "regexCache.queries", "port", strPort));
+                "preprocessor." + ruleName, "regexCache.queries", "port", String.valueOf(port)));
     miss =
         Metrics.newCounter(
-            new TaggedMetricName("preprocessor." + ruleName, "regexCache.miss", "port", strPort));
+            new TaggedMetricName(
+                "preprocessor." + ruleName, "regexCache.miss", "port", String.valueOf(port)));
     TaggedMetricName sizeMetrics =
-        new TaggedMetricName("preprocessor." + ruleName, "regexCache.size", "port", strPort);
+        new TaggedMetricName(
+            "preprocessor." + ruleName, "regexCache.size", "port", String.valueOf(port));
     Metrics.defaultRegistry().removeMetric(sizeMetrics);
     Metrics.newGauge(
         sizeMetrics,

@@ -2,11 +2,7 @@ package com.wavefront.agent.auth;
 
 import javax.annotation.Nullable;
 
-/**
- * Token validator for processing incoming requests.
- *
- * @author vasily@wavefront.com
- */
+/** Token validator for processing incoming requests. */
 public interface TokenAuthenticator {
   /** Shared dummy authenticator. */
   TokenAuthenticator DUMMY_AUTHENTICATOR = new DummyAuthenticator();

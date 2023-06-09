@@ -1,21 +1,12 @@
 package com.wavefront.agent.listeners.tracing;
 
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Constants.*;
 
 import com.google.common.collect.ImmutableSet;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.core.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
@@ -26,35 +17,26 @@ import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.SpanRef;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-/**
- * Utility methods for processing Jaeger Thrift trace data.
- *
- * @author Han Zhang (zhanghan@vmware.com)
- */
+/** Utility methods for processing Jaeger Thrift trace data. */
 public abstract class JaegerThriftUtils {
   protected static final Logger logger =
-      Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
+      LoggerFactory.getLogger(JaegerThriftUtils.class.getCanonicalName());
 
   // TODO: support sampling
   private static final Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
+  private static final Logger JAEGER_DATA_LOGGER = LoggerFactory.getLogger("JaegerDataLogger");
 
   private JaegerThriftUtils() {}
 
@@ -63,8 +45,8 @@ public abstract class JaegerThriftUtils {
       @Nullable StringBuilder output,
       String sourceName,
       String applicationName,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontInternalReporter wfInternalReporter,
       Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled,
@@ -159,8 +141,8 @@ public abstract class JaegerThriftUtils {
       String cluster,
       String shard,
       List<Annotation> processAnnotations,
-      ReportableEntityHandler<Span, String> spanHandler,
-      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      ReportableEntityHandler<Span> spanHandler,
+      ReportableEntityHandler<SpanLogs> spanLogsHandler,
       @Nullable WavefrontInternalReporter wfInternalReporter,
       Supplier<Boolean> spanLogsDisabled,
       Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
@@ -269,8 +251,8 @@ public abstract class JaegerThriftUtils {
             .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
-    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
-      JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span.toString());
+    if (JAEGER_DATA_LOGGER.isDebugEnabled()) {
+      JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span);
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 

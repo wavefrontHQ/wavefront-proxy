@@ -4,38 +4,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BeatsParser extends ByteToMessageDecoder {
-  private static final Logger logger = LogManager.getLogger(BeatsParser.class);
+  private static final Logger logger = LoggerFactory.getLogger(BeatsParser.class);
 
   private Batch batch;
-
-  private enum States {
-    READ_HEADER(1),
-    READ_FRAME_TYPE(1),
-    READ_WINDOW_SIZE(4),
-    READ_JSON_HEADER(8),
-    READ_COMPRESSED_FRAME_HEADER(4),
-    READ_COMPRESSED_FRAME(
-        -1), // -1 means the length to read is variable and defined in the frame itself.
-    READ_JSON(-1),
-    READ_DATA_FIELDS(-1);
-
-    private int length;
-
-    States(int length) {
-      this.length = length;
-    }
-  }
-
   private States currentState = States.READ_HEADER;
   private int requiredBytes = 0;
   private int sequence = 0;
@@ -131,17 +112,17 @@ public class BeatsParser extends ByteToMessageDecoder {
                 "Invalid number of fields, received: " + fieldsCount);
           }
 
-          Map dataMap = new HashMap<String, String>(fieldsCount);
+          Map<String, String> dataMap = new HashMap<>(fieldsCount);
 
           while (count < fieldsCount) {
             int fieldLength = (int) in.readUnsignedInt();
             ByteBuf fieldBuf = in.readBytes(fieldLength);
-            String field = fieldBuf.toString(Charset.forName("UTF8"));
+            String field = fieldBuf.toString(StandardCharsets.UTF_8);
             fieldBuf.release();
 
             int dataLength = (int) in.readUnsignedInt();
             ByteBuf dataBuf = in.readBytes(dataLength);
-            String data = dataBuf.toString(Charset.forName("UTF8"));
+            String data = dataBuf.toString(StandardCharsets.UTF_8);
             dataBuf.release();
 
             dataMap.put(field, data);
@@ -256,7 +237,25 @@ public class BeatsParser extends ByteToMessageDecoder {
     batch = null;
   }
 
-  public class InvalidFrameProtocolException extends Exception {
+  private enum States {
+    READ_HEADER(1),
+    READ_FRAME_TYPE(1),
+    READ_WINDOW_SIZE(4),
+    READ_JSON_HEADER(8),
+    READ_COMPRESSED_FRAME_HEADER(4),
+    READ_COMPRESSED_FRAME(
+        -1), // -1 means the length to read is variable and defined in the frame itself.
+    READ_JSON(-1),
+    READ_DATA_FIELDS(-1);
+
+    private final int length;
+
+    States(int length) {
+      this.length = length;
+    }
+  }
+
+  public static class InvalidFrameProtocolException extends Exception {
     InvalidFrameProtocolException(String message) {
       super(message);
     }
