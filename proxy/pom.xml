@@ -231,7 +231,7 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>2.7.0</version>
+        <version>2.7.12</version>
         <executions>
           <execution>
             <goals>
@@ -258,7 +258,7 @@
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
-        <version>2.14.2</version>
+        <version>2.15.2</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -582,7 +582,7 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-log4j2</artifactId>
-      <version>2.7.0</version>
+      <version>2.7.12</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
