@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
@@ -66,6 +67,8 @@ public class ProxyCheckInScheduler {
   private String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
   private boolean retryImmediately = false;
+
+  public static AtomicBoolean preprocessorRulesNeedUpdate = new AtomicBoolean(false);
 
   /**
    * @param proxyId Proxy UUID.
@@ -133,12 +136,14 @@ public class ProxyCheckInScheduler {
 
   /** Send preprocessor rules */
   private void sendPreprocessorRules() {
-    try {
-      apiContainer
-          .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-          .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
-    } catch (javax.ws.rs.NotFoundException ex) {
-      logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
+    if (preprocessorRulesNeedUpdate.getAndSet(false)) {
+      try {
+        apiContainer
+            .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+            .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
+      } catch (javax.ws.rs.NotFoundException ex) {
+        logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
+      }
     }
   }
 

@@ -144,6 +144,7 @@ public class ProxyCheckInSchedulerTest {
     expectLastCall();
     replay(proxyV2API, apiContainer);
     AtomicBoolean shutdown = new AtomicBoolean(false);
+    ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
             proxyId,
@@ -556,6 +557,7 @@ public class ProxyCheckInSchedulerTest {
     proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
     expectLastCall();
     replay(proxyV2API, apiContainer);
+    ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
             proxyId,
