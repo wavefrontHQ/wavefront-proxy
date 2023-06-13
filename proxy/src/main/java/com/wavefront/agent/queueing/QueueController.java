@@ -38,8 +38,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   private static final int TIME_DIFF_THRESHOLD_SECS = 60;
   private static final double MIN_ADJ_FACTOR = 0.25d;
   private static final double MAX_ADJ_FACTOR = 1.5d;
-  private static final ScheduledExecutorService executor =
-      Executors.newScheduledThreadPool(2, new NamedThreadFactory("QueueController"));
+  private static ScheduledExecutorService executor;
 
   protected final HandlerKey handlerKey;
   protected final List<QueueProcessor<T>> processorTasks;
@@ -192,6 +191,9 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   @Override
   public void start() {
     if (isRunning.compareAndSet(false, true)) {
+      if ((executor == null) || (executor.isShutdown())) { // need it for unittests
+        executor = Executors.newScheduledThreadPool(2, new NamedThreadFactory("QueueController"));
+      }
       executor.scheduleAtFixedRate(this::run, 1, 1, TimeUnit.SECONDS);
       executor.scheduleAtFixedRate(this::printQueueStats, 10, 10, TimeUnit.SECONDS);
       processorTasks.forEach(QueueProcessor::start);
