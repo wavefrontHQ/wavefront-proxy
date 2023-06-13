@@ -13,6 +13,8 @@ DOCKER_TAG ?= ${VERSION}_${REVISION}
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
+main: build-jar 
+
 .info:
 	@echo "\n----------\nBuilding Proxy ${VERSION}\nDocker tag: $(USER)/$(REPO):$(DOCKER_TAG) \n----------\n"
 

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.wavefront.agent.ProxyCheckInScheduler;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -977,6 +978,7 @@ public class PreprocessorConfigManager {
       }
       ruleNode.put("rules", validRulesList);
       logger.info("Total Preprocessor rules loaded :: " + totalValidRules);
+      ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
       if (totalInvalidRules > 0) {
         throw new RuntimeException(
             "Total Invalid Preprocessor rules detected :: " + totalInvalidRules);
