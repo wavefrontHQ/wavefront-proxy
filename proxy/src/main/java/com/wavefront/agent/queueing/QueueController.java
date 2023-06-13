@@ -1,8 +1,6 @@
 package com.wavefront.agent.queueing;
 
-import com.beust.ah.A;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.Managed;
@@ -11,8 +9,6 @@ import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
@@ -27,6 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * A queue controller (one per entity/port). Responsible for reporting queue-related metrics and
@@ -42,7 +39,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   private static final double MIN_ADJ_FACTOR = 0.25d;
   private static final double MAX_ADJ_FACTOR = 1.5d;
   private static final ScheduledExecutorService executor =
-          Executors.newScheduledThreadPool(2, new NamedThreadFactory("QueueController"));
+      Executors.newScheduledThreadPool(2, new NamedThreadFactory("QueueController"));
 
   protected final HandlerKey handlerKey;
   protected final List<QueueProcessor<T>> processorTasks;
@@ -54,30 +51,30 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   private final AtomicInteger queueSize = new AtomicInteger();
 
   /**
-   * @param handlerKey      Pipeline handler key
-   * @param processorTasks  List of {@link QueueProcessor} tasks responsible for processing the
-   *                        backlog.
+   * @param handlerKey Pipeline handler key
+   * @param processorTasks List of {@link QueueProcessor} tasks responsible for processing the
+   *     backlog.
    * @param backlogSizeSink Where to report backlog size.
    */
   public QueueController(
-          HandlerKey handlerKey,
-          List<QueueProcessor<T>> processorTasks,
-          @Nullable Consumer<Integer> backlogSizeSink) {
+      HandlerKey handlerKey,
+      List<QueueProcessor<T>> processorTasks,
+      @Nullable Consumer<Integer> backlogSizeSink) {
     this(handlerKey, processorTasks, backlogSizeSink, System::currentTimeMillis);
   }
 
   /**
-   * @param handlerKey      Pipeline handler key
-   * @param processorTasks  List of {@link QueueProcessor} tasks responsible for processing the
-   *                        backlog.
+   * @param handlerKey Pipeline handler key
+   * @param processorTasks List of {@link QueueProcessor} tasks responsible for processing the
+   *     backlog.
    * @param backlogSizeSink Where to report backlog size.
-   * @param timeProvider    current time provider (in millis).
+   * @param timeProvider current time provider (in millis).
    */
   QueueController(
-          HandlerKey handlerKey,
-          List<QueueProcessor<T>> processorTasks,
-          @Nullable Consumer<Integer> backlogSizeSink,
-          Supplier<Long> timeProvider) {
+      HandlerKey handlerKey,
+      List<QueueProcessor<T>> processorTasks,
+      @Nullable Consumer<Integer> backlogSizeSink,
+      Supplier<Long> timeProvider) {
     this.handlerKey = handlerKey;
     this.processorTasks = processorTasks;
     this.backlogSizeSink = backlogSizeSink;
@@ -98,14 +95,14 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
           }
         });
     Metrics.newGauge(
-            new TaggedMetricName(
-                    "buffer", handlerKey.getEntityType() + "-count", "port", handlerKey.getHandle()),
-            new Gauge<Long>() {
-              @Override
-              public Long value() {
-                return currentWeight.get();
-              }
-            });
+        new TaggedMetricName(
+            "buffer", handlerKey.getEntityType() + "-count", "port", handlerKey.getHandle()),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            return currentWeight.get();
+          }
+        });
   }
 
   /**
@@ -119,23 +116,23 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
    */
   @VisibleForTesting
   static <T extends DataSubmissionTask<T>> void adjustTimingFactors(
-          List<QueueProcessor<T>> processors) {
+      List<QueueProcessor<T>> processors) {
     List<Pair<QueueProcessor<T>, Long>> sortedProcessors =
-            processors.stream()
-                    .map(x -> new Pair<>(x, x.getHeadTaskTimestamp()))
-                    .filter(x -> x._2 < Long.MAX_VALUE)
-                    .sorted(Comparator.comparing(o -> o._2))
-                    .collect(Collectors.toList());
+        processors.stream()
+            .map(x -> new Pair<>(x, x.getHeadTaskTimestamp()))
+            .filter(x -> x._2 < Long.MAX_VALUE)
+            .sorted(Comparator.comparing(o -> o._2))
+            .collect(Collectors.toList());
     if (sortedProcessors.size() > 1) {
       long minTs = sortedProcessors.get(0)._2;
       long maxTs = sortedProcessors.get(sortedProcessors.size() - 1)._2;
       if (maxTs - minTs > TIME_DIFF_THRESHOLD_SECS * 1000) {
         sortedProcessors.forEach(
-                x ->
-                        x._1.setTimingFactor(
-                                MIN_ADJ_FACTOR
-                                        + ((double) (x._2 - minTs) / (maxTs - minTs))
-                                        * (MAX_ADJ_FACTOR - MIN_ADJ_FACTOR)));
+            x ->
+                x._1.setTimingFactor(
+                    MIN_ADJ_FACTOR
+                        + ((double) (x._2 - minTs) / (maxTs - minTs))
+                            * (MAX_ADJ_FACTOR - MIN_ADJ_FACTOR)));
       } else {
         processors.forEach(x -> x.setTimingFactor(1.0d));
       }
@@ -171,23 +168,23 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
     // 4. print stats when there's backlog
     if ((previousWeight != 0) || (actualWeight != 0)) {
       logger.info(
-              "["
-                      + handlerKey.getHandle()
-                      + "] "
-                      + handlerKey.getEntityType()
-                      + " backlog status: "
-                      + queueSize
-                      + " tasks, "
-                      + currentWeight
-                      + " "
-                      + handlerKey.getEntityType());
+          "["
+              + handlerKey.getHandle()
+              + "] "
+              + handlerKey.getEntityType()
+              + " backlog status: "
+              + queueSize
+              + " tasks, "
+              + currentWeight
+              + " "
+              + handlerKey.getEntityType());
       if (actualWeight == 0) {
         logger.info(
-                "["
-                        + handlerKey.getHandle()
-                        + "] "
-                        + handlerKey.getEntityType()
-                        + " backlog has been cleared!");
+            "["
+                + handlerKey.getHandle()
+                + "] "
+                + handlerKey.getEntityType()
+                + " backlog has been cleared!");
       }
     }
   }
@@ -211,24 +208,26 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
   public void truncateBuffers() {
     processorTasks.forEach(
-            tQueueProcessor -> {
-              logger.info(
-                      "["
-                              + handlerKey.getHandle()
-                              + "] "
-                              + handlerKey.getEntityType()
-                              + "-- size before truncate: " + tQueueProcessor.getTaskQueue().size());
-              try {
-                tQueueProcessor.getTaskQueue().clear();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-              logger.info(
-                      "["
-                              + handlerKey.getHandle()
-                              + "] "
-                              + handlerKey.getEntityType()
-                              + "--> size after truncate: " + tQueueProcessor.getTaskQueue().size());
-            });
+        tQueueProcessor -> {
+          logger.info(
+              "["
+                  + handlerKey.getHandle()
+                  + "] "
+                  + handlerKey.getEntityType()
+                  + "-- size before truncate: "
+                  + tQueueProcessor.getTaskQueue().size());
+          try {
+            tQueueProcessor.getTaskQueue().clear();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          logger.info(
+              "["
+                  + handlerKey.getHandle()
+                  + "] "
+                  + handlerKey.getEntityType()
+                  + "--> size after truncate: "
+                  + tQueueProcessor.getTaskQueue().size());
+        });
   }
 }
