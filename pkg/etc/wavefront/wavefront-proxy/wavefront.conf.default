@@ -34,7 +34,7 @@ server=CHANGE_ME
 # Apps menu item in VMWare Cloud Service. Note: Proxy, based on OAuth apps, has no expiration time.
 #cspAppSecret=CSP_APP_SECRET_HERE
 
-# The CSP organisation ID. This is an optional setting
+# The CSP organisation ID.
 #cspOrgId=CSP_ORG_ID_HERE
 
 # CSP console URL. This will be used in many places like getting token.
