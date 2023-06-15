@@ -24,7 +24,7 @@ pid_file=${PID_FILE:-/var/run/$service_name.pid}
 
 badConfig() {
     echo "Proxy configuration incorrect"
-    echo "setup 'server' and 'token' in '${conf_file}' file."
+    echo "setup server and auth credentials in '${conf_file}' file."
     exit -1 
 }
 
@@ -74,7 +74,23 @@ setupEnv(){
         fi
     fi
     echo "Using \"${conf_file}\" as config file"
-    grep -q CHANGE_ME ${conf_file} && badConfig
+
+    i=0
+    if grep -q "WF_TOKEN_HERE" "${conf_file}"; then
+      ((++i))
+    fi
+
+    if grep -q "CSP_API_TOKEN_HERE" "${conf_file}"; then
+      ((++i))
+    fi
+
+    if grep -q "CSP_API_ID_HERE" "${conf_file}" && grep -q "CSP_API_SECRET_HERE" "${conf_file}"; then
+      ((++i))
+    fi
+
+    if [ "$i" -ne 2 ] || grep -q "SERVER_URL_HERE" "${conf_file}"; then
+      badConfig
+    fi
 
     log_file="/var/log/wavefront/wavefront.log"
     proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
