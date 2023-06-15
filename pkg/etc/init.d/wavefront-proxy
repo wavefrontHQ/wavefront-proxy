@@ -84,7 +84,7 @@ setupEnv(){
       ((++i))
     fi
 
-    if grep -q "CSP_API_ID_HERE" "${conf_file}" && grep -q "CSP_API_SECRET_HERE" "${conf_file}"; then
+    if grep -q "CSP_APP_ID_HERE" "${conf_file}" && grep -q "CSP_APP_SECRET_HERE" "${conf_file}"; then
       ((++i))
     fi
 
