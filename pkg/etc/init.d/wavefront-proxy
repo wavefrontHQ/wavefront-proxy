@@ -22,12 +22,6 @@ sysconfig="/etc/sysconfig/$service_name"
 desc=${DESC:-Wavefront Proxy}
 pid_file=${PID_FILE:-/var/run/$service_name.pid}
 
-badConfig() {
-    echo "Proxy configuration incorrect"
-    echo "setup server and auth credentials in '${conf_file}' file."
-    exit -1 
-}
-
 setupEnv(){
     if [ -f /.dockerenv ]; then
         >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -74,23 +68,6 @@ setupEnv(){
         fi
     fi
     echo "Using \"${conf_file}\" as config file"
-
-    i=0
-    if grep -q "WF_TOKEN_HERE" "${conf_file}"; then
-      ((++i))
-    fi
-
-    if grep -q "CSP_API_TOKEN_HERE" "${conf_file}"; then
-      ((++i))
-    fi
-
-    if grep -q "CSP_APP_ID_HERE" "${conf_file}" && grep -q "CSP_APP_SECRET_HERE" "${conf_file}"; then
-      ((++i))
-    fi
-
-    if [ "$i" -ne 2 ] || grep -q "SERVER_URL_HERE" "${conf_file}"; then
-      badConfig
-    fi
 
     log_file="/var/log/wavefront/wavefront.log"
     proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
