@@ -6,7 +6,7 @@
 ########################################################################################################################
 # Wavefront API endpoint URL. Usually the same as the URL of your Wavefront instance, with an `api`
 # suffix -- or Wavefront provides the URL.
-server=CHANGE_ME
+server=SERVER_URL_HERE
 
 # The proxyname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
 # We strongly recommend setting this to a name that is unique among your entire infrastructure, to make this
@@ -18,7 +18,7 @@ server=CHANGE_ME
 # 1. Click the gear icon at the top right in the Wavefront UI.
 # 2. Click your account name (usually your email)
 # 3. Click *API access*.
-#token=CHANGE_ME
+#token=WF_TOKEN_HERE
 
 # To add a proxy, you need to use an existing API token with AOA service proxy role. If you have no API token yet, you
 # can create one under your account page in VMWare Cloud Service.
