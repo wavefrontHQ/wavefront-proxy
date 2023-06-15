@@ -1,10 +1,8 @@
 package com.wavefront.agent.listeners;
 
-import static com.wavefront.agent.channel.ChannelUtils.*;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.*;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
@@ -19,6 +17,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.TokenManager;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -194,7 +193,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
                 .proxyCheckin(
                     UUID.fromString(request.headers().get("X-WF-PROXY-ID")),
-                    "Bearer " + proxyConfig.getToken(),
+                    "Bearer "
+                        + TokenManager.getMulticastingTenantList()
+                            .get(APIContainer.CENTRAL_TENANT_NAME)
+                            .getBearerToken(),
                     query.get("hostname"),
                     query.get("proxyname"),
                     query.get("version"),

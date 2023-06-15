@@ -163,27 +163,25 @@ public class ProxyCheckInScheduler {
       if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
     // MONIT-25479: check-in for central and multicasting tenants / clusters
-    Map<String, Map<String, String>> multicastingTenantList =
-        proxyConfig.getMulticastingTenantList();
+    Map<String, TenantInfo> multicastingTenantList = TokenManager.getMulticastingTenantList();
     // Initialize tenantName and multicastingTenantProxyConfig here to track current checking
     // tenant for better exception handling message
     String tenantName = APIContainer.CENTRAL_TENANT_NAME;
-    Map<String, String> multicastingTenantProxyConfig =
+    TenantInfo multicastingTenantProxyConfig =
         multicastingTenantList.get(APIContainer.CENTRAL_TENANT_NAME);
     try {
       AgentConfiguration multicastingConfig;
-      for (Map.Entry<String, Map<String, String>> multicastingTenantEntry :
+      for (Map.Entry<String, TenantInfo> multicastingTenantEntry :
           multicastingTenantList.entrySet()) {
         tenantName = multicastingTenantEntry.getKey();
         multicastingTenantProxyConfig = multicastingTenantEntry.getValue();
-        logger.info(
-            "Checking in tenants: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER));
+        logger.info("Checking in tenants: " + multicastingTenantProxyConfig.getWFServer());
         multicastingConfig =
             apiContainer
                 .getProxyV2APIForTenant(tenantName)
                 .proxyCheckin(
                     proxyId,
-                    "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
+                    "Bearer " + multicastingTenantProxyConfig.getBearerToken(),
                     proxyConfig.getHostname()
                         + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
                     proxyConfig.getProxyname(),
@@ -215,8 +213,7 @@ public class ProxyCheckInScheduler {
           break;
         case 404:
         case 405:
-          String serverUrl =
-              multicastingTenantProxyConfig.get(APIContainer.API_SERVER).replaceAll("/$", "");
+          String serverUrl = multicastingTenantProxyConfig.getWFServer().replaceAll("/$", "");
           if (successfulCheckIns.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError(
@@ -228,9 +225,9 @@ public class ProxyCheckInScheduler {
           }
           String secondaryMessage =
               serverUrl.endsWith("/api")
-                  ? "Current setting: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                  ? "Current setting: " + multicastingTenantProxyConfig.getWFServer()
                   : "Server endpoint URLs normally end with '/api/'. Current setting: "
-                      + multicastingTenantProxyConfig.get(APIContainer.API_SERVER);
+                      + multicastingTenantProxyConfig.getBearerToken();
           checkinError(
               "HTTP "
                   + ex.getResponse().getStatus()
@@ -258,7 +255,7 @@ public class ProxyCheckInScheduler {
               "HTTP "
                   + ex.getResponse().getStatus()
                   + " error: Unable to check in with Wavefront! "
-                  + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                  + multicastingTenantProxyConfig.getWFServer()
                   + ": "
                   + Throwables.getRootCause(ex).getMessage());
       }
@@ -268,14 +265,14 @@ public class ProxyCheckInScheduler {
       if (rootCause instanceof UnknownHostException) {
         checkinError(
             "Unknown host: "
-                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + multicastingTenantProxyConfig.getWFServer()
                 + ". Please verify your DNS and network settings!");
         return null;
       }
       if (rootCause instanceof ConnectException) {
         checkinError(
             "Unable to connect to "
-                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + multicastingTenantProxyConfig.getWFServer()
                 + ": "
                 + rootCause.getMessage()
                 + " Please verify your network/firewall settings!");
@@ -284,7 +281,7 @@ public class ProxyCheckInScheduler {
       if (rootCause instanceof SocketTimeoutException) {
         checkinError(
             "Unable to check in with "
-                + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+                + multicastingTenantProxyConfig.getWFServer()
                 + ": "
                 + rootCause.getMessage()
                 + " Please verify your network/firewall settings!");
@@ -292,14 +289,14 @@ public class ProxyCheckInScheduler {
       }
       checkinError(
           "Request processing error: Unable to retrieve proxy configuration! "
-              + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+              + multicastingTenantProxyConfig.getWFServer()
               + ": "
               + rootCause);
       return null;
     } catch (Exception ex) {
       checkinError(
           "Unable to retrieve proxy configuration from remote server! "
-              + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+              + multicastingTenantProxyConfig.getWFServer()
               + ": "
               + Throwables.getRootCause(ex));
       return null;

@@ -5,9 +5,24 @@ if [[ -z "$WAVEFRONT_URL" ]]; then
   exit 0
 fi
 
-if [[ -z "$WAVEFRONT_TOKEN" ]]; then
-  echo "WAVEFRONT_TOKEN environment variable not configured - aborting startup " >&2
-  exit 0
+authType=""
+if [[ -n "$CSP_APP_ID" && -n "$CSP_APP_SECRET" ]]; then
+  if [[ -n "$CSP_ORG_ID" ]]; then
+    authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET --cspOrgId $CSP_ORG_ID"
+  else
+    authType="--cspAppId $CSP_APP_ID --cspAppSecret $CSP_APP_SECRET"
+  fi
+fi
+if [[ -n "$CSP_API_TOKEN" ]]; then
+  authType="--cspAPIToken $CSP_API_TOKEN"
+fi
+if [[ -n "$WAVEFRONT_TOKEN" ]]; then
+  authType="-t $WAVEFRONT_TOKEN"
+fi
+
+if [[ -z "$authType" ]]; then
+    echo "Error: The auth method combination was wrong or no auth method was supplied."
+    exit 1
 fi
 
 spool_dir="/var/spool/wavefront-proxy"
@@ -61,7 +76,7 @@ java \
 	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
 	-jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
 	-h $WAVEFRONT_URL \
-	-t $WAVEFRONT_TOKEN \
+	$authType \
 	--ephemeral true \
 	--buffer ${spool_dir}/buffer \
 	--flushThreads 6 \
