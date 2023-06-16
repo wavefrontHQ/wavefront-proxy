@@ -126,11 +126,15 @@ status()
 
 stop()
 {
-    echo "Stopping $desc"
-    PID=$(cat $pid_file);
-    kill $PID;
-    rm ${pid_file}
-    echo "Done"
+    if [[ -f "$pid_file" ]]; then
+        echo "Stopping $desc"
+        PID=$(cat $pid_file);
+        kill $PID;
+        rm ${pid_file}
+        echo "Done"
+    else
+        echo "$desc is not running."
+    fi
 }
 
 restart()
