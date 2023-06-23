@@ -52,7 +52,7 @@ public class TenantInfoTest {
 
     TenantInfo tokenWorkerCSP = new TokenWorkerWF(wfToken, wfServer);
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals(wfToken, tokenWorkerCSP.getBearerToken());
@@ -80,7 +80,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -106,7 +106,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -132,7 +132,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -157,7 +157,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertNull(tokenWorkerCSP.getBearerToken());
@@ -183,7 +183,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertEquals("newAccessToken", tokenWorkerCSP.getBearerToken());
@@ -206,7 +206,7 @@ public class TenantInfoTest {
     replayAll();
 
     TokenManager.addTenant(CENTRAL_TENANT_NAME, tokenWorkerCSP);
-    TokenManager.start(new APIContainer(null, null, null, null, cspApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cspApi));
 
     // Verify the results
     assertNull(tokenWorkerCSP.getBearerToken());
@@ -278,7 +278,7 @@ public class TenantInfoTest {
         .times(1);
 
     replay(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cpsApi);
-    TokenManager.start(new APIContainer(null, null, null, null, cpsApi));
+    TokenManager.start(new APIContainer(null, null, null, null, null, cpsApi));
     verify(mockResponse, statusTypeMock, mockTokenExchangeResponseDTO, cpsApi);
   }
 }

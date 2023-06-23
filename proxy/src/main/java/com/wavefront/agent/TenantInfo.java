@@ -5,5 +5,5 @@ public interface TenantInfo {
 
   String getBearerToken();
 
-    String getLeMansServer();
+  String getLeMansServer();
 }

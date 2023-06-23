@@ -100,6 +100,11 @@ public class TokenWorkerCSP
   }
 
   @Override
+  public String getLeMansServer() {
+    return null;
+  }
+
+  @Override
   public void run() {
     executions.get().inc();
     TimerContext timer = duration.get().time();

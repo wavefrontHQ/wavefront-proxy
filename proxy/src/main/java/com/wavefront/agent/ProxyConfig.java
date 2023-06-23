@@ -1476,13 +1476,14 @@ public class ProxyConfig extends ProxyConfigDef {
    * @throws IllegalArgumentException for invalid arguments.
    */
   public void constructTenantInfoObject(
-          @Nullable final String appId,
-          @Nullable final String appSecret,
-          @Nullable final String cspOrgId,
-          @Nullable final String cspAPIToken,
-          @Nonnull final String wfToken,
-          @Nonnull final String server,
-          @Nonnull final String tenantName, String leMansServer) {
+      @Nullable final String appId,
+      @Nullable final String appSecret,
+      @Nullable final String cspOrgId,
+      @Nullable final String cspAPIToken,
+      @Nonnull final String wfToken,
+      @Nonnull final String server,
+      @Nonnull final String tenantName,
+      String leMansServer) {
 
     final String BAD_CONFIG =
         "incorrect configuration, one (and only one) of these options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret`"

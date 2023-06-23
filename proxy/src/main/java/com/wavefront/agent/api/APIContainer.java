@@ -93,7 +93,7 @@ public class APIContainer {
     String tenantServer;
     String leMansServer;
     for (Map.Entry<String, TenantInfo> tenantInfoEntry :
-            TokenManager.getMulticastingTenantList().entrySet()) {
+        TokenManager.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
       leMansServer = tenantInfoEntry.getValue().getLeMansServer();
