@@ -116,7 +116,7 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "Token to auto-register proxy with an account",
       order = 1)
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String token = "undefined";
+  String token = null;
 
   @Parameter(
       names = {"--testLogs"},
@@ -1514,4 +1514,40 @@ public abstract class ProxyConfigDef extends Configuration {
 
   boolean enableHyperlogsConvergedCsp = false;
   boolean receivedLogServerDetails = true;
+
+  @Parameter(
+      names = {"--cspBaseUrl"},
+      description = "The CSP base url. By default prod.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  String cspBaseUrl = "https://console.cloud.vmware.com";
+
+  @Parameter(
+      names = {"--cspAPIToken"},
+      description = "The CSP api token.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspAPIToken = null;
+
+  /**
+   * A client is created for a service defined in CSP. Machine/Cluster can use this client id/secret
+   * to authenticate with CSP.
+   *
+   * <p>If this value is present, the csp authentication will kick in by default.
+   */
+  @Parameter(
+      names = {"--cspAppId"},
+      description = "A server-to-server OAuth app id.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspAppId = null;
+
+  @Parameter(
+      names = {"--cspAppSecret"},
+      description = "A server-to-server OAuth app secret.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspAppSecret = null;
+
+  @Parameter(
+      names = {"--cspOrgId"},
+      description = "The CSP organisation identifier.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspOrgId = null;
 }

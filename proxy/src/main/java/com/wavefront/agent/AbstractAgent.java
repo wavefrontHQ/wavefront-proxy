@@ -321,8 +321,9 @@ public abstract class AbstractAgent {
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
+      TokenManager.start(apiContainer);
       // config the entityPropertiesFactoryMap
-      for (String tenantName : proxyConfig.getMulticastingTenantList().keySet()) {
+      for (String tenantName : TokenManager.getMulticastingTenantList().keySet()) {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
       }
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
@@ -384,7 +385,7 @@ public abstract class AbstractAgent {
   protected void processConfiguration(String tenantName, AgentConfiguration config) {
     try {
       // for all ProxyV2API
-      for (String tn : proxyConfig.getMulticastingTenantList().keySet()) {
+      for (String tn : TokenManager.getMulticastingTenantList().keySet()) {
         apiContainer.getProxyV2APIForTenant(tn).proxyConfigProcessed(agentId);
       }
     } catch (RuntimeException e) {

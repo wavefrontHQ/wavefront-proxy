@@ -22,12 +22,6 @@ sysconfig="/etc/sysconfig/$service_name"
 desc=${DESC:-Wavefront Proxy}
 pid_file=${PID_FILE:-/var/run/$service_name.pid}
 
-badConfig() {
-    echo "Proxy configuration incorrect"
-    echo "setup 'server' and 'token' in '${conf_file}' file."
-    exit -1 
-}
-
 setupEnv(){
     if [ -f /.dockerenv ]; then
         >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -74,7 +68,6 @@ setupEnv(){
         fi
     fi
     echo "Using \"${conf_file}\" as config file"
-    grep -q CHANGE_ME ${conf_file} && badConfig
 
     log_file="/var/log/wavefront/wavefront.log"
     proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
@@ -133,11 +126,15 @@ status()
 
 stop()
 {
-    echo "Stopping $desc"
-    PID=$(cat $pid_file);
-    kill $PID;
-    rm ${pid_file}
-    echo "Done"
+    if [[ -f "$pid_file" ]]; then
+        echo "Stopping $desc"
+        PID=$(cat $pid_file);
+        kill $PID;
+        rm ${pid_file}
+        echo "Done"
+    else
+        echo "$desc is not running."
+    fi
 }
 
 restart()

@@ -56,7 +56,7 @@ public class ReportSourceTagHandlerTest {
     newAgentId = UUID.randomUUID();
     senderTaskFactory =
         new SenderTaskFactoryImpl(
-            new APIContainer(null, mockAgentAPI, null, null),
+            new APIContainer(null, mockAgentAPI, null, null, null),
             newAgentId,
             taskQueueFactory,
             null,

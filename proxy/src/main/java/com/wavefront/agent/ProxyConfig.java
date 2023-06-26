@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
 import static com.wavefront.agent.config.ReportableConfig.reportGauge;
 import static com.wavefront.agent.data.EntityProperties.*;
 import static com.wavefront.common.Utils.getBuildVersion;
@@ -16,8 +17,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Categories;
@@ -35,6 +34,8 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
@@ -51,9 +52,12 @@ public class ProxyConfig extends ProxyConfigDef {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
-  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   TimeProvider timeProvider = System::currentTimeMillis;
+
+  public String getCSPBaseUrl() {
+    return cspBaseUrl;
+  }
 
   public boolean isHelp() {
     return help;
@@ -65,10 +69,6 @@ public class ProxyConfig extends ProxyConfigDef {
 
   public String getPrefix() {
     return prefix;
-  }
-
-  public String getToken() {
-    return token;
   }
 
   public boolean isTestLogs() {
@@ -948,10 +948,6 @@ public class ProxyConfig extends ProxyConfigDef {
     return trafficShapingHeadroom;
   }
 
-  public Map<String, Map<String, String>> getMulticastingTenantList() {
-    return multicastingTenantList;
-  }
-
   public List<String> getCorsEnabledPorts() {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
   }
@@ -1006,10 +1002,24 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
-      multicastingTenantList.put(
-          tenantName,
-          ImmutableMap.of(
-              APIContainer.API_SERVER, tenantServer, APIContainer.API_TOKEN, tenantToken));
+      String tenantCSPAppId = config.getProperty(String.format("multicastingCSPAppId_%d", i), "");
+      String tenantCSPAppSecret =
+          config.getProperty(String.format("multicastingCSPAppSecret_%d", i), "");
+      String tenantCSPOrgId = config.getProperty(String.format("multicastingCSPOrgId_%d", i), "");
+      String tenantCSPAPIToken =
+          config.getProperty(String.format("multicastingCSPAPIToken_%d", i), "");
+
+      // Based on the setup parameters, the pertinent tenant information object will be produced
+      // using the proper proxy
+      // authentication technique.
+      constructTenantInfoObject(
+          tenantCSPAppId,
+          tenantCSPAppSecret,
+          tenantCSPOrgId,
+          tenantCSPAPIToken,
+          tenantToken,
+          tenantServer,
+          tenantName);
     }
 
     if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1210,9 +1220,14 @@ public class ProxyConfig extends ProxyConfigDef {
       configFileExtraArguments(confFile);
     }
 
-    multicastingTenantList.put(
-        APIContainer.CENTRAL_TENANT_NAME,
-        ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
+    constructTenantInfoObject(
+        cspAppId,
+        cspAppSecret,
+        cspOrgId,
+        cspAPIToken,
+        token,
+        server,
+        APIContainer.CENTRAL_TENANT_NAME);
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 
@@ -1421,5 +1436,61 @@ public class ProxyConfig extends ProxyConfigDef {
       }
       return Integer.compare(this.order, other.order);
     }
+  }
+
+  /**
+   * Helper function to construct tenant info {@link TokenWorkerCSP} object based on input
+   * parameters.
+   *
+   * @param appId the CSP OAuth server to server app id.
+   * @param appSecret the CSP OAuth server to server app secret.
+   * @param cspOrgId the CSP organisation id.
+   * @param cspAPIToken the CSP API wfToken.
+   * @param wfToken the Wavefront API wfToken.
+   * @param server the server url.
+   * @param tenantName the name of the tenant.
+   * @throws IllegalArgumentException for invalid arguments.
+   */
+  public void constructTenantInfoObject(
+      @Nullable final String appId,
+      @Nullable final String appSecret,
+      @Nullable final String cspOrgId,
+      @Nullable final String cspAPIToken,
+      @Nonnull final String wfToken,
+      @Nonnull final String server,
+      @Nonnull final String tenantName) {
+
+    final String BAD_CONFIG =
+        "incorrect configuration, one (and only one) of these options are required: `token`, `cspAPIToken` or `cspAppId, cspAppSecret`"
+            + (CENTRAL_TENANT_NAME.equals(tenantName) ? "" : " for tenant `" + tenantName + "`");
+
+    boolean isOAuthApp = StringUtils.isNotBlank(appId) || StringUtils.isNotBlank(appSecret);
+    boolean isCSPAPIToken = StringUtils.isNotBlank(cspAPIToken);
+    boolean isWFToken = StringUtils.isNotBlank(wfToken);
+
+    if (Stream.of(isOAuthApp, isCSPAPIToken, isWFToken).filter(auth -> auth).count() != 1) {
+      throw new IllegalArgumentException(BAD_CONFIG);
+    }
+
+    TenantInfo tokenWorker;
+    if (isOAuthApp) {
+      if (StringUtils.isNotBlank(appId) && StringUtils.isNotBlank(appSecret)) {
+        logger.info(
+            "TCSP OAuth server to server app credentials for further authentication. For the server "
+                + server);
+        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server);
+      } else {
+        throw new IllegalArgumentException(
+            "To use server to server oauth, both `cspAppId` and `cspAppSecret` are required.");
+      }
+    } else if (isCSPAPIToken) {
+      logger.info("CSP api token for further authentication. For the server " + server);
+      tokenWorker = new TokenWorkerCSP(cspAPIToken, server);
+    } else { // isWFToken
+      logger.info("Wavefront api token for further authentication. For the server " + server);
+      tokenWorker = new TokenWorkerWF(wfToken, server);
+    }
+
+    TokenManager.addTenant(tenantName, tokenWorker);
   }
 }

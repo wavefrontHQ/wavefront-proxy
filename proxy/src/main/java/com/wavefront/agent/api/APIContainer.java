@@ -2,9 +2,7 @@ package com.wavefront.agent.api;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import com.wavefront.agent.JsonNodeWriter;
-import com.wavefront.agent.ProxyConfig;
-import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
+import com.wavefront.agent.*;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
 import com.wavefront.api.EventAPI;
@@ -30,12 +28,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
+import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
 import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
-import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
-import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
+import org.jboss.resteasy.plugins.interceptors.AcceptEncodingGZIPFilter;
+import org.jboss.resteasy.plugins.interceptors.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
@@ -46,8 +44,6 @@ import org.jboss.resteasy.spi.ResteasyProviderFactory;
  */
 public class APIContainer {
   public static final String CENTRAL_TENANT_NAME = "central";
-  public static final String API_SERVER = "server";
-  public static final String API_TOKEN = "token";
   public static final String LE_MANS_INGESTION_PATH =
       "le-mans/v1/streams/ingestion-pipeline-stream";
 
@@ -55,6 +51,7 @@ public class APIContainer {
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
   private final boolean discardData;
+  private final CSPAPI cspAPI;
 
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
@@ -79,6 +76,7 @@ public class APIContainer {
     this.clientHttpEngine = createHttpEngine();
     this.discardData = discardData;
     this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
+    this.cspAPI = createService(proxyConfig.getCSPBaseUrl(), CSPAPI.class);
 
     // config the multicasting tenants / clusters
     proxyV2APIsForMulticasting = Maps.newHashMap();
@@ -87,10 +85,10 @@ public class APIContainer {
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
     String tenantName;
     String tenantServer;
-    for (Map.Entry<String, Map<String, String>> tenantInfo :
-        proxyConfig.getMulticastingTenantList().entrySet()) {
-      tenantName = tenantInfo.getKey();
-      tenantServer = tenantInfo.getValue().get(API_SERVER);
+    for (Map.Entry<String, TenantInfo> tenantInfoEntry :
+        TokenManager.getMulticastingTenantList().entrySet()) {
+      tenantName = tenantInfoEntry.getKey();
+      tenantServer = tenantInfoEntry.getValue().getWFServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
@@ -119,12 +117,17 @@ public class APIContainer {
    */
   @VisibleForTesting
   public APIContainer(
-      ProxyV2API proxyV2API, SourceTagAPI sourceTagAPI, EventAPI eventAPI, LogAPI logAPI) {
+      ProxyV2API proxyV2API,
+      SourceTagAPI sourceTagAPI,
+      EventAPI eventAPI,
+      LogAPI logAPI,
+      CSPAPI cspAPI) {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
     this.discardData = false;
     this.logAPI = logAPI;
+    this.cspAPI = cspAPI;
     proxyV2APIsForMulticasting = Maps.newHashMap();
     proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
     sourceTagAPIsForMulticasting = Maps.newHashMap();
@@ -293,6 +296,9 @@ public class APIContainer {
     factory.register(
         (ClientRequestFilter)
             context -> {
+              if (context.getUri().getPath().startsWith("/csp")) {
+                return;
+              }
               if (proxyConfig.isGzipCompression()) {
                 context.getHeaders().add("Content-Encoding", "gzip");
               }
@@ -300,7 +306,14 @@ public class APIContainer {
                       || context.getUri().getPath().contains("/v2/source")
                       || context.getUri().getPath().contains("/event"))
                   && !context.getUri().getPath().endsWith("checkin")) {
-                context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
+                context
+                    .getHeaders()
+                    .add(
+                        "Authorization",
+                        "Bearer "
+                            + TokenManager.getMulticastingTenantList()
+                                .get(APIContainer.CENTRAL_TENANT_NAME)
+                                .getBearerToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
                 context.getHeaders().add("Authorization", "Bearer " + logServerToken);
               }
@@ -340,10 +353,10 @@ public class APIContainer {
                     .setSocketTimeout(proxyConfig.getHttpRequestTimeout())
                     .build())
             .build();
-    final ApacheHttpClient4Engine httpEngine = new ApacheHttpClient4Engine(httpClient, true);
+    final ApacheHttpClient43Engine httpEngine = new ApacheHttpClient43Engine(httpClient, true);
     // avoid using disk at all
     httpEngine.setFileUploadInMemoryThresholdLimit(100);
-    httpEngine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
+    httpEngine.setFileUploadMemoryUnit(ApacheHttpClient43Engine.MemoryUnit.MB);
     return httpEngine;
   }
 
@@ -366,11 +379,15 @@ public class APIContainer {
       Class<T> apiClass,
       ResteasyProviderFactory resteasyProviderFactory) {
     ResteasyClient client =
-        new ResteasyClientBuilder()
+        new ResteasyClientBuilderImpl()
             .httpEngine(clientHttpEngine)
             .providerFactory(resteasyProviderFactory)
             .build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(apiClass);
+  }
+
+  public CSPAPI getCSPApi() {
+    return cspAPI;
   }
 }

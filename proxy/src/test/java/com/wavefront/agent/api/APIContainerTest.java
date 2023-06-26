@@ -1,15 +1,13 @@
 package com.wavefront.agent.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.TokenManager;
+import com.wavefront.agent.TokenWorkerCSP;
 import org.junit.Before;
 import org.junit.Test;
 
-/** @author Xiaochen Wang (xiaochenw@vmware.com). */
 public class APIContainerTest {
   private final int NUM_TENANTS = 5;
   private ProxyConfig proxyConfig;
@@ -17,13 +15,11 @@ public class APIContainerTest {
   @Before
   public void setup() {
     this.proxyConfig = new ProxyConfig();
-    this.proxyConfig
-        .getMulticastingTenantList()
-        .put("central", ImmutableMap.of("token", "fake-token", "server", "fake-url"));
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("fake-token", "fake-url");
+    TokenManager.addTenant(APIContainer.CENTRAL_TENANT_NAME, tokenWorkerCSP);
     for (int i = 0; i < NUM_TENANTS; i++) {
-      this.proxyConfig
-          .getMulticastingTenantList()
-          .put("tenant-" + i, ImmutableMap.of("token", "fake-token" + i, "server", "fake-url" + i));
+      TokenWorkerCSP tokenWorkerCSP1 = new TokenWorkerCSP("fake-token" + i, "fake-url" + i);
+      TokenManager.addTenant("tenant-" + i, tokenWorkerCSP1);
     }
   }
 
@@ -38,7 +34,7 @@ public class APIContainerTest {
 
   @Test(expected = IllegalStateException.class)
   public void testUpdateServerEndpointURLWithNullProxyConfig() {
-    APIContainer apiContainer = new APIContainer(null, null, null, null);
+    APIContainer apiContainer = new APIContainer(null, null, null, null, null);
     apiContainer.updateServerEndpointURL("central", "fake-url");
   }
 
