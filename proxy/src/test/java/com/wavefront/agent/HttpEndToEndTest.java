@@ -747,6 +747,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.bufferFile = buffer;
     proxy.proxyConfig.pushRateLimitLogs = 1024;
     proxy.proxyConfig.pushFlushIntervalLogs = 50;
+    proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/api/";
 
     proxy.start(new String[] {});
     waitUntilListenerIsOnline(proxyPort);

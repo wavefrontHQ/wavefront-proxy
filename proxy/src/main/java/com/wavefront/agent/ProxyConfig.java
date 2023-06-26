@@ -1503,14 +1503,14 @@ public class ProxyConfig extends ProxyConfigDef {
         logger.info(
             "TCSP OAuth server to server app credentials for further authentication. For the server "
                 + server);
-        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server);
+        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server, leMansServer);
       } else {
         throw new IllegalArgumentException(
             "To use server to server oauth, both `cspAppId` and `cspAppSecret` are required.");
       }
     } else if (isCSPAPIToken) {
       logger.info("CSP api token for further authentication. For the server " + server);
-      tokenWorker = new TokenWorkerCSP(cspAPIToken, server);
+      tokenWorker = new TokenWorkerCSP(cspAPIToken, server, "fake-lemans-url");
     } else { // isWFToken
       logger.info("Wavefront api token for further authentication. For the server " + server);
       tokenWorker = new TokenWorkerWF(wfToken, server);

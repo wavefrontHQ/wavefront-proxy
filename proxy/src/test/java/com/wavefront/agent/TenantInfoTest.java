@@ -29,6 +29,7 @@ public class TenantInfoTest {
   private final Response.StatusType statusTypeMock = EasyMock.createMock(Response.StatusType.class);
   private final TokenExchangeResponseDTO mockTokenExchangeResponseDTO =
       EasyMock.createMock(TokenExchangeResponseDTO.class);
+  private static final String lemansServer = "leMansServer";
 
   @After
   public void cleanup() {
@@ -62,7 +63,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthApp() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer, lemansServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -90,7 +92,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthAppWithBlankOrgId() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "", wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("appId", "appSecret", "", wfServer, lemansServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -116,7 +119,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthAppWithNullOrgId() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", null, wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("appId", "appSecret", null, wfServer, lemansServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -142,7 +146,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_UnsuccessfulResponseUsingOAuthApp() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer, lemansServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(3);
@@ -167,7 +172,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingCSPAPIToken() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("csp-api-token", wfServer, "fake-lemans-url");
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -193,7 +199,8 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_UnsuccessfulResponseUsingCSPAPIToken() {
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
+    TokenWorkerCSP tokenWorkerCSP =
+        new TokenWorkerCSP("csp-api-token", wfServer, "fake-lemans-url");
 
     // Set up expectations
     expect(mockResponse.readEntity(String.class)).andReturn("");

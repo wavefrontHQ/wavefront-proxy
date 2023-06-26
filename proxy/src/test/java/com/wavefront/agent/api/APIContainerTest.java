@@ -15,10 +15,11 @@ public class APIContainerTest {
   @Before
   public void setup() {
     this.proxyConfig = new ProxyConfig();
-    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("fake-token", "fake-url");
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("fake-token", "fake-url", "fake-lemans-url");
     TokenManager.addTenant(APIContainer.CENTRAL_TENANT_NAME, tokenWorkerCSP);
     for (int i = 0; i < NUM_TENANTS; i++) {
-      TokenWorkerCSP tokenWorkerCSP1 = new TokenWorkerCSP("fake-token" + i, "fake-url" + i);
+      TokenWorkerCSP tokenWorkerCSP1 =
+          new TokenWorkerCSP("fake-token" + i, "fake-url" + i, "fake-lemans-url");
       TokenManager.addTenant("tenant-" + i, tokenWorkerCSP1);
     }
   }

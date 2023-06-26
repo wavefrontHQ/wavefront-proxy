@@ -23,6 +23,6 @@ public class TokenWorkerWF implements TokenWorker, TenantInfo {
 
   @Override
   public String getLeMansServer() {
-    return null;
+    return "test";
   }
 }
