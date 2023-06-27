@@ -11,17 +11,17 @@ Just run this docker image with the following environment variables defined, e.g
     docker build -t wavefront-proxy .
     docker run -d \
         -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
-        -e CSP_APP_ID <CSP_APP_ID> \
-        -e CSP_APP_SECRET <CSP_APP_SECRET> \
+        -e CSP_APP_ID=<CSP_APP_ID> \
+        -e CSP_APP_SECRET=<CSP_APP_SECRET> \
         -p 2878:2878 \
         wavefront-proxy
 
     docker build -t wavefront-proxy .
     docker run -d \
         -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
-        -e CSP_APP_ID <CSP_APP_ID> \
-        -e CSP_APP_SECRET <CSP_APP_SECRET> \
-        -e CSP_ORG_ID <CSP_ORG_ID> \
+        -e CSP_APP_ID=<CSP_APP_ID> \
+        -e CSP_APP_SECRET=<CSP_APP_SECRET> \
+        -e CSP_ORG_ID=<CSP_ORG_ID> \
         -p 2878:2878 \
         wavefront-proxy
 
