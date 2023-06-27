@@ -15,7 +15,7 @@ Just run this docker image with the following environment variables defined, e.g
         -p 2878:2878 \
         wavefront-proxy
 
-#### CSP App Secret
+#### CSP App ID and App Secret
 
     docker run -d \
         -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
@@ -24,7 +24,7 @@ Just run this docker image with the following environment variables defined, e.g
         -p 2878:2878 \
         wavefront-proxy
 
-#### CSP App Secret and ORG Id
+#### CSP App ID, App Secret and ORG ID
 
     docker run -d \
         -e WAVEFRONT_URL=https://you.wavefront.com/api/ \
