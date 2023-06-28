@@ -12,7 +12,7 @@ Wavefront proxy version 10.11 and later use a version of Log4j that addresses th
 
 [Wavefront](https://docs.wavefront.com/) is a high-performance streaming analytics platform for monitoring and optimizing your environment and applications.
 
-The [Wavefront Proxy](https://docs.wavefront.com/proxies.html) is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner.
+The [Wavefront Proxy](https://docs.wavefront.com/proxies.html) is a light-weight Java application that you send your metrics, histograms, logs, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner.
 
 ## Requirements
 
