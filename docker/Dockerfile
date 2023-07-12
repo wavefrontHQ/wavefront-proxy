@@ -36,7 +36,7 @@ EXPOSE 4242
 
 USER wavefront:wavefront
 
-COPY --from=compile proxy/proxy/target/proxy-12.2-spring-boot.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
+COPY --from=compile proxy/proxy/target/proxy-13.0-spring-boot.jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar
 ADD docker/run.sh /opt/wavefront/wavefront-proxy/run.sh
 ADD docker/log4j2.xml /etc/wavefront/wavefront-proxy/log4j2.xml
 ADD docker/LICENSE /licenses/LICENSE
