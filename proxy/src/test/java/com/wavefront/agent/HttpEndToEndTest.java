@@ -411,7 +411,7 @@ public class HttpEndToEndTest {
     int histDistPort = findAvailablePort(40000);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
-    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/leMans/";
     proxy.proxyConfig.token = UUID.randomUUID().toString();
     proxy.proxyConfig.leMansServer = "http://localhost:" + backendPort + "/leMans/";
     proxy.proxyConfig.leMansStreamName = "test-stream-cpo-troll-k8s-collector";

@@ -20,9 +20,4 @@ public class TokenWorkerWF implements TokenWorker, TenantInfo {
   public String getBearerToken() {
     return token;
   }
-
-  @Override
-  public String getLeMansServer() {
-    return "test";
-  }
 }

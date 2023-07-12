@@ -3,8 +3,6 @@ package com.wavefront.agent;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.api.CSPAPI;
@@ -31,13 +29,13 @@ import javax.ws.rs.core.Response;
  *
  * @author Norayr Chaparyan(nchaparyan@vmware.com).
  */
-public class TokenWorkerCSP
+public class TokenWorkerLeMans
     implements TokenWorker, TokenWorker.External, TokenWorker.Scheduled, TenantInfo {
   private static final String GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE =
-      "Failed to get access token from CSP (%s). %s";
+      "Failed to get access token from CSP.";
   private static final ScheduledExecutorService executor =
       Executors.newScheduledThreadPool(1, new NamedThreadFactory("csp-token-updater"));
-  private static final Logger log = Logger.getLogger(TokenWorkerCSP.class.getCanonicalName());
+  private static final Logger log = Logger.getLogger(TokenWorkerLeMans.class.getCanonicalName());
   private static final Supplier<Counter> errors =
       LazySupplier.of(
           () -> Metrics.newCounter(new MetricName("csp.token.update", "", "exceptions")));
@@ -70,7 +68,7 @@ public class TokenWorkerCSP
   private String bearerToken;
   private CSPAPI api;
 
-  public TokenWorkerCSP(
+  public TokenWorkerLeMans(
       final String appId,
       final String appSecret,
       final String orgId,
@@ -84,7 +82,7 @@ public class TokenWorkerCSP
     proxyAuthMethod = ProxyAuthMethod.CLIENT_CREDENTIALS;
   }
 
-  public TokenWorkerCSP(final String token, final String wfServer, String lemansServer) {
+  public TokenWorkerLeMans(final String token, final String wfServer, String lemansServer) {
     this.token = checkNotNull(token);
     this.wfServer = checkNotNull(wfServer);
     this.leMansServer = checkNotNull(lemansServer);
@@ -161,24 +159,12 @@ public class TokenWorkerCSP
     long nextIn = 10;
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
       errors.get().inc();
-      String jsonString = response.readEntity(String.class);
-      // Parse the JSON response
-      ObjectMapper objectMapper = new ObjectMapper();
-      try {
-        JsonNode jsonNode = objectMapper.readTree(jsonString);
-        String message = jsonNode.get("message").asText();
-
-        log.severe(
-            String.format(GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE, this.proxyAuthMethod, message)
-                + ". Status: "
-                + response.getStatusInfo().getStatusCode());
-
-      } catch (Exception e) {
-        log.severe(
-            String.format(GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE, this.proxyAuthMethod, jsonString)
-                + ". Status: "
-                + response.getStatusInfo().getStatusCode());
-      }
+      log.severe(
+          GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE
+              + "("
+              + this.proxyAuthMethod
+              + ") Status: "
+              + response.getStatusInfo().getStatusCode());
     } else {
       try {
         final TokenExchangeResponseDTO tokenExchangeResponseDTO =

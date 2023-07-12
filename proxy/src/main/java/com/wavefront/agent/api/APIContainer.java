@@ -96,11 +96,10 @@ public class APIContainer {
         TokenManager.getMulticastingTenantList().entrySet()) {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
-      leMansServer = tenantInfoEntry.getValue().getLeMansServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
-      leMansAPIsForMulticasting.put(tenantName, createService(leMansServer, LeMansAPI.class));
+      leMansAPIsForMulticasting.put(tenantName, createService(tenantServer, LeMansAPI.class));
     }
 
     if (discardData) {
