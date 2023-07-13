@@ -5,6 +5,7 @@ import com.wavefront.dto.SourceTag;
 import javax.annotation.Nonnull;
 import org.easymock.EasyMock;
 import wavefront.report.ReportEvent;
+import wavefront.report.ReportLog;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
@@ -47,7 +48,8 @@ public class MockReportableEntityHandlerFactory {
       ReportableEntityHandler<ReportPoint, String> mockHistogramHandler,
       ReportableEntityHandler<Span, String> mockTraceHandler,
       ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler,
-      ReportableEntityHandler<ReportEvent, Event> mockEventHandler) {
+      ReportableEntityHandler<ReportEvent, Event> mockEventHandler,
+      ReportableEntityHandler<ReportLog, String> mockLogHandler) {
     return new ReportableEntityHandlerFactory() {
       @SuppressWarnings("unchecked")
       @Override
@@ -65,6 +67,8 @@ public class MockReportableEntityHandlerFactory {
             return (ReportableEntityHandler<T, U>) mockTraceSpanLogsHandler;
           case EVENT:
             return (ReportableEntityHandler<T, U>) mockEventHandler;
+          case LOGS:
+            return (ReportableEntityHandler<T, U>) mockLogHandler;
           default:
             throw new IllegalArgumentException("Unknown entity type");
         }
@@ -73,5 +77,9 @@ public class MockReportableEntityHandlerFactory {
       @Override
       public void shutdown(@Nonnull String handle) {}
     };
+  }
+
+  public static ReportableEntityHandler<ReportLog, String> getMockLogHandler() {
+    return EasyMock.createMock(ReportLogHandlerImpl.class);
   }
 }

@@ -1117,6 +1117,14 @@ public abstract class ProxyConfigDef extends Configuration {
   String pushRelayListenerPorts;
 
   @Parameter(
+      names = {"--syslogListenerPorts"},
+      description =
+          "Comma-separated list of ports on which to listen "
+              + "on for proxy chaining data. For internal use. Defaults to none.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
+  String syslogListenerPorts;
+
+  @Parameter(
       names = {"--pushRelayHistogramAggregator"},
       description =
           "If true, aggregate "

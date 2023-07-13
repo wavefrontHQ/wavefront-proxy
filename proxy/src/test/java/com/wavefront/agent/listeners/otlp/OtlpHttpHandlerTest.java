@@ -49,7 +49,7 @@ public class OtlpHttpHandlerTest {
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
   private final ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(
-          null, null, null, mockTraceHandler, mockSpanLogsHandler, null);
+          null, null, null, mockTraceHandler, mockSpanLogsHandler, null, null);
   private final ChannelHandlerContext mockCtx =
       EasyMock.createNiceMock(ChannelHandlerContext.class);
 
