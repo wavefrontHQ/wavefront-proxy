@@ -94,6 +94,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.Rule;
 import org.junit.rules.Timeout;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
