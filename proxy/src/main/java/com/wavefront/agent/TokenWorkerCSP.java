@@ -54,7 +54,6 @@ public class TokenWorkerCSP
                   new MetricName("csp.token.update", "", "duration"),
                   TimeUnit.MILLISECONDS,
                   TimeUnit.MINUTES));
-  private final String leMansServer;
 
   private enum ProxyAuthMethod {
     API_TOKEN,
@@ -80,14 +79,12 @@ public class TokenWorkerCSP
     this.appSecret = checkNotNull(appSecret);
     this.orgId = orgId;
     this.wfServer = checkNotNull(wfServer);
-    this.leMansServer = checkNotNull(leMansServer);
     proxyAuthMethod = ProxyAuthMethod.CLIENT_CREDENTIALS;
   }
 
-  public TokenWorkerCSP(final String token, final String wfServer, String lemansServer) {
+  public TokenWorkerCSP(final String token, final String wfServer) {
     this.token = checkNotNull(token);
     this.wfServer = checkNotNull(wfServer);
-    this.leMansServer = checkNotNull(lemansServer);
     proxyAuthMethod = ProxyAuthMethod.API_TOKEN;
   }
 

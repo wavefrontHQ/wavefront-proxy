@@ -1510,7 +1510,7 @@ public class ProxyConfig extends ProxyConfigDef {
       }
     } else if (isCSPAPIToken) {
       logger.info("CSP api token for further authentication. For the server " + server);
-      tokenWorker = new TokenWorkerCSP(cspAPIToken, server, "fake-lemans-url");
+      tokenWorker = new TokenWorkerCSP(cspAPIToken, server);
     } else { // isWFToken
       logger.info("Wavefront api token for further authentication. For the server " + server);
       tokenWorker = new TokenWorkerWF(wfToken, server);

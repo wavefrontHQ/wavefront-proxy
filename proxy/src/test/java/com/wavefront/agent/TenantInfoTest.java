@@ -172,8 +172,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingCSPAPIToken() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("csp-api-token", wfServer, "fake-lemans-url");
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -199,8 +198,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_UnsuccessfulResponseUsingCSPAPIToken() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("csp-api-token", wfServer, "fake-lemans-url");
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
 
     // Set up expectations
     expect(mockResponse.readEntity(String.class)).andReturn("");
