@@ -16,13 +16,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          repository: LukeWinikates/java-lib
+          ref: syslog
+          path: java-lib
+      - uses: actions/checkout@v3
+        with:
+          path: wavefront-proxy
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           java-version: ${{ matrix.java }}
           distribution: "temurin"
           cache: maven
+      - name: install java-lib
+        run: cd java-lib; mvn clean install -DskipTests
       - name: Check code format
-        run: mvn -f proxy git-code-format:validate-code-format
+        run: cd wavefront-proxy; mvn -f proxy git-code-format:validate-code-format
       - name: Build with Maven
-        run: mvn -f proxy test -B
+        run: cd wavefront-proxy; mvn -f proxy test -B
