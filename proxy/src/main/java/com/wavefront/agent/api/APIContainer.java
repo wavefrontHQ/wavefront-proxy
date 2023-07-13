@@ -337,7 +337,10 @@ public class APIContainer {
                                 .get(APIContainer.CENTRAL_TENANT_NAME)
                                 .getBearerToken());
               } else if (context.getUri().getPath().contains("/le-mans")) {
-                context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getLeMansToken());
+                context.getHeaders().add("x-xenon-auth-token",
+                        "#CSP#" + TokenManager.getMulticastingTenantList()
+                                .get(APIContainer.CENTRAL_TENANT_NAME)
+                                .getBearerToken());
               }
             });
     return factory;
