@@ -70,11 +70,7 @@ public class TokenWorkerCSP
   private CSPAPI api;
 
   public TokenWorkerCSP(
-      final String appId,
-      final String appSecret,
-      final String orgId,
-      final String wfServer,
-      final String leMansServer) {
+      final String appId, final String appSecret, final String orgId, final String wfServer) {
     this.appId = checkNotNull(appId);
     this.appSecret = checkNotNull(appSecret);
     this.orgId = orgId;

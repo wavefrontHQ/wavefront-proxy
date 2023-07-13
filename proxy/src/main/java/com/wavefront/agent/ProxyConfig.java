@@ -1503,7 +1503,7 @@ public class ProxyConfig extends ProxyConfigDef {
         logger.info(
             "TCSP OAuth server to server app credentials for further authentication. For the server "
                 + server);
-        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server, leMansServer);
+        tokenWorker = new TokenWorkerCSP(appId, appSecret, cspOrgId, server);
       } else {
         throw new IllegalArgumentException(
             "To use server to server oauth, both `cspAppId` and `cspAppSecret` are required.");

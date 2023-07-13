@@ -63,8 +63,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthApp() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer, lemansServer);
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -92,8 +91,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthAppWithBlankOrgId() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("appId", "appSecret", "", wfServer, lemansServer);
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "", wfServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -119,8 +117,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_SuccessfulResponseUsingOAuthAppWithNullOrgId() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("appId", "appSecret", null, wfServer, lemansServer);
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", null, wfServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(2);
@@ -146,8 +143,7 @@ public class TenantInfoTest {
 
   @Test
   public void testRun_UnsuccessfulResponseUsingOAuthApp() {
-    TokenWorkerCSP tokenWorkerCSP =
-        new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer, lemansServer);
+    TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer);
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(3);
