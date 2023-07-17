@@ -46,6 +46,8 @@ import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.queueing.*;
+import com.wavefront.agent.sampler.EbpfSampler;
+import com.wavefront.agent.sampler.PreferredSampler;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -514,6 +516,13 @@ public class PushAgent extends AbstractAgent {
     Sampler durationSampler =
         SpanSamplerUtils.getDurationSampler(proxyConfig.getTraceSamplingDuration());
     List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
+    PreferredSampler preferredSampler = null;
+    if ("ebpf".equals(proxyConfig.getPreferedSampler())) {
+      preferredSampler =
+          new EbpfSampler(
+              proxyConfig.getTraceSamplingRate(), proxyConfig.getTraceSamplingDuration());
+      logger.info("ebpfSampler is prefered");
+    }
     SpanSampler spanSampler =
         new SpanSampler(
             new CompositeSampler(samplers),
@@ -521,7 +530,8 @@ public class PushAgent extends AbstractAgent {
                 entityPropertiesFactoryMap
                     .get(CENTRAL_TENANT_NAME)
                     .getGlobalProperties()
-                    .getActiveSpanSamplingPolicies());
+                    .getActiveSpanSamplingPolicies(),
+            preferredSampler);
     return spanSampler;
   }
 

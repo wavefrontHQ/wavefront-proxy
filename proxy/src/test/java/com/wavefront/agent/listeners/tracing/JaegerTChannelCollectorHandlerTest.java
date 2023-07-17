@@ -158,7 +158,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -336,7 +336,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             "ProxyLevelAppTag",
             null);
 
@@ -483,7 +483,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(5), () -> null),
+            new SpanSampler(new DurationSampler(5), () -> null, null),
             null,
             null);
 
@@ -634,7 +634,8 @@ public class JaegerTChannelCollectorHandlerTest {
                 new DurationSampler(10),
                 () ->
                     ImmutableList.of(
-                        new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100))),
+                        new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100)),
+                null),
             null,
             null);
 
@@ -770,7 +771,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -932,7 +933,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1041,7 +1042,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1139,7 +1140,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1227,7 +1228,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1325,7 +1326,7 @@ public class JaegerTChannelCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(5), () -> null),
+            new SpanSampler(new DurationSampler(5), () -> null, null),
             null,
             null);
 

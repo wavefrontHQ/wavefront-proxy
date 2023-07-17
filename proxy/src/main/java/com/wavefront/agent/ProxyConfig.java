@@ -984,6 +984,10 @@ public class ProxyConfig extends ProxyConfigDef {
     this.receivedLogServerDetails = receivedLogServerDetails;
   }
 
+  public String getPreferedSampler() {
+    return preferedSampler;
+  }
+
   @Override
   public void verifyAndInit() {
     throw new UnsupportedOperationException("not implemented");
