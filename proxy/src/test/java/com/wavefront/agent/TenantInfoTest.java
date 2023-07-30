@@ -146,6 +146,7 @@ public class TenantInfoTest {
 
     // Set up expectations
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(3);
+    expect(mockResponse.readEntity(String.class)).andReturn("");
     expect(statusTypeMock.getStatusCode()).andReturn(400).times(2);
     expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SERVER_ERROR);
     expect(
@@ -195,6 +196,7 @@ public class TenantInfoTest {
     TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("csp-api-token", wfServer);
 
     // Set up expectations
+    expect(mockResponse.readEntity(String.class)).andReturn("");
     expect(mockResponse.getStatusInfo()).andReturn(statusTypeMock).times(3);
     expect(statusTypeMock.getStatusCode()).andReturn(400).times(2);
     expect(statusTypeMock.getFamily()).andReturn(Response.Status.Family.SERVER_ERROR);
