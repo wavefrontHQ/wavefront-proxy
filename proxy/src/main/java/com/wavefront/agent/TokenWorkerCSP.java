@@ -154,11 +154,11 @@ public class TokenWorkerCSP
     long nextIn = 10;
     if (response.getStatusInfo().getFamily() != SUCCESSFUL) {
       errors.get().inc();
-      String jsoneString = response.readEntity(String.class);
+      String jsonString = response.readEntity(String.class);
       // Parse the JSON response
       ObjectMapper objectMapper = new ObjectMapper();
       try {
-        JsonNode jsonNode = objectMapper.readTree(jsoneString);
+        JsonNode jsonNode = objectMapper.readTree(jsonString);
         String message = jsonNode.get("message").asText();
 
         log.severe(
