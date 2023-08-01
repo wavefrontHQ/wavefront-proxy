@@ -168,7 +168,7 @@ public class TokenWorkerCSP
 
       } catch (Exception e) {
         log.severe(
-            String.format(GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE, this.proxyAuthMethod, jsoneString)
+            String.format(GET_CSP_ACCESS_TOKEN_ERROR_MESSAGE, this.proxyAuthMethod, jsonString)
                 + ". Status: "
                 + response.getStatusInfo().getStatusCode());
       }
