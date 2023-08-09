@@ -22,6 +22,8 @@ jobs:
           java-version: ${{ matrix.java }}
           distribution: "temurin"
           cache: maven
+      - name: versions
+        run: mvn -v
       - name: Check code format
         run: mvn -f proxy git-code-format:validate-code-format
       - name: Build with Maven
