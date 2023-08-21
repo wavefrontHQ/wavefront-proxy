@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.wavefront.agent.api.APIContainer;
@@ -50,6 +51,7 @@ public class ProxyConfig extends ProxyConfigDef {
   static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
+  @VisibleForTesting public static final Integer NUMBER_OF_VISIBLE_DIGITS = 4;
   private final List<Field> modifyByArgs = new ArrayList<>();
   private final List<Field> modifyByFile = new ArrayList<>();
 
@@ -1367,7 +1369,18 @@ public class ProxyConfig extends ProxyConfigDef {
         data.order = parameter.get().order() == -1 ? 99999 : parameter.get().order();
         try {
           Object val = field.get(this);
-          data.value = val != null ? val.toString() : "null";
+          if ((data.name.equals("token")
+                  || data.name.equals("cspAPIToken")
+                  || data.name.equals("cspAppId")
+                  || data.name.equals("cspAppSecret"))
+              && val != null) {
+            String value = val.toString();
+            data.value =
+                StringUtils.repeat("*", value.length() - NUMBER_OF_VISIBLE_DIGITS)
+                    + value.substring(value.length() - NUMBER_OF_VISIBLE_DIGITS);
+          } else {
+            data.value = val != null ? val.toString() : "null";
+          }
         } catch (IllegalAccessException e) {
           logger.severe(e.toString());
         }
