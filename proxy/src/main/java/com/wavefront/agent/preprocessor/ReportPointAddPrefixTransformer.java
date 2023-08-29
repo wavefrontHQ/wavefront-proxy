@@ -26,7 +26,8 @@ public class ReportPointAddPrefixTransformer implements Function<ReportPoint, Re
     boolean isDeltaPrefixed = (metric.charAt(0) == 0x2206) || (metric.charAt(0) == 0x0394);
     boolean isDeltaTildaPrefixed = isDeltaPrefixed && metric.charAt(1) == 126;
     // only append prefix if metric does not begin with tilda, delta or delta tilda prefix
-    if (prefix != null && !prefix.isEmpty()
+    if (prefix != null
+        && !prefix.isEmpty()
         && !(isTildaPrefixed || isDeltaTildaPrefixed || isDeltaPrefixed)) {
       reportPoint.setMetric(prefix + "." + metric);
     }
