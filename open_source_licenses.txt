@@ -1,6 +1,6 @@
 open_source_license.txt
 
-Wavefront by VMware 13.1 GA
+Wavefront by VMware 13.2 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
@@ -179,7 +179,6 @@ APPENDIX. Standard License Files
    >>> Common Development and Distribution License, V1.1
    >>> Eclipse Public License, V2.0
    >>> GNU Lesser General Public License, V3.0
-
 
 -------------------- SECTION 1: Apache License, V2.0 --------------------
 
@@ -30401,4 +30400,4 @@ a CD or equivalent physical medium. This offer to obtain a copy of the
 Source Files is valid for three years from the date you acquired or last used this
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
-[WAVEFRONTHQPROXY131GAAT080823]
+[WAVEFRONTHQPROXY132GAAT082323]
