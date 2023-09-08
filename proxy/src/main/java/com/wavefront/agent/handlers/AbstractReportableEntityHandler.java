@@ -2,26 +2,20 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.formatter.DataFormat;
+import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.BurstRateTrackingCounter;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.yammer.metrics.core.*;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.*;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -55,7 +49,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   final BurstRateTrackingCounter receivedStats;
   final BurstRateTrackingCounter deliveredStats;
-  private final Timer timer;
+  private final ScheduledThreadPoolExecutor timer;
   private final AtomicLong roundRobinCounter = new AtomicLong();
   protected final MetricsRegistry registry;
   protected final String metricPrefix;
@@ -102,46 +96,42 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
     this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
     registry.newGauge(
-        new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
-        new Gauge<Double>() {
-          @Override
-          public Double value() {
-            return receivedStats.getMaxBurstRateAndClear();
-          }
-        });
-    this.timer = new Timer("stats-output-" + handlerKey);
-    if (receivedRateSink != null) {
-      timer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
-              for (String tenantName : senderTaskMap.keySet()) {
-                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+            new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
+            new Gauge<Double>() {
+              @Override
+              public Double value() {
+                return receivedStats.getMaxBurstRateAndClear();
               }
-            }
-          },
-          1000,
-          1000);
-    }
-    timer.scheduleAtFixedRate(
-        new TimerTask() {
-          @Override
-          public void run() {
-            printStats();
+            });
+    this.timer = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("stats-output"));
+    if (receivedRateSink != null) {
+      timer.scheduleAtFixedRate(() -> {
+        try {
+          for (String tenantName : senderTaskMap.keySet()) {
+            receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
           }
-        },
-        10_000,
-        10_000);
+        } catch (Throwable e) {
+          logger.log(Level.WARNING, "receivedRateSink", e);
+        }
+      }, 1, 1, TimeUnit.SECONDS);
+    }
+
+    timer.scheduleAtFixedRate(() -> {
+      try {
+        printStats();
+      } catch (Throwable e) {
+        logger.log(Level.WARNING, "printStats", e);
+      }
+    }, 10, 10, TimeUnit.SECONDS);
+
     if (reportReceivedStats) {
-      timer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
-              printTotal();
-            }
-          },
-          60_000,
-          60_000);
+      timer.scheduleAtFixedRate(() -> {
+        try {
+          printTotal();
+        } catch (Throwable e) {
+          logger.log(Level.WARNING, "printTotal", e);
+        }
+      }, 1, 1, TimeUnit.MINUTES);
     }
   }
 
@@ -209,7 +199,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   @Override
   public void shutdown() {
-    if (this.timer != null) timer.cancel();
+    if (this.timer != null) timer.shutdown();
   }
 
   @Override
