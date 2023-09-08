@@ -5,9 +5,6 @@ import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +13,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
@@ -96,42 +95,54 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
     this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
     registry.newGauge(
-            new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
-            new Gauge<Double>() {
-              @Override
-              public Double value() {
-                return receivedStats.getMaxBurstRateAndClear();
-              }
-            });
+        new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return receivedStats.getMaxBurstRateAndClear();
+          }
+        });
     this.timer = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("stats-output"));
     if (receivedRateSink != null) {
-      timer.scheduleAtFixedRate(() -> {
-        try {
-          for (String tenantName : senderTaskMap.keySet()) {
-            receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
-          }
-        } catch (Throwable e) {
-          logger.log(Level.WARNING, "receivedRateSink", e);
-        }
-      }, 1, 1, TimeUnit.SECONDS);
+      timer.scheduleAtFixedRate(
+          () -> {
+            try {
+              for (String tenantName : senderTaskMap.keySet()) {
+                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+              }
+            } catch (Throwable e) {
+              logger.log(Level.WARNING, "receivedRateSink", e);
+            }
+          },
+          1,
+          1,
+          TimeUnit.SECONDS);
     }
 
-    timer.scheduleAtFixedRate(() -> {
-      try {
-        printStats();
-      } catch (Throwable e) {
-        logger.log(Level.WARNING, "printStats", e);
-      }
-    }, 10, 10, TimeUnit.SECONDS);
+    timer.scheduleAtFixedRate(
+        () -> {
+          try {
+            printStats();
+          } catch (Throwable e) {
+            logger.log(Level.WARNING, "printStats", e);
+          }
+        },
+        10,
+        10,
+        TimeUnit.SECONDS);
 
     if (reportReceivedStats) {
-      timer.scheduleAtFixedRate(() -> {
-        try {
-          printTotal();
-        } catch (Throwable e) {
-          logger.log(Level.WARNING, "printTotal", e);
-        }
-      }, 1, 1, TimeUnit.MINUTES);
+      timer.scheduleAtFixedRate(
+          () -> {
+            try {
+              printTotal();
+            } catch (Throwable e) {
+              logger.log(Level.WARNING, "printTotal", e);
+            }
+          },
+          1,
+          1,
+          TimeUnit.MINUTES);
     }
   }
 
