@@ -1,5 +1,16 @@
 package com.wavefront.agent.listeners;
 
+/**
+ * How-to create the required protobuf classes:
+ * 1. Check out this repo 'https://github.com/DataDog/agent-payload' on '$GOPATH/src/github.com/DataDog/agent-payload'
+ * 2. run 'protoc -I=. --java_out=[PROXY_SRC]/proxy/src/main/java/ $GOPATH/github.com/DataDog/agent-payload/proto/metrics/agent_payload.proto
+ * 3. run 'protoc -I=. --java_out=[PROXY_SRC]/proxy/src/main/java/ $GOPATH/github.com/gogo/protobuf/gogoproto/gogo.proto
+ *
+ * That will generate this 2 classes:
+ * - proxy/src/main/java/com/google/protobuf/GoGoProtos.java
+ * - proxy/src/main/java/datadog/agentpayload/AgentPayload.java
+ */
+
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static io.netty.handler.codec.http.HttpMethod.POST;
@@ -267,7 +278,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
     switch (path) {
-      case "/api/v2/series/":
+      case "/api/v2/series/":   // Check doc's on the beginning of this file
         try {
           byte[] bodyBytes = new byte[request.content().readableBytes()];
           request.content().readBytes(bodyBytes);
