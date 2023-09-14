@@ -339,7 +339,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
   }
 
-  private HttpResponseStatus reportMetrics(AgentPayload.MetricPayload payload, AtomicInteger pointCounter, Consumer<String> outputConsumer) {
+  private HttpResponseStatus reportMetrics(
+      AgentPayload.MetricPayload payload,
+      AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     HttpResponseStatus worstStatus = HttpResponseStatus.ACCEPTED;
     for (final AgentPayload.MetricPayload.MetricSeries metric : payload.getSeriesList()) {
       HttpResponseStatus latestStatus = reportMetric(metric, pointCounter, outputConsumer);
@@ -350,7 +353,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     return worstStatus;
   }
 
-  private HttpResponseStatus reportMetric(AgentPayload.MetricPayload.MetricSeries metric, AtomicInteger pointCounter, Consumer<String> outputConsumer) {
+  private HttpResponseStatus reportMetric(
+      AgentPayload.MetricPayload.MetricSeries metric,
+      AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     if (metric == null) {
       error("Skipping - series object null.", outputConsumer);
       return HttpResponseStatus.BAD_REQUEST;
@@ -359,10 +365,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       Map<String, String> tags = new HashMap<>();
       String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.getMetric()).replaceAll("_");
       String hostName = "unknown";
-      for(AgentPayload.MetricPayload.Resource resource : metric.getResourcesList()) {
-        if(resource.getType().equalsIgnoreCase("host")) {
+      for (AgentPayload.MetricPayload.Resource resource : metric.getResourcesList()) {
+        if (resource.getType().equalsIgnoreCase("host")) {
           hostName = resource.getName();
-        } else if(resource.getType().equalsIgnoreCase("device")) {
+        } else if (resource.getType().equalsIgnoreCase("device")) {
           tags.put("device", resource.getName());
         }
       }
@@ -377,15 +383,15 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         interval = Math.toIntExact(metric.getInterval());
       }
 
-      for(AgentPayload.MetricPayload.MetricPoint point : metric.getPointsList()){
-          reportValue(
-                  metricName,
-                  hostName,
-                  tags,
-                  point.getValue(),
-                  point.getTimestamp() * 1000,
-                  pointCounter,
-                  interval);
+      for (AgentPayload.MetricPayload.MetricPoint point : metric.getPointsList()) {
+        reportValue(
+            metricName,
+            hostName,
+            tags,
+            point.getValue(),
+            point.getTimestamp() * 1000,
+            pointCounter,
+            interval);
       }
       return HttpResponseStatus.ACCEPTED;
     } catch (final Exception e) {
@@ -694,17 +700,17 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     } else {
       value = valueNode.asLong();
     }
-    reportValue(metricName,hostName,tags,value,timestamp,pointCounter,interval);
+    reportValue(metricName, hostName, tags, value, timestamp, pointCounter, interval);
   }
 
   private void reportValue(
-          String metricName,
-          String hostName,
-          Map<String, String> tags,
-          double value,
-          long timestamp,
-          AtomicInteger pointCounter,
-          int interval) {
+      String metricName,
+      String hostName,
+      Map<String, String> tags,
+      double value,
+      long timestamp,
+      AtomicInteger pointCounter,
+      int interval) {
 
     // interval will normally be 1 unless the metric was a rate type with a specified interval
     value = value * interval;
