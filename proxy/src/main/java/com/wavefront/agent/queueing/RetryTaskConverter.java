@@ -18,8 +18,8 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import net.jpountz.lz4.LZ4BlockInputStream;
-import net.jpountz.lz4.LZ4BlockOutputStream;
+import org.apache.commons.compress.compressors.lz4.FramedLZ4CompressorInputStream;
+import org.apache.commons.compress.compressors.lz4.FramedLZ4CompressorOutputStream;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -72,7 +72,7 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
           try {
             switch (compression) {
               case FORMAT_LZ4:
-                stream = new LZ4BlockInputStream(input);
+                stream = new FramedLZ4CompressorInputStream(input);
                 break;
               case FORMAT_GZIP:
                 stream = new GZIPInputStream(input);
@@ -116,7 +116,8 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
       case LZ4:
         bytes.write(FORMAT_LZ4);
         bytes.write(ByteBuffer.allocate(4).putInt(t.weight()).array());
-        LZ4BlockOutputStream lz4BlockOutputStream = new LZ4BlockOutputStream(bytes);
+        FramedLZ4CompressorOutputStream lz4BlockOutputStream =
+            new FramedLZ4CompressorOutputStream(bytes);
         objectMapper.writeValue(lz4BlockOutputStream, t);
         lz4BlockOutputStream.close();
         return;
