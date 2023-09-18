@@ -143,6 +143,7 @@
                 <exclude>com.tdunning.math.*</exclude>
                 <exclude>org.logstash.*</exclude>
                 <exclude>condition.parser.*</exclude>
+                <exclude>datadog.*</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -208,6 +209,7 @@
                 <exclude>condition/parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
+                <exclude>datadog/**</exclude>
               </excludes>
             </configuration>
           </execution>
