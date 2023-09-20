@@ -7,12 +7,6 @@ import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorInputStream;
-import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorOutputStream;
-import org.apache.commons.io.IOUtils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +16,11 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorInputStream;
+import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorOutputStream;
+import org.apache.commons.io.IOUtils;
 
 /**
  * A serializer + deserializer of {@link DataSubmissionTask} objects for storage.
