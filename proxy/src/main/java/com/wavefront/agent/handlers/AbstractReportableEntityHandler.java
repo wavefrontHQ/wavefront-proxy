@@ -196,6 +196,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void report(T item) {
     try {
+      attemptedCounter.inc();
       reportInternal(item);
     } catch (IllegalArgumentException e) {
       this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
