@@ -1,5 +1,23 @@
 package com.wavefront.agent.listeners;
 
+/**
+ * How-to create the required protobuf classes:
+ *
+ * <p>1. Check out this repo 'https://github.com/DataDog/agent-payload' on
+ * '$GOPATH/src/github.com/DataDog/agent-payload'
+ *
+ * <p>2. run protoc -I=. --java_out=[PROXY_SRC]/proxy/src/main/java/
+ * $GOPATH/github.com/DataDog/agent-payload/proto/metrics/agent_payload.proto
+ *
+ * <p>3. run protoc -I=. --java_out=[PROXY_SRC]/proxy/src/main/java/
+ * $GOPATH/github.com/gogo/protobuf/gogoproto/gogo.proto
+ *
+ * <p>That will generate this 2 classes:
+ *
+ * <p>- proxy/src/main/java/com/google/protobuf/GoGoProtos.java
+ *
+ * <p>- proxy/src/main/java/datadog/agentpayload/AgentPayload.java
+ */
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static io.netty.handler.codec.http.HttpMethod.POST;
@@ -26,6 +44,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
+import datadog.agentpayload.AgentPayload;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -266,6 +285,18 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
     switch (path) {
+      case "/api/v2/series/": // Check doc's on the beginning of this file
+        try {
+          byte[] bodyBytes = new byte[request.content().readableBytes()];
+          request.content().readBytes(bodyBytes);
+          AgentPayload.MetricPayload obj = AgentPayload.MetricPayload.parseFrom(bodyBytes);
+          reportMetrics(obj, pointsPerRequest, output::append);
+        } catch (IOException e) {
+          writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, request);
+          throw new RuntimeException(e);
+        }
+        writeHttpResponse(ctx, status, output, request);
+        break;
       case "/api/v1/series/":
         try {
           status =
@@ -323,6 +354,68 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         logWarning(
             "WF-300: Unexpected path '" + request.uri() + "', returning HTTP 204", null, ctx);
         break;
+    }
+  }
+
+  private HttpResponseStatus reportMetrics(
+      AgentPayload.MetricPayload payload,
+      AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
+    HttpResponseStatus worstStatus = HttpResponseStatus.ACCEPTED;
+    for (final AgentPayload.MetricPayload.MetricSeries metric : payload.getSeriesList()) {
+      HttpResponseStatus latestStatus = reportMetric(metric, pointCounter, outputConsumer);
+      if (latestStatus.compareTo(worstStatus) > 0) {
+        worstStatus = latestStatus;
+      }
+    }
+    return worstStatus;
+  }
+
+  private HttpResponseStatus reportMetric(
+      AgentPayload.MetricPayload.MetricSeries metric,
+      AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
+    if (metric == null) {
+      error("Skipping - series object null.", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
+    }
+    try {
+      Map<String, String> tags = new HashMap<>();
+      String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.getMetric()).replaceAll("_");
+      String hostName = "unknown";
+      for (AgentPayload.MetricPayload.Resource resource : metric.getResourcesList()) {
+        if (resource.getType().equalsIgnoreCase("host")) {
+          hostName = resource.getName();
+        } else if (resource.getType().equalsIgnoreCase("device")) {
+          tags.put("device", resource.getName());
+        }
+      }
+      Map<String, String> systemTags;
+      if ((systemTags = tagsCache.getIfPresent(hostName)) != null) {
+        tags.putAll(systemTags);
+      }
+      metric.getTagsList().stream().forEach(tag -> extractTag(tag, tags));
+
+      int interval = 1;
+      if (metric.getTypeValue() == AgentPayload.MetricPayload.MetricType.RATE_VALUE) {
+        interval = Math.toIntExact(metric.getInterval());
+      }
+
+      for (AgentPayload.MetricPayload.MetricPoint point : metric.getPointsList()) {
+        reportValue(
+            metricName,
+            hostName,
+            tags,
+            point.getValue(),
+            point.getTimestamp() * 1000,
+            pointCounter,
+            interval);
+      }
+      return HttpResponseStatus.ACCEPTED;
+    } catch (final Exception e) {
+      logger.log(Level.WARNING, "Failed to add metric", e);
+      outputConsumer.accept("Failed to add metric");
+      return HttpResponseStatus.BAD_REQUEST;
     }
   }
 
@@ -625,6 +718,17 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     } else {
       value = valueNode.asLong();
     }
+    reportValue(metricName, hostName, tags, value, timestamp, pointCounter, interval);
+  }
+
+  private void reportValue(
+      String metricName,
+      String hostName,
+      Map<String, String> tags,
+      double value,
+      long timestamp,
+      AtomicInteger pointCounter,
+      int interval) {
 
     // interval will normally be 1 unless the metric was a rate type with a specified interval
     value = value * interval;

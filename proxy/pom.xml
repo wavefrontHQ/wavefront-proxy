@@ -143,6 +143,7 @@
                 <exclude>com.tdunning.math.*</exclude>
                 <exclude>org.logstash.*</exclude>
                 <exclude>condition.parser.*</exclude>
+                <exclude>datadog.*</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -208,6 +209,7 @@
                 <exclude>condition/parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
+                <exclude>datadog/**</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -265,7 +267,7 @@
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-bom</artifactId>
-        <version>3.21.12</version>
+        <version>3.24.3</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -385,7 +387,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <dependency>
+      <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
       <version>2023-08.2</version>
