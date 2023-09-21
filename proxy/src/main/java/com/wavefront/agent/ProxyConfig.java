@@ -1423,6 +1423,10 @@ public class ProxyConfig extends ProxyConfigDef {
     return this.leMansStreamName;
   }
 
+  public String getLeMansServer() {
+    return this.leMansServer;
+  }
+
   public static class TokenValidationMethodConverter
       implements IStringConverter<TokenValidationMethod> {
     @Override

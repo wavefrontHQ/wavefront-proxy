@@ -99,7 +99,8 @@ public class APIContainer {
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
-      leMansAPIsForMulticasting.put(tenantName, createService(tenantServer, LeMansAPI.class));
+      leMansAPIsForMulticasting.put(tenantName, createService(proxyConfig.getLeMansServer(),
+          LeMansAPI.class));
     }
 
     if (discardData) {
@@ -340,11 +341,8 @@ public class APIContainer {
                 context
                     .getHeaders()
                     .add(
-                        "x-xenon-auth-token",
-                        "#CSP#"
-                            + TokenManager.getMulticastingTenantList()
-                                .get(APIContainer.CENTRAL_TENANT_NAME)
-                                .getBearerToken());
+                        "Authorization",
+                        "Bearer " + proxyConfig.getLeMansToken());
               }
             });
     return factory;
