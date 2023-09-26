@@ -342,7 +342,9 @@ public class APIContainer {
                     .getHeaders()
                     .add(
                         "Authorization",
-                        "Bearer " + proxyConfig.getLeMansToken());
+                        "x-xenon-auth-token #CSP#" + TokenManager.getMulticastingTenantList()
+                            .get(APIContainer.CENTRAL_TENANT_NAME)
+                            .getBearerToken());
               }
             });
     return factory;

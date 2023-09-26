@@ -1563,6 +1563,12 @@ public abstract class ProxyConfigDef extends Configuration {
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String cspAppSecret = null;
 
+  @Parameter(
+      names = {"--cspOrgId"},
+      description = "The CSP organisation identifier.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
+  String cspOrgId = null;
+
   /**
    * A client is created for a service defined in CSP. Machine/Cluster can use this client id/secret
    * to authenticate with CSP.
@@ -1580,10 +1586,5 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "A server-to-server OAuth app secret.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String leMansCspAppSecret = null;
-
-  @Parameter(
-      names = {"--cspOrgId"},
-      description = "The CSP organisation identifier.")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
-  String cspOrgId = null;
 }
+
