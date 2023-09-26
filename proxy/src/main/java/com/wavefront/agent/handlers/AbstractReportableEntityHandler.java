@@ -2,19 +2,12 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.formatter.DataFormat;
+import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.BurstRateTrackingCounter;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.yammer.metrics.core.*;
+import java.util.*;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -55,7 +48,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   final BurstRateTrackingCounter receivedStats;
   final BurstRateTrackingCounter deliveredStats;
-  private final Timer timer;
+  private final ScheduledThreadPoolExecutor timer;
   private final AtomicLong roundRobinCounter = new AtomicLong();
   protected final MetricsRegistry registry;
   protected final String metricPrefix;
@@ -109,39 +102,47 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
             return receivedStats.getMaxBurstRateAndClear();
           }
         });
-    this.timer = new Timer("stats-output-" + handlerKey);
+    this.timer = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("stats-output"));
     if (receivedRateSink != null) {
       timer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
+          () -> {
+            try {
               for (String tenantName : senderTaskMap.keySet()) {
                 receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
               }
+            } catch (Throwable e) {
+              logger.log(Level.WARNING, "receivedRateSink", e);
             }
           },
-          1000,
-          1000);
+          1,
+          1,
+          TimeUnit.SECONDS);
     }
+
     timer.scheduleAtFixedRate(
-        new TimerTask() {
-          @Override
-          public void run() {
+        () -> {
+          try {
             printStats();
+          } catch (Throwable e) {
+            logger.log(Level.WARNING, "printStats", e);
           }
         },
-        10_000,
-        10_000);
+        10,
+        10,
+        TimeUnit.SECONDS);
+
     if (reportReceivedStats) {
       timer.scheduleAtFixedRate(
-          new TimerTask() {
-            @Override
-            public void run() {
+          () -> {
+            try {
               printTotal();
+            } catch (Throwable e) {
+              logger.log(Level.WARNING, "printTotal", e);
             }
           },
-          60_000,
-          60_000);
+          1,
+          1,
+          TimeUnit.MINUTES);
     }
   }
 
@@ -196,6 +197,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @Override
   public void report(T item) {
     try {
+      attemptedCounter.inc();
       reportInternal(item);
     } catch (IllegalArgumentException e) {
       this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
@@ -209,7 +211,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   @Override
   public void shutdown() {
-    if (this.timer != null) timer.cancel();
+    if (this.timer != null) timer.shutdown();
   }
 
   @Override

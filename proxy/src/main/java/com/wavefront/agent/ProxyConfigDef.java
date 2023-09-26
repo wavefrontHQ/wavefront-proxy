@@ -1503,13 +1503,13 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--logServerIngestionToken"},
       description = "Log insight ingestion token, required to ingest logs to the log server.")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS, secret = true)
   String logServerIngestionToken = null;
 
   @Parameter(
       names = {"--logServerIngestionURL"},
       description = "Log insight ingestion URL, required to ingest logs to the log server.")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS, secret = true)
   String logServerIngestionURL = null;
 
   boolean enableHyperlogsConvergedCsp = false;
@@ -1518,7 +1518,7 @@ public abstract class ProxyConfigDef extends Configuration {
   @Parameter(
       names = {"--cspBaseUrl"},
       description = "The CSP base url. By default prod.")
-  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String cspBaseUrl = "https://console.cloud.vmware.com";
 
   @Parameter(
