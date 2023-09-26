@@ -18,8 +18,8 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import net.jpountz.lz4.LZ4BlockInputStream;
-import net.jpountz.lz4.LZ4BlockOutputStream;
+import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorInputStream;
+import org.apache.commons.compress.compressors.lz4.BlockLZ4CompressorOutputStream;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -33,10 +33,11 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
       Logger.getLogger(RetryTaskConverter.class.getCanonicalName());
 
   static final byte[] TASK_HEADER = new byte[] {'W', 'F'};
-  static final byte FORMAT_RAW = 1; // 'W' 'F' 0x01 0x01 <payload>
-  static final byte FORMAT_GZIP = 2; // 'W' 'F' 0x01 0x02 <payload>
-  static final byte FORMAT_LZ4 = 3; // 'W' 'F' 0x01 0x03 <payload>
-  static final byte WRAPPED = 4; // 'W' 'F' 0x06 0x04 0x01 <weight> <payload>
+  static final byte FORMAT_RAW = 1;
+  static final byte FORMAT_GZIP = 2;
+  static final byte FORMAT_LZ4_OLD = 3;
+  static final byte WRAPPED = 4;
+  static final byte FORMAT_LZ4 = 5;
   static final byte[] PREFIX = {'W', 'F', 6, 4};
 
   private final ObjectMapper objectMapper =
@@ -71,8 +72,12 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
           byte compression = header[0] == WRAPPED && bytesToRead > 1 ? header[1] : header[0];
           try {
             switch (compression) {
+              case FORMAT_LZ4_OLD:
+                input.skip(21); // old lz4 header, not need with the apache commons implementation
+                stream = new BlockLZ4CompressorInputStream(input);
+                break;
               case FORMAT_LZ4:
-                stream = new LZ4BlockInputStream(input);
+                stream = new BlockLZ4CompressorInputStream(input);
                 break;
               case FORMAT_GZIP:
                 stream = new GZIPInputStream(input);
@@ -116,7 +121,8 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
       case LZ4:
         bytes.write(FORMAT_LZ4);
         bytes.write(ByteBuffer.allocate(4).putInt(t.weight()).array());
-        LZ4BlockOutputStream lz4BlockOutputStream = new LZ4BlockOutputStream(bytes);
+        BlockLZ4CompressorOutputStream lz4BlockOutputStream =
+            new BlockLZ4CompressorOutputStream(bytes);
         objectMapper.writeValue(lz4BlockOutputStream, t);
         lz4BlockOutputStream.close();
         return;
