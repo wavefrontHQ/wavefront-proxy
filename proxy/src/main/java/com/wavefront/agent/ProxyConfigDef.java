@@ -122,7 +122,7 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"-l", "--le-mans-host"},
       description = "Le Mans Server URL")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
-  String leMansServer = "http://localhost:8080/api/";
+  String leMansServer = "http://localhost:8002/";
 
   @Parameter(
       names = {"--le-mans-token"},
@@ -134,7 +134,7 @@ public abstract class ProxyConfigDef extends Configuration {
       names = {"--le-mans-stream-name"},
       description = "Le Mans Server URL")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
-  String leMansStreamName = "";
+  String leMansStreamName = "test";
 
   @Parameter(
       names = {"--testLogs"},
