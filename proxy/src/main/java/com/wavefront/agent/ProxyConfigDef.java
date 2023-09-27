@@ -1587,4 +1587,3 @@ public abstract class ProxyConfigDef extends Configuration {
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String leMansCspAppSecret = null;
 }
-
