@@ -67,6 +67,7 @@ import javax.annotation.Nullable;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
 import wavefront.report.ReportPoint;
@@ -217,6 +218,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     URI uri = new URI(request.uri());
     HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
     String requestBody = request.content().toString(CharsetUtil.UTF_8);
+    byte[] bodyBytes = new byte[request.content().readableBytes()];
+    request.content().readBytes(bodyBytes);
 
     if (requestRelayClient != null && requestRelayTarget != null && request.method() == POST) {
       Histogram requestRelayDuration =
@@ -226,10 +229,14 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);
-        if (request.headers().contains("Content-Type")) {
-          outgoingRequest.addHeader("Content-Type", request.headers().get("Content-Type"));
-        }
-        outgoingRequest.setEntity(new StringEntity(requestBody));
+
+        request.headers().forEach(header -> {
+          if (!header.getKey().equalsIgnoreCase("Content-Length"))
+            outgoingRequest.addHeader(header.getKey(), header.getValue());
+        });
+
+        outgoingRequest.setEntity(new ByteArrayEntity(bodyBytes));
+//        outgoingRequest.setEntity(new StringEntity(requestBody));
         if (synchronousMode) {
           if (logger.isLoggable(Level.FINE)) {
             logger.fine("Relaying incoming HTTP request to " + outgoingUrl);
@@ -260,8 +267,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
                   httpStatusCounterCache.get(httpStatusCode).inc();
                   EntityUtils.consumeQuietly(response.getEntity());
                 } catch (IOException e) {
-                  logger.warning(
-                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
+                  logger.log(Level.WARNING,
+                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage(), e);
                   Metrics.newCounter(
                           new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
                       .inc();
@@ -287,8 +294,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     switch (path) {
       case "/api/v2/series/": // Check doc's on the beginning of this file
         try {
-          byte[] bodyBytes = new byte[request.content().readableBytes()];
-          request.content().readBytes(bodyBytes);
           AgentPayload.MetricPayload obj = AgentPayload.MetricPayload.parseFrom(bodyBytes);
           reportMetrics(obj, pointsPerRequest, output::append);
         } catch (IOException e) {
