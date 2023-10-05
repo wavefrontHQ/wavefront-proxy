@@ -6,7 +6,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>13.3-SNAPSHOT</version>
+  <version>13.4-SNAPSHOT</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
