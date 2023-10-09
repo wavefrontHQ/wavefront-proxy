@@ -21,4 +21,5 @@ make
 
 ## Test if working
 
-Go to you WF server, and serach for a metric `docker.cpu.usage`, you shoul get some series with a `dd_agent_version=7` tag, and other with a `dd_agent_version=6` tag.
+1. Go to you WF server, and serach for a metric `docker.cpu.usage`, you shoul get some series with a `dd_agent_version=7` tag, and other with a `dd_agent_version=6` tag.
+2. Do the same on your Datadog acount (the `dd_agent_version` will not be available)
