@@ -10,7 +10,7 @@ MVN_ARGS="-DskipTests" make build-jar docker
 
 ## Run test
 
-On `tests/ddaget/` run:
+On `tests/datadog/` run:
 
 ```
 WF_SERVER=nimba \
