@@ -49,7 +49,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -69,7 +68,6 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
 import wavefront.report.ReportPoint;
 
@@ -230,10 +228,13 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);
 
-        request.headers().forEach(header -> {
-          if (!header.getKey().equalsIgnoreCase("Content-Length"))
-            outgoingRequest.addHeader(header.getKey(), header.getValue());
-        });
+        request
+            .headers()
+            .forEach(
+                header -> {
+                  if (!header.getKey().equalsIgnoreCase("Content-Length"))
+                    outgoingRequest.addHeader(header.getKey(), header.getValue());
+                });
 
         outgoingRequest.setEntity(new ByteArrayEntity(bodyBytes));
         if (synchronousMode) {
@@ -266,8 +267,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
                   httpStatusCounterCache.get(httpStatusCode).inc();
                   EntityUtils.consumeQuietly(response.getEntity());
                 } catch (IOException e) {
-                  logger.log(Level.WARNING,
-                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage(), e);
+                  logger.log(
+                      Level.WARNING,
+                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage(),
+                      e);
                   Metrics.newCounter(
                           new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
                       .inc();

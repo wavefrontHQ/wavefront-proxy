@@ -1,0 +1,51 @@
+services:
+  wf-proxy:
+    hostname: wf-proxy
+    build: ../../docker
+    environment:
+      WAVEFRONT_URL: https://${WF_SERVER}.wavefront.com/api/
+      WAVEFRONT_TOKEN: ${WF_TOKEN}
+      WAVEFRONT_PROXY_ARGS: >
+        --dataDogJsonPorts 2879,2880 
+        --dataDogProcessSystemMetrics true 
+        --dataDogProcessServiceChecks true 
+        --dataDogRequestRelayTarget https://api.datadoghq.com
+        --preprocessorConfigFile /tmp/preprocessor_rules.yaml
+    volumes:
+      - ${PWD}/preprocessor_rules.yaml:/tmp/preprocessor_rules.yaml
+
+    ports:
+      - "2878:2878"
+      - "2879:2879"
+      - "2880:2880"
+
+  dd-agent-7:
+    hostname: dd-agent-7
+    image: gcr.io/datadoghq/agent:7
+    environment:
+      DD_DD_URL: http://host.docker.internal:2879
+      DD_API_KEY: ${DD_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+
+  dd-agent-6:
+    hostname: dd-agent-6
+    image: gcr.io/datadoghq/agent:6
+    environment:
+      DD_DD_URL: http://host.docker.internal:2880
+      DD_API_KEY: ${DD_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+
+  #   docker run -it --rm --cgroupns host --pid host \
+  # -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  # -v /proc/:/host/proc/:ro \
+  # -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
+  # -e DD_DD_URL=http://host.docker.internal:2879 \
+  # -e DD_API_KEY=fa5ab76533cdd581bb23f7e6794a77f2 \
+  # -e DD_PROXY_HTTP=http://host.docker.internal:9090 \
+  # gcr.io/datadoghq/agent:7
