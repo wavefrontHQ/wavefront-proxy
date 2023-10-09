@@ -53,6 +53,7 @@ import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -217,7 +218,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     AtomicInteger pointsPerRequest = new AtomicInteger();
     URI uri = new URI(request.uri());
     HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
-    String requestBody = request.content().toString(CharsetUtil.UTF_8);
     byte[] bodyBytes = new byte[request.content().readableBytes()];
     request.content().readBytes(bodyBytes);
 
@@ -236,7 +236,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         });
 
         outgoingRequest.setEntity(new ByteArrayEntity(bodyBytes));
-//        outgoingRequest.setEntity(new StringEntity(requestBody));
         if (synchronousMode) {
           if (logger.isLoggable(Level.FINE)) {
             logger.fine("Relaying incoming HTTP request to " + outgoingUrl);
@@ -304,6 +303,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         break;
       case "/api/v1/series/":
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           status =
               reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
@@ -324,6 +324,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           return;
         }
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           reportChecks(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
@@ -339,6 +340,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
       case "/intake/":
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           status =
               processMetadataAndSystemMetrics(
                   jsonParser.readTree(requestBody),
