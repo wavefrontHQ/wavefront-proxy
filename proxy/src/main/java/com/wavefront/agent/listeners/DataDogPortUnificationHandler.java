@@ -49,10 +49,10 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -67,7 +67,7 @@ import javax.annotation.Nullable;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.util.EntityUtils;
 import wavefront.report.ReportPoint;
 
@@ -216,7 +216,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     AtomicInteger pointsPerRequest = new AtomicInteger();
     URI uri = new URI(request.uri());
     HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
-    String requestBody = request.content().toString(CharsetUtil.UTF_8);
+    byte[] bodyBytes = new byte[request.content().readableBytes()];
+    request.content().readBytes(bodyBytes);
 
     if (requestRelayClient != null && requestRelayTarget != null && request.method() == POST) {
       Histogram requestRelayDuration =
@@ -226,10 +227,16 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);
-        if (request.headers().contains("Content-Type")) {
-          outgoingRequest.addHeader("Content-Type", request.headers().get("Content-Type"));
-        }
-        outgoingRequest.setEntity(new StringEntity(requestBody));
+
+        request
+            .headers()
+            .forEach(
+                header -> {
+                  if (!header.getKey().equalsIgnoreCase("Content-Length"))
+                    outgoingRequest.addHeader(header.getKey(), header.getValue());
+                });
+
+        outgoingRequest.setEntity(new ByteArrayEntity(bodyBytes));
         if (synchronousMode) {
           if (logger.isLoggable(Level.FINE)) {
             logger.fine("Relaying incoming HTTP request to " + outgoingUrl);
@@ -260,8 +267,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
                   httpStatusCounterCache.get(httpStatusCode).inc();
                   EntityUtils.consumeQuietly(response.getEntity());
                 } catch (IOException e) {
-                  logger.warning(
-                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
+                  logger.log(
+                      Level.WARNING,
+                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage(),
+                      e);
                   Metrics.newCounter(
                           new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
                       .inc();
@@ -287,8 +296,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     switch (path) {
       case "/api/v2/series/": // Check doc's on the beginning of this file
         try {
-          byte[] bodyBytes = new byte[request.content().readableBytes()];
-          request.content().readBytes(bodyBytes);
           AgentPayload.MetricPayload obj = AgentPayload.MetricPayload.parseFrom(bodyBytes);
           reportMetrics(obj, pointsPerRequest, output::append);
         } catch (IOException e) {
@@ -299,6 +306,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         break;
       case "/api/v1/series/":
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           status =
               reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
@@ -319,6 +327,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           return;
         }
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           reportChecks(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
@@ -334,6 +343,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
       case "/intake/":
         try {
+          String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
           status =
               processMetadataAndSystemMetrics(
                   jsonParser.readTree(requestBody),
