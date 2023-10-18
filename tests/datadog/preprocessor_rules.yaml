@@ -1,0 +1,11 @@
+'2879': 
+  - rule    : ddv7
+    action  : addTag
+    tag     : dd_agent_version
+    value   : "7"
+
+'2880': 
+  - rule    : ddv6
+    action  : addTag
+    tag     : dd_agent_version
+    value   : "6"
