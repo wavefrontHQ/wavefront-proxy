@@ -6,7 +6,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>13.3</version>
+  <version>13.4</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -284,7 +284,7 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
-        <version>4.1.92.Final</version>
+        <version>4.1.100.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -369,7 +369,7 @@
       <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
-        <version>1.11.0</version>
+        <version>1.11.3</version>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry</groupId>
