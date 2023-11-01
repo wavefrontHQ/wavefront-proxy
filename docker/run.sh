@@ -1,5 +1,7 @@
 #!/bin/bash
 
+/opt/wavefront/create-lemans-buffered-pipelines.sh
+
 if [[ -z "$WAVEFRONT_URL" ]]; then
   echo "WAVEFRONT_URL environment variable not configured - aborting startup " >&2
   exit 0
