@@ -4,6 +4,9 @@ RUN cd proxy; mvn -f proxy clean install -DskipTests -DskipFormatCode
 
 FROM harbor-repo.vmware.com/dockerhub-proxy-cache/library/eclipse-temurin:11
 
+RUN apt-get update
+RUN apt-get install -y jq
+
 # Wavefront authentication can be configured in three different ways: Customers that have been
 # onboarded by CSP can set up CSP api tokens or CSP OAuth apps (CSP_APP_ID, CSP_APP_SECRET).
 # Customers of Wavefront can use Wavefront api token. This script may automatically
