@@ -45,7 +45,7 @@ public class SpanSamplerTest {
             .setSpanId("testspanid")
             .setTraceId(traceId)
             .build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null, null);
     assertTrue(sampler.sample(spanToAllow));
     assertFalse(sampler.sample(spanToDiscard));
 
@@ -72,7 +72,7 @@ public class SpanSamplerTest {
             .setTraceId(traceId)
             .setAnnotations(ImmutableList.of(new Annotation("debug", "true")))
             .build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null, null);
     assertTrue(sampler.sample(span));
   }
 
@@ -116,7 +116,8 @@ public class SpanSamplerTest {
             new SpanSamplingPolicy("SpanNamePolicy", "{{spanName}}='testSpanName'", 0),
             new SpanSamplingPolicy("SpanSourcePolicy", "{{sourceName}}='testsource'", 100));
 
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
+    SpanSampler sampler =
+        new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies, null);
     assertTrue(sampler.sample(spanToAllow));
     assertEquals(
         "SpanSourcePolicy",
@@ -144,7 +145,8 @@ public class SpanSamplerTest {
     List<SpanSamplingPolicy> activeSpanSamplingPolicies = new ArrayList<>();
     activeSpanSamplingPolicies.add(
         new SpanSamplingPolicy("SpanNamePolicy", "{{spanName}}='testSpanName'", 50));
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
+    SpanSampler sampler =
+        new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies, null);
     int sampledSpans = 0;
     for (int i = 0; i < 1000; i++) {
       if (sampler.sample(Span.newBuilder(span).setTraceId(UUID.randomUUID().toString()).build())) {

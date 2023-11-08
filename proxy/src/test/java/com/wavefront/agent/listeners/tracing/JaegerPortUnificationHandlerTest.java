@@ -160,7 +160,7 @@ public class JaegerPortUnificationHandlerTest {
             () -> false,
             () -> false,
             preprocessorSupplier,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -365,7 +365,7 @@ public class JaegerPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 

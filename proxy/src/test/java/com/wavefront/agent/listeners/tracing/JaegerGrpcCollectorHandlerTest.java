@@ -180,7 +180,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -412,7 +412,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             "ProxyLevelAppTag",
             null);
 
@@ -584,7 +584,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(5 * 1000), () -> null),
+            new SpanSampler(new DurationSampler(5 * 1000), () -> null, null),
             null,
             null);
 
@@ -710,7 +710,8 @@ public class JaegerGrpcCollectorHandlerTest {
                 new DurationSampler(10 * 1000),
                 () ->
                     ImmutableList.of(
-                        new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100))),
+                        new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100)),
+                null),
             null,
             null);
 
@@ -864,7 +865,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1062,7 +1063,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1214,7 +1215,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1344,7 +1345,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1451,7 +1452,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -1654,7 +1655,7 @@ public class JaegerGrpcCollectorHandlerTest {
             () -> false,
             () -> false,
             preprocessorSupplier,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 

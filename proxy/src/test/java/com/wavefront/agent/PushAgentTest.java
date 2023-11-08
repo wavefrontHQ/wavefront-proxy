@@ -210,7 +210,7 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "*";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = securePort1 + "," + securePort2;
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(securePort1), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(securePort2), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(securePort1);
@@ -299,7 +299,7 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
@@ -388,7 +388,7 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
@@ -489,7 +489,7 @@ public class PushAgentTest {
     proxy.proxyConfig.httpHealthCheckPorts = String.valueOf(healthCheckPort);
     proxy.proxyConfig.httpHealthCheckAllPorts = true;
     proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     proxy.startHealthCheckListener(healthCheckPort);
@@ -600,7 +600,7 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
@@ -704,7 +704,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getPushListenerPorts(),
         mockHandlerFactory,
         null,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     mockHistogramHandler.report(
@@ -763,7 +763,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getPushListenerPorts(),
         mockHandlerFactory,
         null,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     reset(mockPointHandler);
@@ -853,7 +853,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getPushListenerPorts(),
         mockHandlerFactory,
         null,
-        new SpanSampler(new DurationSampler(5000), () -> null));
+        new SpanSampler(new DurationSampler(5000), () -> null, null));
     waitUntilListenerIsOnline(port);
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = alignedStartTimeEpochSeconds * 1000000 + 12345;
@@ -1292,7 +1292,7 @@ public class PushAgentTest {
     proxy.startTraceListener(
         proxy.proxyConfig.getTraceListenerPorts(),
         mockHandlerFactory,
-        new SpanSampler(new RateSampler(0.0D), () -> null));
+        new SpanSampler(new RateSampler(0.0D), () -> null, null));
     waitUntilListenerIsOnline(tracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -1395,7 +1395,7 @@ public class PushAgentTest {
     proxy.startTraceListener(
         proxy.proxyConfig.getTraceListenerPorts(),
         mockHandlerFactory,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(tracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -1500,7 +1500,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getCustomTracingListenerPorts(),
         mockHandlerFactory,
         mockWavefrontSender,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(customTracePort);
     reset(mockTraceHandler);
     reset(mockWavefrontSender);
@@ -1610,7 +1610,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getCustomTracingListenerPorts(),
         mockHandlerFactory,
         mockWavefrontSender,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(customTracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -1911,7 +1911,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null,
         mockSenderTaskFactory,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
@@ -1950,7 +1950,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null,
         mockSenderTaskFactory,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
@@ -2618,7 +2618,7 @@ public class PushAgentTest {
     proxy.proxyConfig.httpHealthCheckAllPorts = true;
     proxy.proxyConfig.httpHealthCheckFailStatusCode = 403;
     proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
-    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null, null);
     proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(port2), mockHandlerFactory, null, sampler);
     proxy.startGraphiteListener(String.valueOf(port3), mockHandlerFactory, null, sampler);
@@ -2699,7 +2699,7 @@ public class PushAgentTest {
         proxy.proxyConfig.getPushListenerPorts(),
         mockHandlerFactory,
         null,
-        new SpanSampler(new RateSampler(1.0D), () -> null));
+        new SpanSampler(new RateSampler(1.0D), () -> null, null));
     waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     List<Double> bins = new ArrayList<>();

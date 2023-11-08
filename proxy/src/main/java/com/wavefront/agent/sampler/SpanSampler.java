@@ -36,6 +36,7 @@ public class SpanSampler {
   private static final int POLICY_BASED_SAMPLING_MOD_FACTOR = 100;
   private static final Logger logger = Logger.getLogger(SpanSampler.class.getCanonicalName());
   private final Sampler delegate;
+  private final PreferredSampler preferredSampler;
   private final LoadingCache<String, Predicate<Span>> spanPredicateCache =
       Caffeine.newBuilder()
           .expireAfterAccess(EXPIRE_AFTER_ACCESS_SECONDS, TimeUnit.SECONDS)
@@ -62,9 +63,11 @@ public class SpanSampler {
    */
   public SpanSampler(
       Sampler delegate,
-      @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier) {
+      @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier,
+      PreferredSampler preferredSampler) {
     this.delegate = delegate;
     this.activeSpanSamplingPoliciesSupplier = activeSpanSamplingPoliciesSupplier;
+    this.preferredSampler = preferredSampler;
   }
 
   /**
@@ -89,6 +92,12 @@ public class SpanSampler {
     if (isForceSampled(span)) {
       return true;
     }
+
+    // Prefered sampling
+    if (preferredSampler != null && preferredSampler.isApplicable(span)) {
+      return preferredSampler.sample(span);
+    }
+
     // Policy based span sampling
     List<SpanSamplingPolicy> activeSpanSamplingPolicies = activeSpanSamplingPoliciesSupplier.get();
     if (activeSpanSamplingPolicies != null) {
@@ -127,11 +136,9 @@ public class SpanSampler {
   }
 
   /**
-   * Util method to determine if a span is force sampled. Currently force samples if any of the
-   * below conditions are met. 1. The span annotation debug=true is present 2.
-   * alwaysSampleErrors=true and the span annotation error=true is present.
+   * Util method to determine if a span is force sampled. force samples if The span annotation
+   * debug=true is present
    *
-   * @param span The span to sample
    * @return true if the span should be force sampled.
    */
   private boolean isForceSampled(Span span) {

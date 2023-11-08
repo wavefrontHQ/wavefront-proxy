@@ -1103,6 +1103,12 @@ public abstract class ProxyConfigDef extends Configuration {
   String traceDerivedCustomTagKeys;
 
   @Parameter(
+      names = {"--tracePreferedSampler"},
+      description = "Prefered tracing sampler. e.g. ebpf")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)
+  String preferedSampler;
+
+  @Parameter(
       names = {"--backendSpanHeadSamplingPercentIgnored"},
       description = "Ignore " + "spanHeadSamplingPercent config in backend CustomerSettings")
   @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.TRACES)

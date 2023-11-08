@@ -142,7 +142,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             preprocessorSupplier,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
@@ -234,7 +234,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             "ProxyLevelAppTag",
             null);
 
@@ -462,7 +462,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(5), () -> null),
+            new SpanSampler(new DurationSampler(5), () -> null, null),
             null,
             null);
 
@@ -578,7 +578,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(5), () -> null),
+            new SpanSampler(new DurationSampler(5), () -> null, null),
             null,
             null);
 
@@ -666,7 +666,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new DurationSampler(10), () -> null),
+            new SpanSampler(new DurationSampler(10), () -> null, null),
             null,
             null);
 
@@ -848,7 +848,7 @@ public class ZipkinPortUnificationHandlerTest {
             () -> false,
             () -> false,
             null,
-            new SpanSampler(new RateSampler(1.0D), () -> null),
+            new SpanSampler(new RateSampler(1.0D), () -> null, null),
             null,
             null);
 
