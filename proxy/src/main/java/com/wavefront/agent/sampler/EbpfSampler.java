@@ -1,12 +1,13 @@
 package com.wavefront.agent.sampler;
 
-import static com.wavefront.common.TraceConstants.PARENT_KEY;
-import static com.wavefront.sdk.common.Constants.*;
-
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
+
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -15,10 +16,8 @@ import java.util.concurrent.atomic.LongAccumulator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
-import org.apache.commons.lang.StringUtils;
-import wavefront.report.Annotation;
-import wavefront.report.Span;
+
+import static com.wavefront.sdk.common.Constants.*;
 
 /**
  * This Sampler is for Ebpf traffic focusing on not losing a single edge due to sampling in
@@ -139,7 +138,7 @@ public class EbpfSampler implements PreferredSampler {
     stats.edgeCount.getAndIncrement();
     if (!stats.isSignificant()) sampled = true;
 
-    if (annotationMap.containsKey(ERROR_TAG_KEY)) {
+    if (annotationMap.containsKey(ERROR_TAG_KEY) && "true".equalsIgnoreCase(annotationMap.get(ERROR_TAG_KEY))) {
       stats.errorCount.getAndIncrement();
       if (!sampled && stats.getErrorRatio() < 0.5) sampled = true;
     }
