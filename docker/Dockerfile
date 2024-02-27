@@ -25,6 +25,8 @@ RUN chown -R wavefront:wavefront /var/spool/wavefront-proxy
 RUN mkdir -p /var/log/wavefront
 RUN chown -R wavefront:wavefront /var/log/wavefront
 
+RUN apt-get update -y && apt-get upgrade -y
+
 # Temp fix for "MONIT-41551"
 RUN apt-get remove -y wget
 
