@@ -28,7 +28,7 @@
     "@scalefast/ssr-server": "^0.0.324",
     "@splidejs/splide": "^4.1.4",
     "angular-google-tag-manager": "^1.8.0",
-    "bootstrap": "^5.2.1",
+    "bootstrap": "^6.2.1",
     "contentful": "^9.1.22",
     "dd-trace": "^4.18.0",
     "dotenv": "^16.3.1",
