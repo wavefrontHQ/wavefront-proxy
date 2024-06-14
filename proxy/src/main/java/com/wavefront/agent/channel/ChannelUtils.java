@@ -171,13 +171,11 @@ public abstract class ChannelUtils {
   public static String errorMessageWithRootCause(@Nonnull final Throwable e) {
     StringBuilder msg = new StringBuilder();
     final Throwable rootCause = Throwables.getRootCause(e);
-    msg.append("reason: \"");
+    msg.append("reason: ");
     msg.append(e.getMessage());
-    msg.append("\"");
     if (rootCause != null && rootCause != e && rootCause.getMessage() != null) {
-      msg.append(", root cause: \"");
+      msg.append(", root cause: ");
       msg.append(rootCause.getMessage());
-      msg.append("\"");
     }
     return msg.toString();
   }
