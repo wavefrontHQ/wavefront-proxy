@@ -29,7 +29,7 @@
     <connection>${scm.connection}</connection>
     <developerConnection>${scm.developer.connection}</developerConnection>
     <url>${scm.url}</url>
-    <tag>proxy-13.5</tag>
+    <tag>proxy-13.9</tag>
   </scm>
 
   <!-- distributionManagement>
