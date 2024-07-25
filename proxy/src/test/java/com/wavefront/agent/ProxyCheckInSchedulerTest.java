@@ -60,7 +60,7 @@ public class ProxyCheckInSchedulerTest {
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
@@ -113,7 +113,7 @@ public class ProxyCheckInSchedulerTest {
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
     proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     AtomicBoolean shutdown = new AtomicBoolean(false);
     ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
@@ -170,7 +170,7 @@ public class ProxyCheckInSchedulerTest {
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     try {
       ProxyCheckInScheduler scheduler =
@@ -276,7 +276,7 @@ public class ProxyCheckInSchedulerTest {
         .andThrow(new NullPointerException())
         .once();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
@@ -415,7 +415,7 @@ public class ProxyCheckInSchedulerTest {
         .andThrow(new ServerErrorException(Response.status(502).build()))
         .once();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
@@ -493,7 +493,7 @@ public class ProxyCheckInSchedulerTest {
         .once();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
     proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
     ProxyCheckInScheduler scheduler =
@@ -541,7 +541,7 @@ public class ProxyCheckInSchedulerTest {
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     apiContainer.updateServerEndpointURL(CENTRAL_TENANT_NAME, "https://acme.corp/zzz/api/");
     expectLastCall().once();
     replay(proxyV2API, apiContainer);
@@ -704,7 +704,7 @@ public class ProxyCheckInSchedulerTest {
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
@@ -764,7 +764,7 @@ public class ProxyCheckInSchedulerTest {
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-    expectLastCall();
+    expectLastCall().anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler =
         new ProxyCheckInScheduler(
