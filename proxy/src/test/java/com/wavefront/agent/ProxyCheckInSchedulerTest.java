@@ -12,6 +12,7 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.wavefront.agent.api.APIContainer;
@@ -23,11 +24,14 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -84,60 +88,61 @@ public class ProxyCheckInSchedulerTest {
     scheduler.shutdown();
   }
 
-  //  @Test
-  //  public void testNormalCheckinWithRemoteShutdown() {
-  //    ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
-  //    ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
-  //    APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
-  //    TenantInfo token = new TokenWorkerWF("abcde12345", "https://acme.corp/api");
-  //    TokenManager.addTenant(CENTRAL_TENANT_NAME, token);
-  //    reset(proxyConfig, proxyV2API, proxyConfig);
-  //    expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
-  //    expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
-  //    expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
-  //    expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
-  //    expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
-  //    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
-  //    expectLastCall().anyTimes();
-  //    String authHeader = "Bearer abcde12345";
-  //    AgentConfiguration returnConfig = new AgentConfiguration();
-  //    returnConfig.setShutOffAgents(true);
-  //    replay(proxyConfig);
-  //    UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
-  //    expect(
-  //            proxyV2API.proxyCheckin(
-  //                eq(proxyId),
-  //                eq(authHeader),
-  //                eq("proxyHost"),
-  //                eq("proxyName"),
-  //                eq(getBuildVersion()),
-  //                anyLong(),
-  //                anyObject(),
-  //                eq(true)))
-  //        .andReturn(returnConfig)
-  //        .anyTimes();
-  //    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
-  //        .andReturn(proxyV2API)
-  //        .anyTimes();
-  //    proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
-  //    proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
-  //    expectLastCall().anyTimes();
-  //    replay(proxyV2API, apiContainer);
-  //    AtomicBoolean shutdown = new AtomicBoolean(false);
-  //    ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
-  //    ProxyCheckInScheduler scheduler =
-  //        new ProxyCheckInScheduler(
-  //            proxyId,
-  //            proxyConfig,
-  //            apiContainer,
-  //            (tenantName, config) -> {},
-  //            () -> shutdown.set(true),
-  //            () -> {});
-  //    scheduler.updateProxyMetrics();
-  //    scheduler.updateConfiguration();
-  //    verify(proxyConfig, proxyV2API, apiContainer);
-  //    assertTrue(shutdown.get());
-  //  }
+  @Ignore
+  @Test
+  public void testNormalCheckinWithRemoteShutdown() {
+    ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
+    ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
+    APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    TenantInfo token = new TokenWorkerWF("abcde12345", "https://acme.corp/api");
+    TokenManager.addTenant(CENTRAL_TENANT_NAME, token);
+    reset(proxyConfig, proxyV2API, proxyConfig);
+    expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
+    expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
+    expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
+    expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
+    String authHeader = "Bearer abcde12345";
+    AgentConfiguration returnConfig = new AgentConfiguration();
+    returnConfig.setShutOffAgents(true);
+    replay(proxyConfig);
+    UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
+    expect(
+            proxyV2API.proxyCheckin(
+                eq(proxyId),
+                eq(authHeader),
+                eq("proxyHost"),
+                eq("proxyName"),
+                eq(getBuildVersion()),
+                anyLong(),
+                anyObject(),
+                eq(true)))
+        .andReturn(returnConfig)
+        .anyTimes();
+    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+        .andReturn(proxyV2API)
+        .anyTimes();
+    proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
+    proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
+    expectLastCall().anyTimes();
+    replay(proxyV2API, apiContainer);
+    AtomicBoolean shutdown = new AtomicBoolean(false);
+    ProxyCheckInScheduler.preprocessorRulesNeedUpdate.set(true);
+    ProxyCheckInScheduler scheduler =
+        new ProxyCheckInScheduler(
+            proxyId,
+            proxyConfig,
+            apiContainer,
+            (tenantName, config) -> {},
+            () -> shutdown.set(true),
+            () -> {});
+    scheduler.updateProxyMetrics();
+    scheduler.updateConfiguration();
+    verify(proxyConfig, proxyV2API, apiContainer);
+    assertTrue(shutdown.get());
+  }
 
   @Test
   public void testNormalCheckinWithBadConsumer() {
