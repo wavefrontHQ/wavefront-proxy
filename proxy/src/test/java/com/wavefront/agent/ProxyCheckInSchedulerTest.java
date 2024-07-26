@@ -56,7 +56,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andReturn(returnConfig)
         .once();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
@@ -108,7 +108,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andReturn(returnConfig)
         .anyTimes();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
@@ -166,7 +166,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andReturn(returnConfig)
         .anyTimes();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
@@ -210,7 +210,7 @@ public class ProxyCheckInSchedulerTest {
     returnConfig.setPointsPerBatch(1234567L);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySavePreprocessorRules(eq(proxyId), anyObject());
@@ -312,7 +312,7 @@ public class ProxyCheckInSchedulerTest {
     AgentConfiguration returnConfig = new AgentConfiguration();
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     // we need to allow 1 successful checking to prevent early termination
@@ -474,7 +474,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andThrow(new ClientErrorException(Response.status(404).build()))
         .once();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     apiContainer.updateServerEndpointURL(CENTRAL_TENANT_NAME, "https://acme.corp/zzz/api/");
@@ -537,7 +537,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andThrow(new ClientErrorException(Response.status(404).build()))
         .times(2);
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
@@ -579,7 +579,7 @@ public class ProxyCheckInSchedulerTest {
     returnConfig.setPointsPerBatch(1234567L);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     expect(
@@ -629,7 +629,7 @@ public class ProxyCheckInSchedulerTest {
     returnConfig.setPointsPerBatch(1234567L);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     expect(
@@ -700,7 +700,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andReturn(returnConfig)
         .once();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
@@ -760,7 +760,7 @@ public class ProxyCheckInSchedulerTest {
                 eq(true)))
         .andReturn(returnConfig)
         .once();
-    expect(apiContainer.getProxyV2APIForTenant(EasyMock.anyObject(String.class)))
+    expect(apiContainer.getProxyV2APIForTenant(CENTRAL_TENANT_NAME))
         .andReturn(proxyV2API)
         .anyTimes();
     proxyV2API.proxySaveConfig(eq(proxyId), anyObject());
