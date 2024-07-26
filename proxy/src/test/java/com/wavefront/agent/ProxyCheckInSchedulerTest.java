@@ -1,26 +1,37 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
-import static com.wavefront.common.Utils.getBuildVersion;
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
-
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
+
+import org.easymock.EasyMock;
+import org.junit.Test;
+
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
-import org.easymock.EasyMock;
-import org.junit.Test;
+
+import static com.wavefront.agent.api.APIContainer.CENTRAL_TENANT_NAME;
+import static com.wavefront.common.Utils.getBuildVersion;
+import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /** @author vasily@wavefront.com */
 public class ProxyCheckInSchedulerTest {
