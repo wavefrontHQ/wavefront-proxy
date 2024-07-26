@@ -1,46 +1,5 @@
 package com.wavefront.agent;
 
-import com.google.common.collect.ImmutableSet;
-
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
-import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
-import com.wavefront.agent.queueing.QueueingFactoryImpl;
-import com.wavefront.common.Clock;
-import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.TcpIngester;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.File;
-import java.net.URI;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
-
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.agent.TestUtils.findAvailablePort;
@@ -53,6 +12,42 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableSet;
+import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
+import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
+import com.wavefront.agent.queueing.QueueingFactoryImpl;
+import com.wavefront.common.Clock;
+import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.TcpIngester;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.CharsetUtil;
+import java.io.File;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /** @author vasily@wavefront.com */
 public class HttpEndToEndTest {
