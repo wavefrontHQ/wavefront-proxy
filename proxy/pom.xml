@@ -28,18 +28,29 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</connection>
-    <developerConnection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</developerConnection>
-    <url>git@github.com:wavefrontHQ/wavefront-proxy.git</url>
+    <connection>${scm.connection}</connection>
+    <developerConnection>${scm.developer.connection}</developerConnection>
+    <url>${scm.url}</url>
     <tag>release-11.x</tag>
   </scm>
 
-  <distributionManagement>
+  <!-- distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
       <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
+
+    <distributionManagement>
+       <snapshotRepository>
+         <id>${snapshot.repo.id}</id>
+         <url>${artifactory.url}/${snapshot.repo.name}</url>
+       </snapshotRepository>
+       <repository>
+         <id>${release.repo.id}</id>
+         <url>${artifactory.url}/${release.repo.name}</url>
+       </repository>
+    </distributionManagement -->
 
   <properties>
     <!-- jdk 11 can be used for building -->
@@ -724,6 +735,51 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>broadcom</id>
+      <properties>
+        <scm.url>git@github.gwd.broadcom.net:IMS/wf-proxy.git</scm.url>
+        <scm.connection>scm:git:${scm.url}</scm.connection>
+        <scm.developer.connection>scm:git:${scm.url}</scm.developer.connection>
+        <artifactory.url>https://usw1.packages.broadcom.com/artifactory</artifactory.url>
+        <snapshot.repo.id>usw1.packages.broadcom.com_tis-wavefront-maven-dev-local</snapshot.repo.id>
+        <snapshot.repo.name>tis-wavefront-maven-dev-local</snapshot.repo.name>
+        <release.repo.id>usw1.packages.broadcom.com_tis-wavefront-maven-prod-local</release.repo.id>
+        <release.repo.name>tis-wavefront-maven-prod-local</release.repo.name>
+      </properties>
+      <distributionManagement>
+       <snapshotRepository>
+         <id>${snapshot.repo.id}</id>
+         <url>${artifactory.url}/${snapshot.repo.name}</url>
+       </snapshotRepository>
+       <repository>
+         <id>${release.repo.id}</id>
+         <url>${artifactory.url}/${release.repo.name}</url>
+       </repository>
+      </distributionManagement>
+    </profile>
+    <profile>
+      <id>vmware</id>
+      <activation>
+          <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <scm.url>git@github.com:wavefrontHQ/wavefront-proxy.git</scm.url>
+        <scm.connection>scm:git:${scm.url}</scm.connection>
+        <scm.developer.connection>scm:git:${scm.url}</scm.developer.connection>
+        <artifactory.url>https://repo.wavefront.com/content/repositories</artifactory.url>
+        <snapshot.repo.id>sunnylabs-snapshots</snapshot.repo.id>
+        <snapshot.repo.name>snapshots</snapshot.repo.name>
+        <release.repo.id>sunnylabs-releases</release.repo.id>
+        <release.repo.name>releases</release.repo.name>
+      </properties>
+      <distributionManagement>
+        <snapshotRepository>
+          <id>ossrh</id>
+          <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+       </distributionManagement>
     </profile>
   </profiles>
 
