@@ -42,6 +42,7 @@
     "uuid": "^9.0.1",
     "ws": "^8.8.0",
     "xmlhttprequest": "^1.8.0",
+    "next": "^14.2.24",
     "zone.js": "~0.13.0"
   },
   "devDependencies": {
