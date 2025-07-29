@@ -12,6 +12,7 @@ echo "============="
 
 package_cloud push ${1}/el/7 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/el/8 ${3}/*.rpm --config=${2} &
+package_cloud push ${1}/el/9 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/el/6 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/ol/8 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/ol/7 ${3}/*.rpm --config=${2} &
