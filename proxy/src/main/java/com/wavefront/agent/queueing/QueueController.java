@@ -156,12 +156,15 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
     // 2. grab queue sizes (points/etc count)
     long actualWeight = 0L;
-    for (QueueProcessor<T> task : processorTasks) {
-      TaskQueue<T> taskQueue = task.getTaskQueue();
-      if ((taskQueue != null) && (taskQueue.weight() != null)) {
-        actualWeight += taskQueue.weight();
+    if (backlog > 0) {
+      for (QueueProcessor<T> task : processorTasks) {
+        TaskQueue<T> taskQueue = task.getTaskQueue();
+        if ((taskQueue != null) && (taskQueue.weight() != null)) {
+          actualWeight += taskQueue.weight();
+        }
       }
     }
+
     long previousWeight = currentWeight.getAndSet(actualWeight);
 
     // 4. print stats when there's backlog
