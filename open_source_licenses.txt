@@ -1,6 +1,6 @@
 open_source_license.txt
 
-Wavefront by VMware 13.8 GA
+Wavefront by VMware 13.9 GA
 ======================================================================
 
 The following copyright statements and licenses apply to open source
