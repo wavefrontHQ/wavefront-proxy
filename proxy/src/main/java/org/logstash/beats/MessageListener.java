@@ -1,8 +1,8 @@
 package org.logstash.beats;
 
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This class is implemented in ruby in `lib/logstash/inputs/beats/message_listener`, this class is
@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
  */
 // This need to be implemented in Ruby
 public class MessageListener implements IMessageListener {
-  private static final Logger logger = LogManager.getLogger(MessageListener.class);
+  private static final Logger logger = Logger.getLogger(MessageListener.class.getCanonicalName());
 
   /**
    * This is triggered on every new message parsed by the beats handler and should be executed in
@@ -21,7 +21,7 @@ public class MessageListener implements IMessageListener {
    * @param message
    */
   public void onNewMessage(ChannelHandlerContext ctx, Message message) {
-    logger.debug("onNewMessage");
+    logger.fine("onNewMessage");
   }
 
   /**
@@ -31,7 +31,7 @@ public class MessageListener implements IMessageListener {
    * @param ctx
    */
   public void onNewConnection(ChannelHandlerContext ctx) {
-    logger.debug("onNewConnection");
+    logger.fine("onNewConnection");
   }
 
   /**
@@ -41,7 +41,7 @@ public class MessageListener implements IMessageListener {
    * @param ctx
    */
   public void onConnectionClose(ChannelHandlerContext ctx) {
-    logger.debug("onConnectionClose");
+    logger.fine("onConnectionClose");
   }
 
   /**
@@ -52,7 +52,7 @@ public class MessageListener implements IMessageListener {
    * @param cause
    */
   public void onException(ChannelHandlerContext ctx, Throwable cause) {
-    logger.debug("onException");
+    logger.fine("onException");
   }
 
   /**
@@ -62,6 +62,6 @@ public class MessageListener implements IMessageListener {
    * @param cause
    */
   public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
-    logger.debug("onException");
+    logger.fine("onException");
   }
 }

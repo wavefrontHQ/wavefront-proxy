@@ -41,10 +41,10 @@ import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.tracing.*;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
-import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
-import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
+import com.wavefront.api.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.api.agent.preprocessor.ReportPointAddPrefixTransformer;
+import com.wavefront.api.agent.preprocessor.ReportPointTimestampInRangeFilter;
+import com.wavefront.api.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.queueing.*;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -71,6 +71,7 @@ import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.ssl.SslContext;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.nio.ByteOrder;
@@ -79,6 +80,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -157,6 +159,7 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
   private Logger blockedLogsLogger;
+  private AtomicBoolean usingLocalFileRules = new AtomicBoolean(true);
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -1881,6 +1884,18 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void processConfiguration(String tenantName, AgentConfiguration config) {
     try {
+      boolean configHasPreprocessorRules = config.getPreprocessorRules() != null && !config.getPreprocessorRules().isEmpty();
+//       apply new preprocessor rules after checkin
+      if (ProxyCheckInScheduler.isRulesSetInFE.get() && configHasPreprocessorRules) {
+        loadPreprocessors(config.getPreprocessorRules(), true);
+      }
+      // check if we want to read local file
+      else if (!ProxyCheckInScheduler.isRulesSetInFE.get() &&
+              proxyConfig.getPreprocessorConfigFile() != null &&
+              !usingLocalFileRules.get()) { // are we already reading local file
+        loadPreprocessors(proxyConfig.getPreprocessorConfigFile(), false);
+      }
+
       Long pointsPerBatch = config.getPointsPerBatch();
       EntityPropertiesFactory tenantSpecificEntityProps =
           entityPropertiesFactoryMap.get(tenantName);
@@ -2139,5 +2154,21 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void truncateBacklog() {
     senderTaskFactory.truncateBuffers();
+  }
+
+  private void loadPreprocessors(String preprocessorStr, boolean readfromFE) {
+    try {
+      if (readfromFE && preprocessorStr != null) {
+        // preprocessorStr is str of rules itself
+        preprocessors.loadFERules(preprocessorStr);
+        usingLocalFileRules.set(false);
+      } else {
+        // preprocessorStr is file path
+        preprocessors.loadFile(preprocessorStr);
+        usingLocalFileRules.set(true);
+      }
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " + preprocessorStr);
+    }
   }
 }

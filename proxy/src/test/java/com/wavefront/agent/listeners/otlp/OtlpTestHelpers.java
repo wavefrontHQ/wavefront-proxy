@@ -10,10 +10,10 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
-import com.wavefront.agent.preprocessor.SpanBlockFilter;
+import com.wavefront.api.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
+import com.wavefront.api.agent.preprocessor.SpanBlockFilter;
 import com.wavefront.sdk.common.Pair;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;

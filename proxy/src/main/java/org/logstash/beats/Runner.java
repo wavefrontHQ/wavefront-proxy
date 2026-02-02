@@ -1,13 +1,12 @@
 package org.logstash.beats;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Logger;
 import org.logstash.netty.SslSimpleBuilder;
 
 public class Runner {
   private static final int DEFAULT_PORT = 5044;
 
-  private static final Logger logger = LogManager.getLogger(Runner.class);
+  private static final Logger logger = Logger.getLogger(Runner.class.getCanonicalName());
 
   public static void main(String[] args) throws Exception {
     logger.info("Starting Beats Bulk");
@@ -19,7 +18,7 @@ public class Runner {
         new Server("0.0.0.0", DEFAULT_PORT, 15, Runtime.getRuntime().availableProcessors());
 
     if (args.length > 0 && args[0].equals("ssl")) {
-      logger.debug("Using SSL");
+      logger.fine("Using SSL");
 
       String sslCertificate = "/Users/ph/es/certificates/certificate.crt";
       String sslKey = "/Users/ph/es/certificates/certificate.pkcs8.key";

@@ -20,10 +20,10 @@ import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
-import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
-import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.api.agent.preprocessor.LineBasedAllowFilter;
+import com.wavefront.api.agent.preprocessor.LineBasedBlockFilter;
+import com.wavefront.agent.preprocessor.ProxyPreprocessorConfigManager;
+import com.wavefront.api.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.queueing.QueueExporter;
 import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
@@ -71,7 +71,8 @@ public abstract class AbstractAgent {
   protected APIContainer apiContainer;
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
-  protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
+  protected final ProxyPreprocessorConfigManager preprocessors =
+          new ProxyPreprocessorConfigManager();
   protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
   protected final Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap =
       Maps.newHashMap();
@@ -142,7 +143,9 @@ public abstract class AbstractAgent {
 
   private void initPreprocessors() {
     String configFileName = proxyConfig.getPreprocessorConfigFile();
-    if (configFileName != null) {
+    if (ProxyCheckInScheduler.isRulesSetInFE.get()) {
+      logger.info("Preprocessor configuration was set in FE. Skipping reading from file " + configFileName);
+    } else if (configFileName != null) {
       try {
         preprocessors.loadFile(configFileName);
         preprocessors.setUpConfigFileMonitoring(configFileName, 5000); // check every 5s
@@ -150,7 +153,8 @@ public abstract class AbstractAgent {
         throw new RuntimeException(
             "Unable to load preprocessor rules - file does not exist: " + configFileName);
       }
-      logger.info("Preprocessor configuration loaded from " + configFileName);
+      logger.log(Level.INFO, () -> String.format("Preprocessor configuration loaded from %s",
+              (ProxyCheckInScheduler.isRulesSetInFE.get()) ?  "FE rule" : configFileName));
     }
 
     // convert block/allow list fields to filters for full backwards compatibility.

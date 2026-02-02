@@ -43,6 +43,7 @@ public class NoopProxyV2API implements ProxyV2API {
   @Override
   public void proxySaveConfig(UUID uuid, JsonNode jsonNode) {}
 
+  @Override
   public void proxySavePreprocessorRules(UUID uuid, JsonNode jsonNode) {}
 
   @Override

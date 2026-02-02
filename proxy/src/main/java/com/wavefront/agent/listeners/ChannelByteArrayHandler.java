@@ -2,7 +2,7 @@ package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.ingester.ReportableEntityDecoder;

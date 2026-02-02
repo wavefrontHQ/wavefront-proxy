@@ -14,9 +14,9 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.api.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;

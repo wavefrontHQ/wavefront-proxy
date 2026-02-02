@@ -5,13 +5,12 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ProxySendConfigScheduler {
   private static final Logger logger =
-      LogManager.getLogger(ProxySendConfigScheduler.class.getCanonicalName());
+      Logger.getLogger(ProxySendConfigScheduler.class.getCanonicalName());
   private boolean successful = false;
   private final ScheduledExecutorService executor;
   private final Runnable task;
@@ -28,13 +27,13 @@ public class ProxySendConfigScheduler {
             successful = true;
             logger.info("Configuration sent to the server successfully.");
           } catch (javax.ws.rs.NotFoundException ex) {
-            logger.debug("'proxySaveConfig' api end point not found", ex);
+            logger.log(Level.FINE, "'proxySaveConfig' api end point not found", ex);
             successful = true;
           } catch (Throwable e) {
-            logger.warn(
+            logger.severe(
                 "Can't send the Proxy configuration to the server, retrying in 60 seconds. "
                     + e.getMessage());
-            logger.log(Level.DEBUG, "Exception: ", e);
+            logger.log(Level.FINE, "Exception: ", e);
           }
 
           if (successful) {

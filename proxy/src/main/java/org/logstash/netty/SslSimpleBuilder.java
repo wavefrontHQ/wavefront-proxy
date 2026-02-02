@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLEngine;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Created by ph on 2016-05-27. */
 public class SslSimpleBuilder {
@@ -25,7 +25,7 @@ public class SslSimpleBuilder {
     FORCE_PEER,
   }
 
-  private static final Logger logger = LogManager.getLogger(SslSimpleBuilder.class);
+  private static final Logger logger = Logger.getLogger(SslSimpleBuilder.class.getCanonicalName());
 
   private File sslKeyFile;
   private File sslCertificateFile;
@@ -73,7 +73,7 @@ public class SslSimpleBuilder {
       if (!OpenSsl.isCipherSuiteAvailable(cipher)) {
         throw new IllegalArgumentException("Cipher `" + cipher + "` is not available");
       } else {
-        logger.debug("Cipher is supported: " + cipher);
+        logger.fine("Cipher is supported: " + cipher);
       }
     }
 
@@ -109,16 +109,16 @@ public class SslSimpleBuilder {
     SslContextBuilder builder =
         SslContextBuilder.forServer(sslCertificateFile, sslKeyFile, passPhrase);
 
-    if (logger.isDebugEnabled())
-      logger.debug(
+    if (logger.isLoggable(Level.FINE))
+      logger.fine(
           "Available ciphers:" + Arrays.toString(OpenSsl.availableOpenSslCipherSuites().toArray()));
-    logger.debug("Ciphers:  " + Arrays.toString(ciphers));
+    logger.fine("Ciphers:  " + Arrays.toString(ciphers));
 
     builder.ciphers(Arrays.asList(ciphers));
 
     if (requireClientAuth()) {
-      if (logger.isDebugEnabled())
-        logger.debug("Certificate Authorities: " + Arrays.toString(certificateAuthorities));
+      if (logger.isLoggable(Level.FINE))
+        logger.fine("Certificate Authorities: " + Arrays.toString(certificateAuthorities));
 
       builder.trustManager(loadCertificateCollection(certificateAuthorities));
     }
@@ -126,7 +126,7 @@ public class SslSimpleBuilder {
     SslContext context = builder.build();
     SslHandler sslHandler = context.newHandler(bufferAllocator);
 
-    if (logger.isDebugEnabled()) logger.debug("TLS: " + Arrays.toString(protocols));
+    if (logger.isLoggable(Level.FINE)) logger.fine("TLS: " + Arrays.toString(protocols));
 
     SSLEngine engine = sslHandler.engine();
     engine.setEnabledProtocols(protocols);
@@ -151,7 +151,7 @@ public class SslSimpleBuilder {
 
   private X509Certificate[] loadCertificateCollection(String[] certificates)
       throws IOException, CertificateException {
-    logger.debug("Load certificates collection");
+    logger.fine("Load certificates collection");
     CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
 
     List<X509Certificate> collections = new ArrayList<X509Certificate>();
@@ -159,7 +159,7 @@ public class SslSimpleBuilder {
     for (int i = 0; i < certificates.length; i++) {
       String certificate = certificates[i];
 
-      logger.debug("Loading certificates from file " + certificate);
+      logger.fine("Loading certificates from file " + certificate);
 
       try (InputStream in = new FileInputStream(certificate)) {
         List<X509Certificate> certificatesChains =

@@ -13,13 +13,13 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLHandshakeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @ChannelHandler.Sharable
 public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
-  private static final Logger logger = LogManager.getLogger(BeatsHandler.class);
+  private static final Logger logger = Logger.getLogger(BeatsHandler.class.getCanonicalName());
   private final IMessageListener messageListener;
   private final Supplier<Counter> duplicateBatchesIgnored =
       Utils.lazySupplier(
@@ -35,8 +35,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
 
   @Override
   public void channelActive(final ChannelHandlerContext ctx) throws Exception {
-    if (logger.isTraceEnabled()) {
-      logger.trace(format(ctx, "Channel Active"));
+    if (logger.isLoggable(Level.FINEST)) {
+      logger.finest(format(ctx, "Channel Active"));
     }
     super.channelActive(ctx);
     messageListener.onNewConnection(ctx);
@@ -45,16 +45,16 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
   @Override
   public void channelInactive(ChannelHandlerContext ctx) throws Exception {
     super.channelInactive(ctx);
-    if (logger.isTraceEnabled()) {
-      logger.trace(format(ctx, "Channel Inactive"));
+    if (logger.isLoggable(Level.FINEST)) {
+      logger.finest(format(ctx, "Channel Inactive"));
     }
     messageListener.onConnectionClose(ctx);
   }
 
   @Override
   public void channelRead0(ChannelHandlerContext ctx, Batch batch) throws Exception {
-    if (logger.isDebugEnabled()) {
-      logger.debug(format(ctx, "Received a new payload"));
+    if (logger.isLoggable(Level.FINE)) {
+      logger.fine(format(ctx, "Received a new payload"));
     }
     try {
       boolean isFirstMessage = true;
@@ -70,8 +70,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
             BatchIdentity cached = batchDedupeCache.getIfPresent(key);
             if (value.equals(cached)) {
               duplicateBatchesIgnored.get().inc();
-              if (logger.isDebugEnabled()) {
-                logger.debug(format(ctx, "Duplicate filebeat batch received, ignoring"));
+              if (logger.isLoggable(Level.FINE)) {
+                logger.fine(format(ctx, "Duplicate filebeat batch received, ignoring"));
               }
               // ack the entire batch and stop processing the rest of it
               writeAck(
@@ -82,8 +82,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
             }
           }
         }
-        if (logger.isDebugEnabled()) {
-          logger.debug(
+        if (logger.isLoggable(Level.FINE)) {
+          logger.fine(
               format(
                   ctx,
                   "Sending a new message for the listener, sequence: " + message.getSequence()));
@@ -98,11 +98,11 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
       // this channel is done processing this payload, instruct the connection handler to stop
       // sending TCP keep alive
       ctx.channel().attr(ConnectionHandler.CHANNEL_SEND_KEEP_ALIVE).get().set(false);
-      if (logger.isDebugEnabled()) {
-        logger.debug(
-            "{}: batches pending: {}",
+      if (logger.isLoggable(Level.FINE)) {
+        logger.log(Level.FINE, () -> String.format(
+            "%s: batches pending: %s",
             ctx.channel().id().asShortText(),
-            ctx.channel().attr(ConnectionHandler.CHANNEL_SEND_KEEP_ALIVE).get().get());
+            ctx.channel().attr(ConnectionHandler.CHANNEL_SEND_KEEP_ALIVE).get().get()));
       }
       batch.release();
       ctx.flush();
@@ -127,8 +127,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
       String causeMessage =
           cause.getMessage() == null ? cause.getClass().toString() : cause.getMessage();
 
-      if (logger.isDebugEnabled()) {
-        logger.debug(format(ctx, "Handling exception: " + causeMessage), cause);
+      if (logger.isLoggable(Level.FINE)) {
+        logger.log(Level.FINE, format(ctx, "Handling exception: " + causeMessage), cause);
       }
       logger.info(format(ctx, "Handling exception: " + causeMessage));
     } finally {
@@ -143,8 +143,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
   }
 
   private void ack(ChannelHandlerContext ctx, Message message) {
-    if (logger.isTraceEnabled()) {
-      logger.trace(format(ctx, "Acking message number " + message.getSequence()));
+    if (logger.isLoggable(Level.FINEST)) {
+      logger.finest(format(ctx, "Acking message number " + message.getSequence()));
     }
     writeAck(ctx, message.getBatch().getProtocol(), message.getSequence());
     writeAck(ctx, message.getBatch().getProtocol(), 0); // send blank ack
@@ -155,8 +155,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
         .addListener(
             (ChannelFutureListener)
                 channelFuture -> {
-                  if (channelFuture.isSuccess() && logger.isTraceEnabled() && sequence > 0) {
-                    logger.trace(format(ctx, "Ack complete for message number " + sequence));
+                  if (channelFuture.isSuccess() && logger.isLoggable(Level.FINEST) && sequence > 0) {
+                    logger.finest(format(ctx, "Ack complete for message number " + sequence));
                   }
                 });
   }
