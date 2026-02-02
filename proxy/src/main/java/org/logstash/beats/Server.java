@@ -12,12 +12,12 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.logstash.netty.SslSimpleBuilder;
 
 public class Server {
-  private static final Logger logger = LogManager.getLogger(Server.class);
+  private static final Logger logger = Logger.getLogger(Server.class.getCanonicalName());
 
   private final int port;
   private final String host;
@@ -43,15 +43,15 @@ public class Server {
   public Server listen() throws InterruptedException {
     if (workGroup != null) {
       try {
-        logger.debug("Shutting down existing worker group before starting");
+        logger.fine("Shutting down existing worker group before starting");
         workGroup.shutdownGracefully().sync();
       } catch (Exception e) {
-        logger.error("Could not shut down worker group before starting", e);
+        logger.log(Level.SEVERE, "Could not shut down worker group before starting", e);
       }
     }
     workGroup = new NioEventLoopGroup();
     try {
-      logger.info("Starting server on port: {}", this.port);
+      logger.log(Level.INFO, "Starting server on port: {}", this.port);
 
       beatsInitializer =
           new BeatsInitializer(
@@ -83,9 +83,9 @@ public class Server {
   }
 
   public void stop() {
-    logger.debug("Server shutting down");
+    logger.fine("Server shutting down");
     shutdown();
-    logger.debug("Server stopped");
+    logger.fine("Server stopped");
   }
 
   private void shutdown() {
@@ -162,7 +162,7 @@ public class Server {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-      logger.warn("Exception caught in channel initializer", cause);
+      logger.log(Level.SEVERE, "Exception caught in channel initializer", cause);
       try {
         localMessageListener.onChannelInitializeException(ctx, cause);
       } finally {

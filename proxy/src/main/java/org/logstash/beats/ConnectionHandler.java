@@ -8,12 +8,12 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Manages the connection state to the beats client. */
 public class ConnectionHandler extends ChannelDuplexHandler {
-  private static final Logger logger = LogManager.getLogger(ConnectionHandler.class);
+  private static final Logger logger = Logger.getLogger(ConnectionHandler.class.getCanonicalName());
 
   public static final AttributeKey<AtomicBoolean> CHANNEL_SEND_KEEP_ALIVE =
       AttributeKey.valueOf("channel-send-keep-alive");
@@ -21,8 +21,8 @@ public class ConnectionHandler extends ChannelDuplexHandler {
   @Override
   public void channelActive(final ChannelHandlerContext ctx) throws Exception {
     ctx.channel().attr(CHANNEL_SEND_KEEP_ALIVE).set(new AtomicBoolean(false));
-    if (logger.isTraceEnabled()) {
-      logger.trace("{}: channel activated", ctx.channel().id().asShortText());
+    if (logger.isLoggable(Level.FINEST)) {
+      logger.log(Level.FINEST, "{}: channel activated", ctx.channel().id().asShortText());
     }
     super.channelActive(ctx);
   }
@@ -36,11 +36,11 @@ public class ConnectionHandler extends ChannelDuplexHandler {
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
     ctx.channel().attr(CHANNEL_SEND_KEEP_ALIVE).get().set(true);
-    if (logger.isDebugEnabled()) {
-      logger.debug(
-          "{}: batches pending: {}",
+    if (logger.isLoggable(Level.FINE)) {
+      logger.log(Level.FINE, () -> String.format(
+          "%s: batches pending: %s",
           ctx.channel().id().asShortText(),
-          ctx.channel().attr(CHANNEL_SEND_KEEP_ALIVE).get().get());
+          ctx.channel().attr(CHANNEL_SEND_KEEP_ALIVE).get().get()));
     }
     super.channelRead(ctx, msg);
   }
@@ -74,32 +74,32 @@ public class ConnectionHandler extends ChannelDuplexHandler {
       if (e.state() == IdleState.WRITER_IDLE) {
         if (sendKeepAlive(ctx)) {
           ChannelFuture f = ctx.writeAndFlush(new Ack(Protocol.VERSION_2, 0));
-          if (logger.isTraceEnabled()) {
-            logger.trace("{}: sending keep alive ack to libbeat", ctx.channel().id().asShortText());
+          if (logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, () -> String.format("%s: sending keep alive ack to libbeat", ctx.channel().id().asShortText()));
             f.addListener(
                 (ChannelFutureListener)
                     future -> {
                       if (future.isSuccess()) {
-                        logger.trace("{}: acking was successful", ctx.channel().id().asShortText());
+                        logger.log(Level.FINEST, "{0}: acking was successful", ctx.channel().id().asShortText());
                       } else {
-                        logger.trace("{}: acking failed", ctx.channel().id().asShortText());
+                        logger.log(Level.FINEST, "{0}: acking failed", ctx.channel().id().asShortText());
                       }
                     });
           }
         }
       } else if (e.state() == IdleState.ALL_IDLE) {
-        logger.debug(
+        logger.log(Level.FINE,
             "{}: reader and writer are idle, closing remote connection",
             ctx.channel().id().asShortText());
         ctx.flush();
         ChannelFuture f = ctx.close();
-        if (logger.isTraceEnabled()) {
+        if (logger.isLoggable(Level.FINEST)) {
           f.addListener(
               (future) -> {
                 if (future.isSuccess()) {
-                  logger.trace("closed ctx successfully");
+                  logger.finest("closed ctx successfully");
                 } else {
-                  logger.trace("could not close ctx");
+                  logger.finest("could not close ctx");
                 }
               });
         }

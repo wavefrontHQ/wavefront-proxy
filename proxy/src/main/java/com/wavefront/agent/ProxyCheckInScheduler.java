@@ -4,12 +4,13 @@ import static com.wavefront.common.Utils.getBuildVersion;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
+import com.wavefront.agent.preprocessor.ProxyPreprocessorConfigManager;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -32,8 +33,8 @@ import java.util.function.BiConsumer;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits
@@ -42,7 +43,7 @@ import org.apache.logging.log4j.Logger;
  * @author vasily@wavefront.com
  */
 public class ProxyCheckInScheduler {
-  private static final Logger logger = LogManager.getLogger("proxy");
+  private static final Logger logger = Logger.getLogger("proxy");
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
@@ -68,7 +69,10 @@ public class ProxyCheckInScheduler {
   private volatile JsonNode agentMetrics;
   private boolean retryImmediately = false;
 
+  // check if preprocessor rules need to be sent to update BE
   public static AtomicBoolean preprocessorRulesNeedUpdate = new AtomicBoolean(false);
+  // check if rules are set from FE/API
+  public static AtomicBoolean isRulesSetInFE = new AtomicBoolean(false);
 
   /**
    * @param proxyId Proxy UUID.
@@ -134,17 +138,58 @@ public class ProxyCheckInScheduler {
     executor.shutdown();
   }
 
-  /** Send preprocessor rules */
-  private void sendPreprocessorRules() {
+  /**
+   * Initial sending of preprocessor rules. Will always check local location for preprocessor rule.
+   */
+  public void sendPreprocessorRules() {
     if (preprocessorRulesNeedUpdate.getAndSet(false)) {
       try {
+        JsonNode rulesNode = createRulesNode(ProxyPreprocessorConfigManager.getProxyConfigRules(), null);
         apiContainer
-            .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-            .proxySavePreprocessorRules(proxyId, PreprocessorConfigManager.getJsonRules());
+                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+                .proxySavePreprocessorRules(
+                        proxyId,
+                        rulesNode
+                );
       } catch (javax.ws.rs.NotFoundException ex) {
-        logger.debug("'proxySavePreprocessorRules' api end point not found", ex);
+        logger.warning("'proxySavePreprocessorRules' api end point not found");
       }
     }
+  }
+
+  /** Send preprocessor rules */
+  private void sendPreprocessorRules(AgentConfiguration agentConfiguration) {
+    if (preprocessorRulesNeedUpdate.getAndSet(false)) {
+      String preprocessorRules = null;
+      if (agentConfiguration.getPreprocessorRules() != null) {
+        // reading rules from BE if sent from BE
+        preprocessorRules = agentConfiguration.getPreprocessorRules();
+      } else {
+        // reading local file's rule
+        preprocessorRules = ProxyPreprocessorConfigManager.getProxyConfigRules();
+      }
+      try {
+        JsonNode rulesNode = createRulesNode(preprocessorRules, agentConfiguration.getPreprocessorRulesId());
+        apiContainer
+                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
+                .proxySavePreprocessorRules(
+                        proxyId,
+                        rulesNode
+                );
+      } catch (javax.ws.rs.NotFoundException ex) {
+        logger.warning("'proxySavePreprocessorRules' api end point not found");
+      }
+    }
+  }
+
+  private JsonNode createRulesNode(String preprocessorRules, String proxyId) {
+    Map<String, String> fieldsMap = new HashMap<>();
+    fieldsMap.put("proxyRules", preprocessorRules);
+    if (proxyConfig.getPreprocessorConfigFile() != null) fieldsMap.put("proxyRulesFilePath", proxyConfig.getPreprocessorConfigFile());
+    if (proxyId != null) fieldsMap.put("proxyRulesId", proxyId);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    return objectMapper.valueToTree(fieldsMap);
   }
 
   /**
@@ -335,7 +380,7 @@ public class ProxyCheckInScheduler {
         if (StringUtils.isBlank(logServerIngestionURL)
             || StringUtils.isBlank(logServerIngestionToken)) {
           proxyConfig.setReceivedLogServerDetails(false);
-          logger.error(
+          logger.severe(
               WARNING_MSG
                   + " To ingest logs to the log server, please provide "
                   + "logServerIngestionToken & logServerIngestionURL in the proxy configuration.");
@@ -343,7 +388,7 @@ public class ProxyCheckInScheduler {
       }
     } else if (StringUtils.isBlank(logServerIngestionURL)
         || StringUtils.isBlank(logServerIngestionToken)) {
-      logger.warn(
+      logger.severe(
           WARNING_MSG
               + " Proxy will not be ingesting data to the log server as it did "
               + "not receive at least one of the values during check-in.");
@@ -358,7 +403,6 @@ public class ProxyCheckInScheduler {
   void updateConfiguration() {
     try {
       Map<String, AgentConfiguration> configList = checkin();
-      sendPreprocessorRules();
       if (configList != null && !configList.isEmpty()) {
         AgentConfiguration config;
         for (Map.Entry<String, AgentConfiguration> configEntry : configList.entrySet()) {
@@ -368,27 +412,53 @@ public class ProxyCheckInScheduler {
             continue;
           }
           if (configEntry.getKey().equals(APIContainer.CENTRAL_TENANT_NAME)) {
-            if (logger.isDebugEnabled()) {
-              logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
-              logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
+            if (logger.isLoggable(Level.FINE)) {
+              logger.fine("Server configuration getShutOffAgents: " + config.getShutOffAgents());
+              logger.fine("Server configuration isTruncateQueue: " + config.isTruncateQueue());
             }
             if (config.getShutOffAgents()) {
-              logger.warn(
+              logger.severe(
                   firstNonNull(
                       config.getShutOffMessage(),
                       "Shutting down: Server side flag indicating proxy has to shut down."));
               shutdownHook.run();
             } else if (config.isTruncateQueue()) {
-              logger.warn(
+              logger.severe(
                   "Truncating queue: Server side flag indicating proxy queue has to be truncated.");
               truncateBacklog.run();
             }
           }
           agentConfigurationConsumer.accept(configEntry.getKey(), config);
+
+          // Check if preprocessor rules were set on server side
+          String checkPreprocessorRules = config.getPreprocessorRules();
+          if (checkPreprocessorRules != null && !checkPreprocessorRules.isEmpty()) {
+            AgentConfiguration finalConfig = config;
+            logger.log(Level.INFO, () -> String.format("New preprocessor rules detected during checkin. Setting new preprocessor rule %s",
+                    (finalConfig.getPreprocessorRulesId() != null && !finalConfig.getPreprocessorRulesId().isEmpty()) ? finalConfig.getPreprocessorRulesId() : ""));
+            // future implementation, can send timestamp through AgentConfig and skip reloading if rule unchanged
+            isRulesSetInFE.set(true);
+            // indicates will need to sendPreprocessorRules()
+            preprocessorRulesNeedUpdate.set(true);
+          } else {
+            // was previously reading from BE
+            if (isRulesSetInFE.get()) {
+              if (proxyConfig.getPreprocessorConfigFile() == null || proxyConfig.getPreprocessorConfigFile().isEmpty()) {
+                logger.info("No preprocessor rules detected during checkin, and no rules file found.");
+              } else {
+                logger.log(Level.INFO, () -> String.format("Reverting back to reading rules from file %s", proxyConfig.getPreprocessorConfigFile()));
+              }
+              // indicates that previously read from BE, now switching back to reading from file.
+              isRulesSetInFE.set(false);
+              preprocessorRulesNeedUpdate.set(true);
+            }
+          }
+          // will always send to BE in order to update Agent with latest rule
+          sendPreprocessorRules(config);
         }
       }
     } catch (Exception e) {
-      logger.error("Exception occurred during configuration update", e);
+      logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
     }
   }
 
@@ -405,13 +475,13 @@ public class ProxyCheckInScheduler {
         retries.set(0);
       }
     } catch (Exception ex) {
-      logger.error("Could not generate proxy metrics", ex);
+      logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
     }
   }
 
   private void checkinError(String errMsg) {
-    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
-    logger.error(errMsg);
-    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
+    logger.severe(errMsg);
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
   }
 }

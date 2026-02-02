@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import io.netty.channel.ChannelHandlerContext;

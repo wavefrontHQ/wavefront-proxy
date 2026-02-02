@@ -42,7 +42,7 @@ import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.SpanDerivedMetricsUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;

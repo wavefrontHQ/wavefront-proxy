@@ -14,6 +14,8 @@ import java.net.PasswordAuthentication;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.ext.WriterInterceptor;
 import org.apache.commons.lang.StringUtils;
@@ -24,8 +26,6 @@ import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
@@ -62,7 +62,7 @@ public class APIContainer {
   private String logServerToken;
   private String logServerEndpointUrl;
 
-  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(APIContainer.class.getCanonicalName());
 
   /**
    * @param proxyConfig proxy configuration settings

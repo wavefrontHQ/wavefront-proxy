@@ -8,7 +8,7 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.LogsMessage;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;

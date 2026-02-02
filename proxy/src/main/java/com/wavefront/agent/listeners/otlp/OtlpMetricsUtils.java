@@ -8,7 +8,7 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.entities.histograms.HistogramGranularity;

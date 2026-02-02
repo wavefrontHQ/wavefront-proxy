@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class BeatsParser extends ByteToMessageDecoder {
-  private static final Logger logger = LogManager.getLogger(BeatsParser.class);
+  private static final Logger logger = Logger.getLogger(BeatsParser.class.getCanonicalName());
 
   private Batch batch;
 
@@ -49,15 +49,15 @@ public class BeatsParser extends ByteToMessageDecoder {
     switch (currentState) {
       case READ_HEADER:
         {
-          logger.trace("Running: READ_HEADER");
+          logger.finest("Running: READ_HEADER");
 
           byte currentVersion = in.readByte();
           if (batch == null) {
             if (Protocol.isVersion2(currentVersion)) {
               batch = new V2Batch();
-              logger.trace("Frame version 2 detected");
+              logger.finest("Frame version 2 detected");
             } else {
-              logger.trace("Frame version 1 detected");
+              logger.finest("Frame version 1 detected");
               batch = new V1Batch();
             }
           }
@@ -100,7 +100,7 @@ public class BeatsParser extends ByteToMessageDecoder {
         }
       case READ_WINDOW_SIZE:
         {
-          logger.trace("Running: READ_WINDOW_SIZE");
+          logger.finest("Running: READ_WINDOW_SIZE");
           batch.setBatchSize((int) in.readUnsignedInt());
 
           // This is unlikely to happen but I have no way to known when a frame is
@@ -109,7 +109,7 @@ public class BeatsParser extends ByteToMessageDecoder {
           // If the FSM read a new window and I have still
           // events buffered I should send the current batch down to the next handler.
           if (!batch.isEmpty()) {
-            logger.warn(
+            logger.warning(
                 "New window size received but the current batch was not complete, sending the current batch");
             out.add(batch);
             batchComplete();
@@ -121,7 +121,7 @@ public class BeatsParser extends ByteToMessageDecoder {
       case READ_DATA_FIELDS:
         {
           // Lumberjack version 1 protocol, which use the Key:Value format.
-          logger.trace("Running: READ_DATA_FIELDS");
+          logger.finest("Running: READ_DATA_FIELDS");
           sequence = (int) in.readUnsignedInt();
           int fieldsCount = (int) in.readUnsignedInt();
           int count = 0;
@@ -161,7 +161,7 @@ public class BeatsParser extends ByteToMessageDecoder {
         }
       case READ_JSON_HEADER:
         {
-          logger.trace("Running: READ_JSON_HEADER");
+          logger.finest("Running: READ_JSON_HEADER");
 
           sequence = (int) in.readUnsignedInt();
           int jsonPayloadSize = (int) in.readUnsignedInt();
@@ -176,7 +176,7 @@ public class BeatsParser extends ByteToMessageDecoder {
         }
       case READ_COMPRESSED_FRAME_HEADER:
         {
-          logger.trace("Running: READ_COMPRESSED_FRAME_HEADER");
+          logger.finest("Running: READ_COMPRESSED_FRAME_HEADER");
 
           transition(States.READ_COMPRESSED_FRAME, in.readInt());
           break;
@@ -184,7 +184,7 @@ public class BeatsParser extends ByteToMessageDecoder {
 
       case READ_COMPRESSED_FRAME:
         {
-          logger.trace("Running: READ_COMPRESSED_FRAME");
+          logger.finest("Running: READ_COMPRESSED_FRAME");
           // Use the compressed size as the safe start for the buffer.
           ByteBuf buffer = ctx.alloc().buffer(requiredBytes);
           try (ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
@@ -205,11 +205,11 @@ public class BeatsParser extends ByteToMessageDecoder {
         }
       case READ_JSON:
         {
-          logger.trace("Running: READ_JSON");
+          logger.finest("Running: READ_JSON");
           ((V2Batch) batch).addMessage(sequence, in, requiredBytes);
           if (batch.isComplete()) {
-            if (logger.isTraceEnabled()) {
-              logger.trace(
+            if (logger.isLoggable(Level.FINEST)) {
+              logger.finest(
                   "Sending batch size: "
                       + this.batch.size()
                       + ", windowSize: "
@@ -236,8 +236,8 @@ public class BeatsParser extends ByteToMessageDecoder {
   }
 
   private void transition(States nextState, int requiredBytes) {
-    if (logger.isTraceEnabled()) {
-      logger.trace(
+    if (logger.isLoggable(Level.FINEST)) {
+      logger.finest(
           "Transition, from: "
               + currentState
               + ", to: "
