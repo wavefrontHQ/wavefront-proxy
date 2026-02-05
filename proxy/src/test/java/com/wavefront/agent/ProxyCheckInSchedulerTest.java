@@ -469,6 +469,7 @@ public class ProxyCheckInSchedulerTest {
     expectLastCall().anyTimes();
     expect(proxyConfig.getProxyname()).andReturn("proxyName").anyTimes();
     expect(proxyConfig.getJsonConfig()).andReturn(null).anyTimes();
+    expect(proxyConfig.getPreprocessorConfigFile()).andReturn("testFilepath").anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);

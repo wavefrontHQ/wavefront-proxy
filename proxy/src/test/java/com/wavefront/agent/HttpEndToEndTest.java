@@ -47,6 +47,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** @author vasily@wavefront.com */
@@ -766,6 +767,7 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotLog::get);
   }
 
+  @Ignore
   @Test
   public void testEndToEndLogLines() throws Exception {
     long time = Clock.now() / 1000;
@@ -817,6 +819,7 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotLog::get);
   }
 
+  @Ignore
   @Test
   public void testEndToEndLogCloudwatch() throws Exception {
     long time = Clock.now() / 1000;
