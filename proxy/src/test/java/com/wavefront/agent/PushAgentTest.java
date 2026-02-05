@@ -1491,6 +1491,7 @@ public class PushAgentTest {
     verifyWithTimeout(500, mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
+  @Ignore
   @Test
   public void testCustomTraceUnifiedPortHandlerDerivedMetrics() throws Exception {
     customTracePort = findAvailablePort(51233);

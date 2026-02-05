@@ -118,4 +118,10 @@ public class ProxyPreprocessorConfigManager extends PreprocessorConfigManager {
       throw new RuntimeException("Unable to read file rules as string", e);
     }
   }
+
+  // For testing purposes
+  @VisibleForTesting
+  public static void clearProxyConfigRules() {
+    proxyConfigRules = null;
+  }
 }

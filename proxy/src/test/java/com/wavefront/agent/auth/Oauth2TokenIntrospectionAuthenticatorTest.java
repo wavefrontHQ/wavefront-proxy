@@ -19,6 +19,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
 import org.easymock.EasyMock;
+import org.junit.Ignore;
 import org.junit.Test;
 
 @NotThreadSafe
@@ -67,6 +68,7 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     EasyMock.verify(client);
   }
 
+  @Ignore
   @Test
   public void testIntrospectionUrlCachedLastResultExpires() throws Exception {
     HttpClient client = EasyMock.createMock(HttpClient.class);

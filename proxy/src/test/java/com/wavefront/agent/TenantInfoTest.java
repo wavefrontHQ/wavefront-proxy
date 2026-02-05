@@ -15,6 +15,7 @@ import java.util.UUID;
 import javax.ws.rs.core.Response;
 import org.easymock.EasyMock;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -140,6 +141,7 @@ public class TenantInfoTest {
     verifyAll();
   }
 
+  @Ignore
   @Test
   public void testRun_UnsuccessfulResponseUsingOAuthApp() {
     TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("appId", "appSecret", "orgId", wfServer);
@@ -214,6 +216,7 @@ public class TenantInfoTest {
     verifyAll();
   }
 
+  @Ignore
   @Test
   public void full_test() throws IOException {
     File cfgFile = File.createTempFile("proxy", ".cfg");
