@@ -1,6 +1,6 @@
 open_source_license.txt
 
-Wavefront by VMware 13.9 GA
+Wavefront by VMware 14.0 GA
 ======================================================================
 
 The following copyright statements and licenses apply to open source
@@ -200,7 +200,7 @@ SECTION 1: Apache License, V2.0
    >>> com.wavefront:java-lib-2023-08.2
    >>> com.squareup.okio:okio-3.6.0
    >>> com.squareup.okio:okio-jvm-3.6.0
-   >>> org.apache.avro:avro-1.11.3
+   >>> org.apache.avro:avro-1.11.4
    >>> io.netty:netty-buffer-4.1.77
    >>> io.netty:netty-codec-http2-4.1.77
    >>> io.netty:netty-codec-http-4.1.77
@@ -2672,7 +2672,7 @@ APPENDIX. Standard License Files
 
 
 
-   >>> org.apache.avro:avro-1.11.3
+   >>> org.apache.avro:avro-1.11.4
 
        Found in: META-INF/NOTICE
 
