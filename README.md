@@ -1,3 +1,7 @@
+> [!WARNING]
+> Wavefront Proxy 14.0 and later no longer use the public `java-lib` implementation.
+> This repository is maintained in a **read-only** state and is provided for **reference purposes only**.
+
 # Security Advisories
 
 Wavefront proxy version 10.10 and earlier is impacted by a Log4j vulnerability — [CVE-2021-44228](https://github.com/advisories/GHSA-jfh8-c2jp-5v3q). VMware Security Advisory (VMSA): CVE-2021-44228 – [VMSA-2021-0028](https://blogs.vmware.com/security/2021/12/vmsa-2021-0028-log4j-what-you-need-to-know.html) discusses this vulnerability and its impact on VMware products.
