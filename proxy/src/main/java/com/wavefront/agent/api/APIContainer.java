@@ -9,6 +9,7 @@ import com.wavefront.api.EventAPI;
 import com.wavefront.api.LogAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
+import com.wavefront.api.BloomFilterAPI;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.util.Collection;
@@ -54,6 +55,7 @@ public class APIContainer {
   private final CSPAPI cspAPI;
 
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
+  private Map<String, BloomFilterAPI> bloomFilterAPIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
   private Map<String, EventAPI> eventAPIsForMulticasting;
 
@@ -80,6 +82,7 @@ public class APIContainer {
 
     // config the multicasting tenants / clusters
     proxyV2APIsForMulticasting = Maps.newHashMap();
+    bloomFilterAPIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting = Maps.newHashMap();
     eventAPIsForMulticasting = Maps.newHashMap();
     // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
@@ -90,6 +93,7 @@ public class APIContainer {
       tenantName = tenantInfoEntry.getKey();
       tenantServer = tenantInfoEntry.getValue().getWFServer();
       proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
+      bloomFilterAPIsForMulticasting.put(tenantName, createService(tenantServer, BloomFilterAPI.class));
       sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
       eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
     }
@@ -98,6 +102,8 @@ public class APIContainer {
       ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
       this.proxyV2APIsForMulticasting = Maps.newHashMap();
       this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
+      this.bloomFilterAPIsForMulticasting = Maps.newHashMap();
+      this.bloomFilterAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopBloomFilterAPI());
       this.sourceTagAPIsForMulticasting = Maps.newHashMap();
       this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
       this.eventAPIsForMulticasting = Maps.newHashMap();
@@ -130,6 +136,8 @@ public class APIContainer {
     this.cspAPI = cspAPI;
     proxyV2APIsForMulticasting = Maps.newHashMap();
     proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
+    bloomFilterAPIsForMulticasting = Maps.newHashMap();
+    bloomFilterAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopBloomFilterAPI());
     sourceTagAPIsForMulticasting = Maps.newHashMap();
     sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, sourceTagAPI);
     eventAPIsForMulticasting = Maps.newHashMap();
@@ -153,6 +161,17 @@ public class APIContainer {
    */
   public ProxyV2API getProxyV2APIForTenant(String tenantName) {
     return proxyV2APIsForMulticasting.get(tenantName);
+  }
+
+
+  /**
+   * Get RESTeasy proxy for {@link BloomFilterAPI} with given tenant name.
+   *
+   * @param tenantName tenant name
+   * @return proxy object corresponding to tenant name
+   */
+  public BloomFilterAPI getBloomFilterAPIForTenant(String tenantName) {
+    return bloomFilterAPIsForMulticasting.get(tenantName);
   }
 
   /**
@@ -234,6 +253,7 @@ public class APIContainer {
       throw new IllegalStateException("Can't invoke updateServerEndpointURL with this constructor");
     }
     proxyV2APIsForMulticasting.put(tenantName, createService(serverEndpointUrl, ProxyV2API.class));
+    bloomFilterAPIsForMulticasting.put(tenantName, createService(serverEndpointUrl, BloomFilterAPI.class));
     sourceTagAPIsForMulticasting.put(
         tenantName, createService(serverEndpointUrl, SourceTagAPI.class));
     eventAPIsForMulticasting.put(tenantName, createService(serverEndpointUrl, EventAPI.class));
@@ -242,6 +262,8 @@ public class APIContainer {
       ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
       this.proxyV2APIsForMulticasting = Maps.newHashMap();
       this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
+      this.bloomFilterAPIsForMulticasting = Maps.newHashMap();
+      this.bloomFilterAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopBloomFilterAPI());
       this.sourceTagAPIsForMulticasting = Maps.newHashMap();
       this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
       this.eventAPIsForMulticasting = Maps.newHashMap();

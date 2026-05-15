@@ -69,6 +69,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
         receivedRateSink,
         blockedItemLogger,
         validItemsLogger,
+        null,
         null);
     super.initializeCounters();
     this.digests = digests;

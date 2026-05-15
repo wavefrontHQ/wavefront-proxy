@@ -3,6 +3,7 @@ package com.wavefront.agent.handlers;
 import static com.wavefront.data.ReportableEntityType.TRACE_SPAN_LOGS;
 
 import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.sampler.MetricBloomFilterSampler;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
 import com.wavefront.common.logger.SamplingLogger;
@@ -81,6 +82,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedSpansLogger;
   private final Logger blockedLogsLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
+  private final MetricBloomFilterSampler metricBloomFilterSampler;
   private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
 
   /**
@@ -100,6 +102,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       final Logger blockedHistogramsLogger,
       final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
+      @Nullable MetricBloomFilterSampler metricBloomFilterSampler,
       final Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
       final Logger blockedLogsLogger) {
     this.senderTaskFactory = senderTaskFactory;
@@ -109,6 +112,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
+    this.metricBloomFilterSampler = metricBloomFilterSampler;
     this.blockedLogsLogger = blockedLogsLogger;
     this.entityPropsFactoryMap = entityPropsFactoryMap;
   }
@@ -139,7 +143,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           receivedRateSink,
                           blockedPointsLogger,
                           VALID_POINTS_LOGGER,
-                          null);
+                          null,
+                          metricBloomFilterSampler);
                     case HISTOGRAM:
                       return new ReportPointHandlerImpl(
                           handlerKey,
@@ -150,7 +155,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           receivedRateSink,
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER,
-                          histogramRecompressor);
+                          histogramRecompressor,
+                          null);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(
                           handlerKey,

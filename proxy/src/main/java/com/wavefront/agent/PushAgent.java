@@ -41,6 +41,8 @@ import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.tracing.*;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
+import com.wavefront.agent.sampler.MetricBloomFilterRefresher;
+import com.wavefront.agent.sampler.MetricBloomFilterSampler;
 import com.wavefront.api.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.api.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.api.agent.preprocessor.ReportPointTimestampInRangeFilter;
@@ -123,6 +125,8 @@ public class PushAgent extends AbstractAgent {
   protected Function<Histogram, Histogram> histogramRecompressor = null;
   protected ReportableEntityHandlerFactoryImpl handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
+  protected MetricBloomFilterSampler bloomFilterSampler;
+  protected MetricBloomFilterRefresher bloomFilterRefresher;
   protected HealthCheckManager healthCheckManager;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticator.DUMMY_AUTHENTICATOR;
   protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
@@ -231,6 +235,26 @@ public class PushAgent extends AbstractAgent {
                       .getGlobalProperties()
                       .getHistogramStorageAccuracy());
     }
+    if (proxyConfig.getMetricQuerySamplingEnabled() && proxyConfig.getMetricQuerySamplingRate() > 0) {
+      bloomFilterSampler = new MetricBloomFilterSampler();
+      bloomFilterSampler.setNonQueriedKeepPercentFromSamplingRate(proxyConfig.getMetricQuerySamplingRate());
+      bloomFilterSampler.setDryRunEnabled(proxyConfig.getMetricQuerySamplingDryRunEnabled());
+      TenantInfo centralTenantInfo = TokenManager.getMulticastingTenantList().get(CENTRAL_TENANT_NAME);
+      String authorizationHeader =
+              (centralTenantInfo == null || centralTenantInfo.getBearerToken() == null) ? null : "Bearer " + centralTenantInfo.getBearerToken();
+      bloomFilterRefresher = new MetricBloomFilterRefresher(
+              apiContainer.getBloomFilterAPIForTenant(CENTRAL_TENANT_NAME),
+              agentId,
+              authorizationHeader,
+              proxyConfig.getMetricQuerySamplingRefreshMinutes(),
+              proxyConfig.getMetricBloomFilterLookbackDays(), bloomFilterSampler);
+      bloomFilterRefresher.start();
+      shutdownTasks.add(() -> bloomFilterRefresher.shutdown());
+    } else {
+      bloomFilterSampler = null;
+      bloomFilterRefresher = null;
+      logger.info("MetricQuerySampling disabled or MetricQuerySamplingRate is not set, skipping bloom filter refresh and query aware sampling");
+    }
     handlerFactory =
         new ReportableEntityHandlerFactoryImpl(
             senderTaskFactory,
@@ -240,6 +264,7 @@ public class PushAgent extends AbstractAgent {
             blockedHistogramsLogger,
             blockedSpansLogger,
             histogramRecompressor,
+            bloomFilterSampler,
             entityPropertiesFactoryMap,
             blockedLogsLogger);
     if (proxyConfig.isTrafficShaping()) {
@@ -1894,6 +1919,19 @@ public class PushAgent extends AbstractAgent {
               proxyConfig.getPreprocessorConfigFile() != null &&
               !usingLocalFileRules.get()) { // are we already reading local file
         loadPreprocessors(proxyConfig.getPreprocessorConfigFile(), false);
+      }
+
+      if (bloomFilterSampler != null && CENTRAL_TENANT_NAME.equals(tenantName) &&
+              proxyConfig.getMetricQuerySamplingEnabled() && proxyConfig.getMetricQuerySamplingRate() > 0) {
+        boolean wasForceDisabled = bloomFilterSampler.isForceDisableSampling();
+        boolean shouldForceDisableSampling = config.getDisableSampling();
+        bloomFilterSampler.setForceDisableSampling(shouldForceDisableSampling);
+        if (!wasForceDisabled && shouldForceDisableSampling) {
+          logger.warning("Metric query sampling is enabled locally, but check-in force disabled sampling. " +
+                  "Points will NOT be sampled.");
+        } else if (wasForceDisabled && !shouldForceDisableSampling) {
+          logger.info("Backend check-in re-enabled metric query sampling.");
+        }
       }
 
       Long pointsPerBatch = config.getPointsPerBatch();

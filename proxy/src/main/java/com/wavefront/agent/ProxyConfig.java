@@ -962,6 +962,26 @@ public class ProxyConfig extends ProxyConfigDef {
     return corsAllowNullOrigin;
   }
 
+  public boolean getMetricQuerySamplingEnabled() {
+    return metricQuerySamplingEnabled;
+  }
+
+  public int getMetricQuerySamplingRefreshMinutes() {
+    return metricQuerySamplingRefreshMinutes;
+  }
+
+  public double getMetricQuerySamplingRate() {
+    return metricQuerySamplingRate;
+  }
+
+  public boolean getMetricQuerySamplingDryRunEnabled() {
+    return metricQuerySamplingDryRun;
+  }
+
+  public int getMetricBloomFilterLookbackDays() {
+    return  metricBloomFilterLookbackDays;
+  }
+
   public String getLogServerIngestionToken() {
     return logServerIngestionToken;
   }
