@@ -1501,6 +1501,12 @@ public abstract class ProxyConfigDef extends Configuration {
   String customLevelTags = "";
 
   @Parameter(
+          names = {"--metricBloomFilterLookbackDays"},
+          description = "Number of previous days to include in the bloom filter sampling window, in addition to current day.")
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  int metricBloomFilterLookbackDays = 1;
+
+  @Parameter(
       names = {"--logServerIngestionToken"},
       description = "Log insight ingestion token, required to ingest logs to the log server.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.LOGS, secret = true)
@@ -1550,4 +1556,28 @@ public abstract class ProxyConfigDef extends Configuration {
       description = "The CSP organisation identifier.")
   @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF, secret = true)
   String cspOrgId = null;
+
+  @Parameter(
+          names = {"--metricQuerySamplingEnabled"},
+          description = "Enable bloom filter based query-aware metric sampling.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
+  boolean metricQuerySamplingEnabled = false;
+
+  @Parameter(
+          names = {"--metricQuerySamplingRefreshMinutes"},
+          description = "Interval in minutes to refresh query bloom filter. Default and minimum of 5 minutes.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
+  int metricQuerySamplingRefreshMinutes = 5;
+
+  @Parameter(
+          names = {"--metricQuerySamplingRate"},
+          description = "Sample probability for metrics that are not queried. Value in [0.0, 1.0]. Default: 0")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
+  double metricQuerySamplingRate = 0;
+
+  @Parameter(
+          names = {"--metricQuerySamplingDryRun"},
+          description = "Enable query-aware sampling dry run mode. Bloom filters and sampling decisions are evaluated but points are not dropped.")
+  @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
+  boolean metricQuerySamplingDryRun = false;
 }

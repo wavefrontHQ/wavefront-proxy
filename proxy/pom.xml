@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>14.1-SNAPSHOT</version>
+  <version>15.0-rc0</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -218,6 +218,7 @@
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
                 <exclude>datadog/**</exclude>
+                <exclude>com/wavefront/common/**</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -253,6 +254,14 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>9</source>
+          <target>9</target>
+        </configuration>
       </plugin>
 
     </plugins>
@@ -452,7 +461,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2026-2.3</version>
+      <version>2026-2.4</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
@@ -718,18 +727,6 @@
                 </goals>
               </execution>
             </executions>
-          </plugin>
-
-          <plugin>
-            <groupId>org.sonatype.plugins</groupId>
-            <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.3</version>
-            <extensions>true</extensions>
-            <configuration>
-              <serverId>ossrh</serverId>
-              <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-              <autoReleaseAfterClose>true</autoReleaseAfterClose>
-            </configuration>
           </plugin>
         </plugins>
       </build>

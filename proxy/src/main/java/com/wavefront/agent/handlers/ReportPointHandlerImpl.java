@@ -3,12 +3,14 @@ package com.wavefront.agent.handlers;
 import static com.wavefront.data.Validation.validatePoint;
 
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.sampler.MetricBloomFilterSampler;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Utils;
 import com.wavefront.data.DeltaCounterValueException;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.BurstRateTrackingCounter;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
@@ -30,6 +32,8 @@ import wavefront.report.ReportPoint;
  * @author vasily@wavefront.com
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
+  private static final Logger logger =
+          Logger.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
 
   final Logger validItemsLogger;
   final ValidationConfiguration validationConfig;
@@ -37,6 +41,9 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   final com.yammer.metrics.core.Histogram receivedPointLag;
   final com.yammer.metrics.core.Histogram receivedTagCount;
   final Supplier<Counter> discardedCounterSupplier;
+  final Supplier<Counter> sampledCounterSupplier;
+  final BurstRateTrackingCounter sampledOutStats;
+  final MetricBloomFilterSampler metricBloomFilterSampler;
 
   /**
    * Creates a new instance that handles either histograms or points.
@@ -52,6 +59,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param blockedItemLogger logger for blocked items (optional).
    * @param validItemsLogger sampling logger for valid items (optional).
    * @param recompressor histogram recompressor (optional)
+   * @param metricBloomFilterSampler metric sampler (optional, points only).
    */
   ReportPointHandlerImpl(
       final HandlerKey handlerKey,
@@ -62,7 +70,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger,
-      @Nullable final Function<Histogram, Histogram> recompressor) {
+      @Nullable final Function<Histogram, Histogram> recompressor,
+      @Nullable final MetricBloomFilterSampler metricBloomFilterSampler) {
     super(
         handlerKey,
         blockedItemsPerBatch,
@@ -75,6 +84,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;
+    this.metricBloomFilterSampler = metricBloomFilterSampler;
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedPointLag =
         registry.newHistogram(
@@ -85,6 +95,12 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     this.discardedCounterSupplier =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
+    this.sampledCounterSupplier =
+            Utils.lazySupplier(
+                    () -> Metrics.newCounter(new MetricName(handlerKey.toString(), "", "sampled")));
+    this.sampledOutStats =
+            new BurstRateTrackingCounter(
+                    new MetricName(handlerKey.toString(), "", "sampled-burst-rate"), registry, 1000 );
   }
 
   @Override
@@ -101,9 +117,17 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       Histogram histogram = (Histogram) point.getValue();
       point.setValue(recompressor.apply(histogram));
     }
+    // Count as received once proxy accepts and validates point, even if sampled out later.
+    getReceivedCounter().inc();
+    if (metricBloomFilterSampler != null && !metricBloomFilterSampler.isForceDisableSampling() &&
+            metricBloomFilterSampler.shouldSampleOut(point)) {
+      discardedCounterSupplier.get().inc();
+      sampledCounterSupplier.get().inc();
+      sampledOutStats.inc();
+      return;
+    }
     final String strPoint = serializer.apply(point);
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
-    getReceivedCounter().inc();
     // check if data points contains the tag key indicating this point should be multicasted
     if (isMulticastingActive
         && point.getAnnotations() != null
@@ -119,5 +143,32 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       }
     }
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
+  }
+
+  @Override
+  protected void printStats() {
+    super.printStats();
+    if (!reportReceivedStats) return;
+    if (receivedStats.getFiveMinuteCount() == 0 && sampledOutStats.getFiveMinuteCount() == 0) {
+      return;
+    }
+    logger.info(
+            "["
+                    + handlerKey.getHandle()
+                    + "] "
+                    + handlerKey.getEntityType().toCapitalizedString()
+                    + " sampled out rate: "
+                    + sampledOutStats.getOneMinutePrintableRate()
+                    + " "
+                    + rateUnit
+                    + " (1 min), "
+                    + sampledOutStats.getFiveMinutePrintableRate()
+                    + " "
+                    + rateUnit
+                    + " (5 min), "
+                    + sampledOutStats.getCurrentRate()
+                    + " "
+                    + rateUnit
+                    + " (current).");
   }
 }
