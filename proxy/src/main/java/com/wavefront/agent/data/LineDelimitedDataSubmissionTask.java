@@ -66,7 +66,7 @@ public class LineDelimitedDataSubmissionTask
 
   @Override
   Response doExecute() {
-    return api.proxyReport(proxyId, format, LineDelimitedUtils.joinPushData(payload));
+    return api.proxyReport(proxyId, payload.size(), format, LineDelimitedUtils.joinPushData(payload));
   }
 
   @Override
