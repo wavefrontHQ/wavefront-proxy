@@ -461,7 +461,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2026-2.4</version>
+      <version>2026-5.15</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
