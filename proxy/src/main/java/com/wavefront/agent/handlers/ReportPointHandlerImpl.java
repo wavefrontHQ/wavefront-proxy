@@ -5,6 +5,7 @@ import static com.wavefront.data.Validation.validatePoint;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.sampler.MetricBloomFilterSampler;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.api.agent.preprocessor.ReportPointSampleInclude;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Utils;
 import com.wavefront.data.DeltaCounterValueException;
@@ -126,6 +127,9 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       sampledOutStats.inc();
       return;
     }
+    // always try remove sample tag
+    point.getAnnotations().remove(ReportPointSampleInclude.SAMPLING_TAG);
+
     final String strPoint = serializer.apply(point);
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
     // check if data points contains the tag key indicating this point should be multicasted

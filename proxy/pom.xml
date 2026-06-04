@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>15.0-rc0</version>
+  <version>15.0-rc1</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -461,7 +461,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2026-5.15</version>
+      <version>2026-5-29</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
@@ -733,6 +733,9 @@
     </profile>
     <profile>
       <id>broadcom</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
       <properties>
         <scm.url>git@github.gwd.broadcom.net:IMS/wf-proxy.git</scm.url>
         <scm.connection>scm:git:${scm.url}</scm.connection>
@@ -743,6 +746,18 @@
         <release.repo.id>usw1.packages.broadcom.com_tis-wavefront-maven-prod-local</release.repo.id>
         <release.repo.name>tis-wavefront-maven-prod-local</release.repo.name>
       </properties>
+      <repositories>
+        <repository>
+          <id>tis-wavefront-maven-virtual</id>
+          <url>${artifactory.url}/tis-wavefront-maven-virtual</url>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+        </repository>
+      </repositories>
       <distributionManagement>
        <snapshotRepository>
          <id>${snapshot.repo.id}</id>
@@ -756,9 +771,6 @@
     </profile>
     <profile>
       <id>vmware</id>
-      <activation>
-          <activeByDefault>true</activeByDefault>
-      </activation>
       <properties>
         <scm.url>git@github.com:wavefrontHQ/wavefront-proxy.git</scm.url>
         <scm.connection>scm:git:${scm.url}</scm.connection>
