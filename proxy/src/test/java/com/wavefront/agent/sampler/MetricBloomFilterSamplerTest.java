@@ -63,6 +63,31 @@ public class MetricBloomFilterSamplerTest {
   }
 
   @Test
+  public void testShouldSampleOutSkippedWhenSamplingTagSetFalse() throws Exception {
+    MetricBloomFilterSampler sampler = new MetricBloomFilterSampler();
+
+    // Bloom filter miss + 100% sampling rate means point would normally be sampled out
+    BloomFilterDTO missDto = createBloomFilterDto(createEmptyBloomFilterBytes(), "tag1");
+    sampler.updateBloomFilters(missDto);
+    sampler.setNonQueriedKeepPercentFromSamplingRate(1.0d);
+
+    long timeStamp = System.currentTimeMillis();
+    Map<String, String> annotations = mapOf("tag1", "testVal");
+    ReportPoint point = createPoint("testMetric", "myHost", annotations, timeStamp);
+
+    // Confirm the point is sampled out without the override tag
+    assertTrue(sampler.shouldSampleOut(point));
+
+    // Set the sampling tag to "false" — preprocessor rule opted this point out of sampling
+    annotations.put("_wavefront_sampling_eligable", "false");
+    long counterBefore = sampler.excludedPreprocessorRules.count();
+
+    // Point should NOT be sampled out now, even though bloom filter misses
+    assertFalse(sampler.shouldSampleOut(point));
+    assertEquals(counterBefore + 1, sampler.excludedPreprocessorRules.count());
+  }
+
+  @Test
   public void testUpdateBloomFilters() throws Exception {
     MetricBloomFilterSampler sampler = new MetricBloomFilterSampler();
 

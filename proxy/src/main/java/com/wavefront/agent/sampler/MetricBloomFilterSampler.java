@@ -3,6 +3,7 @@ package com.wavefront.agent.sampler;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.wavefront.api.agent.BloomFilterDTO;
+import com.wavefront.api.agent.preprocessor.ReportPointSampleInclude;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -39,6 +40,8 @@ public class MetricBloomFilterSampler {
             Metrics.newCounter(new MetricName(BLOOMFILTER_SAMPLER_METRIC_NAMESPACE, "", "missing_tracked_tag_keys"));
     final Counter dryRunWouldSampleOutCounter =
             Metrics.newCounter(new MetricName(BLOOMFILTER_SAMPLER_METRIC_NAMESPACE, "", "dry_run_would_sample_out"));
+    final Counter excludedPreprocessorRules =
+            Metrics.newCounter(new MetricName(BLOOMFILTER_SAMPLER_METRIC_NAMESPACE, "", "excluded_preprocessor_rules"));
 
     private final AtomicReference<List<ReadOnlyAbstractWindowingBloomFilters>> bloomFiltersRef = new AtomicReference<>(Collections.emptyList());
     private final AtomicReference<List<String>> trackedTagKeysRef = new AtomicReference<>(Collections.emptyList());
@@ -51,6 +54,12 @@ public class MetricBloomFilterSampler {
      */
     public boolean shouldSampleOut(ReportPoint point) {
         if (point == null) return false;
+        // check if we should allow the point to continue
+        if (!point.getAnnotations().getOrDefault(ReportPointSampleInclude.SAMPLING_TAG, "true").equals("true")) {
+            // the annotation has a false as the value meaning we should not include it
+            excludedPreprocessorRules.inc();
+            return false;
+        }
         List<String> trackedTagKeys = trackedTagKeysRef.get();
         // if point does not appear in  metric, sample with only metric name
         boolean pointHasTrackedTag = hasTrackedTag(point.getAnnotations(), trackedTagKeys);
