@@ -577,6 +577,43 @@ public class OtlpMetricsUtilsTest {
   }
 
   @Test
+  public void transformsCumulativeHistogramSkipsEmptyDataPoints() {
+    HistogramDataPoint emptyPoint = HistogramDataPoint.newBuilder().build();
+    Histogram histo =
+        Histogram.newBuilder()
+            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .addAllDataPoints(Collections.singletonList(emptyPoint))
+            .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertTrue(actualPoints.isEmpty());
+  }
+
+  @Test
+  public void transformsCumulativeHistogramSkipsEmptyDataPointsAlongsideValid() {
+    HistogramDataPoint emptyPoint = HistogramDataPoint.newBuilder().build();
+    HistogramDataPoint validPoint =
+        HistogramDataPoint.newBuilder().addAllBucketCounts(ImmutableList.of(1L)).build();
+    Histogram histo =
+        Histogram.newBuilder()
+            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .addDataPoints(emptyPoint)
+            .addDataPoints(validPoint)
+            .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+    expectedPoints =
+        ImmutableList.of(
+            OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "+Inf")))
+                .setValue(1)
+                .build());
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
   public void transformsMinimalDeltaHistogram() {
     HistogramDataPoint point =
         HistogramDataPoint.newBuilder()
@@ -641,6 +678,43 @@ public class OtlpMetricsUtilsTest {
     Assert.assertThrows(
         IllegalArgumentException.class,
         () -> OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE));
+  }
+
+  @Test
+  public void transformsDeltaHistogramSkipsEmptyDataPoints() {
+    HistogramDataPoint emptyPoint = HistogramDataPoint.newBuilder().build();
+    Histogram histo =
+        Histogram.newBuilder()
+            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+            .addAllDataPoints(Collections.singletonList(emptyPoint))
+            .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertTrue(actualPoints.isEmpty());
+  }
+
+  @Test
+  public void transformsDeltaHistogramSkipsEmptyDataPointsAlongsideValid() {
+    HistogramDataPoint emptyPoint = HistogramDataPoint.newBuilder().build();
+    HistogramDataPoint validPoint =
+        HistogramDataPoint.newBuilder().addAllBucketCounts(ImmutableList.of(1L)).build();
+    Histogram histo =
+        Histogram.newBuilder()
+            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+            .addDataPoints(emptyPoint)
+            .addDataPoints(validPoint)
+            .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    List<Double> bins = new ArrayList<>(Collections.singletonList(0.0));
+    List<Integer> counts = new ArrayList<>(Collections.singletonList(1));
+    expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 
   @Test

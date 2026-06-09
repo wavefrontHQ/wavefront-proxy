@@ -457,6 +457,9 @@ public class OtlpMetricsUtils {
   static List<BucketHistogramDataPoint> fromOtelHistogram(String name, Histogram histogram) {
     List<BucketHistogramDataPoint> result = new ArrayList<>(histogram.getDataPointsCount());
     for (HistogramDataPoint dataPoint : histogram.getDataPointsList()) {
+      if (dataPoint.getBucketCountsCount() == 0 && dataPoint.getExplicitBoundsCount() == 0) {
+        continue;
+      }
       result.add(fromOtelHistogramDataPoint(name, dataPoint));
     }
     return result;
