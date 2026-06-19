@@ -36,6 +36,13 @@ public class BeatsParser extends ByteToMessageDecoder {
     }
   }
 
+  private static final int MAX_FIELDS_COUNT = 1024;
+  private static final int MAX_FIELD_LENGTH = 1024;
+  private static final int MAX_DATA_LENGTH = 1024 * 1024;
+  private static final int MAX_JSON_PAYLOAD_SIZE = 5 * 1024 * 1024;
+  private static final int MAX_COMPRESSED_FRAME_SIZE = 10 * 1024 * 1024;
+  private static final int MAX_WINDOW_SIZE = 16384;
+
   private States currentState = States.READ_HEADER;
   private int requiredBytes = 0;
   private int sequence = 0;
@@ -101,7 +108,8 @@ public class BeatsParser extends ByteToMessageDecoder {
       case READ_WINDOW_SIZE:
         {
           logger.finest("Running: READ_WINDOW_SIZE");
-          batch.setBatchSize((int) in.readUnsignedInt());
+          int windowSize = safeReadUnsignedInt(in, MAX_WINDOW_SIZE, "window size");
+          batch.setBatchSize(windowSize);
 
           // This is unlikely to happen but I have no way to known when a frame is
           // actually completely done other than checking the windows and the sequence
@@ -123,23 +131,18 @@ public class BeatsParser extends ByteToMessageDecoder {
           // Lumberjack version 1 protocol, which use the Key:Value format.
           logger.finest("Running: READ_DATA_FIELDS");
           sequence = (int) in.readUnsignedInt();
-          int fieldsCount = (int) in.readUnsignedInt();
+          int fieldsCount = safeReadUnsignedInt(in, MAX_FIELDS_COUNT, "number of fields");
           int count = 0;
-
-          if (fieldsCount <= 0) {
-            throw new InvalidFrameProtocolException(
-                "Invalid number of fields, received: " + fieldsCount);
-          }
 
           Map dataMap = new HashMap<String, String>(fieldsCount);
 
           while (count < fieldsCount) {
-            int fieldLength = (int) in.readUnsignedInt();
+            int fieldLength = safeReadUnsignedInt(in, MAX_FIELD_LENGTH, "field length");
             ByteBuf fieldBuf = in.readBytes(fieldLength);
             String field = fieldBuf.toString(Charset.forName("UTF8"));
             fieldBuf.release();
 
-            int dataLength = (int) in.readUnsignedInt();
+            int dataLength = safeReadUnsignedInt(in, MAX_DATA_LENGTH, "data length");
             ByteBuf dataBuf = in.readBytes(dataLength);
             String data = dataBuf.toString(Charset.forName("UTF8"));
             dataBuf.release();
@@ -164,12 +167,7 @@ public class BeatsParser extends ByteToMessageDecoder {
           logger.finest("Running: READ_JSON_HEADER");
 
           sequence = (int) in.readUnsignedInt();
-          int jsonPayloadSize = (int) in.readUnsignedInt();
-
-          if (jsonPayloadSize <= 0) {
-            throw new InvalidFrameProtocolException(
-                "Invalid json length, received: " + jsonPayloadSize);
-          }
+          int jsonPayloadSize = safeReadUnsignedInt(in, MAX_JSON_PAYLOAD_SIZE, "json length");
 
           transition(States.READ_JSON, jsonPayloadSize);
           break;
@@ -178,7 +176,9 @@ public class BeatsParser extends ByteToMessageDecoder {
         {
           logger.finest("Running: READ_COMPRESSED_FRAME_HEADER");
 
-          transition(States.READ_COMPRESSED_FRAME, in.readInt());
+          int compressedFrameSize =
+              safeReadUnsignedInt(in, MAX_COMPRESSED_FRAME_SIZE, "compressed frame length");
+          transition(States.READ_COMPRESSED_FRAME, compressedFrameSize);
           break;
         }
 
@@ -254,6 +254,16 @@ public class BeatsParser extends ByteToMessageDecoder {
     requiredBytes = 0;
     sequence = 0;
     batch = null;
+  }
+
+  private int safeReadUnsignedInt(ByteBuf in, int max, String fieldName)
+      throws InvalidFrameProtocolException {
+    int value = (int) in.readUnsignedInt();
+    if (value <= 0 || value > max) {
+      throw new InvalidFrameProtocolException(
+          "Invalid " + fieldName + ", received: " + value + " (max: " + max + ")");
+    }
+    return value;
   }
 
   public class InvalidFrameProtocolException extends Exception {
