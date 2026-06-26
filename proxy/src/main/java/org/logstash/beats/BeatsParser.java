@@ -27,6 +27,7 @@ public class BeatsParser extends ByteToMessageDecoder {
     READ_COMPRESSED_FRAME(
         -1), // -1 means the length to read is variable and defined in the frame itself.
     READ_JSON(-1),
+    READ_DATA_FIELDS_HEADER(8),
     READ_DATA_FIELDS(-1);
 
     private int length;
@@ -41,9 +42,13 @@ public class BeatsParser extends ByteToMessageDecoder {
   private static final int MAX_DATA_LENGTH = 1024 * 1024;
   private static final int MAX_JSON_PAYLOAD_SIZE = 5 * 1024 * 1024;
   private static final int MAX_COMPRESSED_FRAME_SIZE = 10 * 1024 * 1024;
+  // Limit decompressed and aggregate batch size to 100MB to prevent heap exhaustion.
+  private static final int MAX_DECOMPRESSED_FRAME_SIZE = 100 * 1024 * 1024;
+  private static final int MAX_BATCH_BYTE_SIZE = 100 * 1024 * 1024;
   private static final int MAX_WINDOW_SIZE = 16384;
 
   private States currentState = States.READ_HEADER;
+  private int compressionLevel = 0; // Counter to track nested compression frames
   private int requiredBytes = 0;
   private int sequence = 0;
 
@@ -89,12 +94,17 @@ public class BeatsParser extends ByteToMessageDecoder {
               }
             case Protocol.CODE_COMPRESSED_FRAME:
               {
+                // Prevent nested compression frames to avoid decompression bomb attacks.
+                if (compressionLevel > 0) {
+                  throw new InvalidFrameProtocolException("Nested compressed frames are not allowed");
+                }
                 transition(States.READ_COMPRESSED_FRAME_HEADER);
                 break;
               }
             case Protocol.CODE_FRAME:
               {
-                transition(States.READ_DATA_FIELDS);
+                // Ensure 8-byte header (sequence + fieldsCount) is present before reading.
+                transition(States.READ_DATA_FIELDS_HEADER);
                 break;
               }
             default:
@@ -126,12 +136,20 @@ public class BeatsParser extends ByteToMessageDecoder {
           transition(States.READ_HEADER);
           break;
         }
+      case READ_DATA_FIELDS_HEADER:
+        {
+          logger.finest("Running: READ_DATA_FIELDS_HEADER");
+          sequence = (int) in.readUnsignedInt();
+          int fieldsCount = safeReadUnsignedInt(in, MAX_FIELDS_COUNT, "number of fields");
+          transition(States.READ_DATA_FIELDS, fieldsCount);
+          break;
+        }
       case READ_DATA_FIELDS:
         {
           // Lumberjack version 1 protocol, which use the Key:Value format.
           logger.finest("Running: READ_DATA_FIELDS");
-          sequence = (int) in.readUnsignedInt();
-          int fieldsCount = safeReadUnsignedInt(in, MAX_FIELDS_COUNT, "number of fields");
+          // Retrieve fieldsCount which was already validated in the READ_DATA_FIELDS_HEADER state.
+          int fieldsCount = requiredBytes;
           int count = 0;
 
           Map dataMap = new HashMap<String, String>(fieldsCount);
@@ -185,12 +203,13 @@ public class BeatsParser extends ByteToMessageDecoder {
       case READ_COMPRESSED_FRAME:
         {
           logger.finest("Running: READ_COMPRESSED_FRAME");
-          // Use the compressed size as the safe start for the buffer.
-          ByteBuf buffer = ctx.alloc().buffer(requiredBytes);
+          // Limit decompressed output size to prevent heap exhaustion.
+          ByteBuf buffer = ctx.alloc().buffer(requiredBytes, MAX_DECOMPRESSED_FRAME_SIZE);
+          compressionLevel++;
+          Inflater inflater = new Inflater();
           try (ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
-              InflaterOutputStream inflater =
-                  new InflaterOutputStream(buffOutput, new Inflater())) {
-            in.readBytes(inflater, requiredBytes);
+              InflaterOutputStream ios = new InflaterOutputStream(buffOutput, inflater)) {
+            in.readBytes(ios, requiredBytes);
             transition(States.READ_HEADER);
             try {
               while (buffer.readableBytes() > 0) {
@@ -199,6 +218,10 @@ public class BeatsParser extends ByteToMessageDecoder {
             } finally {
               buffer.release();
             }
+          } finally {
+            compressionLevel--;
+            // Explicitly call end to prevent native memory leaks
+            inflater.end();
           }
 
           break;
@@ -206,6 +229,10 @@ public class BeatsParser extends ByteToMessageDecoder {
       case READ_JSON:
         {
           logger.finest("Running: READ_JSON");
+          // Prevent aggregate batch size from exceeding memory limits.
+          if (batch instanceof V2Batch && ((V2Batch) batch).byteSize() + requiredBytes > MAX_BATCH_BYTE_SIZE) {
+            throw new InvalidFrameProtocolException("Batch size exceeds maximum limit of " + MAX_BATCH_BYTE_SIZE + " bytes");
+          }
           ((V2Batch) batch).addMessage(sequence, in, requiredBytes);
           if (batch.isComplete()) {
             if (logger.isLoggable(Level.FINEST)) {

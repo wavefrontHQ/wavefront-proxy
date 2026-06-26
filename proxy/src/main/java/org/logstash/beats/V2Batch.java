@@ -60,6 +60,15 @@ public class V2Batch implements Batch {
     this.batchSize = batchSize;
   }
 
+  /**
+   * Returns the current byte size of the batch.
+   *
+   * @return int - size in bytes
+   */
+  public int byteSize() {
+    return internalBuffer.readableBytes();
+  }
+
   @Override
   public int size() {
     return written;
