@@ -225,7 +225,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
               new TaggedMetricName("listeners", "http-relay.duration-nanos", "port", handle));
       long startNanos = System.nanoTime();
       try {
-        String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
+        String path = uri.getRawPath();
+        if (path == null || !path.startsWith("/")) {
+          throw new URISyntaxException(request.uri(), "Relative path must start with /");
+        }
+        String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + path +
+            (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);
 
         request
