@@ -1577,7 +1577,8 @@ public abstract class ProxyConfigDef extends Configuration {
 
   @Parameter(
           names = {"--metricQuerySamplingDryRun"},
-          description = "Enable query-aware sampling dry run mode. Bloom filters and sampling decisions are evaluated but points are not dropped.")
+          arity = 1,
+          description = "Enable query-aware sampling dry run mode. Bloom filters and sampling decisions are evaluated but points are not dropped. (Default: false)")
   @ProxyConfigOption(category = Categories.INPUT, subCategory = SubCategories.METRICS)
   boolean metricQuerySamplingDryRun = false;
 }

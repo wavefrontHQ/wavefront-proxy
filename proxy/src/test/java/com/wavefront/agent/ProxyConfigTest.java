@@ -295,4 +295,31 @@ public class ProxyConfigTest {
         new String[] {"--otlpAppTagsOnMetricsIncluded", String.valueOf(false)}, "PushAgentTest");
     assertFalse(config.isOtlpAppTagsOnMetricsIncluded());
   }
+
+  @Test
+  public void testMetricQuerySamplingDryRun() {
+    ProxyConfig config = new ProxyConfig();
+
+    // disabled by default when the parameter is not present
+    config.parseArguments(new String[] {"--token", UUID.randomUUID().toString()}, "PushAgentTest");
+    assertFalse(config.getMetricQuerySamplingDryRunEnabled());
+
+    // explicitly enable
+    config.parseArguments(
+        new String[] {"--metricQuerySamplingDryRun", String.valueOf(true)}, "PushAgentTest");
+    assertTrue(config.getMetricQuerySamplingDryRunEnabled());
+
+    // explicitly disable
+    config.parseArguments(
+        new String[] {"--metricQuerySamplingDryRun", String.valueOf(false)}, "PushAgentTest");
+    assertFalse(config.getMetricQuerySamplingDryRunEnabled());
+
+    // arity = 1 requires an explicit value; the bare flag is no longer a valid no-arg switch
+    try {
+      config.parseArguments(new String[] {"--metricQuerySamplingDryRun"}, "PushAgentTest");
+      fail();
+    } catch (ParameterException e) {
+      // noop
+    }
+  }
 }
