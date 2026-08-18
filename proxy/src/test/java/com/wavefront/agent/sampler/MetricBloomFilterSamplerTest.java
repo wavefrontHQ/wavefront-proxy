@@ -1,6 +1,7 @@
 package com.wavefront.agent.sampler;
 
 import com.wavefront.api.agent.BloomFilterDTO;
+import com.wavefront.api.agent.preprocessor.ReportPointSampleInclude;
 import com.wavefront.common.bloomfilter.ReadOnlyBloomFilter;
 import org.junit.Test;
 import wavefront.report.ReportPoint;
@@ -79,7 +80,7 @@ public class MetricBloomFilterSamplerTest {
     assertTrue(sampler.shouldSampleOut(point));
 
     // Set the sampling tag to "false" — preprocessor rule opted this point out of sampling
-    annotations.put("_wavefront_sampling_eligable", "false");
+    annotations.put(ReportPointSampleInclude.SAMPLING_TAG, "false");
     long counterBefore = sampler.excludedPreprocessorRules.count();
 
     // Point should NOT be sampled out now, even though bloom filter misses

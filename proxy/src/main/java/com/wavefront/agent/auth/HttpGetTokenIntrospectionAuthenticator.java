@@ -64,7 +64,8 @@ class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthentic
 
   @Override
   boolean callAuthService(@Nonnull String token) throws Exception {
-    HttpGet request = new HttpGet(tokenIntrospectionServiceUrl.replace("{{token}}", token));
+    HttpGet request =
+        new HttpGet(tokenIntrospectionServiceUrl.replace("{{token}}", urlEncodeToken(token)));
     if (tokenIntrospectionServiceAuthorizationHeader != null) {
       request.setHeader("Authorization", tokenIntrospectionServiceAuthorizationHeader);
     }
