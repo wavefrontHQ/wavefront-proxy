@@ -132,4 +132,32 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     authenticator.authorize(uuid); // should call http
     assertEquals(1, Metrics.newCounter(new MetricName("auth", "", "api-errors")).count() - count);
   }
+
+  @Test
+  public void testTokenIsUrlEncodedToPreventUrlInjection() throws Exception {
+    HttpClient client = EasyMock.createMock(HttpClient.class);
+    AtomicLong fakeClock = new AtomicLong(1_000_000);
+    TokenAuthenticator authenticator =
+        new Oauth2TokenIntrospectionAuthenticator(
+            client, "http://acme.corp/{{token}}/oauth", null, 300, 600, fakeClock::get);
+
+    // a malicious token attempting to redirect the introspection call to another host/path
+    // and/or inject extra query parameters must be treated as an opaque, percent-encoded value
+    // when substituted into the URL (the raw token is still sent, correctly form-encoded, in the
+    // POST body).
+    String maliciousToken = "../../evil.com/bypass?force=200#";
+    String expectedEncodedToken = "..%2F..%2Fevil.com%2Fbypass%3Fforce%3D200%23";
+
+    HttpPost request = new HttpPost("http://acme.corp/" + expectedEncodedToken + "/oauth");
+    request.setHeader("Content-Type", "application/x-www-form-urlencoded");
+    request.setHeader("Accept", "application/json");
+    request.setEntity(
+        new UrlEncodedFormEntity(
+            ImmutableList.of(new BasicNameValuePair("token", maliciousToken))));
+
+    TestUtils.expectHttpResponse(client, request, "{\"active\": true}".getBytes(), 200);
+
+    assertTrue(authenticator.authorize(maliciousToken));
+    EasyMock.verify(client);
+  }
 }

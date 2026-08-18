@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.TokenManager;
 import com.wavefront.agent.TokenWorkerCSP;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -22,6 +23,15 @@ public class APIContainerTest {
       TokenWorkerCSP tokenWorkerCSP1 = new TokenWorkerCSP("fake-token" + i, "fake-url" + i);
       TokenManager.addTenant("tenant-" + i, tokenWorkerCSP1);
     }
+  }
+
+  @After
+  public void cleanup() {
+    // TokenManager holds its tenant/worker registry in static state; without resetting it here,
+    // the TokenWorkerCSP instances registered above (which implement TokenWorker.Scheduled)
+    // leak into any later test in the same JVM fork that calls TokenManager.start(), causing
+    // unrelated tests to unexpectedly invoke .run() against these leftover fake workers.
+    TokenManager.reset();
   }
 
   @Test

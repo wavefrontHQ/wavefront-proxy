@@ -72,7 +72,8 @@ class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthentica
   @Override
   boolean callAuthService(@Nonnull String token) throws Exception {
     boolean result;
-    HttpPost request = new HttpPost(tokenIntrospectionServiceUrl.replace("{{token}}", token));
+    HttpPost request =
+        new HttpPost(tokenIntrospectionServiceUrl.replace("{{token}}", urlEncodeToken(token)));
     request.setHeader("Content-Type", "application/x-www-form-urlencoded");
     request.setHeader("Accept", "application/json");
     if (tokenIntrospectionAuthorizationHeader != null) {

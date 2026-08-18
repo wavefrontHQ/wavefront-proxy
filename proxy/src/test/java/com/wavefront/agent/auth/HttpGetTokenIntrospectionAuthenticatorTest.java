@@ -57,6 +57,30 @@ public class HttpGetTokenIntrospectionAuthenticatorTest {
   }
 
   @Test
+  public void testTokenIsUrlEncodedToPreventUrlInjection() throws Exception {
+    HttpClient client = EasyMock.createMock(HttpClient.class);
+    AtomicLong fakeClock = new AtomicLong(1_000_000);
+    TokenAuthenticator authenticator =
+        new HttpGetTokenIntrospectionAuthenticator(
+            client, "http://acme.corp/{{token}}/something", null, 300, 600, fakeClock::get);
+
+    // a malicious token attempting to redirect the introspection call to another host/path
+    // and/or inject extra query parameters must be treated as an opaque, percent-encoded value.
+    String maliciousToken = "../../evil.com/bypass?force=200#";
+    String expectedEncodedToken =
+        "..%2F..%2Fevil.com%2Fbypass%3Fforce%3D200%23"; // '.' and '-' remain unescaped
+    EasyMock.expect(
+            client.execute(
+                httpEq(
+                    new HttpGet(
+                        "http://acme.corp/" + expectedEncodedToken + "/something"))))
+        .andReturn(new BasicHttpResponse(HttpVersion.HTTP_1_1, 204, ""));
+    EasyMock.replay(client);
+    assertTrue(authenticator.authorize(maliciousToken));
+    EasyMock.verify(client);
+  }
+
+  @Test
   public void testIntrospectionUrlCachedLastResultExpires() throws Exception {
     HttpClient client = EasyMock.createMock(HttpClient.class);
     AtomicLong fakeClock = new AtomicLong(1_000_000);

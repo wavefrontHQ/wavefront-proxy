@@ -6,6 +6,8 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -85,6 +87,24 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
   }
 
   abstract boolean callAuthService(@Nonnull String token) throws Exception;
+
+  /**
+   * Percent-encodes a token for safe substitution into a URL template (e.g. replacing a {@code
+   * {{token}}} placeholder). Tokens are taken verbatim from inbound requests and may contain
+   * characters that are meaningful in a URL (such as {@code / ? # & = %}); encoding them as an
+   * opaque value prevents a malicious token from altering the target host, path, or query string
+   * of the introspection request.
+   */
+  static String urlEncodeToken(@Nonnull String token) {
+    try {
+      // URLEncoder escapes everything except [A-Za-z0-9.\-_*], encoding space as '+'; normalize
+      // '+' to '%20' since we're encoding a URL path/query component, not a form field.
+      return URLEncoder.encode(token, "UTF-8").replace("+", "%20");
+    } catch (UnsupportedEncodingException e) {
+      // UTF-8 is guaranteed to be supported by every JVM.
+      throw new AssertionError(e);
+    }
+  }
 
   @Override
   public boolean authorize(@Nullable String token) {

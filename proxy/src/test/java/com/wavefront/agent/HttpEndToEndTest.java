@@ -10,7 +10,6 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_LINES;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -34,10 +33,14 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -145,8 +148,13 @@ public class HttpEndToEndTest {
     HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     assertEquals(1, successfulSteps.getAndSet(0));
-    AtomicBoolean part1 = new AtomicBoolean(false);
-    AtomicBoolean part2 = new AtomicBoolean(false);
+    // Once the batch is rejected as too large (case 4), the proxy splits it into smaller
+    // sub-batches and retries each independently. The number/size of those sub-batches depends
+    // on the runtime dataPerBatch setting, which can be recalculated in the background while this
+    // test runs - so rather than assuming a fixed split count, collect every line delivered after
+    // the split and check the *set* of lines eventually matches the original payload exactly once
+    // each, regardless of how many pieces it took.
+    List<String> deliveredSplitLines = new CopyOnWriteArrayList<>();
     server.update(
         req -> {
           String content = req.content().toString(CharsetUtil.UTF_8);
@@ -168,24 +176,30 @@ public class HttpEndToEndTest {
               assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
-            case 5:
-            case 6:
-              if (content.equals(expectedTest1part1)) part1.set(true);
-              if (content.equals(expectedTest1part2)) part2.set(true);
+            default:
+              deliveredSplitLines.addAll(Arrays.asList(content.split("\n")));
               successfulSteps.incrementAndGet();
               return makeResponse(HttpResponseStatus.OK, "");
           }
-          throw new IllegalStateException();
         });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    for (int i = 0; i < 3; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
-    assertEquals(6, successfulSteps.getAndSet(0));
-    assertTrue(part1.get());
-    assertTrue(part2.get());
+    List<String> expectedSplitLines =
+        Arrays.asList((expectedTest1part1 + "\n" + expectedTest1part2).split("\n"));
+    // The queue processor may skip a pass if rate limiter permits aren't immediately available,
+    // deferring the remaining retries to its own background schedule (already running since
+    // proxy.start()); poll passively for it to catch up rather than calling flushNow from this
+    // thread too, since a manual call racing the background scheduler's own concurrent run() can
+    // double-process the same queued batch and deliver it twice.
+    assertTrueWithTimeout(2000, () -> deliveredSplitLines.size() >= expectedSplitLines.size());
+    List<String> sortedDelivered = new ArrayList<>(deliveredSplitLines);
+    Collections.sort(sortedDelivered);
+    List<String> sortedExpected = new ArrayList<>(expectedSplitLines);
+    Collections.sort(sortedExpected);
+    assertEquals(sortedExpected, sortedDelivered);
   }
 
   @Test
