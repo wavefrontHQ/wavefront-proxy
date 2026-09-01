@@ -2,7 +2,8 @@ package com.wavefront.agent.queueing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
@@ -40,8 +41,14 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
   static final byte FORMAT_LZ4 = 5;
   static final byte[] PREFIX = {'W', 'F', 6, 4};
 
+  // DataSubmissionTask carries its own @JsonTypeInfo, so default typing is unnecessary; only the
+  // annotation-driven type resolution needs a validator, restricted to its known subtypes so a
+  // crafted "__CLASS" value from a queue file/SQS message can't trigger a gadget-chain deserialize.
+  private static final PolymorphicTypeValidator TASK_TYPE_VALIDATOR =
+      BasicPolymorphicTypeValidator.builder().allowIfSubType(DataSubmissionTask.class).build();
+
   private final ObjectMapper objectMapper =
-      JsonMapper.builder().activateDefaultTyping(LaissezFaireSubTypeValidator.instance).build();
+      JsonMapper.builder().polymorphicTypeValidator(TASK_TYPE_VALIDATOR).build();
 
   private final CompressionType compressionType;
   private final Counter errorCounter;
