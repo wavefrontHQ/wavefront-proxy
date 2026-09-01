@@ -1,0 +1,22 @@
+## Scenario: Fan-out — same tenant alias registered on multiple servers.
+#
+# When the same tenant name "prod" is configured on two different cluster
+# endpoints, TokenManager registers them as:
+#   "prod"   → server1 (primary registration)
+#   "prod~2" → server2 (synthetic key)
+#
+# A forward rule targeting "prod" causes the handler to call
+# TokenManager.getInternalKeysForName("prod") → ["prod", "prod~2"]
+# and deliver the point to BOTH tasks.
+#
+# No points are dropped; each task receives exactly one copy.
+
+'2878':
+  - rule   : route-app-metrics-to-prod
+    action : forward
+    scope  : metricName
+    match  : "^app\\..*"
+    tenants:
+      - prod
+
+  # "infra.*" metrics fall through to central (no forward rule).

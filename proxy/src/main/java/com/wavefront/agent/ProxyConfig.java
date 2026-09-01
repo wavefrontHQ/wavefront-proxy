@@ -89,6 +89,10 @@ public class ProxyConfig extends ProxyConfigDef {
     return server;
   }
 
+  public String getDefaultTenant() {
+    return defaultTenant;
+  }
+
   public String getBufferFile() {
     return bufferFile;
   }
@@ -1011,17 +1015,26 @@ public class ProxyConfig extends ProxyConfigDef {
     throw new UnsupportedOperationException("not implemented");
   }
 
+  /** Maximum number of additional (non-central) multicast tenants the proxy supports. */
+  static final int MAX_MULTICASTING_TENANTS = 10;
+
   // TODO: review this options that are only available on the config file.
   private void configFileExtraArguments(ReportableConfig config) {
     // Multicasting configurations
     int multicastingTenants = Integer.parseInt(config.getProperty("multicastingTenants", "0"));
+    if (multicastingTenants > MAX_MULTICASTING_TENANTS) {
+      throw new IllegalArgumentException(
+          "multicastingTenants value (" + multicastingTenants + ") exceeds the maximum supported "
+              + "limit of " + MAX_MULTICASTING_TENANTS + ". Reduce the number of tenants "
+              + "or contact support to discuss your use case.");
+    }
     for (int i = 1; i <= multicastingTenants; i++) {
       String tenantName = config.getProperty(String.format("multicastingTenantName_%d", i), "");
-      if (tenantName.equals(APIContainer.CENTRAL_TENANT_NAME)) {
-        throw new IllegalArgumentException(
-            "Error in multicasting endpoints initiation: "
-                + "\"central\" is the reserved tenant name.");
-      }
+      // "central" is the proxy's internal key for the primary cluster, but customers cannot be
+      // prevented from naming their own tenants "central".  TokenManager.addTenant() handles
+      // this via the (server, tenantName) composite uniqueness check: if the customer's cluster
+      // is on a different server it is registered under a synthetic key ("central~2") and
+      // forward routing fans out to both endpoints automatically.
       String tenantServer = config.getProperty(String.format("multicastingServer_%d", i), "");
       String tenantToken = config.getProperty(String.format("multicastingToken_%d", i), "");
       String tenantCSPAppId = config.getProperty(String.format("multicastingCSPAppId_%d", i), "");
@@ -1239,17 +1252,34 @@ public class ProxyConfig extends ProxyConfigDef {
           modifyByFile.stream().map(field -> field.getName()).collect(Collectors.joining(", "));
       logger.info("modifyByFile: " + fileStr);
       modifyByArgs.removeAll(modifyByFile); // argument are override by the config file
+
+      // Register the primary ("central") tenant BEFORE processing the multicasting block so
+      // that the canonical "central" key in TokenManager is always claimed by the primary
+      // cluster.  If a multicasting tenant is also named "central" it will be detected as a
+      // same-name/different-server case and placed under the synthetic key "central~2".
+      constructTenantInfoObject(
+          cspAppId,
+          cspAppSecret,
+          cspOrgId,
+          cspAPIToken,
+          token,
+          server,
+          APIContainer.CENTRAL_TENANT_NAME);
+
       configFileExtraArguments(confFile);
     }
 
-    constructTenantInfoObject(
-        cspAppId,
-        cspAppSecret,
-        cspOrgId,
-        cspAPIToken,
-        token,
-        server,
-        APIContainer.CENTRAL_TENANT_NAME);
+    // When no config file is present the central tenant has not been registered yet.
+    if (TokenManager.getMulticastingTenantList().get(APIContainer.CENTRAL_TENANT_NAME) == null) {
+      constructTenantInfoObject(
+          cspAppId,
+          cspAppSecret,
+          cspOrgId,
+          cspAPIToken,
+          token,
+          server,
+          APIContainer.CENTRAL_TENANT_NAME);
+    }
 
     logger.info("Unparsed arguments: " + Joiner.on(", ").join(jc.getUnknownOptions()));
 

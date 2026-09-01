@@ -16,6 +16,7 @@ public class APIContainerTest {
 
   @Before
   public void setup() {
+    TokenManager.reset();
     this.proxyConfig = new ProxyConfig();
     TokenWorkerCSP tokenWorkerCSP = new TokenWorkerCSP("fake-token", "fake-url");
     TokenManager.addTenant(APIContainer.CENTRAL_TENANT_NAME, tokenWorkerCSP);

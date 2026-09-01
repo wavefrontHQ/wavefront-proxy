@@ -1,7 +1,9 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.formatter.DataFormat;
+import com.wavefront.api.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -27,7 +29,18 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   private static final Logger logger =
       Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
   protected static final MetricsRegistry LOCAL_REGISTRY = new MetricsRegistry();
+  /** Legacy tag used by the old point-tagging multicast approach. Kept for backward compat. */
   protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
+  /** Tag set by forward preprocessor rules; takes priority over MULTICASTING_TENANT_TAG_KEY. */
+  protected static final String FORWARD_ROUTING_KEY =
+      PreprocessorConfigManager.FORWARD_ROUTING_KEY;
+  /**
+   * Human-readable alias for the central (default) tenant as configured in {@code config.ini}
+   * (e.g. {@code "Localdev"}). Used by {@link #resolveTenantName} to map a forward-rule target
+   * written as the alias back to {@link com.wavefront.agent.api.APIContainer#CENTRAL_TENANT_NAME}.
+   * {@code null} when no alias is configured, in which case alias resolution is skipped.
+   */
+  @Nullable protected final String defaultTenant;
 
   private final Logger blockedItemsLogger;
 
@@ -76,6 +89,20 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       boolean reportReceivedStats,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemsLogger) {
+    this(handlerKey, blockedItemsPerBatch, serializer, senderTaskMap, reportReceivedStats,
+        receivedRateSink, blockedItemsLogger, null);
+  }
+
+  AbstractReportableEntityHandler(
+      HandlerKey handlerKey,
+      final int blockedItemsPerBatch,
+      final Function<T, String> serializer,
+      @Nullable final Map<String, Collection<SenderTask<U>>> senderTaskMap,
+      boolean reportReceivedStats,
+      @Nullable final BiConsumer<String, Long> receivedRateSink,
+      @Nullable final Logger blockedItemsLogger,
+      @Nullable final String defaultTenant) {
+    this.defaultTenant = defaultTenant;
     this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
     this.blockedItemsLimiter =
@@ -107,7 +134,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       timer.scheduleAtFixedRate(
           () -> {
             try {
-              for (String tenantName : senderTaskMap.keySet()) {
+              for (String tenantName : this.senderTaskMap.keySet()) {
                 receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
               }
             } catch (Throwable e) {
@@ -223,6 +250,18 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   protected Counter getReceivedCounter() {
     return receivedCounter;
+  }
+
+  /**
+   * Resolves a user-provided tenant name to the internal key used in {@link #senderTaskMap}.
+   * If {@code name} matches the {@code defaultTenant} alias, returns
+   * {@link APIContainer#CENTRAL_TENANT_NAME}; otherwise returns the name unchanged.
+   */
+  protected String resolveTenantName(String name) {
+    if (defaultTenant != null && name.equals(defaultTenant)) {
+      return APIContainer.CENTRAL_TENANT_NAME;
+    }
+    return name;
   }
 
   protected SenderTask<U> getTask(String tenantName) {

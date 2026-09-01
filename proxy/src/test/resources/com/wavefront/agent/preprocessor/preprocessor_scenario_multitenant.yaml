@@ -1,0 +1,40 @@
+## Scenario: Multi-tenant routing — metrics go to different tenants by prefix.
+#
+# Rules (evaluated in order):
+#   prod.*    → tenant-a only
+#   staging.* → tenant-b only
+#   shared.*  → tenant-a AND tenant-b (fan-out via comma-separated list)
+#   unmatched → no annotation → handler falls back to central
+#
+# "No points dropped" guarantee:
+#   Every point either has a forward annotation (explicit route) or falls
+#   through to central via the legacy path.
+
+'2878':
+  - rule   : route-prod-to-tenant-a
+    action : forward
+    scope  : metricName
+    match  : "^prod\\..*"
+    tenants:
+      - tenant-a
+
+  - rule   : route-staging-to-tenant-b
+    action : forward
+    scope  : metricName
+    match  : "^staging\\..*"
+    tenants:
+      - tenant-b
+
+  - rule   : route-shared-to-both-tenants
+    action : forward
+    scope  : metricName
+    match  : "^shared\\..*"
+    tenants:
+      - tenant-a
+      - tenant-b
+
+  # Optional transform applied to ALL points (does not affect routing).
+  - rule   : tag-source-port
+    action : addTag
+    tag    : ingest_port
+    value  : "2878"

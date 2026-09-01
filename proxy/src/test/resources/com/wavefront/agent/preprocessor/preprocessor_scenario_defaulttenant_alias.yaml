@@ -1,0 +1,22 @@
+## Scenario: Forward rule targeting the defaultTenant alias.
+#
+# When proxyConfig sets defaultTenant=PrimaryCluster, the proxy internally
+# maps "PrimaryCluster" to "central".  A forward rule targeting "PrimaryCluster"
+# goes through AbstractReportableEntityHandler.resolveTenantName():
+#
+#   resolveTenantName("PrimaryCluster")  →  "central"
+#
+# The handler then delivers the point to the central task.  No points dropped.
+#
+# This scenario is important for customers who give their primary tenant a
+# friendly name in the proxy config and use that name in preprocessor rules.
+
+'2878':
+  - rule   : route-cluster-metrics-to-primary
+    action : forward
+    scope  : metricName
+    match  : "^cluster\\..*"
+    tenants:
+      - PrimaryCluster
+
+  # "external.*" metrics have no forward rule → fall back to central.

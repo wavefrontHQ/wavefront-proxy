@@ -781,6 +781,65 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotLog::get);
   }
 
+  /**
+   * Verifies that in multi-tenant mode, {@link SenderTaskFactoryImpl} creates sender tasks for
+   * every registered tenant and delivers data to each one independently.
+   *
+   * <p>Both tenants point at the same backend. The metric carries a {@code wf_forward_tenants}
+   * annotation (the same tag that forward preprocessor rules inject) listing both "central" and
+   * "sidecar". {@link com.wavefront.agent.handlers.ReportPointHandlerImpl} strips the annotation
+   * before serialisation, so the backend sees the clean metric twice — once from each tenant task —
+   * confirming the per-tenant task fan-out introduced alongside the {@code tenantProxyIds} map.
+   */
+  @Test
+  public void testEndToEndMetricsMultiTenant() throws Exception {
+    AtomicInteger receivedCount = new AtomicInteger(0);
+    long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
+    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    proxy = new PushAgent();
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.token = UUID.randomUUID().toString();
+    proxy.proxyConfig.flushThreads = 1;
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
+    proxy.proxyConfig.pushFlushInterval = 50;
+    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.gzipCompression = false;
+
+    // Register a second tenant BEFORE proxy.start() so that APIContainer and
+    // SenderTaskFactoryImpl create tasks for both tenants during initialization.
+    TokenManager.addTenant(
+        "sidecar",
+        new TokenWorkerWF("sidecar-token", "http://localhost:" + backendPort + "/api/"));
+
+    proxy.start(new String[] {});
+    waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+
+    // wf_forward_tenants routes to exactly the listed tenants (same annotation that forward
+    // preprocessor rules inject). The handler strips it before serialising, so the backend
+    // receives a clean metric from each tenant task.
+    String payload =
+        "metric.name 42 " + time
+            + " source=test.source \"wf_forward_tenants\"=\"central,sidecar\"\n";
+    String expectedMetric = "\"metric.name\" 42.0 " + time + " source=\"test.source\"";
+
+    server.update(
+        req -> {
+          String content = req.content().toString(CharsetUtil.UTF_8);
+          if (content.contains(expectedMetric)) receivedCount.incrementAndGet();
+          return makeResponse(HttpResponseStatus.OK, "");
+        });
+
+    gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, String.valueOf(proxyPort));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+
+    assertEquals(
+        "Both central and sidecar tenant tasks must each deliver the metric to the backend",
+        2, receivedCount.get());
+  }
+
   @Ignore
   @Test
   public void testEndToEndLogLines() throws Exception {

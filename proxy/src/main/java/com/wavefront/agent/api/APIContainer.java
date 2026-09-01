@@ -67,6 +67,24 @@ public class APIContainer {
   private static final Logger logger = Logger.getLogger(APIContainer.class.getCanonicalName());
 
   /**
+   * Thread-local used to carry the current tenant name into the shared {@link ClientRequestFilter}
+   * so that {@code proxySavePreprocessorRules} and {@code proxySaveConfig} calls send the
+   * correct per-tenant Bearer token rather than always using the central tenant's token.
+   * Callers must call {@link #clearCurrentTenantForSave()} in a {@code finally} block.
+   */
+  private static final ThreadLocal<String> currentTenantForSave = new ThreadLocal<>();
+
+  /** Sets the tenant whose token the save-API filter should use for the current thread. */
+  public void setCurrentTenantForSave(String tenantName) {
+    currentTenantForSave.set(tenantName);
+  }
+
+  /** Clears the per-tenant save context from the current thread. */
+  public void clearCurrentTenantForSave() {
+    currentTenantForSave.remove();
+  }
+
+  /**
    * @param proxyConfig proxy configuration settings
    * @param discardData run proxy in test mode (don't actually send the data)
    */
@@ -324,18 +342,32 @@ public class APIContainer {
               if (proxyConfig.isGzipCompression()) {
                 context.getHeaders().add("Content-Encoding", "gzip");
               }
-              if ((context.getUri().getPath().contains("/v2/wfproxy")
-                      || context.getUri().getPath().contains("/v2/source")
-                      || context.getUri().getPath().contains("/event"))
-                  && !context.getUri().getPath().endsWith("checkin")) {
+              String path = context.getUri().getPath();
+              if ((path.contains("/v2/wfproxy")
+                      || path.contains("/v2/source")
+                      || path.contains("/event"))
+                  && !path.endsWith("checkin")) {
+                // For proxySavePreprocessorRules and proxySaveConfig, use the specific tenant's
+                // own token (set via setCurrentTenantForSave) so that the server can authorise
+                // the update against the correct proxy UUID.  For all other proxy-API calls,
+                // fall back to the central token (the original behaviour).
+                String tenantOverride = currentTenantForSave.get();
+                String bearerToken;
+                if ((path.endsWith("savePreprocessorRules") || path.endsWith("saveConfig"))
+                    && tenantOverride != null) {
+                  TenantInfo tenantInfo = TokenManager.getMulticastingTenantList().get(tenantOverride);
+                  bearerToken = tenantInfo != null ? tenantInfo.getBearerToken()
+                      : TokenManager.getMulticastingTenantList()
+                          .get(APIContainer.CENTRAL_TENANT_NAME).getBearerToken();
+                } else {
+                  bearerToken = TokenManager.getMulticastingTenantList()
+                      .get(APIContainer.CENTRAL_TENANT_NAME).getBearerToken();
+                }
                 context
                     .getHeaders()
                     .add(
                         "Authorization",
-                        "Bearer "
-                            + TokenManager.getMulticastingTenantList()
-                                .get(APIContainer.CENTRAL_TENANT_NAME)
-                                .getBearerToken());
+                        "Bearer " + bearerToken);
               } else if (context.getUri().getPath().contains("/le-mans")) {
                 context.getHeaders().add("Authorization", "Bearer " + logServerToken);
               }

@@ -1,6 +1,7 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.wavefront.agent.TenantIdentifier;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -12,6 +13,7 @@ import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -37,11 +39,13 @@ public class QueueingFactoryImpl implements QueueingFactory {
   private final TaskQueueFactory taskQueueFactory;
   private final APIContainer apiContainer;
   private final UUID proxyId;
+  private final Map<TenantIdentifier, UUID> tenantProxyIds;
   private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
 
   /**
    * @param apiContainer handles interaction with Wavefront servers as well as queueing.
-   * @param proxyId proxy ID.
+   * @param proxyId central proxy ID (fallback when no per-tenant entry exists).
+   * @param tenantProxyIds per-tenant proxy ID map used when replaying queued tasks.
    * @param taskQueueFactory factory for backing queues.
    * @param entityPropsFactoryMap map of factory for entity-specific wrappers for multiple
    *     multicasting mutable proxy settings.
@@ -49,10 +53,12 @@ public class QueueingFactoryImpl implements QueueingFactory {
   public QueueingFactoryImpl(
       APIContainer apiContainer,
       UUID proxyId,
+      Map<TenantIdentifier, UUID> tenantProxyIds,
       final TaskQueueFactory taskQueueFactory,
       final Map<String, EntityPropertiesFactory> entityPropsFactoryMap) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
+    this.tenantProxyIds = tenantProxyIds != null ? tenantProxyIds : Collections.emptyMap();
     this.taskQueueFactory = taskQueueFactory;
     this.entityPropsFactoryMap = entityPropsFactoryMap;
   }
@@ -127,6 +133,8 @@ public class QueueingFactoryImpl implements QueueingFactory {
       HandlerKey handlerKey, TaskQueue<T> queue) {
     ReportableEntityType entityType = handlerKey.getEntityType();
     String tenantName = handlerKey.getTenantName();
+    UUID effectiveProxyId =
+        tenantProxyIds.getOrDefault(TenantIdentifier.of(tenantName), proxyId);
     switch (entityType) {
       case POINT:
       case DELTA_COUNTER:
@@ -137,7 +145,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
             ((LineDelimitedDataSubmissionTask) task)
                 .injectMembers(
                     apiContainer.getProxyV2APIForTenant(tenantName),
-                    proxyId,
+                    effectiveProxyId,
                     entityPropsFactoryMap.get(tenantName).get(entityType),
                     (TaskQueue<LineDelimitedDataSubmissionTask>) queue);
       case SOURCE_TAG:
@@ -152,7 +160,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
             ((EventDataSubmissionTask) task)
                 .injectMembers(
                     apiContainer.getEventAPIForTenant(tenantName),
-                    proxyId,
+                    effectiveProxyId,
                     entityPropsFactoryMap.get(tenantName).get(entityType),
                     (TaskQueue<EventDataSubmissionTask>) queue);
       case LOGS:
@@ -160,7 +168,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
             ((LogDataSubmissionTask) task)
                 .injectMembers(
                     apiContainer.getLogAPI(),
-                    proxyId,
+                    effectiveProxyId,
                     entityPropsFactoryMap.get(tenantName).get(entityType),
                     (TaskQueue<LogDataSubmissionTask>) queue);
       default:

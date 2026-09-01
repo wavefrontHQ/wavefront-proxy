@@ -50,7 +50,8 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
         senderTaskMap,
         true,
         receivedRateSink,
-        blockedEventsLogger);
+        blockedEventsLogger,
+        null);
     super.initializeCounters();
     this.validItemsLogger = validEventsLogger;
   }

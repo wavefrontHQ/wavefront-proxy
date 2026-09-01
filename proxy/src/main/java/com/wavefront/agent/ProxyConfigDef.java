@@ -119,6 +119,15 @@ public abstract class ProxyConfigDef extends Configuration {
   String token = null;
 
   @Parameter(
+      names = {"--defaultTenant"},
+      description =
+          "Alias name for the primary tenant (server/token). Use this name in 'forward' "
+              + "preprocessor rule tenant lists to reference the primary tenant.",
+      order = 2)
+  @ProxyConfigOption(category = Categories.GENERAL, subCategory = SubCategories.CONF)
+  String defaultTenant = null;
+
+  @Parameter(
       names = {"--testLogs"},
       description = "Run interactive session for crafting logsIngestionConfig.yaml")
   @ProxyConfigOption(hide = true)

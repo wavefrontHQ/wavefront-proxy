@@ -1,0 +1,32 @@
+## Scenario: Transform first, then forward based on the transformed name.
+#
+# Rule order matters: the replaceRegex transformer runs before the forward
+# transformer.  A point arriving with metric name "raw.cpu" is renamed to
+# "normalized.cpu" and then matched by the forward rule.
+#
+# End-to-end guarantee:
+#   Input  : raw.cpu     →  after transform → normalized.cpu
+#   Routing: normalized.cpu matches "^normalized\..*" → tenant-a
+#   Result : tenant-a task receives the point; metric name is "normalized.cpu"
+#
+# A point that does NOT start with "raw." is not transformed and not forwarded
+# by the forward rule → falls through to central.
+
+'2878':
+  - rule   : rename-raw-prefix
+    action : replaceRegex
+    scope  : metricName
+    search : "^raw\\."
+    replace: "normalized."
+
+  - rule   : add-pipeline-tag
+    action : addTag
+    tag    : pipeline
+    value  : normalized
+
+  - rule   : route-normalized-to-tenant-a
+    action : forward
+    scope  : metricName
+    match  : "^normalized\\..*"
+    tenants:
+      - tenant-a

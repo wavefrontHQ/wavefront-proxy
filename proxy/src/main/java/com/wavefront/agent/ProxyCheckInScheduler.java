@@ -22,6 +22,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -54,6 +55,11 @@ public class ProxyCheckInScheduler {
   private static final String ID = Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
 
   private final UUID proxyId;
+  /**
+   * Per-tenant proxy IDs — each tenant checks in with its own UUID. Keyed by
+   * {@link TenantIdentifier} to prevent accidental use of non-tenant strings as map keys.
+   */
+  private final Map<TenantIdentifier, UUID> tenantProxyIds;
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
   private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
@@ -75,12 +81,16 @@ public class ProxyCheckInScheduler {
   public static AtomicBoolean isRulesSetInFE = new AtomicBoolean(false);
 
   /**
-   * @param proxyId Proxy UUID.
+   * Backwards-compatible constructor for a single-tenant proxy. The supplied {@code proxyId} is
+   * registered as the central tenant's ID.
+   *
+   * @param proxyId Proxy UUID for the central tenant.
    * @param proxyConfig Proxy settings.
    * @param apiContainer API container object.
    * @param agentConfigurationConsumer Configuration processor, invoked after each successful
    *     configuration fetch.
    * @param shutdownHook Invoked when proxy receives a shutdown directive from the back-end.
+   * @param truncateBacklog Invoked when the back-end requests queue truncation.
    */
   public ProxyCheckInScheduler(
       UUID proxyId,
@@ -89,7 +99,39 @@ public class ProxyCheckInScheduler {
       BiConsumer<String, AgentConfiguration> agentConfigurationConsumer,
       Runnable shutdownHook,
       Runnable truncateBacklog) {
-    this.proxyId = proxyId;
+    this(
+        Map.of(TenantIdentifier.CENTRAL, proxyId),
+        proxyConfig,
+        apiContainer,
+        agentConfigurationConsumer,
+        shutdownHook,
+        truncateBacklog);
+  }
+
+  /**
+   * Multi-tenant constructor. Each tenant in {@code tenantProxyIdsByIdentifier} is registered
+   * independently with its own UUID, allowing multiple tenants on the same Wavefront server to
+   * coexist. The map must contain an entry for {@link TenantIdentifier#CENTRAL}.
+   *
+   * @param tenantProxyIdsByIdentifier typed map of tenant → proxy UUID.
+   * @param proxyConfig Proxy settings.
+   * @param apiContainer API container object.
+   * @param agentConfigurationConsumer Configuration processor, invoked after each successful
+   *     configuration fetch.
+   * @param shutdownHook Invoked when proxy receives a shutdown directive from the back-end.
+   * @param truncateBacklog Invoked when the back-end requests queue truncation.
+   */
+  public ProxyCheckInScheduler(
+      Map<TenantIdentifier, UUID> tenantProxyIdsByIdentifier,
+      ProxyConfig proxyConfig,
+      APIContainer apiContainer,
+      BiConsumer<String, AgentConfiguration> agentConfigurationConsumer,
+      Runnable shutdownHook,
+      Runnable truncateBacklog) {
+    this.tenantProxyIds = tenantProxyIdsByIdentifier;
+    this.proxyId = Objects.requireNonNull(
+        tenantProxyIdsByIdentifier.get(TenantIdentifier.CENTRAL),
+        "tenantProxyIdsByIdentifier must contain an entry for the central tenant");
     this.proxyConfig = proxyConfig;
     this.apiContainer = apiContainer;
     this.agentConfigurationConsumer = agentConfigurationConsumer;
@@ -99,7 +141,7 @@ public class ProxyCheckInScheduler {
     updateProxyMetrics();
 
     Map<String, AgentConfiguration> configList = checkin();
-    new ProxySendConfigScheduler(apiContainer, proxyId, proxyConfig).start();
+    new ProxySendConfigScheduler(apiContainer, tenantProxyIds, proxyConfig).start();
 
     if (configList == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
@@ -125,9 +167,9 @@ public class ProxyCheckInScheduler {
   }
 
   /**
-   * Returns the number of successful check-ins.
+   * Returns the total number of successful check-ins since proxy start.
    *
-   * @return true if this proxy had at least one successful check-in.
+   * @return the cumulative count of successful check-ins; zero if no check-in has succeeded yet.
    */
   public long getSuccessfulCheckinCount() {
     return successfulCheckIns.get();
@@ -143,41 +185,63 @@ public class ProxyCheckInScheduler {
    */
   public void sendPreprocessorRules() {
     if (preprocessorRulesNeedUpdate.getAndSet(false)) {
-      try {
-        JsonNode rulesNode = createRulesNode(ProxyPreprocessorConfigManager.getProxyConfigRules(), null);
-        apiContainer
-                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-                .proxySavePreprocessorRules(
-                        proxyId,
-                        rulesNode
-                );
-      } catch (javax.ws.rs.NotFoundException ex) {
-        logger.warning("'proxySavePreprocessorRules' api end point not found");
-      }
+      JsonNode rulesNode = createRulesNode(ProxyPreprocessorConfigManager.getProxyConfigRules(), null);
+      // Save to all tenant proxy objects for UI consistency (see sendPreprocessorRules(AgentConfiguration)).
+      savePreprocessorRulesToAllTenants(rulesNode, null);
     }
   }
 
   /** Send preprocessor rules */
   private void sendPreprocessorRules(AgentConfiguration agentConfiguration) {
     if (preprocessorRulesNeedUpdate.getAndSet(false)) {
-      String preprocessorRules = null;
-      if (agentConfiguration.getPreprocessorRules() != null) {
-        // reading rules from BE if sent from BE
-        preprocessorRules = agentConfiguration.getPreprocessorRules();
-      } else {
-        // reading local file's rule
-        preprocessorRules = ProxyPreprocessorConfigManager.getProxyConfigRules();
-      }
+      String preprocessorRules =
+          agentConfiguration.getPreprocessorRules() != null
+              ? agentConfiguration.getPreprocessorRules() // rules from FE/BE
+              : ProxyPreprocessorConfigManager.getProxyConfigRules(); // local file rules
+      JsonNode rulesNode = createRulesNode(preprocessorRules, agentConfiguration.getPreprocessorRulesId());
+      savePreprocessorRulesToAllTenants(rulesNode, agentConfiguration.getPreprocessorRulesId());
+    }
+  }
+
+  /**
+   * Saves preprocessor rules to every registered tenant's proxy object so that the wf-system
+   * Proxy Configurator shows consistent rules regardless of which tenant context is being viewed.
+   *
+   * <p>Each tenant is saved independently — a failure (e.g. 401/403 from a data-ingestion token
+   * that lacks proxy-management permission, or a 404 on an older server) is logged and skipped
+   * so that one failing tenant never prevents the others from being updated.
+   *
+   * <p><b>Note:</b> non-central tenants receive these rules only for display; the proxy processes
+   * (applies) rules solely from the central tenant's checkin response.
+   */
+  private void savePreprocessorRulesToAllTenants(JsonNode rulesNode, String rulesId) {
+    logger.info("Saving preprocessor rules to proxy objects for tenants: " + tenantProxyIds.keySet());
+    for (Map.Entry<TenantIdentifier, UUID> entry : tenantProxyIds.entrySet()) {
+      String tenantName = entry.getKey().getTenantName();
+      UUID tenantProxyId = entry.getValue();
       try {
-        JsonNode rulesNode = createRulesNode(preprocessorRules, agentConfiguration.getPreprocessorRulesId());
+        apiContainer.setCurrentTenantForSave(tenantName);
         apiContainer
-                .getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME)
-                .proxySavePreprocessorRules(
-                        proxyId,
-                        rulesNode
-                );
+            .getProxyV2APIForTenant(tenantName)
+            .proxySavePreprocessorRules(tenantProxyId, rulesNode);
+        logger.info("Saved preprocessor rules to proxy object " + tenantProxyId
+            + " for tenant '" + tenantName + "'.");
       } catch (javax.ws.rs.NotFoundException ex) {
-        logger.warning("'proxySavePreprocessorRules' api end point not found");
+        logger.warning("'proxySavePreprocessorRules' endpoint not found for tenant '"
+            + tenantName + "' (proxy UUID " + tenantProxyId + ")"
+            + " — server may be an older version that does not support this endpoint.");
+      } catch (javax.ws.rs.ClientErrorException ex) {
+        logger.warning("'proxySavePreprocessorRules' rejected for tenant '" + tenantName
+            + "' (proxy UUID " + tenantProxyId + ")"
+            + ": HTTP " + ex.getResponse().getStatus()
+            + " — the token for this tenant may lack proxy-management permission."
+            + " Rules will not appear in the wf-system UI for this tenant.");
+      } catch (Exception ex) {
+        logger.warning("'proxySavePreprocessorRules' failed for tenant '" + tenantName
+            + "' (proxy UUID " + tenantProxyId + ")"
+            + ": " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+      } finally {
+        apiContainer.clearCurrentTenantForSave();
       }
     }
   }
@@ -221,11 +285,12 @@ public class ProxyCheckInScheduler {
         tenantName = multicastingTenantEntry.getKey();
         multicastingTenantProxyConfig = multicastingTenantEntry.getValue();
         logger.info("Checking in tenants: " + multicastingTenantProxyConfig.getWFServer());
+        UUID tenantProxyId = tenantProxyIds.getOrDefault(TenantIdentifier.of(tenantName), proxyId);
         multicastingConfig =
             apiContainer
                 .getProxyV2APIForTenant(tenantName)
                 .proxyCheckin(
-                    proxyId,
+                    tenantProxyId,
                     "Bearer " + multicastingTenantProxyConfig.getBearerToken(),
                     proxyConfig.getHostname()
                         + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
@@ -430,31 +495,37 @@ public class ProxyCheckInScheduler {
           }
           agentConfigurationConsumer.accept(configEntry.getKey(), config);
 
-          // Check if preprocessor rules were set on server side
-          String checkPreprocessorRules = config.getPreprocessorRules();
-          if (checkPreprocessorRules != null && !checkPreprocessorRules.isEmpty()) {
-            AgentConfiguration finalConfig = config;
-            logger.log(Level.INFO, () -> String.format("New preprocessor rules detected during checkin. Setting new preprocessor rule %s",
-                    (finalConfig.getPreprocessorRulesId() != null && !finalConfig.getPreprocessorRulesId().isEmpty()) ? finalConfig.getPreprocessorRulesId() : ""));
-            // future implementation, can send timestamp through AgentConfig and skip reloading if rule unchanged
-            isRulesSetInFE.set(true);
-            // indicates will need to sendPreprocessorRules()
-            preprocessorRulesNeedUpdate.set(true);
-          } else {
-            // was previously reading from BE
-            if (isRulesSetInFE.get()) {
-              if (proxyConfig.getPreprocessorConfigFile() == null || proxyConfig.getPreprocessorConfigFile().isEmpty()) {
-                logger.info("No preprocessor rules detected during checkin, and no rules file found.");
-              } else {
-                logger.log(Level.INFO, () -> String.format("Reverting back to reading rules from file %s", proxyConfig.getPreprocessorConfigFile()));
-              }
-              // indicates that previously read from BE, now switching back to reading from file.
-              isRulesSetInFE.set(false);
+          // Preprocessor rules are a central-tenant concern: the UI sets rules on the
+          // central/default proxy ID. Multicasting tenants register with their own proxy IDs
+          // and will always return empty rules — processing them here would incorrectly
+          // reset isRulesSetInFE and cause flip-flopping between FE and file rules.
+          if (configEntry.getKey().equals(APIContainer.CENTRAL_TENANT_NAME)) {
+            // Check if preprocessor rules were set on server side
+            String checkPreprocessorRules = config.getPreprocessorRules();
+            if (checkPreprocessorRules != null && !checkPreprocessorRules.isEmpty()) {
+              AgentConfiguration finalConfig = config;
+              logger.log(Level.INFO, () -> String.format("New preprocessor rules detected during checkin. Setting new preprocessor rule %s",
+                      (finalConfig.getPreprocessorRulesId() != null && !finalConfig.getPreprocessorRulesId().isEmpty()) ? finalConfig.getPreprocessorRulesId() : ""));
+              // future implementation, can send timestamp through AgentConfig and skip reloading if rule unchanged
+              isRulesSetInFE.set(true);
+              // indicates will need to sendPreprocessorRules()
               preprocessorRulesNeedUpdate.set(true);
+            } else {
+              // was previously reading from BE
+              if (isRulesSetInFE.get()) {
+                if (proxyConfig.getPreprocessorConfigFile() == null || proxyConfig.getPreprocessorConfigFile().isEmpty()) {
+                  logger.info("No preprocessor rules detected during checkin, and no rules file found.");
+                } else {
+                  logger.log(Level.INFO, () -> String.format("Reverting back to reading rules from file %s", proxyConfig.getPreprocessorConfigFile()));
+                }
+                // indicates that previously read from BE, now switching back to reading from file.
+                isRulesSetInFE.set(false);
+                preprocessorRulesNeedUpdate.set(true);
+              }
             }
+            // will always send to BE in order to update Agent with latest rule
+            sendPreprocessorRules(config);
           }
-          // will always send to BE in order to update Agent with latest rule
-          sendPreprocessorRules(config);
         }
       }
     } catch (Exception e) {

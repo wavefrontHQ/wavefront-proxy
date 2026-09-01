@@ -1,0 +1,37 @@
+## Scenario: Different routing rules per listening port.
+#
+# Port 2878 routes "portA.*" metrics to tenant-a.
+# Port 2879 routes "portB.*" metrics to tenant-b.
+# Unmatched metrics on each port fall through to central.
+#
+# Guarantees:
+#   - A point on port 2878 matching "portA.*" → tenant-a (not dropped).
+#   - A point on port 2879 matching "portB.*" → tenant-b (not dropped).
+#   - A point on either port with no matching rule → central (not dropped).
+#   - Port rules do NOT bleed across ports.
+
+'2878':
+  - rule   : route-portA-to-tenant-a
+    action : forward
+    scope  : metricName
+    match  : "^portA\\..*"
+    tenants:
+      - tenant-a
+
+  - rule   : tag-port-2878
+    action : addTag
+    tag    : recv_port
+    value  : "2878"
+
+'2879':
+  - rule   : route-portB-to-tenant-b
+    action : forward
+    scope  : metricName
+    match  : "^portB\\..*"
+    tenants:
+      - tenant-b
+
+  - rule   : tag-port-2879
+    action : addTag
+    tag    : recv_port
+    value  : "2879"

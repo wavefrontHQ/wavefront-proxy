@@ -1,0 +1,28 @@
+## Scenario: Single-tenant mode (no multicastingTenants configured).
+#
+# No forward rules are present.  Every point that survives the filters is
+# delivered to the single "central" tenant.  This verifies that:
+#   1. Transform rules run correctly.
+#   2. No forward annotation is injected.
+#   3. No points are dropped (the central fallback always applies).
+
+'2878':
+  # Normalise hyphens to underscores in the metric name.
+  - rule   : normalize-hyphens
+    action : replaceRegex
+    scope  : metricName
+    search : "-"
+    replace: "_"
+
+  # Stamp every inbound point with the deployment environment.
+  - rule   : tag-environment
+    action : addTag
+    tag    : env
+    value  : production
+
+  # Block synthetic / test metrics to keep production data clean.
+  # Test points must NOT match this pattern (use "app.*" or "jvm.*").
+  - rule   : block-synthetic
+    action : block
+    scope  : metricName
+    match  : "^_synthetic\\..*"

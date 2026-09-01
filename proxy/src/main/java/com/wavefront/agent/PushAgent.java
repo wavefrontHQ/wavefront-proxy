@@ -221,10 +221,11 @@ public class PushAgent extends AbstractAgent {
         new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(), hostnameResolver);
     queueingFactory =
         new QueueingFactoryImpl(
-            apiContainer, agentId, taskQueueFactory, entityPropertiesFactoryMap);
+            apiContainer, agentId, tenantProxyIds, taskQueueFactory, entityPropertiesFactoryMap);
     senderTaskFactory =
         new SenderTaskFactoryImpl(
-            apiContainer, agentId, taskQueueFactory, queueingFactory, entityPropertiesFactoryMap);
+            apiContainer, agentId, tenantProxyIds, taskQueueFactory, queueingFactory,
+            entityPropertiesFactoryMap);
     // MONIT-25479: when multicasting histogram, use the central cluster histogram accuracy
     if (proxyConfig.isHistogramPassthroughRecompression()) {
       histogramRecompressor =
@@ -255,18 +256,21 @@ public class PushAgent extends AbstractAgent {
       bloomFilterRefresher = null;
       logger.info("MetricQuerySampling disabled or MetricQuerySamplingRate is not set, skipping bloom filter refresh and query aware sampling");
     }
+    preprocessors.setDefaultTenant(proxyConfig.getDefaultTenant());
     handlerFactory =
-        new ReportableEntityHandlerFactoryImpl(
-            senderTaskFactory,
-            proxyConfig.getPushBlockedSamples(),
-            validationConfiguration,
-            blockedPointsLogger,
-            blockedHistogramsLogger,
-            blockedSpansLogger,
-            histogramRecompressor,
-            bloomFilterSampler,
-            entityPropertiesFactoryMap,
-            blockedLogsLogger);
+        ReportableEntityHandlerFactoryImpl.builder()
+            .senderTaskFactory(senderTaskFactory)
+            .blockedItemsPerBatch(proxyConfig.getPushBlockedSamples())
+            .validationConfig(validationConfiguration)
+            .blockedPointsLogger(blockedPointsLogger)
+            .blockedHistogramsLogger(blockedHistogramsLogger)
+            .blockedSpansLogger(blockedSpansLogger)
+            .histogramRecompressor(histogramRecompressor)
+            .metricBloomFilterSampler(bloomFilterSampler)
+            .entityPropsFactoryMap(entityPropertiesFactoryMap)
+            .blockedLogsLogger(blockedLogsLogger)
+            .defaultTenant(proxyConfig.getDefaultTenant())
+            .build();
     if (proxyConfig.isTrafficShaping()) {
       new TrafficShapingRateLimitAdjuster(
               entityPropertiesFactoryMap,
@@ -1909,16 +1913,22 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void processConfiguration(String tenantName, AgentConfiguration config) {
     try {
-      boolean configHasPreprocessorRules = config.getPreprocessorRules() != null && !config.getPreprocessorRules().isEmpty();
-//       apply new preprocessor rules after checkin
-      if (ProxyCheckInScheduler.isRulesSetInFE.get() && configHasPreprocessorRules) {
-        loadPreprocessors(config.getPreprocessorRules(), true);
-      }
-      // check if we want to read local file
-      else if (!ProxyCheckInScheduler.isRulesSetInFE.get() &&
-              proxyConfig.getPreprocessorConfigFile() != null &&
-              !usingLocalFileRules.get()) { // are we already reading local file
-        loadPreprocessors(proxyConfig.getPreprocessorConfigFile(), false);
+      boolean configHasPreprocessorRules =
+          config.getPreprocessorRules() != null && !config.getPreprocessorRules().isEmpty();
+      if (CENTRAL_TENANT_NAME.equals(tenantName)) {
+        // The default tenant controls the global preprocessor (forward routing + default rules).
+        if (ProxyCheckInScheduler.isRulesSetInFE.get() && configHasPreprocessorRules) {
+          loadPreprocessors(config.getPreprocessorRules(), true);
+        } else if (!ProxyCheckInScheduler.isRulesSetInFE.get() &&
+                proxyConfig.getPreprocessorConfigFile() != null &&
+                !usingLocalFileRules.get()) {
+          loadPreprocessors(proxyConfig.getPreprocessorConfigFile(), false);
+        }
+      } else if (configHasPreprocessorRules) {
+        // In multi-tenant mode only the default tenant's preprocessor rules are applied.
+        // Preprocessor rules pushed from the UI for non-default tenants are intentionally ignored.
+        logger.info("Multi-tenant mode: ignoring preprocessor rules for non-default tenant '"
+            + tenantName + "'.");
       }
 
       if (bloomFilterSampler != null && CENTRAL_TENANT_NAME.equals(tenantName) &&
@@ -2194,14 +2204,14 @@ public class PushAgent extends AbstractAgent {
     senderTaskFactory.truncateBuffers();
   }
 
-  private void loadPreprocessors(String preprocessorStr, boolean readfromFE) {
+  private void loadPreprocessors(String preprocessorStr, boolean readFromFrontEnd) {
     try {
-      if (readfromFE && preprocessorStr != null) {
-        // preprocessorStr is str of rules itself
+      if (readFromFrontEnd && preprocessorStr != null) {
+        // preprocessorStr is the YAML rule string received from the Wavefront front-end.
         preprocessors.loadFERules(preprocessorStr);
         usingLocalFileRules.set(false);
       } else {
-        // preprocessorStr is file path
+        // preprocessorStr is a file path to a local YAML rule file.
         preprocessors.loadFile(preprocessorStr);
         usingLocalFileRules.set(true);
       }

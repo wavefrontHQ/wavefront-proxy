@@ -1,0 +1,26 @@
+## Scenario: Forward rule targeting the reserved name "central".
+#
+# Customers cannot be prevented from naming their tenant "central".
+# When a multicasting tenant is also named "central" on a different server,
+# TokenManager registers it as "central~2" (synthetic key).  A forward rule
+# that targets "central" will fan out to BOTH endpoints automatically.
+#
+# This file is used with two test sub-cases:
+#
+#   A) Only the primary cluster registered ("central"):
+#      - forward annotation → central; point reaches central task.
+#
+#   B) Primary cluster ("central") + customer cluster ("central~2"):
+#      - forward annotation → central; handler fans out to both tasks.
+#
+# No points are dropped in either case.
+
+'2878':
+  - rule   : route-central-metrics-to-central
+    action : forward
+    scope  : metricName
+    match  : "^central\\..*"
+    tenants:
+      - central
+
+  # Unmatched metrics (e.g. "other.*") fall through to the central legacy path.
