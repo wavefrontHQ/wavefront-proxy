@@ -1,0 +1,16 @@
+## Scenario: Forward rule targeting an unregistered tenant.
+#
+# Loading this file via loadFERules() when "ghost-tenant" is NOT registered
+# in TokenManager must throw IllegalArgumentException with a message that
+# identifies the unknown tenant name.
+#
+# This validates the defence-in-depth check that prevents misconfigured
+# forward rules from silently dropping data at runtime.
+
+'2878':
+  - rule   : route-to-nonexistent-tenant
+    action : forward
+    scope  : metricName
+    match  : ".*"
+    tenants:
+      - ghost-tenant

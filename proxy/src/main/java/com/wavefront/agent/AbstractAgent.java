@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
+import java.util.LinkedHashMap;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -80,6 +81,12 @@ public abstract class AbstractAgent {
   protected final AtomicBoolean truncate = new AtomicBoolean(false);
   protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
+  /**
+   * Per-tenant proxy IDs populated at start-up. Keyed by {@link TenantIdentifier} rather than a
+   * raw string so that the compiler prevents accidental use of unrelated string values (port
+   * numbers, config paths) as map keys.
+   */
+  protected Map<TenantIdentifier, UUID> tenantProxyIds;
   protected SslContext sslContext;
   protected List<String> tlsPorts = EMPTY_LIST;
   protected boolean secureAllPorts = false;
@@ -249,10 +256,10 @@ public abstract class AbstractAgent {
             + getJavaVersion();
     logger.info(versionStr);
 
-    OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
-    if (os instanceof UnixOperatingSystemMXBean) {
-      UnixOperatingSystemMXBean os1 = (UnixOperatingSystemMXBean) os;
-      logger.info("OS Max File Descriptors: " + os1.getMaxFileDescriptorCount());
+    OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
+    if (osMxBean instanceof UnixOperatingSystemMXBean) {
+      UnixOperatingSystemMXBean unixOsMxBean = (UnixOperatingSystemMXBean) osMxBean;
+      logger.info("OS Max File Descriptors: " + unixOsMxBean.getMaxFileDescriptorCount());
     }
 
     try {
@@ -265,6 +272,7 @@ public abstract class AbstractAgent {
       parseArguments(args);
       postProcessConfig();
       initSslContext();
+      preprocessors.setDefaultTenant(proxyConfig.getDefaultTenant());
       initPreprocessors();
 
       if (proxyConfig.isTestLogs()
@@ -326,14 +334,23 @@ public abstract class AbstractAgent {
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
       TokenManager.start(apiContainer);
-      // config the entityPropertiesFactoryMap
+      // Build per-tenant proxy IDs and populate entity property factories.
+      // Each multicasting tenant gets its own distinct UUID so that separate check-ins
+      // to the same Wavefront server (with different tokens) are accepted independently.
+      tenantProxyIds = new LinkedHashMap<>();
       for (String tenantName : TokenManager.getMulticastingTenantList().keySet()) {
         entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
+        TenantIdentifier tenantIdentifier = TenantIdentifier.of(tenantName);
+        if (tenantIdentifier.isCentral()) {
+          tenantProxyIds.put(tenantIdentifier, agentId);
+        } else {
+          tenantProxyIds.put(tenantIdentifier, ProxyUtil.getOrCreateProxyId(proxyConfig, tenantName));
+        }
       }
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler =
           new ProxyCheckInScheduler(
-              agentId,
+              tenantProxyIds,
               proxyConfig,
               apiContainer,
               this::processConfiguration,
@@ -386,11 +403,12 @@ public abstract class AbstractAgent {
    * @param tenantName The tenant name
    * @param config The configuration to process.
    */
-  protected void processConfiguration(String tenantName, AgentConfiguration config) {
+  protected void processConfiguration(String receivingTenantName, AgentConfiguration config) {
     try {
-      // for all ProxyV2API
-      for (String tn : TokenManager.getMulticastingTenantList().keySet()) {
-        apiContainer.getProxyV2APIForTenant(tn).proxyConfigProcessed(agentId);
+      for (String registeredTenantName : TokenManager.getMulticastingTenantList().keySet()) {
+        TenantIdentifier tenantIdentifier = TenantIdentifier.of(registeredTenantName);
+        UUID tenantProxyId = tenantProxyIds.getOrDefault(tenantIdentifier, agentId);
+        apiContainer.getProxyV2APIForTenant(registeredTenantName).proxyConfigProcessed(tenantProxyId);
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.

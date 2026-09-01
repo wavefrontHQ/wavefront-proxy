@@ -39,7 +39,8 @@ class ReportSourceTagHandlerImpl
         senderTaskMap,
         true,
         receivedRateSink,
-        blockedItemLogger);
+        blockedItemLogger,
+        null);
     super.initializeCounters();
   }
 

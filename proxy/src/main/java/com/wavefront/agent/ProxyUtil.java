@@ -50,6 +50,29 @@ abstract class ProxyUtil {
   }
 
   /**
+   * Gets or creates a per-tenant proxy ID. Each non-central tenant registers with its own unique
+   * UUID so that two tenants on the same Wavefront server (with different tokens) are treated as
+   * independent proxies by the back-end.
+   *
+   * @param proxyConfig proxy configuration (used for idFile base path and ephemeral flag)
+   * @param tenantName  the tenant name — appended to the id file name to keep IDs separate
+   * @return tenant-specific proxy ID
+   */
+  static UUID getOrCreateProxyId(ProxyConfig proxyConfig, String tenantName) {
+    if (proxyConfig.isEphemeral()) {
+      UUID newProxyId = UUID.randomUUID();
+      logger.info("Ephemeral proxy id created for tenant '" + tenantName + "': " + newProxyId);
+      return newProxyId;
+    }
+    String baseIdFile = proxyConfig.getIdFile();
+    String tenantIdFile =
+        (baseIdFile != null)
+            ? baseIdFile + "_" + tenantName
+            : ".wavefront_proxy_id_" + tenantName;
+    return getOrCreateProxyIdFromFile(tenantIdFile);
+  }
+
+  /**
    * Read or create proxy id for this machine. Reads the UUID from specified file, or from
    * ~/.dshell/id if idFileName is null.
    *

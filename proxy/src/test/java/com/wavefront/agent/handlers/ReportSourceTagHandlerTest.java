@@ -58,6 +58,7 @@ public class ReportSourceTagHandlerTest {
         new SenderTaskFactoryImpl(
             new APIContainer(null, mockAgentAPI, null, null, null),
             newAgentId,
+            null,
             taskQueueFactory,
             null,
             Collections.singletonMap(

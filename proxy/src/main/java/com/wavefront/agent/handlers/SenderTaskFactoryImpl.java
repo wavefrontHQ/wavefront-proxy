@@ -7,6 +7,7 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import com.wavefront.agent.TenantIdentifier;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -24,6 +25,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,6 +57,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   private final APIContainer apiContainer;
   private final UUID proxyId;
+  private final Map<TenantIdentifier, UUID> tenantProxyIds;
   private final TaskQueueFactory taskQueueFactory;
   private final QueueingFactory queueingFactory;
   private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
@@ -63,7 +66,9 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
    * Create new instance.
    *
    * @param apiContainer handles interaction with Wavefront servers as well as queueing.
-   * @param proxyId proxy ID.
+   * @param proxyId central proxy ID (fallback when no per-tenant entry exists).
+   * @param tenantProxyIds per-tenant proxy ID map; each non-central tenant submits data under its
+   *     own proxy UUID so the server stores it in the correct customer namespace.
    * @param taskQueueFactory factory for backing queues.
    * @param queueingFactory factory for queueing.
    * @param entityPropsFactoryMap map of factory for entity-specific wrappers for multiple
@@ -72,11 +77,13 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   public SenderTaskFactoryImpl(
       final APIContainer apiContainer,
       final UUID proxyId,
+      final Map<TenantIdentifier, UUID> tenantProxyIds,
       final TaskQueueFactory taskQueueFactory,
       @Nullable final QueueingFactory queueingFactory,
       final Map<String, EntityPropertiesFactory> entityPropsFactoryMap) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
+    this.tenantProxyIds = tenantProxyIds != null ? tenantProxyIds : Collections.emptyMap();
     this.taskQueueFactory = taskQueueFactory;
     this.queueingFactory = queueingFactory;
     this.entityPropsFactoryMap = entityPropsFactoryMap;
@@ -139,6 +146,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     List<SenderTask<?>> senderTaskList = new ArrayList<>(numThreads);
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
+    UUID effectiveProxyId = tenantProxyIds.getOrDefault(TenantIdentifier.of(tenantName), proxyId);
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
@@ -149,7 +157,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_WAVEFRONT,
                   proxyV2API,
-                  proxyId,
+                  effectiveProxyId,
                   properties,
                   scheduler,
                   threadNo,
@@ -162,7 +170,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_HISTOGRAM,
                   proxyV2API,
-                  proxyId,
+                  effectiveProxyId,
                   properties,
                   scheduler,
                   threadNo,
@@ -187,7 +195,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_TRACING,
                   proxyV2API,
-                  proxyId,
+                  effectiveProxyId,
                   properties,
                   scheduler,
                   threadNo,
@@ -203,7 +211,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   handlerKey,
                   PUSH_FORMAT_TRACING_SPAN_LOGS,
                   proxyV2API,
-                  proxyId,
+                  effectiveProxyId,
                   properties,
                   scheduler,
                   threadNo,
@@ -215,7 +223,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               new EventSenderTask(
                   handlerKey,
                   apiContainer.getEventAPIForTenant(tenantName),
-                  proxyId,
+                  effectiveProxyId,
                   threadNo,
                   properties,
                   scheduler,
@@ -226,7 +234,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               new LogSenderTask(
                   handlerKey,
                   apiContainer.getLogAPI(),
-                  proxyId,
+                  effectiveProxyId,
                   threadNo,
                   entityPropsFactoryMap.get(tenantName).get(entityType),
                   scheduler,
@@ -322,8 +330,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                   "Truncating buffers: Queue with handlerKey " + handlerKeyManagedEntry.getKey());
               log.info(
                   "Truncating buffers: Queue with handlerKey " + handlerKeyManagedEntry.getKey());
-              QueueController pp = handlerKeyManagedEntry.getValue();
-              pp.truncateBuffers();
+              QueueController queueController = handlerKeyManagedEntry.getValue();
+              queueController.truncateBuffers();
             });
   }
 

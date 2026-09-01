@@ -85,7 +85,8 @@ public class DeltaCounterAccumulationHandlerImpl
         senderTaskMap,
         true,
         null,
-        blockedItemLogger);
+        blockedItemLogger,
+        null);
     super.initializeCounters();
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;

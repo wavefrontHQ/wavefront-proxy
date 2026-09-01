@@ -9,6 +9,7 @@ import com.wavefront.common.Utils;
 import com.wavefront.common.logger.SamplingLogger;
 import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -84,37 +85,69 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Function<Histogram, Histogram> histogramRecompressor;
   private final MetricBloomFilterSampler metricBloomFilterSampler;
   private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
+  /**
+   * Human-readable alias for the central/primary tenant. Passed to each handler's
+   * {@code resolveTenantName()} so that forward-rule targets written as the alias string
+   * resolve to {@link com.wavefront.agent.api.APIContainer#CENTRAL_TENANT_NAME}.
+   */
+  @Nullable
+  private final String defaultTenant;
+
+  private ReportableEntityHandlerFactoryImpl(Builder builder) {
+    this.senderTaskFactory = Objects.requireNonNull(builder.senderTaskFactory, "senderTaskFactory");
+    this.blockedItemsPerBatch = builder.blockedItemsPerBatch;
+    this.validationConfig = Objects.requireNonNull(builder.validationConfig, "validationConfig");
+    this.blockedPointsLogger = builder.blockedPointsLogger;
+    this.blockedHistogramsLogger = builder.blockedHistogramsLogger;
+    this.blockedSpansLogger = builder.blockedSpansLogger;
+    this.blockedLogsLogger = builder.blockedLogsLogger;
+    this.histogramRecompressor = builder.histogramRecompressor;
+    this.metricBloomFilterSampler = builder.metricBloomFilterSampler;
+    this.entityPropsFactoryMap = Objects.requireNonNull(builder.entityPropsFactoryMap, "entityPropsFactoryMap");
+    this.defaultTenant = builder.defaultTenant;
+  }
+
+  /** Returns a new {@link Builder} for this factory. */
+  public static Builder builder() {
+    return new Builder();
+  }
 
   /**
-   * Create new instance.
+   * Builder for {@link ReportableEntityHandlerFactoryImpl}.
    *
-   * @param senderTaskFactory SenderTaskFactory instance used to create SenderTasks for new
-   *     handlers.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
-   *     the main log file.
-   * @param validationConfig validation configuration.
+   * <p>Required fields: {@code senderTaskFactory}, {@code validationConfig},
+   * {@code entityPropsFactoryMap}. All others are optional and default to {@code null}.
    */
-  public ReportableEntityHandlerFactoryImpl(
-      final SenderTaskFactory senderTaskFactory,
-      final int blockedItemsPerBatch,
-      @Nonnull final ValidationConfiguration validationConfig,
-      final Logger blockedPointsLogger,
-      final Logger blockedHistogramsLogger,
-      final Logger blockedSpansLogger,
-      @Nullable Function<Histogram, Histogram> histogramRecompressor,
-      @Nullable MetricBloomFilterSampler metricBloomFilterSampler,
-      final Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
-      final Logger blockedLogsLogger) {
-    this.senderTaskFactory = senderTaskFactory;
-    this.blockedItemsPerBatch = blockedItemsPerBatch;
-    this.validationConfig = validationConfig;
-    this.blockedPointsLogger = blockedPointsLogger;
-    this.blockedHistogramsLogger = blockedHistogramsLogger;
-    this.blockedSpansLogger = blockedSpansLogger;
-    this.histogramRecompressor = histogramRecompressor;
-    this.metricBloomFilterSampler = metricBloomFilterSampler;
-    this.blockedLogsLogger = blockedLogsLogger;
-    this.entityPropsFactoryMap = entityPropsFactoryMap;
+  public static final class Builder {
+    private SenderTaskFactory senderTaskFactory;
+    private int blockedItemsPerBatch;
+    private ValidationConfiguration validationConfig;
+    private Logger blockedPointsLogger;
+    private Logger blockedHistogramsLogger;
+    private Logger blockedSpansLogger;
+    private Logger blockedLogsLogger;
+    private Function<Histogram, Histogram> histogramRecompressor;
+    private MetricBloomFilterSampler metricBloomFilterSampler;
+    private Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
+    private String defaultTenant;
+
+    private Builder() {}
+
+    public Builder senderTaskFactory(@Nonnull SenderTaskFactory value) { this.senderTaskFactory = value; return this; }
+    public Builder blockedItemsPerBatch(int value) { this.blockedItemsPerBatch = value; return this; }
+    public Builder validationConfig(@Nonnull ValidationConfiguration value) { this.validationConfig = value; return this; }
+    public Builder blockedPointsLogger(@Nullable Logger value) { this.blockedPointsLogger = value; return this; }
+    public Builder blockedHistogramsLogger(@Nullable Logger value) { this.blockedHistogramsLogger = value; return this; }
+    public Builder blockedSpansLogger(@Nullable Logger value) { this.blockedSpansLogger = value; return this; }
+    public Builder blockedLogsLogger(@Nullable Logger value) { this.blockedLogsLogger = value; return this; }
+    public Builder histogramRecompressor(@Nullable Function<Histogram, Histogram> value) { this.histogramRecompressor = value; return this; }
+    public Builder metricBloomFilterSampler(@Nullable MetricBloomFilterSampler value) { this.metricBloomFilterSampler = value; return this; }
+    public Builder entityPropsFactoryMap(@Nonnull Map<String, EntityPropertiesFactory> value) { this.entityPropsFactoryMap = value; return this; }
+    public Builder defaultTenant(@Nullable String value) { this.defaultTenant = value; return this; }
+
+    public ReportableEntityHandlerFactoryImpl build() {
+      return new ReportableEntityHandlerFactoryImpl(this);
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -144,7 +177,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           blockedPointsLogger,
                           VALID_POINTS_LOGGER,
                           null,
-                          metricBloomFilterSampler);
+                          metricBloomFilterSampler,
+                          defaultTenant);
                     case HISTOGRAM:
                       return new ReportPointHandlerImpl(
                           handlerKey,
@@ -156,7 +190,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           blockedHistogramsLogger,
                           VALID_HISTOGRAMS_LOGGER,
                           histogramRecompressor,
-                          null);
+                          null,
+                          defaultTenant);
                     case SOURCE_TAG:
                       return new ReportSourceTagHandlerImpl(
                           handlerKey,
@@ -181,7 +216,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           Utils.lazySupplier(
                               () ->
                                   getHandler(
-                                      HandlerKey.of(TRACE_SPAN_LOGS, handlerKey.getHandle()))));
+                                      HandlerKey.of(TRACE_SPAN_LOGS, handlerKey.getHandle()))),
+                          defaultTenant);
                     case TRACE_SPAN_LOGS:
                       return new SpanLogsHandlerImpl(
                           handlerKey,
@@ -207,7 +243,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
                           true,
                           receivedRateSink,
                           blockedLogsLogger,
-                          VALID_LOGS_LOGGER);
+                          VALID_LOGS_LOGGER,
+                          defaultTenant);
                     default:
                       throw new IllegalArgumentException(
                           "Unexpected entity type "

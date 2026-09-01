@@ -5,12 +5,14 @@ import static com.wavefront.data.Validation.validateSpan;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +42,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler;
 
   /**
-   * @param handlerKey pipeline hanler key.
+   * @param handlerKey pipeline handler key.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
    *     the main log file.
    * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
@@ -62,6 +64,21 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       @Nullable final Logger validItemsLogger,
       @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
       @Nonnull final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler) {
+    this(handlerKey, blockedItemsPerBatch, senderTaskMap, validationConfig, receivedRateSink,
+        blockedItemLogger, validItemsLogger, dropSpansDelayedMinutes, spanLogsHandler, null);
+  }
+
+  SpanHandlerImpl(
+      final HandlerKey handlerKey,
+      final int blockedItemsPerBatch,
+      final Map<String, Collection<SenderTask<String>>> senderTaskMap,
+      @Nonnull final ValidationConfiguration validationConfig,
+      @Nullable final BiConsumer<String, Long> receivedRateSink,
+      @Nullable final Logger blockedItemLogger,
+      @Nullable final Logger validItemsLogger,
+      @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
+      @Nonnull final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler,
+      @Nullable final String defaultTenant) {
     super(
         handlerKey,
         blockedItemsPerBatch,
@@ -69,7 +86,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
         senderTaskMap,
         true,
         receivedRateSink,
-        blockedItemLogger);
+        blockedItemLogger,
+        defaultTenant);
     super.initializeCounters();
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
@@ -106,43 +124,69 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
         && AnnotationUtils.getValue(span.getAnnotations(), SPAN_SAMPLING_POLICY_TAG) != null) {
       this.policySampledSpanCounter.inc();
     }
-    final String strSpan = serializer.apply(span);
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strSpan);
-    getReceivedCounter().inc();
-    // check if span annotations contains the tag key indicating this span should be multicasted
-    if (isMulticastingActive
-        && span.getAnnotations() != null
-        && AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY) != null) {
-      String[] multicastingTenantNames =
-          AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY)
-              .trim()
-              .split(",");
-      removeSpanAnnotation(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY);
-      for (String multicastingTenantName : multicastingTenantNames) {
-        // if the tenant name indicated in span tag is not configured, just ignore
-        if (getTask(multicastingTenantName) != null) {
-          maxSpanDelay = dropSpansDelayedMinutes.apply(multicastingTenantName);
+
+    // Forward routing (new): check for a preprocessor-injected forward annotation first.
+    // Strip the annotation before serializing; the serialized form carries all port-level
+    // (defaultTenant) transforms. Per-tenant registry rules are intentionally skipped so that
+    // the forward action is a pure routing mechanism.
+    String forwardAnnotation = AnnotationUtils.getValue(span.getAnnotations(), FORWARD_ROUTING_KEY);
+    if (forwardAnnotation != null) {
+      removeSpanAnnotation(span.getAnnotations(), FORWARD_ROUTING_KEY);
+    }
+    final String serializedSpan = serializer.apply(span);
+
+    if (forwardAnnotation != null) {
+      String[] rawTenantNames = forwardAnnotation.split(",");
+      LinkedHashSet<String> uniqueTenantNames = new LinkedHashSet<>(rawTenantNames.length);
+      for (String rawName : rawTenantNames) uniqueTenantNames.add(rawName.trim());
+      for (String tenantName : uniqueTenantNames) {
+        String resolvedTenantName = resolveTenantName(tenantName);
+        SenderTask<String> senderTask = getTask(resolvedTenantName);
+        if (senderTask != null) {
+          maxSpanDelay = dropSpansDelayedMinutes.apply(resolvedTenantName);
           if (maxSpanDelay != null
               && span.getStartMillis() + span.getDuration()
                   < Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
-            // just ignore, reduce unnecessary cost on multicasting cluster
             continue;
           }
-          getTask(multicastingTenantName).add(serializer.apply(span));
+          senderTask.add(serializedSpan);
+        }
+      }
+    } else {
+      // No forward routing annotation: use legacy routing.
+      getTask(APIContainer.CENTRAL_TENANT_NAME).add(serializedSpan);
+      getReceivedCounter().inc();
+      // Legacy multicast: fan out to additional tenants via MULTICASTING_TENANT_TAG_KEY.
+      if (isMulticastingActive
+          && span.getAnnotations() != null
+          && AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY) != null) {
+        String[] multicastingTenantNames =
+            AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY)
+                .trim()
+                .split(",");
+        removeSpanAnnotation(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY);
+        for (String multicastingTenantName : multicastingTenantNames) {
+          if (getTask(multicastingTenantName) != null) {
+            maxSpanDelay = dropSpansDelayedMinutes.apply(multicastingTenantName);
+            if (maxSpanDelay != null
+                && span.getStartMillis() + span.getDuration()
+                    < Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
+              continue;
+            }
+            getTask(multicastingTenantName).add(serializer.apply(span));
+          }
         }
       }
     }
-    if (validItemsLogger != null) validItemsLogger.info(strSpan);
+    if (validItemsLogger != null) validItemsLogger.info(serializedSpan);
   }
 
-  // MONIT-26010: this is a temp helper function to remove MULTICASTING_TENANT_TAG
-  // TODO: refactor this into AnnotationUtils or figure out a better removing implementation
+  // MONIT-26010: helper to remove a span annotation by key
   private static void removeSpanAnnotation(List<Annotation> annotations, String key) {
     Annotation toRemove = null;
     for (Annotation annotation : annotations) {
       if (annotation.getKey().equals(key)) {
         toRemove = annotation;
-        // we should have only one matching
         break;
       }
     }

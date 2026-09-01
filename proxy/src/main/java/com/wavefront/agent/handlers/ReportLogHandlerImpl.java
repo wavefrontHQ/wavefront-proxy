@@ -7,7 +7,9 @@ import static com.wavefront.data.Validation.validateLog;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.api.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.dto.Log;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.BurstRateTrackingCounter;
@@ -16,6 +18,8 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -39,6 +43,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final ValidationConfiguration validationConfig;
   private final MetricsRegistry registry;
   private DataFormat format;
+
   /**
    * @param senderTaskMap sender tasks.
    * @param handlerKey pipeline key.
@@ -59,6 +64,20 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedLogsLogger,
       @Nullable final Logger validLogsLogger) {
+    this(handlerKey, blockedItemsPerBatch, senderTaskMap, validationConfig, setupMetrics,
+        receivedRateSink, blockedLogsLogger, validLogsLogger, null);
+  }
+
+  public ReportLogHandlerImpl(
+      final HandlerKey handlerKey,
+      final int blockedItemsPerBatch,
+      @Nullable final Map<String, Collection<SenderTask<Log>>> senderTaskMap,
+      @Nonnull final ValidationConfiguration validationConfig,
+      final boolean setupMetrics,
+      @Nullable final BiConsumer<String, Long> receivedRateSink,
+      @Nullable final Logger blockedLogsLogger,
+      @Nullable final Logger validLogsLogger,
+      @Nullable final String defaultTenant) {
     super(
         handlerKey,
         blockedItemsPerBatch,
@@ -66,7 +85,8 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         senderTaskMap,
         true,
         receivedRateSink,
-        blockedLogsLogger);
+        blockedLogsLogger,
+        defaultTenant);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
     registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
@@ -117,15 +137,46 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     getOrCreateLogsHistogramFromRegistry(registry, format, metricPrefix + ".received", "lag")
         .update(Clock.now() - log.getTimestamp());
 
-    Log logObj = new Log(log);
+    // Strip forward routing annotation before creating the Log DTO. The canonical DTO carries all
+    // port-level (defaultTenant) transformations; per-tenant registry rules are intentionally
+    // skipped so the forward action is purely a routing mechanism.
+    String forwardAnnotation = AnnotationUtils.getValue(log.getAnnotations(), FORWARD_ROUTING_KEY);
+    if (forwardAnnotation != null) {
+      removeLogAnnotation(log.getAnnotations(), FORWARD_ROUTING_KEY);
+    }
+    // Log is immutable, so the same DTO instance can be shared across all tenant sender tasks.
+    Log canonicalLogDto = new Log(log);
     getOrCreateLogsCounterFromRegistry(registry, format, metricPrefix + ".received", "bytes")
-        .inc(logObj.getDataSize());
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(logObj);
+        .inc(canonicalLogDto.getDataSize());
+
+    if (forwardAnnotation != null) {
+      String[] rawTenantNames = forwardAnnotation.split(",");
+      LinkedHashSet<String> uniqueTenantNames = new LinkedHashSet<>(rawTenantNames.length);
+      for (String rawName : rawTenantNames) uniqueTenantNames.add(rawName.trim());
+      for (String tenantName : uniqueTenantNames) {
+        SenderTask<Log> senderTask = getTask(resolveTenantName(tenantName));
+        if (senderTask != null) senderTask.add(canonicalLogDto);
+      }
+    } else {
+      SenderTask<Log> centralTask = getTask(APIContainer.CENTRAL_TENANT_NAME);
+      if (centralTask != null) centralTask.add(canonicalLogDto);
+    }
     getReceivedCounter().inc();
     attemptedCounter.inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));
     }
+  }
+
+  private static void removeLogAnnotation(List<Annotation> annotations, String key) {
+    Annotation toRemove = null;
+    for (Annotation annotation : annotations) {
+      if (annotation.getKey().equals(key)) {
+        toRemove = annotation;
+        break;
+      }
+    }
+    annotations.remove(toRemove);
   }
 
   @Override
