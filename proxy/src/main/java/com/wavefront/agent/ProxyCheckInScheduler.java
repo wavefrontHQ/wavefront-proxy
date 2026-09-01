@@ -337,7 +337,7 @@ public class ProxyCheckInScheduler {
               serverUrl.endsWith("/api")
                   ? "Current setting: " + multicastingTenantProxyConfig.getWFServer()
                   : "Server endpoint URLs normally end with '/api/'. Current setting: "
-                      + multicastingTenantProxyConfig.getBearerToken();
+                      + multicastingTenantProxyConfig.getWFServer();
           checkinError(
               "HTTP "
                   + ex.getResponse().getStatus()
