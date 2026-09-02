@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
@@ -13,7 +14,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -41,14 +49,42 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>> implements Task
   static final byte FORMAT_LZ4 = 5;
   static final byte[] PREFIX = {'W', 'F', 6, 4};
 
-  // DataSubmissionTask carries its own @JsonTypeInfo, so default typing is unnecessary; only the
-  // annotation-driven type resolution needs a validator, restricted to its known subtypes so a
-  // crafted "__CLASS" value from a queue file/SQS message can't trigger a gadget-chain deserialize.
-  private static final PolymorphicTypeValidator TASK_TYPE_VALIDATOR =
-      BasicPolymorphicTypeValidator.builder().allowIfSubType(DataSubmissionTask.class).build();
+  // Concrete JDK collection classes Jackson's default typing may instantiate for List/Map/Set-
+  // typed @JsonProperty fields (payload, events, hosts, tags, annotations, dimensions, ...) -
+  // those declare interface types, so Jackson tags each with its concrete runtime class via a
+  // WRAPPER_ARRAY, and only a tag on this list will deserialize. Deliberately limited to plain
+  // hash/insertion-order containers - no sorted collections (TreeMap/TreeSet/PriorityQueue),
+  // which invoke a Comparator during population, and nothing outside the JDK - so a crafted
+  // "__CLASS"/type tag from a queue file or SQS message can't name an arbitrary gadget-chain
+  // class. This is the single source of truth for the allowlist: RetryTaskConverterFieldCoverage
+  // Test reads this same set (rather than a separately-maintained copy) and fails the build if a
+  // new @JsonProperty field's concrete type isn't on it.
+  @VisibleForTesting
+  static final Set<Class<?>> ALLOWED_COLLECTION_TYPES =
+      Collections.unmodifiableSet(
+          new LinkedHashSet<>(
+              Arrays.asList(
+                  ArrayList.class,
+                  HashMap.class,
+                  LinkedHashMap.class,
+                  HashSet.class,
+                  LinkedHashSet.class)));
+
+  // DataSubmissionTask carries its own @JsonTypeInfo for the envelope; ALLOWED_COLLECTION_TYPES
+  // above covers its nested List/Map/Set-typed fields.
+  private static final PolymorphicTypeValidator TASK_TYPE_VALIDATOR = buildTypeValidator();
+
+  private static PolymorphicTypeValidator buildTypeValidator() {
+    BasicPolymorphicTypeValidator.Builder builder =
+        BasicPolymorphicTypeValidator.builder().allowIfSubType(DataSubmissionTask.class);
+    for (Class<?> allowed : ALLOWED_COLLECTION_TYPES) {
+      builder.allowIfSubType(allowed);
+    }
+    return builder.build();
+  }
 
   private final ObjectMapper objectMapper =
-      JsonMapper.builder().polymorphicTypeValidator(TASK_TYPE_VALIDATOR).build();
+      JsonMapper.builder().activateDefaultTyping(TASK_TYPE_VALIDATOR).build();
 
   private final CompressionType compressionType;
   private final Counter errorCounter;
